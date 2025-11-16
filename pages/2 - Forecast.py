@@ -205,6 +205,41 @@ def load_volume_data(ano_selecionado_param):
     except Exception:
         return None
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_volume_historico_data():
+    """Carrega os dados de volume histórico consolidado do arquivo parquet"""
+    try:
+        # Buscar arquivo na pasta dados/historico_consolidado
+        caminho_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        caminho_historico = os.path.join(caminho_base, "dados", "historico_consolidado", "df_vol_historico.parquet")
+        
+        if os.path.exists(caminho_historico):
+            df = pd.read_parquet(caminho_historico)
+            
+            # Otimizar tipos de dados
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    try:
+                        unique_ratio = df[col].nunique() / len(df)
+                        if unique_ratio < 0.5:
+                            df[col] = df[col].astype('category')
+                    except:
+                        pass
+            
+            # Converter floats para tipos menores
+            for col in df.select_dtypes(include=['float64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            
+            # Converter ints para tipos menores
+            for col in df.select_dtypes(include=['int64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            
+            return df
+        else:
+            return None
+    except Exception:
+        return None
+
 
 # Carregar dados com o ano selecionado
 try:
@@ -382,6 +417,276 @@ if 'Total' in df_filtrado.columns:
 # Área principal - Forecast
 st.markdown("## 📈 Forecast - Previsão de Custo Total")
 
+# ====================================================================
+# 🔮 CONFIGURAÇÃO DO FORECAST - PRIMEIRO (antes dos sliders)
+# ====================================================================
+st.markdown("### 🔮 Configuração do Forecast")
+
+# Lista de meses do ano (necessária para a configuração)
+meses_ano = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+# Verificar se temos dados com múltiplos anos
+tem_anos = 'Ano' in df_filtrado.columns and df_filtrado['Ano'].nunique() > 1
+
+# Determinar o ano dos dados
+if tem_anos and 'Ano' in df_filtrado.columns:
+    anos_disponiveis = sorted(df_filtrado['Ano'].dropna().unique())
+    ano_maximo = int(df_filtrado['Ano'].max())
+else:
+    from datetime import datetime
+    anos_disponiveis = [datetime.now().year]
+    ano_maximo = datetime.now().year
+
+# Função auxiliar para ordenar períodos (definir antes de usar)
+def ordenar_periodo_para_select(periodo_str):
+    """Ordena períodos para o selectbox"""
+    periodo_str = str(periodo_str).strip()
+    # Se tiver ano (ex: "Novembro 2025")
+    if ' ' in periodo_str:
+        partes = periodo_str.split(' ', 1)
+        mes_nome = partes[0]
+        ano = int(partes[1]) if partes[1].isdigit() else 0
+        # Normalizar nome do mês (capitalizar)
+        mes_nome_capitalizado = mes_nome.capitalize()
+        mes_idx = meses_ano.index(mes_nome_capitalizado) if mes_nome_capitalizado in meses_ano else 0
+        return (ano, mes_idx)
+    else:
+        # Apenas mês - normalizar (capitalizar)
+        mes_nome_capitalizado = periodo_str.capitalize()
+        mes_idx = meses_ano.index(mes_nome_capitalizado) if mes_nome_capitalizado in meses_ano else 0
+        return (0, mes_idx)
+
+# Criar lista de períodos disponíveis com ano (baseado nos dados reais)
+periodos_disponiveis = []
+if 'Período' in df_filtrado.columns:
+    # Pegar períodos únicos dos dados
+    periodos_unicos = df_filtrado['Período'].dropna().unique()
+    
+    # Verificar se os períodos já têm ano ou não
+    periodos_com_ano = any(' ' in str(p) and str(p).split(' ', 1)[1].isdigit() for p in periodos_unicos)
+    
+    # Se não tiver ano nos períodos mas temos múltiplos anos, adicionar ano
+    if not periodos_com_ano and tem_anos:
+        # Criar períodos com ano baseado no ano dos dados
+        periodos_com_ano_lista = []
+        for periodo in periodos_unicos:
+            periodo_str = str(periodo).strip()
+            # Capitalizar primeira letra
+            periodo_capitalizado = periodo_str.capitalize() if periodo_str else periodo_str
+            # Adicionar ano máximo (ano dos dados)
+            periodo_com_ano = f"{periodo_capitalizado} {ano_maximo}"
+            periodos_com_ano_lista.append(periodo_com_ano)
+        periodos_disponiveis = sorted(periodos_com_ano_lista, key=lambda x: ordenar_periodo_para_select(x))
+    else:
+        # Se já tem ano ou não tem múltiplos anos, usar como está
+        periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
+else:
+    # Fallback: criar períodos baseado nos meses e anos disponíveis
+    for ano in anos_disponiveis:
+        for mes in meses_ano:
+            if tem_anos:
+                periodo = f"{mes} {ano}"
+            else:
+                periodo = mes
+            periodos_disponiveis.append(periodo)
+
+# Layout em 2 colunas para os controles principais
+col_config1, col_config2 = st.columns(2)
+
+with col_config1:
+    # 1. Selecionar último período com dados reais (com ano)
+    from datetime import datetime
+    mes_atual_sistema = datetime.now().month
+    mes_atual_nome = meses_ano[mes_atual_sistema - 1] if mes_atual_sistema <= 12 else meses_ano[11]
+    
+    # Determinar período padrão
+    if tem_anos:
+        periodo_padrao = f"{mes_atual_nome} {ano_maximo}"
+        # Se o período padrão não estiver na lista, usar o último disponível
+        if periodo_padrao not in periodos_disponiveis and periodos_disponiveis:
+            periodo_padrao = periodos_disponiveis[-1]
+    else:
+        periodo_padrao = mes_atual_nome
+        if periodo_padrao not in periodos_disponiveis and periodos_disponiveis:
+            periodo_padrao = periodos_disponiveis[-1]
+    
+    # Encontrar índice do período padrão
+    try:
+        indice_padrao = periodos_disponiveis.index(periodo_padrao)
+    except ValueError:
+        indice_padrao = len(periodos_disponiveis) - 1 if periodos_disponiveis else 0
+    
+    ultimo_periodo_dados = st.selectbox(
+        "📅 Último período com dados reais:",
+        options=periodos_disponiveis,
+        index=indice_padrao if indice_padrao < len(periodos_disponiveis) else 0,
+        help="Selecione o último período (mês e ano) que possui dados históricos reais"
+    )
+    
+    # Extrair mês do período selecionado
+    if ' ' in str(ultimo_periodo_dados):
+        ultimo_mes_dados = str(ultimo_periodo_dados).split(' ', 1)[0]
+    else:
+        ultimo_mes_dados = str(ultimo_periodo_dados)
+    
+    # Normalizar para capitalizar (ex: "setembro" -> "Setembro")
+    ultimo_mes_dados = ultimo_mes_dados.capitalize()
+    
+    indice_ultimo_mes = meses_ano.index(ultimo_mes_dados) if ultimo_mes_dados in meses_ano else 0
+    
+    # 2. Quantos meses prever
+    meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
+    if meses_disponiveis_para_prever <= 0:
+        meses_disponiveis_para_prever = 12  # Se já passou dezembro, permitir prever o próximo ano
+    
+    num_meses_prever = st.number_input(
+        "🔮 Quantos meses prever:",
+        min_value=1,
+        max_value=12,
+        value=min(meses_disponiveis_para_prever, 6),
+        step=1,
+        help="Número de meses futuros para prever"
+    )
+
+with col_config2:
+    # 3. Quantos meses usar para calcular a média
+    meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
+    
+    num_meses_media = st.number_input(
+        "📈 Quantos meses usar para a média:",
+        min_value=1,
+        max_value=len(meses_historicos_disponiveis) if meses_historicos_disponiveis else 12,
+        value=min(len(meses_historicos_disponiveis), 6) if meses_historicos_disponiveis else 6,
+        step=1,
+        help="Número de meses históricos para calcular a média"
+    )
+    
+    # 4. Selecionar quais meses excluir do cálculo da média
+    #    (exibir com ano para evitar confusão em cenários multi-ano)
+    if meses_historicos_disponiveis:
+        # Determinar ano de referência a partir do último período selecionado
+        ano_referencia = None
+        if ' ' in str(ultimo_periodo_dados):
+            partes_periodo = str(ultimo_periodo_dados).split(' ', 1)
+            if len(partes_periodo) > 1 and partes_periodo[1].isdigit():
+                ano_referencia = partes_periodo[1]
+        if ano_referencia is None:
+            # Fallback: usar ano_maximo (ano dos dados carregados)
+            ano_referencia = str(ano_maximo) if 'ano_maximo' in locals() else str(datetime.now().year)
+
+        # Criar opções com ano para o multiselect
+        opcoes_excluir = [f"{mes} {ano_referencia}" for mes in meses_historicos_disponiveis]
+
+        selecao_excluir = st.multiselect(
+            "🚫 Excluir meses do cálculo da média:",
+            options=opcoes_excluir,
+            default=[],
+            help="Selecione meses (com ano) que foram fora da curva e devem ser excluídos do cálculo da média"
+        )
+
+        # Converter seleção de "Mês Ano" de volta apenas para o nome do mês
+        meses_excluir_media = []
+        for opcao in selecao_excluir:
+            opcao_str = str(opcao).strip()
+            mes_nome = opcao_str.split(' ', 1)[0] if ' ' in opcao_str else opcao_str
+            meses_excluir_media.append(mes_nome)
+    else:
+        meses_excluir_media = []
+
+# Extrair ano do último período selecionado
+if ' ' in str(ultimo_periodo_dados):
+    ultimo_ano_dados = int(str(ultimo_periodo_dados).split(' ', 1)[1])
+else:
+    # Se não tiver ano no período, usar o ano máximo dos dados
+    if tem_anos and 'Ano' in df_filtrado.columns:
+        ultimo_ano_dados = int(df_filtrado['Ano'].max())
+    else:
+        ultimo_ano_dados = datetime.now().year
+
+# Calcular quais períodos serão previstos (com ano)
+periodos_restantes = []
+meses_restantes = []
+
+for i in range(num_meses_prever):
+    indice_mes = indice_ultimo_mes + 1 + i
+    ano_futuro = ultimo_ano_dados
+    
+    # Se passar de dezembro, avançar para o próximo ano
+    if indice_mes >= 12:
+        ano_futuro += (indice_mes // 12)
+        indice_mes = indice_mes % 12
+    
+    mes_nome = meses_ano[indice_mes]
+    meses_restantes.append(mes_nome)
+    
+    # Criar período com ano se necessário
+    if tem_anos:
+        periodo_futuro = f"{mes_nome} {ano_futuro}"
+    else:
+        periodo_futuro = mes_nome
+    
+    periodos_restantes.append(periodo_futuro)
+
+# Calcular quais períodos serão usados para a média (com ano)
+periodos_para_media = []
+meses_para_media = []
+
+if meses_historicos_disponiveis:
+    meses_considerados = meses_historicos_disponiveis.copy()
+    
+    # Remover meses excluídos
+    for mes_excluir in meses_excluir_media:
+        if mes_excluir in meses_considerados:
+            meses_considerados.remove(mes_excluir)
+    
+    # Pegar os últimos N meses (após excluir)
+    if meses_considerados:
+        meses_para_media = meses_considerados[-num_meses_media:] if len(meses_considerados) >= num_meses_media else meses_considerados
+        
+        # Criar períodos com ano se necessário
+        if tem_anos:
+            for mes in meses_para_media:
+                periodo_com_ano = f"{mes} {ultimo_ano_dados}"
+                periodos_para_media.append(periodo_com_ano)
+        else:
+            periodos_para_media = meses_para_media.copy()
+    else:
+        meses_para_media = []
+        periodos_para_media = []
+else:
+    meses_para_media = []
+    periodos_para_media = []
+
+# Mostrar resumo da configuração
+col_resumo1, col_resumo2 = st.columns(2)
+with col_resumo1:
+    if periodos_restantes:
+        st.success(f"📊 **Períodos a prever:** {', '.join(periodos_restantes)}")
+    else:
+        st.warning("⚠️ Nenhum período selecionado para prever")
+
+with col_resumo2:
+    if periodos_para_media:
+        st.success(f"✅ **Períodos para média:** {', '.join(periodos_para_media)} ({len(periodos_para_media)} períodos)")
+    else:
+        st.error("❌ Nenhum período disponível para calcular a média!")
+
+if meses_excluir_media:
+    st.info(f"ℹ️ **Meses excluídos da média:** {', '.join(meses_excluir_media)}")
+
+st.markdown("---")
+
+# Inicializar variável para armazenar configurações temporárias de sensibilidade e inflação
+# (será preenchida nos blocos condicionais abaixo)
+config_sensibilidade_temp = {
+    'sensibilidade_fixo': None,
+    'sensibilidade_variavel': None,
+    'inflacao_global': None,
+    'sensibilidades_type06': None,
+    'inflacao_type06': None
+}
+
 # Sliders de sensibilidade
 st.markdown("### 🎚️ Sensibilidade à Variação de Volume")
 
@@ -455,28 +760,26 @@ if 'Type 06' in df_filtrado.columns:
                 st.info(f"📊 Inflação: **{inflacao_global_temp:.2f}%**")
                 st.caption("💡 Aplicada uma vez no 1º mês e mantida nos demais")
             
-            # Botão para aplicar
-            st.markdown("---")
-            col_aplicar1, col_aplicar2, col_aplicar3 = st.columns([1, 2, 1])
-            with col_aplicar2:
-                aplicar_global = st.button(
-                    "✅ Aplicar Configurações (Sensibilidade + Inflação)",
-                    use_container_width=True,
-                    type="primary",
-                    key="aplicar_global"
-                )
+            # Armazenar valores temporários para aplicar depois no botão unificado
+            config_sensibilidade_temp['sensibilidade_fixo'] = sensibilidade_fixo_temp
+            config_sensibilidade_temp['sensibilidade_variavel'] = sensibilidade_variavel_temp
+            config_sensibilidade_temp['inflacao_global'] = inflacao_global_temp
             
-            if aplicar_global:
-                st.session_state.sensibilidade_fixo_aplicada = sensibilidade_fixo_temp
-                st.session_state.sensibilidade_variavel_aplicada = sensibilidade_variavel_temp
-                st.session_state.inflacao_global_aplicada = inflacao_global_temp
-                st.success("✅ Configurações aplicadas com sucesso!")
-                st.rerun()
+            # Usar valores aplicados (se existirem) ou temporários
+            if 'sensibilidade_fixo_aplicada' in st.session_state:
+                sensibilidade_fixo = st.session_state.sensibilidade_fixo_aplicada
+            else:
+                sensibilidade_fixo = sensibilidade_fixo_temp
             
-            # Usar valores aplicados
-            sensibilidade_fixo = st.session_state.sensibilidade_fixo_aplicada
-            sensibilidade_variavel = st.session_state.sensibilidade_variavel_aplicada
-            inflacao_global = st.session_state.inflacao_global_aplicada
+            if 'sensibilidade_variavel_aplicada' in st.session_state:
+                sensibilidade_variavel = st.session_state.sensibilidade_variavel_aplicada
+            else:
+                sensibilidade_variavel = sensibilidade_variavel_temp
+            
+            if 'inflacao_global_aplicada' in st.session_state:
+                inflacao_global = st.session_state.inflacao_global_aplicada
+            else:
+                inflacao_global = inflacao_global_temp
             
             # Criar dicionário de sensibilidades (None = usar global)
             sensibilidades_type06 = None
@@ -685,33 +988,18 @@ if 'Type 06' in df_filtrado.columns:
             if 'inflacao_aplicada' not in st.session_state:
                 st.session_state.inflacao_aplicada = None
             
-            # Botão de aplicar
-            col_aplicar1, col_aplicar2, col_aplicar3 = st.columns([1, 2, 1])
-            with col_aplicar2:
-                aplicar_config = st.button(
-                    "✅ Aplicar Configurações (Sensibilidade + Inflação)",
-                    use_container_width=True,
-                    type="primary",
-                    help="Clique para aplicar as configurações de sensibilidade e inflação ao forecast"
-                )
+            # Armazenar valores temporários para aplicar depois no botão unificado
+            config_sensibilidade_temp['sensibilidades_type06'] = sensibilidades_type06.copy() if sensibilidades_type06 else None
+            config_sensibilidade_temp['inflacao_type06'] = inflacao_type06.copy() if inflacao_type06 else None
             
-            # Se clicar em aplicar, salvar as configurações
-            if aplicar_config:
-                st.session_state.sensibilidades_aplicadas = sensibilidades_type06.copy()
-                st.session_state.inflacao_aplicada = inflacao_type06.copy()
-                st.success("✅ Configurações aplicadas com sucesso! Recalculando forecast...")
-                st.rerun()
-            
-            # Usar configurações aplicadas ou None
+            # Usar configurações aplicadas (se existirem) ou temporárias
             if st.session_state.sensibilidades_aplicadas is not None:
                 sensibilidades_type06 = st.session_state.sensibilidades_aplicadas
                 inflacao_type06 = st.session_state.inflacao_aplicada
-                st.info(f"ℹ️ Usando configurações aplicadas. Ajuste os valores e clique em 'Aplicar' para atualizar.")
             else:
-                st.warning("⚠️ Configure os valores acima e clique em 'Aplicar Configurações' para calcular o forecast.")
-                # Não calcular forecast até aplicar
-                sensibilidades_type06 = None
-                inflacao_type06 = None
+                # Usar valores temporários (ainda não aplicados)
+                # sensibilidades_type06 e inflacao_type06 já contêm os valores temporários
+                pass
             
             # Valores globais para compatibilidade (não serão usados)
             sensibilidade_fixo = 0.0
@@ -745,10 +1033,124 @@ else:
 
 st.markdown("---")
 
+# ====================================================================
+# 🎯 BOTÃO UNIFICADO PARA APLICAR TODAS AS CONFIGURAÇÕES
+# ====================================================================
+# Inicializar session_state para configurações do forecast
+if 'config_forecast_aplicada' not in st.session_state:
+    st.session_state.config_forecast_aplicada = {
+        'ultimo_periodo_dados': None,
+        'num_meses_prever': None,
+        'num_meses_media': None,
+        'meses_excluir_media': None,
+        'periodos_restantes': None,
+        'periodos_para_media': None,
+        'ultimo_ano_dados': None
+    }
+
+# Armazenar configurações temporárias do forecast
+config_forecast_temp = {
+    'ultimo_periodo_dados': ultimo_periodo_dados,
+    'num_meses_prever': num_meses_prever,
+    'num_meses_media': num_meses_media,
+    'meses_excluir_media': meses_excluir_media,
+    'periodos_restantes': periodos_restantes,
+    'periodos_para_media': periodos_para_media,
+    'ultimo_ano_dados': ultimo_ano_dados
+}
+
+# Botão unificado para aplicar todas as configurações
+col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+with col_btn2:
+    aplicar_config_forecast = st.button(
+        "✅ Aplicar Configurações do Forecast",
+        use_container_width=True,
+        type="primary",
+        help="Clique para aplicar todas as configurações (períodos, sensibilidade e inflação) e atualizar o forecast"
+    )
+
+# Se clicar em aplicar, salvar todas as configurações
+if aplicar_config_forecast:
+    # Salvar configurações do forecast
+    st.session_state.config_forecast_aplicada = config_forecast_temp.copy()
+    
+    # Salvar configurações de sensibilidade e inflação
+    # Modo Global
+    if config_sensibilidade_temp['sensibilidade_fixo'] is not None:
+        st.session_state.sensibilidade_fixo_aplicada = config_sensibilidade_temp['sensibilidade_fixo']
+    if config_sensibilidade_temp['sensibilidade_variavel'] is not None:
+        st.session_state.sensibilidade_variavel_aplicada = config_sensibilidade_temp['sensibilidade_variavel']
+    if config_sensibilidade_temp['inflacao_global'] is not None:
+        st.session_state.inflacao_global_aplicada = config_sensibilidade_temp['inflacao_global']
+    
+    # Modo Detalhado
+    if config_sensibilidade_temp['sensibilidades_type06'] is not None:
+        st.session_state.sensibilidades_aplicadas = config_sensibilidade_temp['sensibilidades_type06']
+    if config_sensibilidade_temp['inflacao_type06'] is not None:
+        st.session_state.inflacao_aplicada = config_sensibilidade_temp['inflacao_type06']
+    
+    # Limpar cache das funções de forecast
+    try:
+        calcular_medias_forecast.clear()
+        calcular_volumes_cpu.clear()
+        calcular_forecast_completo.clear()
+        processar_tabela_forecast.clear()
+    except:
+        pass
+    
+    st.success("✅ Configurações aplicadas com sucesso! Recalculando forecast...")
+    st.rerun()
+
+# Usar configurações aplicadas (se existirem) ou temporárias
+if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None:
+    # Usar configurações aplicadas
+    ultimo_periodo_dados = st.session_state.config_forecast_aplicada['ultimo_periodo_dados']
+    num_meses_prever = st.session_state.config_forecast_aplicada['num_meses_prever']
+    num_meses_media = st.session_state.config_forecast_aplicada['num_meses_media']
+    meses_excluir_media = st.session_state.config_forecast_aplicada['meses_excluir_media']
+    periodos_restantes = st.session_state.config_forecast_aplicada['periodos_restantes']
+    periodos_para_media = st.session_state.config_forecast_aplicada['periodos_para_media']
+    ultimo_ano_dados = st.session_state.config_forecast_aplicada['ultimo_ano_dados']
+    
+    # Recalcular índices e meses baseados nas configurações aplicadas
+    if ' ' in str(ultimo_periodo_dados):
+        ultimo_mes_dados = str(ultimo_periodo_dados).split(' ', 1)[0]
+    else:
+        ultimo_mes_dados = str(ultimo_periodo_dados)
+    ultimo_mes_dados = ultimo_mes_dados.capitalize()
+    indice_ultimo_mes = meses_ano.index(ultimo_mes_dados) if ultimo_mes_dados in meses_ano else 0
+else:
+    # Primeira vez - usar configurações temporárias mas não calcular ainda
+    st.info("ℹ️ Configure os parâmetros acima e clique em 'Aplicar Configurações do Forecast' para calcular o forecast.")
+    st.stop()
+
+st.markdown("---")
+
 # Carregar dados de volume
 df_vol = load_volume_data(ano_selecionado)
 
-if df_vol is None:
+# Carregar dados de volume histórico (prioritário para meses futuros)
+df_vol_historico = load_volume_historico_data()
+
+# Combinar os dados, priorizando o histórico
+if df_vol_historico is not None and not df_vol_historico.empty:
+    if df_vol is not None and not df_vol.empty:
+        # Combinar: histórico tem prioridade, mas manter dados regulares que não estão no histórico
+        # Primeiro, identificar períodos que estão no histórico
+        if 'Período' in df_vol_historico.columns and 'Período' in df_vol.columns:
+            periodos_historico = df_vol_historico['Período'].unique()
+            # Filtrar df_vol para remover períodos que estão no histórico
+            df_vol_filtrado = df_vol[~df_vol['Período'].isin(periodos_historico)]
+            # Combinar: histórico primeiro, depois dados regulares restantes
+            df_vol = pd.concat([df_vol_historico, df_vol_filtrado], ignore_index=True)
+        else:
+            # Se não tiver coluna Período, apenas usar histórico
+            df_vol = df_vol_historico
+    else:
+        # Se não tiver df_vol, usar apenas histórico
+        df_vol = df_vol_historico
+    st.info("ℹ️ Dados de volume histórico carregados. Volumes futuros serão priorizados do arquivo histórico.")
+elif df_vol is None:
     st.warning("⚠️ Arquivo df_vol.parquet não encontrado. Algumas funcionalidades podem não estar disponíveis.")
     df_vol = pd.DataFrame()
 
@@ -774,130 +1176,66 @@ else:
     df_filtrado['Tipo_Custo'] = df_filtrado['Custo'].apply(is_custo_fixo)
     df_filtrado['Tipo_Custo'] = df_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
     
-    # Lista de meses do ano
-    meses_ano = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    
-    # ====================================================================
-    # 🔮 CONFIGURAÇÃO DO FORECAST - Na página principal
-    # ====================================================================
-    st.markdown("---")
-    st.markdown("### 🔮 Configuração do Forecast")
-    
-    # Layout em 2 colunas para os controles principais
-    col_config1, col_config2 = st.columns(2)
-    
-    with col_config1:
-        # 1. Selecionar último mês com dados reais
-        from datetime import datetime
-        mes_atual_sistema = datetime.now().month
-        indice_mes_atual_padrao = mes_atual_sistema - 1 if mes_atual_sistema <= 12 else 11
-        
-        ultimo_mes_dados = st.selectbox(
-            "📅 Último mês com dados reais:",
-            options=meses_ano,
-            index=indice_mes_atual_padrao,
-            help="Selecione o último mês que possui dados históricos reais"
-        )
-        
-        indice_ultimo_mes = meses_ano.index(ultimo_mes_dados)
-        
-        # 2. Quantos meses prever
-        meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
-        if meses_disponiveis_para_prever <= 0:
-            meses_disponiveis_para_prever = 12  # Se já passou dezembro, permitir prever o próximo ano
-        
-        num_meses_prever = st.number_input(
-            "🔮 Quantos meses prever:",
-            min_value=1,
-            max_value=12,
-            value=min(meses_disponiveis_para_prever, 6),
-            step=1,
-            help="Número de meses futuros para prever"
-        )
-    
-    with col_config2:
-        # 3. Quantos meses usar para calcular a média
-        meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
-        
-        num_meses_media = st.number_input(
-            "📈 Quantos meses usar para a média:",
-            min_value=1,
-            max_value=len(meses_historicos_disponiveis) if meses_historicos_disponiveis else 12,
-            value=min(len(meses_historicos_disponiveis), 6) if meses_historicos_disponiveis else 6,
-            step=1,
-            help="Número de meses históricos para calcular a média"
-        )
-        
-        # 4. Selecionar quais meses excluir do cálculo da média
-        if meses_historicos_disponiveis:
-            meses_excluir_media = st.multiselect(
-                "🚫 Excluir meses do cálculo da média:",
-                options=meses_historicos_disponiveis,
-                default=[],
-                help="Selecione meses que foram fora da curva e devem ser excluídos do cálculo da média"
-            )
+    # Validação: verificar se há períodos para calcular a média
+    # Se não houver períodos configurados, tentar usar períodos disponíveis nos dados
+    if not periodos_para_media:
+        # Tentar encontrar períodos disponíveis nos dados até o último mês selecionado
+        if 'Período' in df_filtrado.columns:
+            periodos_disponiveis_df = df_filtrado['Período'].dropna().unique()
+            # Filtrar períodos até o último mês selecionado
+            if ultimo_periodo_dados:
+                # Extrair mês e ano do último período
+                if ' ' in str(ultimo_periodo_dados):
+                    ultimo_mes_nome = str(ultimo_periodo_dados).split(' ', 1)[0].lower()
+                    ultimo_ano_num = int(str(ultimo_periodo_dados).split(' ', 1)[1]) if str(ultimo_periodo_dados).split(' ', 1)[1].isdigit() else None
+                else:
+                    ultimo_mes_nome = str(ultimo_periodo_dados).lower()
+                    ultimo_ano_num = None
+                
+                # Tentar encontrar períodos que correspondem aos meses históricos disponíveis
+                periodos_encontrados = []
+                for periodo_df in periodos_disponiveis_df:
+                    periodo_df_str = str(periodo_df).strip().lower()
+                    periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                    periodo_df_ano = int(periodo_df_str.split(' ', 1)[1]) if ' ' in periodo_df_str and periodo_df_str.split(' ', 1)[1].isdigit() else None
+                    
+                    # Verificar se o período está antes ou no último mês selecionado
+                    if periodo_df_mes in [m.lower() for m in meses_historicos_disponiveis]:
+                        if ultimo_ano_num and periodo_df_ano:
+                            if periodo_df_ano < ultimo_ano_num or (periodo_df_ano == ultimo_ano_num and periodo_df_mes <= ultimo_mes_nome):
+                                periodos_encontrados.append(str(periodo_df))
+                        elif not ultimo_ano_num or not periodo_df_ano:
+                            periodos_encontrados.append(str(periodo_df))
+                
+                if periodos_encontrados:
+                    # Pegar os últimos N períodos encontrados
+                    periodos_para_media = periodos_encontrados[-num_meses_media:] if len(periodos_encontrados) >= num_meses_media else periodos_encontrados
+                    st.warning(f"⚠️ **Aviso:** Não foram encontrados todos os {num_meses_media} períodos solicitados. Usando {len(periodos_para_media)} período(s) disponível(is): {', '.join(periodos_para_media)}")
+                else:
+                    st.error("❌ **Erro de Configuração:** Nenhum período disponível para calcular a média histórica.")
+                    st.info("💡 Ajuste a configuração do forecast na sidebar:")
+                    st.info("   - Selecione um mês histórico válido")
+                    st.info("   - Ajuste os meses a excluir")
+                    st.info("   - Verifique se há dados históricos disponíveis")
+                    st.stop()
+            else:
+                st.error("❌ **Erro de Configuração:** Nenhum período disponível para calcular a média histórica.")
+                st.info("💡 Ajuste a configuração do forecast na sidebar:")
+                st.info("   - Selecione um mês histórico válido")
+                st.info("   - Ajuste os meses a excluir")
+                st.info("   - Verifique se há dados históricos disponíveis")
+                st.stop()
         else:
-            meses_excluir_media = []
+            st.error("❌ **Erro de Configuração:** Nenhum período disponível para calcular a média histórica.")
+            st.info("💡 Ajuste a configuração do forecast na sidebar:")
+            st.info("   - Selecione um mês histórico válido")
+            st.info("   - Ajuste os meses a excluir")
+            st.info("   - Verifique se há dados históricos disponíveis")
+            st.stop()
     
-    # Calcular quais meses serão previstos
-    meses_restantes = []
-    for i in range(num_meses_prever):
-        indice_mes = indice_ultimo_mes + 1 + i
-        # Se passar de dezembro, continuar no próximo ano
-        if indice_mes >= 12:
-            indice_mes = indice_mes % 12
-        meses_restantes.append(meses_ano[indice_mes])
-    
-    # Calcular quais meses serão usados para a média (últimos N meses, excluindo os selecionados)
-    meses_para_media = []
-    if meses_historicos_disponiveis:
-        meses_considerados = meses_historicos_disponiveis.copy()
-        
-        # Remover meses excluídos
-        for mes_excluir in meses_excluir_media:
-            if mes_excluir in meses_considerados:
-                meses_considerados.remove(mes_excluir)
-        
-        # Pegar os últimos N meses (após excluir)
-        if meses_considerados:
-            meses_para_media = meses_considerados[-num_meses_media:] if len(meses_considerados) >= num_meses_media else meses_considerados
-        else:
-            meses_para_media = []
-    else:
-        meses_para_media = []
-    
-    # Mostrar resumo da configuração
-    col_resumo1, col_resumo2 = st.columns(2)
-    with col_resumo1:
-        if meses_restantes:
-            st.success(f"📊 **Meses a prever:** {', '.join(meses_restantes)}")
-        else:
-            st.warning("⚠️ Nenhum mês selecionado para prever")
-    
-    with col_resumo2:
-        if meses_para_media:
-            st.success(f"✅ **Meses para média:** {', '.join(meses_para_media)} ({len(meses_para_media)} meses)")
-        else:
-            st.error("❌ Nenhum mês disponível para calcular a média!")
-    
-    if meses_excluir_media:
-        st.info(f"ℹ️ **Meses excluídos da média:** {', '.join(meses_excluir_media)}")
-    
-    st.markdown("---")
-    
-    # Validação: verificar se há meses para calcular a média
-    if not meses_para_media:
-        st.error("❌ **Erro de Configuração:** Nenhum mês disponível para calcular a média histórica.")
-        st.info("💡 Ajuste a configuração do forecast na sidebar:")
-        st.info("   - Selecione um mês histórico válido")
-        st.info("   - Ajuste os meses a excluir")
-        st.info("   - Verifique se há dados históricos disponíveis")
-        st.stop()
-    
-    # Validação: verificar se há meses para prever
-    if not meses_restantes:
-        st.error("❌ **Erro de Configuração:** Nenhum mês selecionado para prever.")
+    # Validação: verificar se há períodos para prever
+    if not periodos_restantes:
+        st.error("❌ **Erro de Configuração:** Nenhum período selecionado para prever.")
         st.info("💡 Ajuste a configuração do forecast na sidebar:")
         st.info("   - Selecione o último mês com dados reais")
         st.info("   - Defina quantos meses prever")
@@ -905,18 +1243,152 @@ else:
     
     # Função para calcular médias com cache
     @st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
-    def calcular_medias_forecast(df_filtrado_cache, colunas_adicionais_cache, meses_para_media_cache):
-        """Calcula médias mensais históricas com cache, usando apenas os meses selecionados"""
-        # Filtrar apenas os meses que serão usados para calcular a média
-        if meses_para_media_cache and 'Período' in df_filtrado_cache.columns:
-            # Normalizar nomes dos meses para comparação (case-insensitive)
+    def calcular_medias_forecast(df_filtrado_cache, colunas_adicionais_cache, periodos_para_media_cache, ultimo_periodo_dados_cache=None):
+        """Calcula médias mensais históricas com cache, usando apenas os períodos selecionados"""
+        # Filtrar apenas os períodos que serão usados para calcular a média
+        if periodos_para_media_cache and 'Período' in df_filtrado_cache.columns:
+            # Normalizar períodos procurados (manter mês + ano se disponível)
+            periodos_procurados_normalizados = []
+            for periodo_procurado in periodos_para_media_cache:
+                periodo_str = str(periodo_procurado).strip()
+                # Normalizar para minúsculas para comparação
+                periodos_procurados_normalizados.append(periodo_str.lower())
+            
+            # Extrair último mês e ano para validação
+            ultimo_mes_limite = None
+            ultimo_ano_limite = None
+            if ultimo_periodo_dados_cache:
+                ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip().lower()
+                if ' ' in ultimo_periodo_str:
+                    ultimo_mes_limite = ultimo_periodo_str.split(' ', 1)[0]
+                    ultimo_ano_limite = int(ultimo_periodo_str.split(' ', 1)[1]) if ultimo_periodo_str.split(' ', 1)[1].isdigit() else None
+                else:
+                    ultimo_mes_limite = ultimo_periodo_str
+                    ultimo_ano_limite = None
+            
+            # Verificar períodos no DataFrame
+            periodos_no_df = df_filtrado_cache['Período'].astype(str).str.strip().str.lower()
+            
+            # Criar máscara: comparar período completo (mês + ano) quando disponível
+            def periodo_corresponde(periodo_df):
+                periodo_df_lower = str(periodo_df).strip().lower()
+                
+                # Verificar se o período está antes ou no último mês selecionado
+                if ultimo_mes_limite and ultimo_ano_limite:
+                    periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                    if periodo_df_tem_ano:
+                        periodo_df_ano = int(periodo_df_lower.split(' ', 1)[1]) if periodo_df_lower.split(' ', 1)[1].isdigit() else None
+                        periodo_df_mes = periodo_df_lower.split(' ', 1)[0]
+                        
+                        # Verificar se está antes do último mês
+                        if periodo_df_ano and periodo_df_ano > ultimo_ano_limite:
+                            return False
+                        if periodo_df_ano == ultimo_ano_limite:
+                            # Comparar meses usando índice
+                            meses_ano_lower = [m.lower() for m in meses_ano]
+                            if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                                idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                                idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                                if idx_periodo > idx_limite:
+                                    return False
+                    else:
+                        # Se o período do DataFrame não tem ano, verificar apenas pelo mês
+                        periodo_df_mes = periodo_df_lower
+                        meses_ano_lower = [m.lower() for m in meses_ano]
+                        if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                            idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                            idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                            if idx_periodo > idx_limite:
+                                return False
+                
+                # Comparação exata primeiro (período completo)
+                if periodo_df_lower in periodos_procurados_normalizados:
+                    return True
+                
+                # Se não houver correspondência exata, verificar se ambos têm ano
+                periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                
+                for periodo_procurado in periodos_procurados_normalizados:
+                    periodo_procurado_tem_ano = ' ' in periodo_procurado and len(periodo_procurado.split(' ', 1)) > 1
+                    
+                    # Se ambos têm ano, comparar período completo (já verificamos exato acima)
+                    if periodo_df_tem_ano and periodo_procurado_tem_ano:
+                        # Se ambos têm ano mas não são iguais, não corresponde
+                        continue
+                    
+                    # Se nenhum tem ano ou apenas um tem, comparar apenas o mês
+                    # (compatibilidade com dados antigos)
+                    mes_df = periodo_df_lower.split(' ', 1)[0] if ' ' in periodo_df_lower else periodo_df_lower
+                    mes_procurado = periodo_procurado.split(' ', 1)[0] if ' ' in periodo_procurado else periodo_procurado
+                    
+                    if mes_df == mes_procurado:
+                        # Se o período procurado tem ano mas o do DF não tem, não incluir
+                        # (para evitar incluir períodos futuros sem ano)
+                        if periodo_procurado_tem_ano and not periodo_df_tem_ano:
+                            continue
+                        return True
+                
+                return False
+            
             df_filtrado_media = df_filtrado_cache[
-                df_filtrado_cache['Período'].astype(str).str.strip().str.title().isin(
-                    [m.strip().title() for m in meses_para_media_cache]
-                )
+                periodos_no_df.apply(periodo_corresponde)
             ].copy()
+            
+            # Se não encontrou correspondências, tentar encontrar períodos alternativos pelos meses
+            # MAS APENAS se estiverem antes do último mês selecionado
+            if df_filtrado_media.empty:
+                # Tentar encontrar períodos disponíveis nos dados que correspondem aos meses solicitados
+                periodos_disponiveis_df = df_filtrado_cache['Período'].dropna().unique()
+                periodos_encontrados_alternativos = []
+                
+                # Extrair apenas os meses dos períodos procurados
+                meses_procurados = []
+                for periodo_procurado in periodos_para_media_cache:
+                    periodo_str = str(periodo_procurado).strip().lower()
+                    mes_procurado = periodo_str.split(' ', 1)[0] if ' ' in periodo_str else periodo_str
+                    meses_procurados.append(mes_procurado)
+                
+                # Procurar períodos no DataFrame que correspondem aos meses procurados
+                # MAS APENAS se estiverem antes ou no último mês selecionado
+                for periodo_df in periodos_disponiveis_df:
+                    periodo_df_str = str(periodo_df).strip().lower()
+                    periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                    periodo_df_ano = int(periodo_df_str.split(' ', 1)[1]) if ' ' in periodo_df_str and periodo_df_str.split(' ', 1)[1].isdigit() else None
+                    
+                    # Verificar se o mês corresponde
+                    if periodo_df_mes in meses_procurados:
+                        # Verificar se está antes ou no último mês selecionado
+                        if ultimo_mes_limite and ultimo_ano_limite:
+                            if periodo_df_ano:
+                                if periodo_df_ano > ultimo_ano_limite:
+                                    continue
+                                if periodo_df_ano == ultimo_ano_limite:
+                                    # Comparar meses usando índice
+                                    meses_ano_lower = [m.lower() for m in meses_ano]
+                                    if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                                        idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                                        idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                                        if idx_periodo > idx_limite:
+                                            continue
+                            elif not periodo_df_ano:
+                                # Se não tem ano, verificar pelo mês
+                                meses_ano_lower = [m.lower() for m in meses_ano]
+                                if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                                    idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                                    idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                                    if idx_periodo > idx_limite:
+                                        continue
+                        
+                        periodos_encontrados_alternativos.append(str(periodo_df))
+                
+                # Se encontrou períodos alternativos, usar eles
+                if periodos_encontrados_alternativos:
+                    periodos_alternativos_normalizados = [p.strip().lower() for p in periodos_encontrados_alternativos]
+                    df_filtrado_media = df_filtrado_cache[
+                        periodos_no_df.isin(periodos_alternativos_normalizados)
+                    ].copy()
         else:
-            # Se não houver meses selecionados, usar todos os dados (comportamento original)
+            # Se não houver períodos selecionados, usar todos os dados (comportamento original)
             df_filtrado_media = df_filtrado_cache.copy()
         
         if df_filtrado_media.empty:
@@ -933,32 +1405,38 @@ else:
         agg_dict = {'Total': 'mean'}
         df_medias = df_filtrado_media.groupby(colunas_groupby).agg(agg_dict).reset_index()
         
-        # Calcular média geral mensal (média das médias dos meses selecionados)
+        # Calcular média geral mensal por linha (média das médias dos meses selecionados)
         colunas_groupby_media = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
         colunas_groupby_media = [col for col in colunas_groupby_media if col in df_medias.columns]
         agg_dict_media = {'Total': 'mean'}
         df_media_mensal = df_medias.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
+
+        # ================================================================
+        # 🔧 Ajuste de coerência da média histórica global
+        # Objetivo: garantir que a soma de Média_Mensal_Histórica (df_media_mensal)
+        # seja igual à média mensal global usada no gráfico (~295,7k),
+        # evitando a "segunda média" inflada (~546k).
+        # ================================================================
+        try:
+            # Média global correta: somar Total por período e tirar a média dos meses
+            df_medias_agregado_glob = df_medias.groupby('Período', as_index=False)['Total'].sum()
+            media_global_meses = float(df_medias_agregado_glob['Total'].mean()) if not df_medias_agregado_glob.empty else 0.0
+
+            # Soma das médias por linha (base atual usada no forecast)
+            soma_medias_linhas = float(df_media_mensal['Total'].sum()) if not df_media_mensal.empty else 0.0
+
+            # Se ambos forem positivos, ajustar proporcionalmente
+            if media_global_meses > 0 and soma_medias_linhas > 0:
+                fator_ajuste = media_global_meses / soma_medias_linhas
+                df_media_mensal['Total'] = df_media_mensal['Total'] * fator_ajuste
+        except Exception:
+            # Em caso de qualquer problema, manter comportamento original
+            pass
         
         return df_medias, df_media_mensal
 
     # Calcular médias mensais históricas por Oficina, Veículo e Período
     st.markdown("### 📊 Cálculo de Médias Mensais Históricas")
-    
-    # Mostrar configuração do forecast
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"""
-        **📈 Meses usados para média:** {len(meses_para_media)} meses
-        - {', '.join(meses_para_media)}
-        """)
-    with col2:
-        st.info(f"""
-        **🔮 Meses a prever:** {len(meses_restantes)} meses
-        - {', '.join(meses_restantes)}
-        """)
-    
-    if meses_excluir_media:
-        st.warning(f"⚠️ **Meses excluídos da média:** {', '.join(meses_excluir_media)}")
     
     st.markdown("---")
 
@@ -971,25 +1449,117 @@ else:
     if 'Account' in df_filtrado.columns:
         colunas_adicionais.append('Account')
 
-    # Calcular médias com cache (usando apenas os meses selecionados)
-    df_medias, df_media_mensal = calcular_medias_forecast(df_filtrado, colunas_adicionais, meses_para_media)
+    # Calcular médias com cache (usando apenas os períodos selecionados)
+    df_medias, df_media_mensal = calcular_medias_forecast(df_filtrado, colunas_adicionais, periodos_para_media, ultimo_periodo_dados)
+    
+    # Verificar se encontrou menos períodos do que o solicitado
+    if not df_medias.empty and 'Período' in df_medias.columns:
+        periodos_encontrados = df_medias['Período'].unique()
+        if len(periodos_encontrados) < len(periodos_para_media):
+            st.info(f"ℹ️ **Informação:** Foram encontrados {len(periodos_encontrados)} período(s) nos dados (solicitados: {len(periodos_para_media)}). O cálculo será feito com os períodos disponíveis.")
     
     # Função para calcular volumes e CPU com cache
     @st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
-    def calcular_volumes_cpu(df_vol_cache, df_medias_cache, colunas_adicionais_cache, meses_para_media_cache):
-        """Calcula volumes e CPU histórico com cache, usando apenas os meses selecionados"""
+    def calcular_volumes_cpu(df_vol_cache, df_medias_cache, colunas_adicionais_cache, periodos_para_media_cache, ultimo_periodo_dados_cache=None):
+        """Calcula volumes e CPU histórico com cache, usando apenas os períodos selecionados"""
         if df_vol_cache.empty or 'Período' not in df_vol_cache.columns or 'Volume' not in df_vol_cache.columns:
             return None, None, None, None
         
-        # Filtrar apenas os meses que serão usados para calcular a média de volume
-        if meses_para_media_cache and 'Período' in df_vol_cache.columns:
+        # Filtrar apenas os períodos que serão usados para calcular a média de volume
+        if periodos_para_media_cache and 'Período' in df_vol_cache.columns:
+            # Normalizar períodos procurados (manter mês + ano se disponível)
+            periodos_procurados_normalizados = []
+            for periodo_procurado in periodos_para_media_cache:
+                periodo_str = str(periodo_procurado).strip()
+                # Normalizar para minúsculas para comparação
+                periodos_procurados_normalizados.append(periodo_str.lower())
+            
+            # Extrair último mês e ano para validação
+            ultimo_mes_limite = None
+            ultimo_ano_limite = None
+            if ultimo_periodo_dados_cache:
+                ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip().lower()
+                if ' ' in ultimo_periodo_str:
+                    ultimo_mes_limite = ultimo_periodo_str.split(' ', 1)[0]
+                    ultimo_ano_limite = int(ultimo_periodo_str.split(' ', 1)[1]) if ultimo_periodo_str.split(' ', 1)[1].isdigit() else None
+                else:
+                    ultimo_mes_limite = ultimo_periodo_str
+                    ultimo_ano_limite = None
+            
+            # Verificar períodos no DataFrame
+            periodos_no_df = df_vol_cache['Período'].astype(str).str.strip().str.lower()
+            
+            # Criar máscara: comparar período completo (mês + ano) quando disponível
+            def periodo_corresponde(periodo_df):
+                periodo_df_lower = str(periodo_df).strip().lower()
+                
+                # Verificar se o período está antes ou no último mês selecionado
+                if ultimo_mes_limite and ultimo_ano_limite:
+                    periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                    if periodo_df_tem_ano:
+                        periodo_df_ano = int(periodo_df_lower.split(' ', 1)[1]) if periodo_df_lower.split(' ', 1)[1].isdigit() else None
+                        periodo_df_mes = periodo_df_lower.split(' ', 1)[0]
+                        
+                        # Verificar se está antes do último mês
+                        if periodo_df_ano and periodo_df_ano > ultimo_ano_limite:
+                            return False
+                        if periodo_df_ano == ultimo_ano_limite:
+                            # Comparar meses usando índice
+                            meses_ano_lower = [m.lower() for m in meses_ano]
+                            if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                                idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                                idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                                if idx_periodo > idx_limite:
+                                    return False
+                    else:
+                        # Se o período do DataFrame não tem ano, verificar apenas pelo mês
+                        periodo_df_mes = periodo_df_lower
+                        meses_ano_lower = [m.lower() for m in meses_ano]
+                        if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
+                            idx_periodo = meses_ano_lower.index(periodo_df_mes)
+                            idx_limite = meses_ano_lower.index(ultimo_mes_limite)
+                            if idx_periodo > idx_limite:
+                                return False
+                
+                # Comparação exata primeiro (período completo)
+                if periodo_df_lower in periodos_procurados_normalizados:
+                    return True
+                
+                # Se não houver correspondência exata, verificar se ambos têm ano
+                periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                
+                for periodo_procurado in periodos_procurados_normalizados:
+                    periodo_procurado_tem_ano = ' ' in periodo_procurado and len(periodo_procurado.split(' ', 1)) > 1
+                    
+                    # Se ambos têm ano, comparar período completo (já verificamos exato acima)
+                    if periodo_df_tem_ano and periodo_procurado_tem_ano:
+                        # Se ambos têm ano mas não são iguais, não corresponde
+                        continue
+                    
+                    # Se nenhum tem ano ou apenas um tem, comparar apenas o mês
+                    # (compatibilidade com dados antigos)
+                    mes_df = periodo_df_lower.split(' ', 1)[0] if ' ' in periodo_df_lower else periodo_df_lower
+                    mes_procurado = periodo_procurado.split(' ', 1)[0] if ' ' in periodo_procurado else periodo_procurado
+                    
+                    if mes_df == mes_procurado:
+                        # Se o período procurado tem ano mas o do DF não tem, não incluir
+                        # (para evitar incluir períodos futuros sem ano)
+                        if periodo_procurado_tem_ano and not periodo_df_tem_ano:
+                            continue
+                        return True
+                
+                return False
+            
             df_vol_para_media = df_vol_cache[
-                df_vol_cache['Período'].astype(str).str.strip().str.title().isin(
-                    [m.strip().title() for m in meses_para_media_cache]
-                )
+                periodos_no_df.apply(periodo_corresponde)
             ].copy()
+
+            # Se, por algum motivo, o filtro não encontrar nada, voltar a usar todos os dados
+            # para não ficar com volume histórico zero (mantém a regra de negócio funcionando)
+            if df_vol_para_media.empty:
+                df_vol_para_media = df_vol_cache.copy()
         else:
-            # Se não houver meses selecionados, usar todos os dados (comportamento original)
+            # Se não houver períodos selecionados, usar todos os dados (comportamento original)
             df_vol_para_media = df_vol_cache.copy()
         
         # Calcular média de volume por período histórico (apenas meses selecionados)
@@ -1033,7 +1603,7 @@ else:
 
     # Carregar volumes futuros (se disponível) e calcular relação custo/volume
     # O df_vol já contém os volumes futuros que serão usados para o forecast
-    volume_base, volume_por_mes, df_cpu_medio, df_vol_medio = calcular_volumes_cpu(df_vol, df_medias, colunas_adicionais, meses_para_media)
+    volume_base, volume_por_mes, df_cpu_medio, df_vol_medio = calcular_volumes_cpu(df_vol, df_medias, colunas_adicionais, periodos_para_media, ultimo_periodo_dados)
     
     if volume_base is None:
         st.warning("⚠️ Dados de volume não disponíveis. Usando valores fixos para forecast.")
@@ -1065,7 +1635,8 @@ else:
             on=['Oficina', 'Veículo'],
             how='left'
         )
-        df_forecast_base['Volume_Medio_Historico'] = df_forecast_base['Volume_Medio_Historico'].fillna(1.0)
+        # Se não houver volume médio histórico, manter como 0 para não distorcer a proporção
+        df_forecast_base['Volume_Medio_Historico'] = df_forecast_base['Volume_Medio_Historico'].fillna(0.0)
         
         # Fazer merge com df_cpu_medio para custos variáveis
         if df_cpu_medio_cache is not None and not df_cpu_medio_cache.empty:
@@ -1088,13 +1659,45 @@ else:
         forecast_cols = ['Oficina', 'Veículo'] + colunas_adicionais_cache + ['Tipo_Custo', 'Média_Mensal_Histórica']
         df_forecast = df_forecast_base[forecast_cols].copy()
         
-        # Calcular forecast para cada mês
-        for idx_mes, mes in enumerate(meses_restantes_cache):
-            # Buscar volume específico deste mês
+        # Calcular forecast para cada período
+        for idx_mes, periodo in enumerate(meses_restantes_cache):
+            # Buscar volume específico deste período
+            # Regra de negócio: só há previsão se existir volume para aquele mês/ano
             if volume_por_mes_cache is not None and not volume_por_mes_cache.empty:
-                vol_mes_df = volume_por_mes_cache[
-                    volume_por_mes_cache['Período'].astype(str).str.strip().str.lower() == str(mes).strip().lower()
-                ][['Oficina', 'Veículo', 'Volume']]
+                # Extrair mês e ano do período procurado
+                periodo_str = str(periodo).strip()
+                if ' ' in periodo_str:
+                    mes_procurado = periodo_str.split(' ', 1)[0].lower()
+                    ano_procurado = periodo_str.split(' ', 1)[1] if len(periodo_str.split(' ', 1)) > 1 else None
+                else:
+                    mes_procurado = periodo_str.lower()
+                    ano_procurado = None
+                
+                # Criar função para comparar períodos de forma flexível
+                def periodo_corresponde(periodo_df):
+                    periodo_df_str = str(periodo_df).strip().lower()
+                    if ' ' in periodo_df_str:
+                        mes_df = periodo_df_str.split(' ', 1)[0]
+                        ano_df = periodo_df_str.split(' ', 1)[1] if len(periodo_df_str.split(' ', 1)) > 1 else None
+                    else:
+                        mes_df = periodo_df_str
+                        ano_df = None
+                    
+                    # Comparar mês
+                    if mes_df != mes_procurado:
+                        return False
+                    
+                    # Se ambos têm ano, comparar ano também
+                    if ano_procurado is not None and ano_df is not None:
+                        return str(ano_procurado) == str(ano_df)
+                    
+                    # Se pelo menos um não tem ano, considerar como correspondente (compatibilidade)
+                    return True
+                
+                # Aplicar filtro flexível
+                periodos_no_df = volume_por_mes_cache['Período'].astype(str)
+                mask_corresponde = periodos_no_df.apply(periodo_corresponde)
+                vol_mes_df = volume_por_mes_cache[mask_corresponde][['Oficina', 'Veículo', 'Volume']]
                 
                 if not vol_mes_df.empty:
                     vol_mes_df = vol_mes_df.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].mean()
@@ -1104,11 +1707,13 @@ else:
                         how='left',
                         suffixes=('', '_mes')
                     )
-                    volume_mes_serie = df_vol_mes_merge['Volume'].fillna(df_forecast_base['Volume_Medio_Ref'])
+                    volume_mes_serie = df_vol_mes_merge['Volume']
                 else:
-                    volume_mes_serie = df_forecast_base['Volume_Medio_Ref']
+                    # Sem volume para este período: não calcular forecast (mantém 0)
+                    continue
             else:
-                volume_mes_serie = df_forecast_base['Volume_Medio_Ref']
+                # Sem nenhum volume disponível: não calcular forecast para este período
+                continue
             
             # Alinhar volume
             if isinstance(volume_mes_serie, pd.Series):
@@ -1117,11 +1722,14 @@ else:
                 volume_mes_aligned = volume_mes_serie.reindex(df_forecast_base.index).fillna(df_forecast_base['Volume_Medio_Ref'])
             
             # Calcular forecast com sensibilidade diferenciada
-            df_forecast[mes] = 0.0
+            df_forecast[periodo] = 0.0
             
             # Calcular proporção de volume para TODOS os registros
             volume_medio_positivo = df_forecast_base['Volume_Medio_Historico'] > 0
-            proporcao_volume = volume_mes_aligned / df_forecast_base['Volume_Medio_Historico']
+            # Evitar explosão quando não há volume médio histórico:
+            # para casos sem volume histórico, usamos proporção neutra (=1.0)
+            denom_volume = df_forecast_base['Volume_Medio_Historico'].where(volume_medio_positivo, 1.0)
+            proporcao_volume = volume_mes_aligned / denom_volume
             proporcao_volume = proporcao_volume.where(volume_medio_positivo, 1.0)
             
             # Calcular variação percentual do volume (ex: 1.1 = +10%, 0.9 = -10%)
@@ -1157,7 +1765,7 @@ else:
                     # A inflação é aplicada ao valor base e mantida em todos os meses
                     fator_inflacao = 1.0 + inflacao_percentual
                     
-                    df_forecast.loc[idx, mes] = valor_base * fator_inflacao
+                    df_forecast.loc[idx, periodo] = valor_base * fator_inflacao
             else:
                 # Modo global: aplicar sensibilidade por Fixo/Variável
                 # Obter inflação global (se houver) - aplicada UMA ÚNICA VEZ
@@ -1172,7 +1780,7 @@ else:
                 if mask_fixo.any():
                     variacao_ajustada_fixo = variacao_percentual.loc[mask_fixo] * sensibilidade_fixo_cache
                     proporcao_ajustada_fixo = 1.0 + variacao_ajustada_fixo
-                    df_forecast.loc[mask_fixo, mes] = (
+                    df_forecast.loc[mask_fixo, periodo] = (
                         df_forecast_base.loc[mask_fixo, 'Média_Mensal_Histórica'] * proporcao_ajustada_fixo * fator_inflacao_global
                     )
                 
@@ -1181,7 +1789,7 @@ else:
                 if mask_variavel.any():
                     variacao_ajustada_variavel = variacao_percentual.loc[mask_variavel] * sensibilidade_variavel_cache
                     proporcao_ajustada_variavel = 1.0 + variacao_ajustada_variavel
-                    df_forecast.loc[mask_variavel, mes] = (
+                    df_forecast.loc[mask_variavel, periodo] = (
                         df_forecast_base.loc[mask_variavel, 'Média_Mensal_Histórica'] * proporcao_ajustada_variavel * fator_inflacao_global
                     )
         
@@ -1191,8 +1799,6 @@ else:
     st.markdown("### 🔮 Tabela de Forecast - Custo Total até Fim do Ano")
     
     # Preparar dados para forecast usando operações vetorizadas (mais rápido)
-    st.info("🔄 Calculando forecast... Isso pode levar alguns segundos.")
-    
     # Calcular forecast com cache (incluindo sensibilidades e inflação)
     # Converter sensibilidades_type06 para tuple se for dict (para ser hashable no cache)
     sens_type06_cache = tuple(sorted(sensibilidades_type06.items())) if sensibilidades_type06 is not None else None
@@ -1204,12 +1810,14 @@ else:
         df_cpu_medio,
         volume_por_mes if volume_por_mes is not None else pd.DataFrame(columns=['Oficina', 'Veículo', 'Período', 'Volume']),
         colunas_adicionais,
-        meses_restantes,
+        periodos_restantes,
         sensibilidade_fixo,
         sensibilidade_variavel,
         sens_type06_cache,
         inflacao_type06_cache
     )
+    # Guardar versão bruta do forecast (antes do agrupamento) para diagnósticos
+    df_forecast_bruto = df_forecast.copy()
     
     # Função para processar e formatar tabela com cache
     @st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
@@ -1249,7 +1857,7 @@ else:
         return df_forecast_processado, colunas_meses
 
     # Processar tabela com cache
-    df_forecast, colunas_meses = processar_tabela_forecast(df_forecast, colunas_adicionais, meses_restantes)
+    df_forecast, colunas_meses = processar_tabela_forecast(df_forecast, colunas_adicionais, periodos_restantes)
     
     # Criar gráfico de resumo: Premissas da Previsão (Volumes em barras e Custos em linhas)
     st.markdown("### 📊 Gráfico - Premissas da Previsão")
@@ -1257,7 +1865,40 @@ else:
     # Preparar dados para o gráfico mostrando todas as premissas
     if colunas_meses:
         # Calcular totais agregados
-        media_historica_total = df_forecast['Média_Mensal_Histórica'].sum()
+        # 🔹 Ajuste: calcular a média histórica exatamente como no gráfico de meses históricos
+        media_historica_total = None
+        try:
+            # Usar df_medias (médias por período) para calcular a média mensal dos meses selecionados
+            if df_medias is not None and not df_medias.empty and 'Período' in df_medias.columns and 'Total' in df_medias.columns:
+                df_medias_temp2 = df_medias.copy()
+                df_medias_temp2['Período'] = df_medias_temp2['Período'].astype(str)
+
+                # Filtrar apenas períodos usados na média (periodos_para_media)
+                if periodos_para_media:
+                    meses_media = []
+                    for p in periodos_para_media:
+                        p_str = str(p).strip().lower()
+                        mes_p = p_str.split(' ', 1)[0] if ' ' in p_str else p_str
+                        meses_media.append(mes_p)
+
+                    def periodo_esta_na_media(p):
+                        p_str = str(p).strip().lower()
+                        mes_p = p_str.split(' ', 1)[0] if ' ' in p_str else p_str
+                        return mes_p in meses_media
+
+                    mask_media = df_medias_temp2['Período'].apply(periodo_esta_na_media)
+                    df_medias_temp2 = df_medias_temp2[mask_media]
+
+                if not df_medias_temp2.empty:
+                    # Agregar custo total por período e tirar a média dos meses
+                    df_medias_agregado2 = df_medias_temp2.groupby('Período', as_index=False)['Total'].sum()
+                    media_historica_total = float(df_medias_agregado2['Total'].mean())
+        except Exception:
+            media_historica_total = None
+
+        # Fallback: se por algum motivo não conseguimos calcular pela lógica acima, usar comportamento anterior
+        if media_historica_total is None:
+            media_historica_total = float(df_forecast['Média_Mensal_Histórica'].sum()) if 'Média_Mensal_Histórica' in df_forecast.columns else 0.0
         
         # Volume médio histórico (soma total para referência)
         volume_medio_historico_total = volume_base['Volume_Medio_Historico'].sum() if not volume_base.empty else 0
@@ -1278,12 +1919,21 @@ else:
             # Calcular forecast total do mês
             forecast_mes_total = df_forecast[mes].sum() if mes in df_forecast.columns else 0
             
-            # Buscar volume futuro deste mês
+            # Buscar volume futuro deste mês usando comparação flexível
             volume_futuro_mes = 0
             if not volume_por_mes.empty:
-                vol_mes_df = volume_por_mes[
-                    volume_por_mes['Período'].astype(str).str.strip().str.lower() == str(mes).strip().lower()
-                ]
+                mes_procurado_str = str(mes).strip().lower()
+                mes_procurado_nome = mes_procurado_str.split(' ', 1)[0] if ' ' in mes_procurado_str else mes_procurado_str
+                
+                def periodo_corresponde_volume(periodo_df):
+                    periodo_df_str = str(periodo_df).strip().lower()
+                    periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                    return periodo_df_mes == mes_procurado_nome
+                
+                periodos_no_df = volume_por_mes['Período'].astype(str)
+                mask_corresponde = periodos_no_df.apply(periodo_corresponde_volume)
+                vol_mes_df = volume_por_mes[mask_corresponde]
+                
                 if not vol_mes_df.empty:
                     volume_futuro_mes = vol_mes_df['Volume'].sum()
             
@@ -1326,7 +1976,7 @@ else:
                 ),
                 tooltip=['Período:N', 'Custo:Q', 'Volume:Q', 'Tipo:N']
             ).properties(
-                width=600,
+                width=800,
                 height=400,
                 title='Custo Total por Período'
             )
@@ -1351,7 +2001,7 @@ else:
                 y=alt.Y('Volume:Q'),
                 tooltip=['Período:N', 'Volume:Q']
             ).properties(
-                width=600,
+                width=800,
                 height=400,
                 title='Volume por Período'
             )
@@ -1366,12 +2016,9 @@ else:
                 text=alt.Text('Volume:Q', format=',.0f')
             )
             
-            # Mostrar gráficos lado a lado
-            col_g1, col_g2 = st.columns(2)
-            with col_g1:
-                st.altair_chart(barras_custo + texto_barras, use_container_width=True)
-            with col_g2:
-                st.altair_chart(linha_volume + texto_linha, use_container_width=True)
+            # Mostrar gráficos em linhas separadas (um abaixo do outro)
+            st.altair_chart(barras_custo + texto_barras, use_container_width=True)
+            st.altair_chart(linha_volume + texto_linha, use_container_width=True)
             
             # Mostrar resumo dos dados
             st.info(f"""
@@ -1389,7 +2036,400 @@ else:
         - 🔵 **Volume Médio Histórico** (linha tracejada azul): Média histórica de volume utilizada como referência
         - 🟢 **Volume Futuro** (linha sólida verde): Volume de entrada do arquivo para cada mês futuro
         """)
+        
+        # ====================================================================
+        # 📊 NOVO GRÁFICO: Meses Individuais + Média Acumulada
+        # ====================================================================
+        st.markdown("### 📊 Gráfico - Meses Históricos e Média Acumulada")
+        
+        # Preparar dados dos meses individuais usados para a média
+        # Verificar se df_medias está disponível (pode estar em diferentes escopos)
+        try:
+            df_medias_disponivel = df_medias
+        except NameError:
+            df_medias_disponivel = None
+        
+        if df_medias_disponivel is not None and not df_medias_disponivel.empty and 'Período' in df_medias_disponivel.columns:
+            # Garantir que Período seja string antes do groupby
+            df_medias_temp = df_medias_disponivel.copy()
+            df_medias_temp = df_medias_temp.reset_index(drop=True)  # Garantir índice simples
+            df_medias_temp['Período'] = df_medias_temp['Período'].astype(str)
+            
+            # Agregar custo total por período
+            df_medias_agregado = df_medias_temp.groupby('Período', as_index=False)['Total'].sum()
+            df_medias_agregado = df_medias_agregado.reset_index(drop=True)  # Garantir índice simples após groupby
+            
+            # Ordenar períodos cronologicamente
+            def ordenar_periodo_grafico(periodo_str):
+                periodo_str = str(periodo_str).strip()
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    mes_nome = partes[0].capitalize()
+                    ano = int(partes[1]) if partes[1].isdigit() else 0
+                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                    return (ano, mes_idx)
+                else:
+                    mes_nome = periodo_str.capitalize()
+                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                    return (0, mes_idx)
+            
+            # Criar coluna temporária para ordenação (usar valores convertidos para lista)
+            periodos_lista = df_medias_agregado['Período'].tolist()
+            ordens = [ordenar_periodo_grafico(p) for p in periodos_lista]
+            df_medias_agregado['_ordem'] = ordens
+            df_medias_agregado = df_medias_agregado.sort_values('_ordem').drop(columns=['_ordem']).reset_index(drop=True)
+            
+            # Calcular média acumulada progressiva
+            df_medias_agregado['Media_Acumulada'] = df_medias_agregado['Total'].expanding().mean()
+            
+            # Garantir que a última média acumulada seja igual à média histórica
+            if len(df_medias_agregado) > 0:
+                ultima_media_acumulada = df_medias_agregado['Media_Acumulada'].iloc[-1]
+                # Ajustar se necessário (deve ser igual à média histórica)
+                if abs(ultima_media_acumulada - media_historica_total) > 0.01:
+                    # Ajustar a última média acumulada para ser exatamente igual à média histórica
+                    df_medias_agregado.loc[df_medias_agregado.index[-1], 'Media_Acumulada'] = media_historica_total
+            
+            # Preparar dados para o gráfico (meses históricos)
+            dados_grafico_historico = []
+            for idx, row in df_medias_agregado.iterrows():
+                periodo_str = str(row['Período'])
+                # Garantir que só entram no gráfico os meses realmente usados na média
+                if periodos_para_media:
+                    # Extrair apenas o mês de periodos_para_media para comparação
+                    meses_media = []
+                    for p in periodos_para_media:
+                        p_str = str(p).strip().lower()
+                        mes_p = p_str.split(' ', 1)[0] if ' ' in p_str else p_str
+                        meses_media.append(mes_p)
+                    periodo_mes = periodo_str.strip().split(' ', 1)[0].lower()
+                    if periodo_mes not in meses_media:
+                        continue
+                dados_grafico_historico.append({
+                    'Período': periodo_str,
+                    'Custo': float(row['Total']),
+                    'Media_Acumulada': float(row['Media_Acumulada']),
+                    'Tipo': 'Histórico'
+                })
+            
+            # Adicionar períodos de forecast
+            if colunas_meses:
+                for mes in colunas_meses:
+                    forecast_mes_total = df_forecast[mes].sum() if mes in df_forecast.columns else 0
+                    dados_grafico_historico.append({
+                        'Período': str(mes),
+                        'Custo': float(forecast_mes_total),
+                        'Media_Acumulada': None,  # Não calcular média acumulada para forecast
+                        'Tipo': 'Forecast'
+                    })
+            
+            df_grafico_historico = pd.DataFrame(dados_grafico_historico)
+            
+            if not df_grafico_historico.empty:
+                # Calcular valores máximos para escala (apenas das barras)
+                max_custo_barras = float(df_grafico_historico['Custo'].max())
+                
+                # Calcular valores da média acumulada (apenas períodos históricos)
+                df_medias_hist = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
+                max_media_valor = float(df_medias_hist['Media_Acumulada'].max()) if not df_medias_hist.empty else 0
+                min_media_valor = float(df_medias_hist['Media_Acumulada'].min()) if not df_medias_hist.empty else 0
+                
+                # Calcular posição desejada da linha (30% acima do maior valor das barras)
+                posicao_desejada_linha = max_custo_barras * 1.3
+                
+                # Calcular fator de escala para mapear valores reais para posição acima das barras
+                # A linha deve mostrar a evolução, mas ficar sempre acima das barras
+                if max_media_valor > 0:
+                    # Escalar para que o máximo da média fique na posição desejada
+                    fator_escala = posicao_desejada_linha / max_media_valor
+                else:
+                    fator_escala = 1.0
+                
+                # Manter valores reais da média acumulada para tooltips
+                df_grafico_historico['Media_Acumulada_Valor'] = df_grafico_historico['Media_Acumulada']
+                
+                # Aplicar escala aos períodos históricos para posicionamento
+                mask_historico = df_grafico_historico['Tipo'] == 'Histórico'
+                df_grafico_historico.loc[mask_historico, 'Media_Acumulada_Escalada'] = (
+                    df_grafico_historico.loc[mask_historico, 'Media_Acumulada'] * fator_escala
+                )
+                df_grafico_historico.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
+                
+                # Calcular escala máxima para o eixo primário (barras)
+                max_escala_barras = max_custo_barras * 1.2
+                # Calcular escala máxima para o eixo secundário (linha) - posição desejada + margem
+                max_escala_linha = posicao_desejada_linha * 1.1
+                
+                # Ordenar períodos para o gráfico
+                ordem_periodos_historico = df_grafico_historico['Período'].tolist()
+                
+                # Criar gráfico de barras para meses individuais e forecast (sem legenda)
+                barras_meses = alt.Chart(df_grafico_historico).mark_bar(size=40).encode(
+                    x=alt.X('Período:N', sort=ordem_periodos_historico, title='Período'),
+                    y=alt.Y('Custo:Q', title='Custo', scale=alt.Scale(domain=[0, max_escala_barras])),
+                    color=alt.Color('Tipo:N', 
+                        scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
+                        legend=None  # Remover legenda das barras
+                    ),
+                    tooltip=['Período:N', 'Custo:Q', 'Tipo:N']
+                ).properties(
+                    width=800,
+                    height=400,
+                    title='Custo por Mês Histórico e Média Acumulada'
+                )
+                
+                # Adicionar rótulos nas barras
+                texto_barras_meses = barras_meses.mark_text(
+                    align='center',
+                    baseline='bottom',
+                    dy=-5,
+                    color='white',
+                    fontSize=10
+                ).encode(
+                    text=alt.Text('Custo:Q', format=',.0f')
+                )
+                
+                # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
+                df_grafico_linha = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
+                
+                # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
+                linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
+                    point=True,
+                    color='#1f77b4',
+                    strokeWidth=3,
+                    strokeDash=[5, 5]  # Linha pontilhada
+                ).encode(
+                    x=alt.X('Período:N', sort=ordem_periodos_historico),
+                    y=alt.Y('Media_Acumulada_Escalada:Q', 
+                           title='Média Acumulada',
+                           scale=alt.Scale(domain=[0, max_escala_linha]),
+                           axis=alt.Axis(
+                               orient='right', 
+                               titleColor='#1f77b4', 
+                               labelColor='#1f77b4',
+                               labelFlush=True,
+                               labelOverlap=False,
+                               tickCount=4,
+                               format='.2s'
+                           )),
+                    tooltip=[
+                        alt.Tooltip('Período:N'), 
+                        alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
+                    ]
+                )
+                
+                # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
+                texto_media_acumulada = alt.Chart(df_grafico_linha).mark_text(
+                    align='center',
+                    baseline='bottom',
+                    dy=-10,
+                    color='#1f77b4',
+                    fontSize=10
+                ).encode(
+                    x=alt.X('Período:N', sort=ordem_periodos_historico),
+                    y=alt.Y('Media_Acumulada_Escalada:Q', 
+                           scale=alt.Scale(domain=[0, max_escala_linha])),
+                    text=alt.Text('Media_Acumulada_Valor:Q', format=',.2f')
+                )
+                
+                # Combinar gráficos com eixos independentes
+                grafico_combinado = (barras_meses + texto_barras_meses + linha_media_acumulada + texto_media_acumulada).resolve_scale(
+                    y='independent'
+                )
+                
+                # Mostrar gráfico
+                st.altair_chart(grafico_combinado, use_container_width=True)
+                
+                # Informação adicional
+                st.info(f"""
+                📊 **Informações do Gráfico:**
+                - **Meses utilizados para média:** {len(df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'])} períodos
+                - **Média Histórica Final:** R$ {media_historica_total:,.2f}
+                - **Última Média Acumulada:** R$ {df_grafico_historico['Media_Acumulada_Valor'].dropna().iloc[-1]:,.2f}
+                """)
+            else:
+                st.warning("⚠️ Não há dados históricos suficientes para gerar o gráfico de meses individuais.")
+        else:
+            st.warning("⚠️ Dados de meses históricos não disponíveis para gerar o gráfico detalhado.")
+
+        # ====================================================================
+        # 📊 NOVO GRÁFICO: Volume Histórico x Futuro (Meses Individuais)
+        # ====================================================================
+        st.markdown("### 📊 Gráfico - Volume Histórico e Futuro (Meses Individuais)")
+
+        try:
+            df_vol_medio_disp = df_vol_medio
+        except NameError:
+            df_vol_medio_disp = None
+
+        if df_vol_medio_disp is not None and not df_vol_medio_disp.empty:
+            # Agregar volume histórico por período (apenas meses usados para média)
+            df_vol_hist = df_vol_medio_disp.groupby('Período', as_index=False)['Volume'].sum()
+
+            # Ordenar períodos cronologicamente reutilizando a mesma lógica
+            def ordenar_periodo_volume(periodo_str):
+                periodo_str = str(periodo_str).strip()
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    mes_nome = partes[0].capitalize()
+                    ano = int(partes[1]) if partes[1].isdigit() else 0
+                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                    return (ano, mes_idx)
+                else:
+                    mes_nome = periodo_str.capitalize()
+                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                    return (0, mes_idx)
+
+            # Preparar dados para gráfico de volume
+            dados_grafico_volume = []
+
+            # Meses históricos (volume médio utilizado na média)
+            for _, row in df_vol_hist.iterrows():
+                dados_grafico_volume.append({
+                    'Período': str(row['Período']),
+                    'Volume': float(row['Volume']),
+                    'Tipo': 'Histórico'
+                })
+
+            # Meses futuros (volume de entrada para cada mês a prever)
+            if volume_por_mes is not None and not volume_por_mes.empty and colunas_meses:
+                for mes in colunas_meses:
+                    volume_futuro_mes = 0.0
+                    mes_procurado_str = str(mes).strip().lower()
+                    mes_procurado_nome = mes_procurado_str.split(' ', 1)[0] if ' ' in mes_procurado_str else mes_procurado_str
+
+                    def periodo_corresponde_volume(periodo_df):
+                        periodo_df_str = str(periodo_df).strip().lower()
+                        periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                        return periodo_df_mes == mes_procurado_nome
+
+                    periodos_no_df_vol = volume_por_mes['Período'].astype(str)
+                    mask_corresponde_vol = periodos_no_df_vol.apply(periodo_corresponde_volume)
+                    vol_mes_df = volume_por_mes[mask_corresponde_vol]
+
+                    if not vol_mes_df.empty:
+                        volume_futuro_mes = float(vol_mes_df['Volume'].sum())
+
+                    dados_grafico_volume.append({
+                        'Período': str(mes),
+                        'Volume': volume_futuro_mes,
+                        'Tipo': 'Forecast'
+                    })
+
+            df_grafico_volume = pd.DataFrame(dados_grafico_volume)
+
+            if not df_grafico_volume.empty:
+                # Ordenar períodos
+                df_grafico_volume['_ordem'] = df_grafico_volume['Período'].apply(ordenar_periodo_volume)
+                df_grafico_volume = df_grafico_volume.sort_values('_ordem').drop(columns=['_ordem'])
+                ordem_periodos_volume = df_grafico_volume['Período'].tolist()
+
+                # Criar gráfico de barras de volume
+                barras_volume_mes = alt.Chart(df_grafico_volume).mark_bar(size=40).encode(
+                    x=alt.X('Período:N', sort=ordem_periodos_volume, title='Período'),
+                    y=alt.Y('Volume:Q', title='Volume'),
+                    color=alt.Color(
+                        'Tipo:N',
+                        scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
+                        legend=alt.Legend(title='Tipo')
+                    ),
+                    tooltip=['Período:N', 'Volume:Q', 'Tipo:N']
+                ).properties(
+                    width=800,
+                    height=400,
+                    title='Volume Histórico x Futuro - Meses Individuais'
+                )
+
+                texto_volume_mes = barras_volume_mes.mark_text(
+                    align='center',
+                    baseline='bottom',
+                    dy=-5,
+                    color='white',
+                    fontSize=10
+                ).encode(
+                    text=alt.Text('Volume:Q', format=',.0f')
+                )
+
+                st.altair_chart(barras_volume_mes + texto_volume_mes, use_container_width=True)
+            else:
+                st.warning("⚠️ Não há dados suficientes de volume para gerar o gráfico detalhado.")
+        else:
+            st.warning("⚠️ Volume histórico não disponível para gerar o gráfico detalhado.")
     
+    # ====================================================================
+    # 🔍 TABELA DE DIAGNÓSTICO: Forecast por Linha para um Mês Específico
+    # ====================================================================
+    st.markdown("---")
+    st.subheader("🔍 Tabela de Diagnóstico - Forecast por Linha (Mês Específico)")
+
+    if 'df_forecast_bruto' in locals() and colunas_meses:
+        mes_diag = st.selectbox(
+            "Selecione o mês para diagnóstico (forecast por linha):",
+            options=colunas_meses,
+            index=0,
+            key="mes_diag_forecast"
+        )
+
+        df_diag = df_forecast_bruto.copy()
+
+        # Adicionar volume médio histórico por Oficina/Veículo
+        if volume_base is not None and not volume_base.empty:
+            df_diag = df_diag.merge(
+                volume_base[['Oficina', 'Veículo', 'Volume_Medio_Historico']],
+                on=['Oficina', 'Veículo'],
+                how='left'
+            )
+        else:
+            df_diag['Volume_Medio_Historico'] = pd.NA
+
+        # Adicionar volume futuro do mês selecionado
+        df_diag['Volume_Futuro'] = pd.NA
+        if volume_por_mes is not None and not volume_por_mes.empty:
+            mes_diag_str = str(mes_diag).strip().lower()
+            mes_diag_nome = mes_diag_str.split(' ', 1)[0] if ' ' in mes_diag_str else mes_diag_str
+
+            def periodo_corresponde_diag(periodo_df):
+                periodo_df_str = str(periodo_df).strip().lower()
+                periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                return periodo_df_mes == mes_diag_nome
+
+            periodos_no_df_diag = volume_por_mes['Período'].astype(str)
+            mask_diag = periodos_no_df_diag.apply(periodo_corresponde_diag)
+            vol_mes_diag = volume_por_mes[mask_diag]
+
+            if not vol_mes_diag.empty:
+                vol_mes_diag_agg = vol_mes_diag.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].sum()
+                df_diag = df_diag.merge(
+                    vol_mes_diag_agg.rename(columns={'Volume': 'Volume_Futuro'}),
+                    on=['Oficina', 'Veículo'],
+                    how='left',
+                    suffixes=('', '_tmp')
+                )
+
+        # Selecionar colunas relevantes
+        col_id = ['Oficina', 'Veículo']
+        for c in ['Type 05', 'Type 06', 'Account', 'Tipo_Custo']:
+            if c in df_diag.columns:
+                col_id.append(c)
+
+        col_vals = ['Média_Mensal_Histórica', 'Volume_Medio_Historico', 'Volume_Futuro']
+        if mes_diag in df_diag.columns:
+            col_vals.append(mes_diag)
+
+        colunas_diag = [c for c in col_id + col_vals if c in df_diag.columns]
+        df_diag_view = df_diag[colunas_diag].copy()
+
+        # Linhas com forecast zerado no mês selecionado
+        if mes_diag in df_diag.columns:
+            df_zerados = df_diag_view[df_diag[mes_diag].fillna(0) == 0]
+            st.markdown("#### Linhas com forecast = 0 no mês selecionado")
+            st.dataframe(df_zerados, use_container_width=True)
+
+        st.markdown("#### Todas as linhas (para comparação)")
+        st.dataframe(df_diag_view, use_container_width=True)
+    else:
+        st.info("ℹ️ Tabela de diagnóstico indisponível: não há dados de forecast bruto ou não há meses de forecast.")
+
     # Criar tabela agrupada por Oficina com expanders e subtotais
     st.markdown("---")
     st.subheader("📋 Tabela - Forecast por Veículo, Oficina e Período")
@@ -1481,10 +2521,69 @@ else:
                 df_oficina_display = pd.concat([
                     df_oficina_display,
                     pd.DataFrame([linha_total_ordenada])
-                ], ignore_index=True)
+                    ], ignore_index=True)
                 
                 st.dataframe(df_oficina_display, use_container_width=True)
-        
+
+        # Expander adicional com TOTAL GERAL (todas as linhas, sem quebra por oficina)
+        try:
+            df_total_numerico = df_forecast.copy()
+            total_geral = df_total_numerico['Total_Forecast'].sum() if 'Total_Forecast' in df_total_numerico.columns else 0
+            total_geral_formatado = formatar_monetario(total_geral)
+            num_veiculos_total = df_total_numerico['Veículo'].nunique() if 'Veículo' in df_total_numerico.columns else 0
+
+            with st.expander(
+                f"📊 **TOTAL GERAL** - Total: {total_geral_formatado} ({num_veiculos_total} veículo{'s' if num_veiculos_total > 1 else ''})",
+                expanded=False
+            ):
+                # Tabela com TODAS as linhas (todas oficinas), sem coluna Oficina
+                df_total_display = df_forecast_display.copy()
+                if 'Oficina' in df_total_display.columns:
+                    df_total_display = df_total_display.drop(columns=['Oficina'])
+
+                df_total_numerico_display = df_total_numerico.copy()
+                if 'Oficina' in df_total_numerico_display.columns:
+                    df_total_numerico_display = df_total_numerico_display.drop(columns=['Oficina'])
+
+                # Criar linha de TOTAL GERAL
+                linha_total_geral = {}
+
+                # Colunas de identificação (sem Oficina)
+                colunas_id_geral = ['Veículo'] + [col for col in colunas_adicionais if col in df_total_display.columns] + ['Tipo_Custo']
+                for col in colunas_id_geral:
+                    if col in df_total_display.columns:
+                        linha_total_geral[col] = '**TOTAL GERAL**'
+
+                # Média_Mensal_Histórica total
+                if 'Média_Mensal_Histórica' in df_total_numerico_display.columns:
+                    total_media_geral = df_total_numerico_display['Média_Mensal_Histórica'].sum()
+                    linha_total_geral['Média_Mensal_Histórica'] = formatar_monetario(total_media_geral)
+
+                # Totais por mês
+                for col in colunas_meses:
+                    if col in df_total_numerico_display.columns:
+                        total_col_geral = df_total_numerico_display[col].sum()
+                        linha_total_geral[col] = formatar_monetario(total_col_geral)
+
+                # Total_Forecast geral
+                if 'Total_Forecast' in df_total_numerico_display.columns:
+                    linha_total_geral['Total_Forecast'] = formatar_monetario(total_geral)
+
+                # Ordenar colunas conforme df_total_display
+                linha_total_ordenada_geral = {}
+                for col in df_total_display.columns:
+                    linha_total_ordenada_geral[col] = linha_total_geral.get(col, '')
+
+                # Adicionar linha TOTAL GERAL ao final
+                df_total_display = pd.concat(
+                    [df_total_display, pd.DataFrame([linha_total_ordenada_geral])],
+                    ignore_index=True
+                )
+
+                st.dataframe(df_total_display, use_container_width=True)
+        except Exception:
+            pass
+
         # Botão de download da tabela
         if st.button(
             "📥 Baixar Tabela Forecast (Excel)",
