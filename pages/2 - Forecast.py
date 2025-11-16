@@ -779,38 +779,66 @@ else:
                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     
     # ====================================================================
-    # 🔮 CONFIGURAÇÃO DO FORECAST
+    # 🔮 CONFIGURAÇÃO DO FORECAST - Na página principal
     # ====================================================================
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**🔮 Configuração do Forecast**")
+    st.markdown("---")
+    st.markdown("### 🔮 Configuração do Forecast")
     
-    # 1. Selecionar último mês com dados reais
-    from datetime import datetime
-    mes_atual_sistema = datetime.now().month
-    indice_mes_atual_padrao = mes_atual_sistema - 1 if mes_atual_sistema <= 12 else 11
+    # Layout em 2 colunas para os controles principais
+    col_config1, col_config2 = st.columns(2)
     
-    ultimo_mes_dados = st.sidebar.selectbox(
-        "📅 Último mês com dados reais:",
-        options=meses_ano,
-        index=indice_mes_atual_padrao,
-        help="Selecione o último mês que possui dados históricos reais"
-    )
+    with col_config1:
+        # 1. Selecionar último mês com dados reais
+        from datetime import datetime
+        mes_atual_sistema = datetime.now().month
+        indice_mes_atual_padrao = mes_atual_sistema - 1 if mes_atual_sistema <= 12 else 11
+        
+        ultimo_mes_dados = st.selectbox(
+            "📅 Último mês com dados reais:",
+            options=meses_ano,
+            index=indice_mes_atual_padrao,
+            help="Selecione o último mês que possui dados históricos reais"
+        )
+        
+        indice_ultimo_mes = meses_ano.index(ultimo_mes_dados)
+        
+        # 2. Quantos meses prever
+        meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
+        if meses_disponiveis_para_prever <= 0:
+            meses_disponiveis_para_prever = 12  # Se já passou dezembro, permitir prever o próximo ano
+        
+        num_meses_prever = st.number_input(
+            "🔮 Quantos meses prever:",
+            min_value=1,
+            max_value=12,
+            value=min(meses_disponiveis_para_prever, 6),
+            step=1,
+            help="Número de meses futuros para prever"
+        )
     
-    indice_ultimo_mes = meses_ano.index(ultimo_mes_dados)
-    
-    # 2. Quantos meses prever
-    meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
-    if meses_disponiveis_para_prever <= 0:
-        meses_disponiveis_para_prever = 12  # Se já passou dezembro, permitir prever o próximo ano
-    
-    num_meses_prever = st.sidebar.number_input(
-        "🔮 Quantos meses prever:",
-        min_value=1,
-        max_value=12,
-        value=min(meses_disponiveis_para_prever, 6),
-        step=1,
-        help="Número de meses futuros para prever"
-    )
+    with col_config2:
+        # 3. Quantos meses usar para calcular a média
+        meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
+        
+        num_meses_media = st.number_input(
+            "📈 Quantos meses usar para a média:",
+            min_value=1,
+            max_value=len(meses_historicos_disponiveis) if meses_historicos_disponiveis else 12,
+            value=min(len(meses_historicos_disponiveis), 6) if meses_historicos_disponiveis else 6,
+            step=1,
+            help="Número de meses históricos para calcular a média"
+        )
+        
+        # 4. Selecionar quais meses excluir do cálculo da média
+        if meses_historicos_disponiveis:
+            meses_excluir_media = st.multiselect(
+                "🚫 Excluir meses do cálculo da média:",
+                options=meses_historicos_disponiveis,
+                default=[],
+                help="Selecione meses que foram fora da curva e devem ser excluídos do cálculo da média"
+            )
+        else:
+            meses_excluir_media = []
     
     # Calcular quais meses serão previstos
     meses_restantes = []
@@ -821,35 +849,9 @@ else:
             indice_mes = indice_mes % 12
         meses_restantes.append(meses_ano[indice_mes])
     
-    if meses_restantes:
-        st.sidebar.info(f"📊 Meses a prever: {', '.join(meses_restantes)}")
-    else:
-        st.sidebar.warning("⚠️ Nenhum mês selecionado para prever")
-        meses_restantes = []
-    
-    # 3. Quantos meses usar para calcular a média
-    meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
-    
-    num_meses_media = st.sidebar.number_input(
-        "📈 Quantos meses usar para a média:",
-        min_value=1,
-        max_value=len(meses_historicos_disponiveis) if meses_historicos_disponiveis else 12,
-        value=min(len(meses_historicos_disponiveis), 6) if meses_historicos_disponiveis else 6,
-        step=1,
-        help="Número de meses históricos para calcular a média"
-    )
-    
-    # 4. Selecionar quais meses excluir do cálculo da média
+    # Calcular quais meses serão usados para a média (últimos N meses, excluindo os selecionados)
+    meses_para_media = []
     if meses_historicos_disponiveis:
-        meses_excluir_media = st.sidebar.multiselect(
-            "🚫 Excluir meses do cálculo da média:",
-            options=meses_historicos_disponiveis,
-            default=[],
-            help="Selecione meses que foram fora da curva e devem ser excluídos do cálculo da média"
-        )
-        
-        # Calcular quais meses serão usados para a média (últimos N meses, excluindo os selecionados)
-        meses_para_media = []
         meses_considerados = meses_historicos_disponiveis.copy()
         
         # Remover meses excluídos
@@ -860,16 +862,29 @@ else:
         # Pegar os últimos N meses (após excluir)
         if meses_considerados:
             meses_para_media = meses_considerados[-num_meses_media:] if len(meses_considerados) >= num_meses_media else meses_considerados
-            st.sidebar.success(f"✅ Usando {len(meses_para_media)} meses para média: {', '.join(meses_para_media)}")
         else:
-            st.sidebar.error("❌ Nenhum mês disponível para calcular a média!")
             meses_para_media = []
     else:
-        meses_excluir_media = []
-        meses_para_media = meses_historicos_disponiveis if meses_historicos_disponiveis else []
-        st.sidebar.warning("⚠️ Nenhum mês histórico disponível")
+        meses_para_media = []
     
-    st.sidebar.markdown("---")
+    # Mostrar resumo da configuração
+    col_resumo1, col_resumo2 = st.columns(2)
+    with col_resumo1:
+        if meses_restantes:
+            st.success(f"📊 **Meses a prever:** {', '.join(meses_restantes)}")
+        else:
+            st.warning("⚠️ Nenhum mês selecionado para prever")
+    
+    with col_resumo2:
+        if meses_para_media:
+            st.success(f"✅ **Meses para média:** {', '.join(meses_para_media)} ({len(meses_para_media)} meses)")
+        else:
+            st.error("❌ Nenhum mês disponível para calcular a média!")
+    
+    if meses_excluir_media:
+        st.info(f"ℹ️ **Meses excluídos da média:** {', '.join(meses_excluir_media)}")
+    
+    st.markdown("---")
     
     # Validação: verificar se há meses para calcular a média
     if not meses_para_media:
