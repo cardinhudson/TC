@@ -35,26 +35,109 @@ st.subheader("Análise de dados agrupados por Oficina e Período")
 
 st.markdown("---")
 
+# Função auxiliar para listar anos disponíveis
+def listar_anos_disponiveis():
+    """Lista todos os anos disponíveis nas pastas de dados"""
+    pasta_dados = "dados"
+    anos_disponiveis = []
+    
+    if os.path.exists(pasta_dados):
+        for item in os.listdir(pasta_dados):
+            caminho_item = os.path.join(pasta_dados, item)
+            if os.path.isdir(caminho_item) and item.isdigit():
+                anos_disponiveis.append(int(item))
+    
+    return sorted(anos_disponiveis, reverse=True)  # Mais recente primeiro
+
+# Função auxiliar para encontrar arquivo parquet na ordem de prioridade
+def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
+    """
+    Busca arquivo parquet na seguinte ordem de prioridade:
+    1. Se ano_selecionado for None ou "Todos": Histórico consolidado (dados/historico_consolidado/)
+    2. Se ano_selecionado for especificado: Pasta do ano (dados/{ANO}/)
+    3. Pasta do ano mais recente (dados/{ANO}/)
+    4. Raiz do projeto (compatibilidade)
+    """
+    # Se ano específico foi selecionado, buscar na pasta do ano
+    if ano_selecionado is not None and ano_selecionado != "Todos":
+        caminho_ano = os.path.join("dados", str(ano_selecionado), nome_arquivo)
+        if os.path.exists(caminho_ano):
+            return caminho_ano
+    
+    # 1. Tentar histórico consolidado (para "Todos" ou quando não especificado)
+    caminho_historico = os.path.join("dados", "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
+    if os.path.exists(caminho_historico):
+        return caminho_historico
+    
+    # 2. Tentar pasta do ano mais recente
+    pasta_dados = "dados"
+    if os.path.exists(pasta_dados):
+        anos_disponiveis = []
+        for item in os.listdir(pasta_dados):
+            caminho_item = os.path.join(pasta_dados, item)
+            if os.path.isdir(caminho_item) and item.isdigit():
+                anos_disponiveis.append(int(item))
+        
+        if anos_disponiveis:
+            ano_mais_recente = max(anos_disponiveis)
+            caminho_ano = os.path.join(pasta_dados, str(ano_mais_recente), nome_arquivo)
+            if os.path.exists(caminho_ano):
+                return caminho_ano
+    
+    # 3. Tentar raiz (compatibilidade)
+    if os.path.exists(nome_arquivo):
+        return nome_arquivo
+    
+    return None
+
+# Filtros na sidebar - ANTES de carregar dados
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📅 Seleção de Ano**")
+
+# Listar anos disponíveis
+anos_disponiveis = listar_anos_disponiveis()
+opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
+
+# Seletor de ano
+ano_selecionado = st.sidebar.selectbox(
+    "Selecione o ano:",
+    options=opcoes_ano,
+    index=0,  # "Todos" por padrão
+    help="Selecione 'Todos' para ver dados consolidados ou um ano específico"
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🔍 Filtros**")
+
 # Função para carregar dados com cache
-
-
 @st.cache_data(
     ttl=3600,
-    max_entries=1,
+    max_entries=10,  # Aumentar para cachear diferentes anos
     show_spinner=True
 )
-def load_data():
+def load_data(ano_selecionado_param):
     """Carrega os dados do arquivo parquet"""
     try:
-        # Caminho do arquivo parquet
-        arquivo_parquet = "df_ke5z_group.parquet"
+        # Converter "Todos" para None
+        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+        
+        # Buscar arquivo na ordem de prioridade
+        arquivo_parquet = encontrar_arquivo_parquet("df_ke5z_group.parquet", ano_para_busca)
 
-        if not os.path.exists(arquivo_parquet):
-            st.error(f"❌ Arquivo não encontrado: {arquivo_parquet}")
+        if arquivo_parquet is None:
+            st.error(f"❌ Arquivo não encontrado: df_ke5z_group.parquet")
+            st.info("💡 Verifique se o arquivo existe em:")
+            st.info("   - dados/historico_consolidado/df_ke5z_historico.parquet")
+            st.info("   - dados/{ANO}/df_ke5z_group.parquet")
+            st.info("   - df_ke5z_group.parquet (raiz)")
             st.stop()
 
         # Carregar dados
         df = pd.read_parquet(arquivo_parquet)
+
+        # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
+        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
 
         # Otimizar tipos de dados
         for col in df.columns:
@@ -80,18 +163,26 @@ def load_data():
 # Função para carregar dados de volume com cache
 @st.cache_data(
     ttl=3600,
-    max_entries=1,
+    max_entries=10,  # Aumentar para cachear diferentes anos
     show_spinner=True
 )
-def load_volume_data():
+def load_volume_data(ano_selecionado_param):
     """Carrega os dados de volume do arquivo parquet"""
     try:
-        arquivo_parquet = "df_vol.parquet"
+        # Converter "Todos" para None
+        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+        
+        # Buscar arquivo na ordem de prioridade
+        arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
 
-        if not os.path.exists(arquivo_parquet):
+        if arquivo_parquet is None:
             return None
 
         df = pd.read_parquet(arquivo_parquet)
+
+        # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
+        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
 
         # Otimizar tipos de dados
         for col in df.columns:
@@ -113,18 +204,17 @@ def load_volume_data():
         return None
 
 
-# Carregar dados
+# Carregar dados com o ano selecionado
 try:
-    df_total = load_data()
+    df_total = load_data(ano_selecionado)
     st.sidebar.success("✅ Dados carregados com sucesso")
-    st.sidebar.info(f"📊 {len(df_total):,} registros carregados")
+    if ano_selecionado == "Todos":
+        st.sidebar.info(f"📊 {len(df_total):,} registros (Todos os anos)")
+    else:
+        st.sidebar.info(f"📊 {len(df_total):,} registros (Ano {ano_selecionado})")
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")
     st.stop()
-
-# Filtros na sidebar
-st.sidebar.markdown("---")
-st.sidebar.markdown("**🔍 Filtros**")
 
 # Função auxiliar para obter opções de filtro
 
@@ -299,7 +389,7 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
 # Preparar dados para visualização
 if tipo_visualizacao == "CPU (Custo por Unidade)":
     # Carregar dados de volume
-    df_vol_calc = load_volume_data()
+    df_vol_calc = load_volume_data(ano_selecionado)
 
     if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
         # Agrupar df_filtrado por Oficina e Período para calcular Valor total
@@ -379,13 +469,26 @@ st.sidebar.info(f"📈 **Visualizando:** {tipo_visualizacao}")
 
 
 def ordenar_por_mes(df, coluna_periodo='Período'):
-    """Ordena DataFrame por ordem cronológica dos meses"""
+    """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
     df_copy = df.copy()
-    df_copy['_ordem_mes'] = df_copy[coluna_periodo].str.lower().map(
-        {mes: idx for idx, mes in enumerate(ORDEM_MESES)}
-    )
-    df_copy = df_copy.sort_values('_ordem_mes')
-    df_copy = df_copy.drop(columns=['_ordem_mes'])
+    
+    # Se houver coluna "Ano" e múltiplos anos, ordenar por ano e mês
+    if 'Ano' in df_copy.columns and df_copy['Ano'].nunique() > 1:
+        # Criar coluna de ordenação: ano primeiro, depois mês
+        df_copy['_ordem_ano'] = df_copy['Ano']
+        df_copy['_ordem_mes'] = df_copy[coluna_periodo].str.lower().map(
+            {mes: idx for idx, mes in enumerate(ORDEM_MESES)}
+        ).fillna(999)
+        df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
+        df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
+    else:
+        # Ordenação simples por mês (comportamento original)
+        df_copy['_ordem_mes'] = df_copy[coluna_periodo].str.lower().map(
+            {mes: idx for idx, mes in enumerate(ORDEM_MESES)}
+        ).fillna(999)
+        df_copy = df_copy.sort_values('_ordem_mes')
+        df_copy = df_copy.drop(columns=['_ordem_mes'])
+    
     return df_copy
 
 
@@ -397,9 +500,28 @@ def create_period_chart(df_data, coluna, tipo_viz):
         if coluna not in df_data.columns:
             return None
 
-        chart_data = df_data.groupby('Período')[coluna].sum().reset_index()
-        chart_data = ordenar_por_mes(chart_data, 'Período')
-        ordem_meses = chart_data['Período'].tolist()
+        # Verificar se há múltiplos anos
+        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        
+        if tem_multiplos_anos:
+            # Agrupar por Ano e Período
+            chart_data = df_data.groupby(['Ano', 'Período'])[coluna].sum().reset_index()
+            
+            # Criar coluna combinada para o rótulo do gráfico
+            chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
+            
+            # Ordenar por ano e mês
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período_Completo'].tolist()
+            
+            # Usar Período_Completo no gráfico
+            coluna_periodo_grafico = 'Período_Completo'
+        else:
+            # Comportamento original: agrupar apenas por Período
+            chart_data = df_data.groupby('Período')[coluna].sum().reset_index()
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período'].tolist()
+            coluna_periodo_grafico = 'Período'
 
         # Definir título do eixo Y baseado no tipo
         if tipo_viz == "CPU (Custo por Unidade)":
@@ -411,9 +533,9 @@ def create_period_chart(df_data, coluna, tipo_viz):
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
-                'Período:N',
+                f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_meses
+                sort=ordem_periodos
             ),
             y=alt.Y(f'{coluna}:Q', title=titulo_y),
             color=alt.Color(
@@ -422,7 +544,7 @@ def create_period_chart(df_data, coluna, tipo_viz):
                 scale=alt.Scale(scheme='redyellowgreen', reverse=True)
             ),
             tooltip=[
-                alt.Tooltip('Período:N', title='Período'),
+                alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
                 alt.Tooltip(
                     f'{coluna}:Q',
                     title=coluna,
@@ -459,11 +581,55 @@ def create_period_chart(df_data, coluna, tipo_viz):
 if coluna_visualizacao in df_visualizacao.columns:
     if tipo_visualizacao == "CPU (Custo por Unidade)":
         st.subheader("📊 CPU por Período")
+        
+        # Filtros específicos para este gráfico
+        df_grafico_periodo = df_visualizacao.copy()
+        
+        # Criar colunas para os filtros
+        col1, col2 = st.columns(2)
+        
+        # Filtro de Veículo
+        with col1:
+            if 'Veículo' in df_grafico_periodo.columns:
+                veiculo_opcoes_grafico = sorted(
+                    df_grafico_periodo['Veículo'].dropna().astype(str).unique().tolist()
+                )
+                veiculo_selecionado_grafico = st.selectbox(
+                    "🚗 Filtrar por Veículo:",
+                    ["Todos"] + veiculo_opcoes_grafico,
+                    key="filtro_veiculo_grafico_periodo"
+                )
+                if veiculo_selecionado_grafico != "Todos":
+                    df_grafico_periodo = df_grafico_periodo[
+                        df_grafico_periodo['Veículo'].astype(str) == str(veiculo_selecionado_grafico)
+                    ].copy()
+        
+        # Filtro de Oficina
+        with col2:
+            if 'Oficina' in df_grafico_periodo.columns:
+                oficina_opcoes_grafico = sorted(
+                    df_grafico_periodo['Oficina'].dropna().astype(str).unique().tolist()
+                )
+                oficina_selecionada_grafico = st.selectbox(
+                    "🏭 Filtrar por Oficina:",
+                    ["Todos"] + oficina_opcoes_grafico,
+                    key="filtro_oficina_grafico_periodo"
+                )
+                if oficina_selecionada_grafico != "Todos":
+                    df_grafico_periodo = df_grafico_periodo[
+                        df_grafico_periodo['Oficina'].astype(str) == str(oficina_selecionada_grafico)
+                    ].copy()
+        
+        # Criar gráfico com dados filtrados
+        grafico_periodo = create_period_chart(
+            df_grafico_periodo, coluna_visualizacao, tipo_visualizacao
+        )
     else:
         st.subheader("📊 Soma do Valor por Período")
-    grafico_periodo = create_period_chart(
-        df_visualizacao, coluna_visualizacao, tipo_visualizacao
-    )
+        grafico_periodo = create_period_chart(
+            df_visualizacao, coluna_visualizacao, tipo_visualizacao
+        )
+    
     if grafico_periodo:
         st.altair_chart(grafico_periodo, use_container_width=True)
 
@@ -549,18 +715,37 @@ if ('Oficina' in df_visualizacao.columns and
 def create_volume_chart(df_data):
     """Cria gráfico de barras de Volume por Período"""
     try:
-        if 'Volume' not in df_data.columns:
+        if 'Volume' not in df_data.columns or 'Período' not in df_data.columns:
             return None
 
-        chart_data = df_data.groupby('Período')['Volume'].sum().reset_index()
-        chart_data = ordenar_por_mes(chart_data, 'Período')
-        ordem_meses = chart_data['Período'].tolist()
+        # Verificar se há múltiplos anos
+        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        
+        if tem_multiplos_anos:
+            # Agrupar por Ano e Período
+            chart_data = df_data.groupby(['Ano', 'Período'])['Volume'].sum().reset_index()
+            
+            # Criar coluna combinada para o rótulo do gráfico
+            chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
+            
+            # Ordenar por ano e mês
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período_Completo'].tolist()
+            
+            # Usar Período_Completo no gráfico
+            coluna_periodo_grafico = 'Período_Completo'
+        else:
+            # Comportamento original: agrupar apenas por Período
+            chart_data = df_data.groupby('Período')['Volume'].sum().reset_index()
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período'].tolist()
+            coluna_periodo_grafico = 'Período'
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
-                'Período:N',
+                f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_meses
+                sort=ordem_periodos
             ),
             y=alt.Y('Volume:Q', title='Volume Total'),
             color=alt.Color(
@@ -569,7 +754,7 @@ def create_volume_chart(df_data):
                 scale=alt.Scale(scheme='blues')
             ),
             tooltip=[
-                alt.Tooltip('Período:N', title='Período'),
+                alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
                 alt.Tooltip('Volume:Q', title='Volume', format=',.2f')
             ]
         ).properties(
@@ -598,12 +783,37 @@ def create_volume_chart(df_data):
 st.subheader("📊 Volume Total por Período")
 
 # Carregar dados de volume do arquivo df_vol.parquet
-df_vol = load_volume_data()
+# Este gráfico não é afetado pelos filtros de Período
+df_vol = load_volume_data(ano_selecionado)
 
 if df_vol is not None:
     # Verificar se tem as colunas necessárias
     if 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
-        grafico_volume = create_volume_chart(df_vol)
+        # Aplicar filtros apenas para colunas que não são Período
+        # Identificar colunas comuns entre df_filtrado e df_vol
+        colunas_comuns = set(df_filtrado.columns) & set(df_vol.columns)
+        # Remover colunas que não devem ser usadas para filtro
+        # Excluir Período para não filtrar por mês
+        colunas_filtro = [
+            col for col in colunas_comuns
+            if col not in ['Volume', 'Total', 'Valor', 'CPU', 'Período']
+        ]
+
+        # Aplicar filtros do df_filtrado ao df_vol usando colunas comuns
+        df_vol_filtrado = df_vol.copy()
+
+        for col in colunas_filtro:
+            if col in df_filtrado.columns:
+                # Obter valores únicos da coluna no df_filtrado
+                valores_filtrados = df_filtrado[col].dropna().unique()
+                if len(valores_filtrados) > 0:
+                    # Filtrar df_vol com os mesmos valores
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado[col].isin(valores_filtrados)
+                    ]
+
+        # Criar gráfico (sempre mostrando todos os períodos)
+        grafico_volume = create_volume_chart(df_vol_filtrado)
         if grafico_volume:
             st.altair_chart(grafico_volume, use_container_width=True)
         else:
@@ -628,15 +838,34 @@ def create_total_chart(df_data):
         if 'Total' not in df_data.columns:
             return None
 
-        chart_data = df_data.groupby('Período')['Total'].sum().reset_index()
-        chart_data = ordenar_por_mes(chart_data, 'Período')
-        ordem_meses = chart_data['Período'].tolist()
+        # Verificar se há múltiplos anos
+        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        
+        if tem_multiplos_anos:
+            # Agrupar por Ano e Período
+            chart_data = df_data.groupby(['Ano', 'Período'])['Total'].sum().reset_index()
+            
+            # Criar coluna combinada para o rótulo do gráfico
+            chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
+            
+            # Ordenar por ano e mês
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período_Completo'].tolist()
+            
+            # Usar Período_Completo no gráfico
+            coluna_periodo_grafico = 'Período_Completo'
+        else:
+            # Comportamento original: agrupar apenas por Período
+            chart_data = df_data.groupby('Período')['Total'].sum().reset_index()
+            chart_data = ordenar_por_mes(chart_data, 'Período')
+            ordem_periodos = chart_data['Período'].tolist()
+            coluna_periodo_grafico = 'Período'
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
-                'Período:N',
+                f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_meses
+                sort=ordem_periodos
             ),
             y=alt.Y('Total:Q', title='Total (R$)'),
             color=alt.Color(
@@ -645,7 +874,7 @@ def create_total_chart(df_data):
                 scale=alt.Scale(scheme='redyellowgreen', reverse=True)
             ),
             tooltip=[
-                alt.Tooltip('Período:N', title='Período'),
+                alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
                 alt.Tooltip('Total:Q', title='Total', format=',.2f')
             ]
         ).properties(
