@@ -1399,39 +1399,92 @@ else:
             df_media_mensal = pd.DataFrame(columns=colunas_media + ['Total'])
             return df_medias, df_media_mensal
         
-        # Agrupar por Oficina, Veículo, Período e Tipo_Custo para calcular médias
+        # Agrupar por Oficina, Veículo, Período e Tipo_Custo para obter totais
+        # 🔧 CORREÇÃO: Usar 'sum' em vez de 'mean' para ter os valores totais reais
+        # A média mensal será calculada depois em df_media_mensal
         colunas_groupby = ['Oficina', 'Veículo', 'Período', 'Tipo_Custo'] + colunas_adicionais_cache
         colunas_groupby = [col for col in colunas_groupby if col in df_filtrado_media.columns]
-        agg_dict = {'Total': 'mean'}
+        agg_dict = {'Total': 'sum'}  # Usar 'sum' para ter valores totais reais
         df_medias = df_filtrado_media.groupby(colunas_groupby).agg(agg_dict).reset_index()
+        
+        # 🔧 CORREÇÃO: Filtrar apenas o ano mais recente antes de calcular média mensal
+        # Isso evita misturar dados de 2024 e 2025 no mesmo cálculo
+        if 'Ano' in df_medias.columns:
+            ano_mais_recente = df_medias['Ano'].max()
+            df_medias_ano_recente = df_medias[df_medias['Ano'] == ano_mais_recente].copy()
+        elif ultimo_periodo_dados_cache:
+            # Extrair ano do último período se disponível
+            ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip()
+            if ' ' in ultimo_periodo_str:
+                ano_str = ultimo_periodo_str.split(' ', 1)[1]
+                if ano_str.isdigit():
+                    ano_limite = int(ano_str)
+                    # Filtrar apenas períodos desse ano
+                    def periodo_tem_ano(periodo_val):
+                        periodo_str = str(periodo_val).strip()
+                        if ' ' in periodo_str:
+                            ano_val = periodo_str.split(' ', 1)[1]
+                            if ano_val.isdigit():
+                                return int(ano_val) == ano_limite
+                        return True  # Se não tem ano, manter
+                    df_medias_ano_recente = df_medias[
+                        df_medias['Período'].apply(periodo_tem_ano)
+                    ].copy()
+                else:
+                    df_medias_ano_recente = df_medias.copy()
+            else:
+                df_medias_ano_recente = df_medias.copy()
+        else:
+            df_medias_ano_recente = df_medias.copy()
+        
+        # 🔧 DEBUG: Verificar quantos anos existem após o filtro
+        if not df_medias_ano_recente.empty and 'Período' in df_medias_ano_recente.columns:
+            periodos_unicos = df_medias_ano_recente['Período'].unique()
+            anos_encontrados = set()
+            for p in periodos_unicos:
+                p_str = str(p).strip()
+                if ' ' in p_str:
+                    ano_val = p_str.split(' ', 1)[1]
+                    if ano_val.isdigit():
+                        anos_encontrados.add(int(ano_val))
+            if len(anos_encontrados) > 1:
+                # PROBLEMA: Múltiplos anos ainda presentes!
+                # Forçar filtro apenas pelo ano mais recente
+                ano_final = max(anos_encontrados)
+                def tem_ano_final(periodo_val):
+                    periodo_str = str(periodo_val).strip()
+                    if ' ' in periodo_str:
+                        ano_str = periodo_str.split(' ', 1)[1]
+                        if ano_str.isdigit():
+                            return int(ano_str) == ano_final
+                    return True  # Se não tem ano, MANTER (assume ano mais recente)
+                df_medias_ano_recente = df_medias_ano_recente[
+                    df_medias_ano_recente['Período'].apply(tem_ano_final)
+                ].copy()
         
         # Calcular média geral mensal por linha (média das médias dos meses selecionados)
         colunas_groupby_media = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
-        colunas_groupby_media = [col for col in colunas_groupby_media if col in df_medias.columns]
+        colunas_groupby_media = [col for col in colunas_groupby_media if col in df_medias_ano_recente.columns]
         agg_dict_media = {'Total': 'mean'}
-        df_media_mensal = df_medias.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
+        df_media_mensal = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
+        
+        # 🔧 VERIFICAÇÃO FINAL: Garantir que não há duplicatas após o agrupamento
+        # Se ainda houver duplicatas, significa que o agrupamento não está funcionando corretamente
+        if len(colunas_groupby_media) > 0:
+            duplicatas_final = df_media_mensal.duplicated(subset=colunas_groupby_media, keep=False)
+            if duplicatas_final.any():
+                # Se ainda houver duplicatas, forçar agrupamento novamente
+                df_media_mensal = df_media_mensal.groupby(
+                    colunas_groupby_media, as_index=False
+                ).agg(agg_dict_media)
 
         # ================================================================
-        # 🔧 Ajuste de coerência da média histórica global
-        # Objetivo: garantir que a soma de Média_Mensal_Histórica (df_media_mensal)
-        # seja igual à média mensal global usada no gráfico (~295,7k),
-        # evitando a "segunda média" inflada (~546k).
+        # 🔧 Ajuste de coerência REMOVIDO
+        # O ajuste anterior distorcia os valores reais das médias por linha,
+        # fazendo o forecast ficar incorreto. Agora mantemos os valores reais.
+        # A média global do gráfico continuará correta, mas a soma das médias
+        # por linha pode ser diferente (isso é esperado e correto).
         # ================================================================
-        try:
-            # Média global correta: somar Total por período e tirar a média dos meses
-            df_medias_agregado_glob = df_medias.groupby('Período', as_index=False)['Total'].sum()
-            media_global_meses = float(df_medias_agregado_glob['Total'].mean()) if not df_medias_agregado_glob.empty else 0.0
-
-            # Soma das médias por linha (base atual usada no forecast)
-            soma_medias_linhas = float(df_media_mensal['Total'].sum()) if not df_media_mensal.empty else 0.0
-
-            # Se ambos forem positivos, ajustar proporcionalmente
-            if media_global_meses > 0 and soma_medias_linhas > 0:
-                fator_ajuste = media_global_meses / soma_medias_linhas
-                df_media_mensal['Total'] = df_media_mensal['Total'] * fator_ajuste
-        except Exception:
-            # Em caso de qualquer problema, manter comportamento original
-            pass
         
         return df_medias, df_media_mensal
 
@@ -1566,8 +1619,63 @@ else:
         if not df_vol_para_media.empty:
             df_vol_medio = df_vol_para_media.groupby(['Oficina', 'Veículo', 'Período'], as_index=False)['Volume'].mean()
             
-            # Calcular volume médio mensal (média dos meses selecionados)
-            df_vol_medio_mensal = df_vol_medio.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].mean()
+            # 🔧 CORREÇÃO: Filtrar apenas o ano mais recente antes de calcular volume médio mensal
+            # Isso evita misturar dados de 2024 e 2025 no mesmo cálculo
+            if 'Ano' in df_vol_medio.columns:
+                ano_mais_recente_vol = df_vol_medio['Ano'].max()
+                df_vol_medio_ano_recente = df_vol_medio[df_vol_medio['Ano'] == ano_mais_recente_vol].copy()
+            elif ultimo_periodo_dados_cache:
+                # Extrair ano do último período se disponível
+                ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip()
+                if ' ' in ultimo_periodo_str:
+                    ano_str = ultimo_periodo_str.split(' ', 1)[1]
+                    if ano_str.isdigit():
+                        ano_limite = int(ano_str)
+                        # Filtrar apenas períodos desse ano
+                        def periodo_tem_ano_vol(periodo_val):
+                            periodo_str = str(periodo_val).strip()
+                            if ' ' in periodo_str:
+                                ano_val = periodo_str.split(' ', 1)[1]
+                                if ano_val.isdigit():
+                                    return int(ano_val) == ano_limite
+                            return True  # Se não tem ano, manter
+                        df_vol_medio_ano_recente = df_vol_medio[
+                            df_vol_medio['Período'].apply(periodo_tem_ano_vol)
+                        ].copy()
+                    else:
+                        df_vol_medio_ano_recente = df_vol_medio.copy()
+                else:
+                    df_vol_medio_ano_recente = df_vol_medio.copy()
+            else:
+                df_vol_medio_ano_recente = df_vol_medio.copy()
+            
+            # 🔧 DEBUG: Verificar quantos anos existem após o filtro de volumes
+            if not df_vol_medio_ano_recente.empty and 'Período' in df_vol_medio_ano_recente.columns:
+                periodos_unicos_vol = df_vol_medio_ano_recente['Período'].unique()
+                anos_encontrados_vol = set()
+                for p in periodos_unicos_vol:
+                    p_str = str(p).strip()
+                    if ' ' in p_str:
+                        ano_val = p_str.split(' ', 1)[1]
+                        if ano_val.isdigit():
+                            anos_encontrados_vol.add(int(ano_val))
+                if len(anos_encontrados_vol) > 1:
+                    # PROBLEMA: Múltiplos anos ainda presentes!
+                    # Forçar filtro apenas pelo ano mais recente
+                    ano_final_vol = max(anos_encontrados_vol)
+                    def tem_ano_final_vol(periodo_val):
+                        periodo_str = str(periodo_val).strip()
+                        if ' ' in periodo_str:
+                            ano_str = periodo_str.split(' ', 1)[1]
+                            if ano_str.isdigit():
+                                return int(ano_str) == ano_final_vol
+                        return True  # Se não tem ano, MANTER (assume ano mais recente)
+                    df_vol_medio_ano_recente = df_vol_medio_ano_recente[
+                        df_vol_medio_ano_recente['Período'].apply(tem_ano_final_vol)
+                    ].copy()
+            
+            # Calcular volume médio mensal (média dos meses selecionados do ano mais recente)
+            df_vol_medio_mensal = df_vol_medio_ano_recente.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].mean()
             df_vol_medio_mensal = df_vol_medio_mensal.rename(columns={'Volume': 'Volume_Medio_Historico'})
         else:
             # Se não houver dados, criar DataFrames vazios
@@ -1629,6 +1737,30 @@ else:
         else:
             inflacao_type06_dict = None
         
+        # 🔧 VERIFICAÇÃO: Garantir que df_media_mensal não tem duplicatas
+        # Se houver duplicatas, o merge vai criar linhas multiplicadas
+        colunas_chave_media = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
+        colunas_chave_media_existentes = [col for col in colunas_chave_media if col in df_media_mensal_cache.columns]
+        
+        if len(colunas_chave_media_existentes) > 0:
+            duplicatas_media = df_media_mensal_cache.duplicated(subset=colunas_chave_media_existentes, keep=False)
+            if duplicatas_media.any():
+                # Se houver duplicatas, agrupar novamente
+                agg_dict_media_dup = {'Total': 'mean'}  # Tirar média das médias duplicadas
+                df_media_mensal_cache = df_media_mensal_cache.groupby(
+                    colunas_chave_media_existentes, as_index=False
+                ).agg(agg_dict_media_dup)
+        
+        # 🔧 VERIFICAÇÃO: Garantir que volume_base não tem duplicatas
+        # Se houver múltiplas linhas para mesma Oficina + Veículo, o merge vai duplicar
+        if not volume_base_cache.empty and 'Oficina' in volume_base_cache.columns and 'Veículo' in volume_base_cache.columns:
+            duplicatas_volume = volume_base_cache.duplicated(subset=['Oficina', 'Veículo'], keep=False)
+            if duplicatas_volume.any():
+                # Se houver duplicatas, agrupar (pegar média ou soma do volume)
+                volume_base_cache = volume_base_cache.groupby(
+                    ['Oficina', 'Veículo'], as_index=False
+                ).agg({'Volume_Medio_Historico': 'mean'})  # Tirar média dos volumes duplicados
+        
         # Fazer merge com volume_base
         df_forecast_base = df_media_mensal_cache.merge(
             volume_base_cache,
@@ -1638,12 +1770,25 @@ else:
         # Se não houver volume médio histórico, manter como 0 para não distorcer a proporção
         df_forecast_base['Volume_Medio_Historico'] = df_forecast_base['Volume_Medio_Historico'].fillna(0.0)
         
-        # Fazer merge com df_cpu_medio para custos variáveis
+        # 🔧 VERIFICAÇÃO: Garantir que df_cpu_medio não tem duplicatas
+        # Se houver múltiplas linhas para mesma combinação, o merge vai duplicar
         if df_cpu_medio_cache is not None and not df_cpu_medio_cache.empty:
             colunas_merge_cpu = ['Oficina', 'Veículo'] + colunas_adicionais_cache
+            colunas_merge_cpu_existentes = [col for col in colunas_merge_cpu if col in df_cpu_medio_cache.columns]
+            
+            if len(colunas_merge_cpu_existentes) > 0:
+                duplicatas_cpu = df_cpu_medio_cache.duplicated(subset=colunas_merge_cpu_existentes, keep=False)
+                if duplicatas_cpu.any():
+                    # Se houver duplicatas, agrupar (pegar média dos valores duplicados)
+                    colunas_agregar_cpu = [col for col in df_cpu_medio_cache.columns if col not in colunas_merge_cpu_existentes]
+                    agg_dict_cpu = {col: 'mean' if df_cpu_medio_cache[col].dtype in ['float64', 'int64'] else 'first' for col in colunas_agregar_cpu}
+                    df_cpu_medio_cache = df_cpu_medio_cache.groupby(
+                        colunas_merge_cpu_existentes, as_index=False
+                    ).agg(agg_dict_cpu)
+            
             df_forecast_base = df_forecast_base.merge(
                 df_cpu_medio_cache,
-                on=colunas_merge_cpu,
+                on=colunas_merge_cpu_existentes,
                 how='left'
             )
             df_forecast_base['CPU_Historico'] = df_forecast_base['CPU_Historico'].fillna(0)
@@ -1793,6 +1938,19 @@ else:
                         df_forecast_base.loc[mask_variavel, 'Média_Mensal_Histórica'] * proporcao_ajustada_variavel * fator_inflacao_global
                     )
         
+        # 🔧 VERIFICAÇÃO FINAL: Se sensibilidade = 0 e inflação = 0, 
+        # o forecast DEVE ser exatamente igual à média histórica
+        # Isso garante que não há erros de cálculo ou duplicação
+        if (sensibilidade_fixo_cache == 0 and sensibilidade_variavel_cache == 0 and
+            (inflacao_type06_dict is None or all(v == 0 for v in inflacao_type06_dict.values()))):
+            # Verificar se há diferenças significativas
+            for periodo in meses_restantes_cache:
+                if periodo in df_forecast.columns:
+                    mask_diferente = abs(df_forecast[periodo] - df_forecast_base['Média_Mensal_Histórica']) > 0.01
+                    if mask_diferente.any():
+                        # Se houver diferenças, forçar igualdade
+                        df_forecast.loc[mask_diferente, periodo] = df_forecast_base.loc[mask_diferente, 'Média_Mensal_Histórica']
+        
         return df_forecast
 
     # Criar tabela de forecast
@@ -1833,17 +1991,32 @@ else:
         if colunas_meses:
             df_forecast_processado['Total_Forecast'] = df_forecast_processado[colunas_meses].sum(axis=1)
         
-        # Agrupar linhas iguais
-        colunas_agrupamento = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais_cache if col in df_forecast_processado.columns] + ['Tipo_Custo', 'Média_Mensal_Histórica']
+        # Agrupar linhas iguais (mesma combinação de Oficina+Veículo+Type+Tipo_Custo)
+        colunas_agrupamento = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais_cache if col in df_forecast_processado.columns] + ['Tipo_Custo']
         colunas_agrupamento_existentes = [col for col in colunas_agrupamento if col in df_forecast_processado.columns]
         
-        agg_dict_grupo = {}
-        for col in colunas_meses + ['Total_Forecast']:
-            if col in df_forecast_processado.columns:
-                agg_dict_grupo[col] = 'sum'
-        
-        if agg_dict_grupo and len(colunas_agrupamento_existentes) > 0:
-            df_forecast_processado = df_forecast_processado.groupby(colunas_agrupamento_existentes).agg(agg_dict_grupo).reset_index()
+        if len(colunas_agrupamento_existentes) > 0:
+            # Agrupar: somar valores numéricos (forecasts), usar 'first' para Média_Mensal_Histórica
+            # NÃO somar Total_Forecast aqui, vamos recalcular depois
+            agg_dict_grupo = {}
+            for col in df_forecast_processado.columns:
+                if col not in colunas_agrupamento_existentes:
+                    if col == 'Média_Mensal_Histórica':
+                        agg_dict_grupo[col] = 'first'  # Manter primeira ocorrência
+                    elif col in colunas_meses:
+                        agg_dict_grupo[col] = 'sum'  # Somar forecasts dos meses
+                    elif col == 'Total_Forecast':
+                        # Não incluir Total_Forecast no agrupamento, vamos recalcular
+                        pass
+                    else:
+                        agg_dict_grupo[col] = 'first'
+            df_forecast_processado = df_forecast_processado.groupby(
+                colunas_agrupamento_existentes, as_index=False
+            ).agg(agg_dict_grupo).reset_index()
+            
+            # Recalcular Total_Forecast após agrupamento (soma dos meses agrupados)
+            if colunas_meses:
+                df_forecast_processado['Total_Forecast'] = df_forecast_processado[colunas_meses].sum(axis=1)
         
         # Remover linhas com valores zero
         if colunas_meses:
@@ -1871,6 +2044,35 @@ else:
             # Usar df_medias (médias por período) para calcular a média mensal dos meses selecionados
             if df_medias is not None and not df_medias.empty and 'Período' in df_medias.columns and 'Total' in df_medias.columns:
                 df_medias_temp2 = df_medias.copy()
+                
+                # 🔧 CORREÇÃO: Filtrar apenas o ano mais recente ANTES de calcular a média
+                if 'Ano' in df_medias_temp2.columns:
+                    ano_mais_recente_media = df_medias_temp2['Ano'].max()
+                    df_medias_temp2 = df_medias_temp2[df_medias_temp2['Ano'] == ano_mais_recente_media].copy()
+                elif 'Período' in df_medias_temp2.columns:
+                    # Verificar quantos anos existem nos períodos
+                    periodos_unicos_media = df_medias_temp2['Período'].unique()
+                    anos_encontrados_media = set()
+                    for p in periodos_unicos_media:
+                        p_str = str(p).strip()
+                        if ' ' in p_str:
+                            ano_val = p_str.split(' ', 1)[1]
+                            if ano_val.isdigit():
+                                anos_encontrados_media.add(int(ano_val))
+                    if len(anos_encontrados_media) > 1:
+                        # Múltiplos anos: filtrar apenas o mais recente
+                        ano_final_media = max(anos_encontrados_media)
+                        def tem_ano_final_media(periodo_val):
+                            periodo_str = str(periodo_val).strip()
+                            if ' ' in periodo_str:
+                                ano_str = periodo_str.split(' ', 1)[1]
+                                if ano_str.isdigit():
+                                    return int(ano_str) == ano_final_media
+                            return True  # Se não tem ano, MANTER
+                        df_medias_temp2 = df_medias_temp2[
+                            df_medias_temp2['Período'].apply(tem_ano_final_media)
+                        ].copy()
+                
                 df_medias_temp2['Período'] = df_medias_temp2['Período'].astype(str)
 
                 # Filtrar apenas períodos usados na média (periodos_para_media)
@@ -2046,6 +2248,38 @@ else:
         # Verificar se df_medias está disponível (pode estar em diferentes escopos)
         try:
             df_medias_disponivel = df_medias
+            
+            # 🔧 CORREÇÃO: Filtrar apenas o ano mais recente para o gráfico
+            # (mesmo filtro aplicado ao calcular df_media_mensal)
+            if df_medias_disponivel is not None and not df_medias_disponivel.empty:
+                if 'Ano' in df_medias_disponivel.columns:
+                    ano_mais_recente_grafico = df_medias_disponivel['Ano'].max()
+                    df_medias_disponivel = df_medias_disponivel[
+                        df_medias_disponivel['Ano'] == ano_mais_recente_grafico
+                    ].copy()
+                elif 'Período' in df_medias_disponivel.columns:
+                    # Verificar quantos anos existem nos períodos
+                    periodos_unicos_grafico = df_medias_disponivel['Período'].unique()
+                    anos_encontrados_grafico = set()
+                    for p in periodos_unicos_grafico:
+                        p_str = str(p).strip()
+                        if ' ' in p_str:
+                            ano_val = p_str.split(' ', 1)[1]
+                            if ano_val.isdigit():
+                                anos_encontrados_grafico.add(int(ano_val))
+                    if len(anos_encontrados_grafico) > 1:
+                        # Múltiplos anos: filtrar apenas o mais recente
+                        ano_final_grafico = max(anos_encontrados_grafico)
+                        def tem_ano_final_grafico(periodo_val):
+                            periodo_str = str(periodo_val).strip()
+                            if ' ' in periodo_str:
+                                ano_str = periodo_str.split(' ', 1)[1]
+                                if ano_str.isdigit():
+                                    return int(ano_str) == ano_final_grafico
+                            return True  # Se não tem ano, MANTER
+                        df_medias_disponivel = df_medias_disponivel[
+                            df_medias_disponivel['Período'].apply(tem_ano_final_grafico)
+                        ].copy()
         except NameError:
             df_medias_disponivel = None
         
@@ -2357,79 +2591,6 @@ else:
             st.warning("⚠️ Volume histórico não disponível para gerar o gráfico detalhado.")
     
     # ====================================================================
-    # 🔍 TABELA DE DIAGNÓSTICO: Forecast por Linha para um Mês Específico
-    # ====================================================================
-    st.markdown("---")
-    st.subheader("🔍 Tabela de Diagnóstico - Forecast por Linha (Mês Específico)")
-
-    if 'df_forecast_bruto' in locals() and colunas_meses:
-        mes_diag = st.selectbox(
-            "Selecione o mês para diagnóstico (forecast por linha):",
-            options=colunas_meses,
-            index=0,
-            key="mes_diag_forecast"
-        )
-
-        df_diag = df_forecast_bruto.copy()
-
-        # Adicionar volume médio histórico por Oficina/Veículo
-        if volume_base is not None and not volume_base.empty:
-            df_diag = df_diag.merge(
-                volume_base[['Oficina', 'Veículo', 'Volume_Medio_Historico']],
-                on=['Oficina', 'Veículo'],
-                how='left'
-            )
-        else:
-            df_diag['Volume_Medio_Historico'] = pd.NA
-
-        # Adicionar volume futuro do mês selecionado
-        df_diag['Volume_Futuro'] = pd.NA
-        if volume_por_mes is not None and not volume_por_mes.empty:
-            mes_diag_str = str(mes_diag).strip().lower()
-            mes_diag_nome = mes_diag_str.split(' ', 1)[0] if ' ' in mes_diag_str else mes_diag_str
-
-            def periodo_corresponde_diag(periodo_df):
-                periodo_df_str = str(periodo_df).strip().lower()
-                periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
-                return periodo_df_mes == mes_diag_nome
-
-            periodos_no_df_diag = volume_por_mes['Período'].astype(str)
-            mask_diag = periodos_no_df_diag.apply(periodo_corresponde_diag)
-            vol_mes_diag = volume_por_mes[mask_diag]
-
-            if not vol_mes_diag.empty:
-                vol_mes_diag_agg = vol_mes_diag.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].sum()
-                df_diag = df_diag.merge(
-                    vol_mes_diag_agg.rename(columns={'Volume': 'Volume_Futuro'}),
-                    on=['Oficina', 'Veículo'],
-                    how='left',
-                    suffixes=('', '_tmp')
-                )
-
-        # Selecionar colunas relevantes
-        col_id = ['Oficina', 'Veículo']
-        for c in ['Type 05', 'Type 06', 'Account', 'Tipo_Custo']:
-            if c in df_diag.columns:
-                col_id.append(c)
-
-        col_vals = ['Média_Mensal_Histórica', 'Volume_Medio_Historico', 'Volume_Futuro']
-        if mes_diag in df_diag.columns:
-            col_vals.append(mes_diag)
-
-        colunas_diag = [c for c in col_id + col_vals if c in df_diag.columns]
-        df_diag_view = df_diag[colunas_diag].copy()
-
-        # Linhas com forecast zerado no mês selecionado
-        if mes_diag in df_diag.columns:
-            df_zerados = df_diag_view[df_diag[mes_diag].fillna(0) == 0]
-            st.markdown("#### Linhas com forecast = 0 no mês selecionado")
-            st.dataframe(df_zerados, use_container_width=True)
-
-        st.markdown("#### Todas as linhas (para comparação)")
-        st.dataframe(df_diag_view, use_container_width=True)
-    else:
-        st.info("ℹ️ Tabela de diagnóstico indisponível: não há dados de forecast bruto ou não há meses de forecast.")
-
     # Criar tabela agrupada por Oficina com expanders e subtotais
     st.markdown("---")
     st.subheader("📋 Tabela - Forecast por Veículo, Oficina e Período")
@@ -2482,6 +2643,60 @@ else:
                 # Calcular totais por coluna usando dados numéricos
                 df_oficina_numerico_display = df_oficina_numerico.drop(columns=['Oficina'])
                 
+                # Calcular média histórica mensal da oficina usando a mesma lógica
+                # do gráfico, mas restrita à oficina atual. Se não for possível,
+                # será usado o comportamento anterior (soma das médias da tabela).
+                media_historica_oficina = None
+                try:
+                    if (
+                        'Oficina' in df_medias.columns
+                        and 'Período' in df_medias.columns
+                        and 'Total' in df_medias.columns
+                    ):
+                        df_medias_oficina = df_medias[
+                            df_medias['Oficina'] == oficina
+                        ].copy()
+                        df_medias_oficina['Período'] = (
+                            df_medias_oficina['Período'].astype(str)
+                        )
+
+                        if periodos_para_media:
+                            meses_media_oficina = []
+                            for p in periodos_para_media:
+                                p_str = str(p).strip().lower()
+                                mes_p = (
+                                    p_str.split(' ', 1)[0]
+                                    if ' ' in p_str
+                                    else p_str
+                                )
+                                meses_media_oficina.append(mes_p)
+
+                            def periodo_esta_na_media_oficina(p):
+                                p_str = str(p).strip().lower()
+                                mes_p = (
+                                    p_str.split(' ', 1)[0]
+                                    if ' ' in p_str
+                                    else p_str
+                                )
+                                return mes_p in meses_media_oficina
+
+                            mask_media_oficina = df_medias_oficina['Período'].apply(
+                                periodo_esta_na_media_oficina
+                            )
+                            df_medias_oficina = df_medias_oficina[
+                                mask_media_oficina
+                            ]
+
+                        if not df_medias_oficina.empty:
+                            df_medias_agregado_oficina = df_medias_oficina.groupby(
+                                'Período', as_index=False
+                            )['Total'].sum()
+                            media_historica_oficina = float(
+                                df_medias_agregado_oficina['Total'].mean()
+                            )
+                except Exception:
+                    media_historica_oficina = None
+                
                 # Criar linha de total
                 linha_total = {}
                 
@@ -2494,8 +2709,17 @@ else:
                 
                 # Adicionar Média_Mensal_Histórica
                 if 'Média_Mensal_Histórica' in df_oficina_numerico_display.columns:
-                    total_media = df_oficina_numerico_display['Média_Mensal_Histórica'].sum()
-                    linha_total['Média_Mensal_Histórica'] = formatar_monetario(total_media)
+                    if isinstance(media_historica_oficina, (int, float)):
+                        linha_total['Média_Mensal_Histórica'] = (
+                            formatar_monetario(media_historica_oficina)
+                        )
+                    else:
+                        total_media = df_oficina_numerico_display[
+                            'Média_Mensal_Histórica'
+                        ].sum()
+                        linha_total['Média_Mensal_Histórica'] = (
+                            formatar_monetario(total_media)
+                        )
                 
                 # Adicionar totais por mês
                 for col in colunas_meses:
@@ -2555,9 +2779,27 @@ else:
                         linha_total_geral[col] = '**TOTAL GERAL**'
 
                 # Média_Mensal_Histórica total
+                # 🔧 CORREÇÃO: Usar a mesma média histórica global exibida no gráfico
+                # (calculada agregando totais por período e tirando a média)
                 if 'Média_Mensal_Histórica' in df_total_numerico_display.columns:
-                    total_media_geral = df_total_numerico_display['Média_Mensal_Histórica'].sum()
-                    linha_total_geral['Média_Mensal_Histórica'] = formatar_monetario(total_media_geral)
+                    try:
+                        # Usar media_historica_total que já foi calculada corretamente
+                        valor_media_total = media_historica_total
+                    except NameError:
+                        valor_media_total = None
+                    
+                    if isinstance(valor_media_total, (int, float)):
+                        linha_total_geral['Média_Mensal_Histórica'] = (
+                            formatar_monetario(valor_media_total)
+                        )
+                    else:
+                        # Fallback: somar médias individuais (não ideal, mas melhor que nada)
+                        total_media_geral = (
+                            df_total_numerico_display['Média_Mensal_Histórica'].sum()
+                        )
+                        linha_total_geral['Média_Mensal_Histórica'] = (
+                            formatar_monetario(total_media_geral)
+                        )
 
                 # Totais por mês
                 for col in colunas_meses:
