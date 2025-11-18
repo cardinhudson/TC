@@ -111,6 +111,15 @@ ano_selecionado = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 
+# Seletor de tipo de visualização
+st.sidebar.markdown("**📊 Tipo de Visualização**")
+tipo_visualizacao = st.sidebar.radio(
+    "Selecione o tipo:",
+    ["Custo Total", "CPU (Custo por Unidade)"],
+    index=0
+)
+st.sidebar.markdown("---")
+
 # Função para carregar dados com cache
 @st.cache_data(
     ttl=3600,
@@ -173,7 +182,7 @@ def load_volume_data(ano_selecionado_param):
     try:
         # Converter "Todos" para None
         ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
-
+        
         # Buscar arquivo na ordem de prioridade
         arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
 
@@ -305,8 +314,8 @@ def aplicar_filtros(df_total_cache, oficina_selecionadas_cache, veiculo_selecion
                      usi_selecionada_cache, periodo_selecionado_cache):
     """Aplica filtros ao DataFrame com cache"""
     df_filtrado = df_total_cache.copy()
-
-# Filtro 1: Oficina
+    
+    # Filtro 1: Oficina
     if 'Oficina' in df_filtrado.columns:
         if oficina_selecionadas_cache and "Todos" not in oficina_selecionadas_cache:
             df_filtrado = df_filtrado[
@@ -366,28 +375,28 @@ if 'USI' in df_total.columns:
 periodo_selecionado = "Todos"
 if 'Período' in df_total.columns:
     periodo_opcoes_raw = get_filter_options(df_total, 'Período')
-
+    
     # Ordenar meses cronologicamente
     periodo_opcoes = ["Todos"]
     meses_ordenados = []
     outros_periodos = []
-
+    
     for periodo in periodo_opcoes_raw[1:]:  # Pular "Todos"
         periodo_lower = str(periodo).lower()
         if periodo_lower in ORDEM_MESES:
             meses_ordenados.append(periodo)
         else:
             outros_periodos.append(periodo)
-
+    
     # Ordenar meses pela ordem cronológica
     meses_ordenados.sort(
         key=lambda x: ORDEM_MESES.index(str(x).lower())
         if str(x).lower() in ORDEM_MESES else 999
     )
-
+    
     # Combinar: Todos + meses ordenados + outros períodos
     periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
-
+    
     periodo_selecionado = st.sidebar.selectbox(
         "Selecione o Período:", periodo_opcoes
     )
@@ -939,7 +948,7 @@ if 'Type 06' in df_filtrado.columns:
                 
                 with col2:
                     st.markdown(f"<small><b>{type06}</b></small>", unsafe_allow_html=True)
-
+                
                 with col3:
                     emoji = "🔵" if tipo_predominante == 'Fixo' else "🟠"
                     tipo_abrev = "F" if tipo_predominante == 'Fixo' else "V"
@@ -981,7 +990,7 @@ if 'Type 06' in df_filtrado.columns:
             
             # Botão para aplicar configurações
             st.markdown("---")
-
+            
             # Armazenar configurações temporárias em session_state
             if 'sensibilidades_aplicadas' not in st.session_state:
                 st.session_state.sensibilidades_aplicadas = None
@@ -1486,7 +1495,7 @@ else:
                 df_media_mensal = df_media_mensal.groupby(
                     colunas_groupby_media, as_index=False
                 ).agg(agg_dict_media)
-
+        
         return df_medias, df_media_mensal
 
     # Calcular médias mensais históricas por Oficina, Veículo e Período
@@ -1890,7 +1899,7 @@ else:
                 
                 df_vol_para_media = df_vol_para_media[
                     df_vol_para_media['Período'].apply(periodo_nao_esta_excluido)
-                ].copy()
+            ].copy()
 
             # Se, por algum motivo, o filtro não encontrar nada, voltar a usar todos os dados
             # para não ficar com volume histórico zero (mantém a regra de negócio funcionando)
@@ -2487,18 +2496,41 @@ else:
             df_grafico_premissas['Custo'] = pd.to_numeric(df_grafico_premissas['Custo'], errors='coerce')
             df_grafico_premissas['Volume'] = pd.to_numeric(df_grafico_premissas['Volume'], errors='coerce')
             
-            # Criar gráfico de barras para custo (SIMPLIFICADO)
+            # 🔧 ADICIONAR: Calcular CPU (Custo por Unidade) = Custo / Volume
+            # Garantir que o volume corresponda ao mesmo período
+            df_grafico_premissas['CPU'] = df_grafico_premissas.apply(
+                lambda row: (
+                    row['Custo'] / row['Volume']
+                    if pd.notnull(row['Volume']) and row['Volume'] != 0 and pd.notnull(row['Custo'])
+                    else 0
+                ),
+                axis=1
+            )
+            
+            # Determinar coluna e título baseado no tipo de visualização
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                coluna_grafico = 'CPU'
+                titulo_y = 'CPU (R$/Unidade)'
+                titulo_grafico = 'CPU por Período'
+                formato_texto = ',.2f'
+            else:
+                coluna_grafico = 'Custo'
+                titulo_y = 'Custo (R$)'
+                titulo_grafico = 'Custo Total por Período'
+                formato_texto = ',.0f'
+            
+            # Criar gráfico de barras para custo ou CPU
             barras_custo = alt.Chart(df_grafico_premissas).mark_bar(size=80).encode(
                 x=alt.X('Período:N', sort=ordem_periodos_grafico),
-                y=alt.Y('Custo:Q'),
+                y=alt.Y(f'{coluna_grafico}:Q', title=titulo_y),
                 color=alt.Color('Tipo:N', 
                     scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e'])
                 ),
-                tooltip=['Período:N', 'Custo:Q', 'Volume:Q', 'Tipo:N']
+                tooltip=['Período:N', 'Custo:Q', 'Volume:Q', 'CPU:Q', 'Tipo:N']
             ).properties(
                 width=800,
                 height=400,
-                title='Custo Total por Período'
+                title=titulo_grafico
             )
             
             # Adicionar rótulos
@@ -2508,7 +2540,7 @@ else:
                 dy=-5,
                 color='white'
             ).encode(
-                text=alt.Text('Custo:Q', format=',.0f')
+                text=alt.Text(f'{coluna_grafico}:Q', format=formato_texto)
             )
             
             # Criar gráfico de linhas para volume
@@ -2540,11 +2572,19 @@ else:
             st.altair_chart(barras_custo + texto_barras, use_container_width=True)
             st.altair_chart(linha_volume + texto_linha, use_container_width=True)
             
+            # Calcular CPU médio histórico
+            cpu_medio_historico = (
+                media_historica_total / volume_medio_historico_total
+                if volume_medio_historico_total != 0 and volume_medio_historico_total is not None
+                else 0
+            )
+            
             # Mostrar resumo dos dados
             st.info(f"""
             📊 **Resumo do Gráfico:**
             - Custo Médio Histórico: R$ {media_historica_total:,.2f}
             - Volume Médio Histórico: {volume_medio_historico_total:,.2f}
+            - CPU Médio Histórico: R$ {cpu_medio_historico:,.2f}
             - Total de Períodos no Forecast: {len(colunas_meses)}
             """)
         
@@ -2794,149 +2834,323 @@ else:
                     df_medias_agregado.loc[df_medias_agregado.index[-1], 'Media_Acumulada'] = media_historica_calculada
             
             # Preparar dados para o gráfico (meses históricos)
-            # 🔧 CORREÇÃO: Incluir todos os períodos de df_medias_agregado como históricos
-            # df_medias_agregado já foi filtrado corretamente antes (inclui apenas períodos em periodos_para_media
-            # e exclui meses em meses_excluir_media), então podemos incluir todos os períodos diretamente
-            dados_grafico_historico = []
+    # 🔧 CORREÇÃO: Criar versão temporária com CPU aplicado para uso no gráfico histórico
+    # Isso garante que quando tipo_visualizacao é CPU, o gráfico use valores de CPU
+    df_forecast_para_grafico_hist = df_forecast_bruto.copy()
+    if tipo_visualizacao == "CPU (Custo por Unidade)":
+        # Aplicar CPU temporariamente para o gráfico histórico
+        if volume_por_mes is not None and not volume_por_mes.empty and colunas_meses:
+            # Preparar volume_por_mes para merge
+            volume_por_mes_temp = volume_por_mes.copy()
+            volume_por_mes_temp['Mes_Normalizado'] = volume_por_mes_temp['Período'].astype(str).str.strip().str.lower()
+            volume_por_mes_temp['Mes_Normalizado'] = volume_por_mes_temp['Mes_Normalizado'].str.split(' ', expand=True)[0]
             
-            # Verificar se df_medias_agregado tem dados
-            if not df_medias_agregado.empty:
-                # 🔧 CORREÇÃO: Recalcular média acumulada diretamente dos valores das barras para garantir consistência
-                # Isso garante que a média acumulada seja calculada exatamente dos mesmos valores que aparecem nas barras
-                valores_totais = df_medias_agregado['Total'].tolist()
-                media_acumulada_recalculada = []
-                soma_acumulada = 0.0
-                for i, valor in enumerate(valores_totais):
-                    soma_acumulada += float(valor)
-                    media_acumulada = soma_acumulada / (i + 1)
-                    media_acumulada_recalculada.append(media_acumulada)
+            # Agregar volume por combinação de chaves + mês
+            colunas_merge_mes_temp = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais if col in volume_por_mes_temp.columns]
+            colunas_merge_mes_temp_existentes = [col for col in colunas_merge_mes_temp if col in volume_por_mes_temp.columns]
+            
+            if len(colunas_merge_mes_temp_existentes) > 0:
+                volume_agregado_temp = volume_por_mes_temp.groupby(
+                    colunas_merge_mes_temp_existentes + ['Mes_Normalizado'],
+                    as_index=False
+                )['Volume'].sum()
                 
-                # Incluir todos os períodos de df_medias_agregado como históricos
-                # (já foram filtrados corretamente antes da agregação)
-                for idx, row in df_medias_agregado.iterrows():
-                    periodo_str = str(row['Período'])
-                    # Usar a média acumulada recalculada para garantir consistência com os valores das barras
-                    media_acumulada_valor = media_acumulada_recalculada[idx]
-                    dados_grafico_historico.append({
-                        'Período': periodo_str,
-                        'Custo': float(row['Total']),
-                        'Media_Acumulada': media_acumulada_valor,
-                        'Tipo': 'Histórico'
-                    })
-            
-            # Adicionar períodos de forecast
-            if colunas_meses:
+                # Para cada mês, fazer merge e calcular CPU
                 for mes in colunas_meses:
-                    # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_bruto (antes do agrupamento) para somar todas as linhas individuais
-                    # O df_forecast já foi agrupado, então pode estar perdendo linhas na soma
-                    if mes in df_forecast_bruto.columns:
-                        forecast_mes_total = float(df_forecast_bruto[mes].sum())
-                    elif mes in df_forecast.columns:
-                        # Fallback: usar df_forecast se df_forecast_bruto não tiver a coluna
-                        forecast_mes_total = float(df_forecast[mes].sum())
-                    else:
-                        forecast_mes_total = 0
-                    dados_grafico_historico.append({
-                        'Período': str(mes),
-                        'Custo': forecast_mes_total,
-                        'Media_Acumulada': None,  # Não calcular média acumulada para forecast
-                        'Tipo': 'Forecast'
-                    })
+                    if mes in df_forecast_para_grafico_hist.columns:
+                        mes_normalizado = str(mes).strip().lower().split(' ', 1)[0]
+                        
+                        # Filtrar volume para este mês
+                        volume_mes_temp = volume_agregado_temp[volume_agregado_temp['Mes_Normalizado'] == mes_normalizado].copy()
+                        if not volume_mes_temp.empty:
+                            volume_mes_temp = volume_mes_temp.drop(columns=['Mes_Normalizado'])
+                            
+                            # Fazer merge com df_forecast_para_grafico_hist
+                            df_forecast_para_grafico_hist = pd.merge(
+                                df_forecast_para_grafico_hist,
+                                volume_mes_temp.rename(columns={'Volume': f'Volume_{mes}'}),
+                                on=colunas_merge_mes_temp_existentes,
+                                how='left'
+                            )
+                            
+                            # Calcular CPU (operação vetorizada)
+                            col_volume_temp = f'Volume_{mes}'
+                            if col_volume_temp in df_forecast_para_grafico_hist.columns:
+                                mask_valid_temp = (df_forecast_para_grafico_hist[col_volume_temp].notna()) & \
+                                                 (df_forecast_para_grafico_hist[col_volume_temp] != 0) & \
+                                                 (df_forecast_para_grafico_hist[mes].notna())
+                                df_forecast_para_grafico_hist.loc[mask_valid_temp, mes] = (
+                                    df_forecast_para_grafico_hist.loc[mask_valid_temp, mes] /
+                                    df_forecast_para_grafico_hist.loc[mask_valid_temp, col_volume_temp]
+                                )
+                                df_forecast_para_grafico_hist = df_forecast_para_grafico_hist.drop(columns=[col_volume_temp])
+    
+    # 🔧 CORREÇÃO: Incluir todos os períodos de df_medias_agregado como históricos
+    # df_medias_agregado já foi filtrado corretamente antes (inclui apenas períodos em periodos_para_media
+    # e exclui meses em meses_excluir_media), então podemos incluir todos os períodos diretamente
+    dados_grafico_historico = []
+    
+    # Verificar se df_medias_agregado tem dados
+    if not df_medias_agregado.empty:
+        # 🔧 ADICIONAR: Calcular CPU para períodos históricos se tipo_visualizacao for CPU
+        # Buscar volume para períodos históricos usando df_vol (tem todos os períodos)
+        df_medias_agregado_com_cpu = df_medias_agregado.copy()
+        df_medias_agregado_com_cpu['CPU'] = 0.0
+        df_medias_agregado_com_cpu['Volume'] = 0.0
+        
+        # Usar df_vol diretamente (tem todos os volumes históricos)
+        if df_vol is not None and not df_vol.empty and 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
+            # Agregar volume por período (mesma lógica do custo)
+            # Normalizar períodos para garantir correspondência
+            df_vol_agregado_hist = df_vol.copy()
+            df_vol_agregado_hist['Período_Norm'] = df_vol_agregado_hist['Período'].astype(str).str.strip()
+            df_vol_agregado_hist = df_vol_agregado_hist.groupby('Período_Norm', as_index=False)['Volume'].sum()
+            df_vol_agregado_hist = df_vol_agregado_hist.rename(columns={'Período_Norm': 'Período'})
             
-            df_grafico_historico = pd.DataFrame(dados_grafico_historico)
+            # Normalizar períodos em df_medias_agregado_com_cpu também
+            df_medias_agregado_com_cpu['Período_Norm'] = df_medias_agregado_com_cpu['Período'].astype(str).str.strip()
             
-            if not df_grafico_historico.empty:
-                # Calcular valores máximos para escala (apenas das barras)
-                max_custo_barras = float(df_grafico_historico['Custo'].max())
+            # Fazer merge eficiente com df_medias_agregado para períodos históricos
+            df_medias_agregado_com_cpu = pd.merge(
+                df_medias_agregado_com_cpu,
+                df_vol_agregado_hist.rename(columns={'Volume': 'Volume_Periodo', 'Período': 'Período_Vol'}),
+                left_on='Período_Norm',
+                right_on='Período_Vol',
+                how='left'
+            )
+            
+            # Calcular CPU (operação vetorizada)
+            mask_valid_hist = (df_medias_agregado_com_cpu['Volume_Periodo'].notna()) & \
+                              (df_medias_agregado_com_cpu['Volume_Periodo'] != 0) & \
+                              (df_medias_agregado_com_cpu['Total'].notna())
+            df_medias_agregado_com_cpu.loc[mask_valid_hist, 'CPU'] = (
+                df_medias_agregado_com_cpu.loc[mask_valid_hist, 'Total'] /
+                df_medias_agregado_com_cpu.loc[mask_valid_hist, 'Volume_Periodo']
+            )
+            df_medias_agregado_com_cpu.loc[mask_valid_hist, 'Volume'] = df_medias_agregado_com_cpu.loc[mask_valid_hist, 'Volume_Periodo']
+            # Limpar colunas temporárias
+            df_medias_agregado_com_cpu = df_medias_agregado_com_cpu.drop(columns=['Volume_Periodo', 'Período_Norm', 'Período_Vol'], errors='ignore')
+        
+        # 🔧 CORREÇÃO: Recalcular média acumulada diretamente dos valores das barras para garantir consistência
+        # Isso garante que a média acumulada seja calculada exatamente dos mesmos valores que aparecem nas barras
+        # Usar CPU se tipo_visualizacao for CPU, senão usar Total
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            valores_para_media = df_medias_agregado_com_cpu['CPU'].tolist()
+        else:
+            valores_para_media = df_medias_agregado_com_cpu['Total'].tolist()
+        
+        media_acumulada_recalculada = []
+        soma_acumulada = 0.0
+        for i, valor in enumerate(valores_para_media):
+            soma_acumulada += float(valor) if pd.notnull(valor) else 0.0
+            media_acumulada = soma_acumulada / (i + 1)
+            media_acumulada_recalculada.append(media_acumulada)
+        
+        # Incluir todos os períodos de df_medias_agregado como históricos
+        # (já foram filtrados corretamente antes da agregação)
+        for idx, row in df_medias_agregado_com_cpu.iterrows():
+            periodo_str = str(row['Período'])
+            # Usar a média acumulada recalculada para garantir consistência com os valores das barras
+            media_acumulada_valor = media_acumulada_recalculada[idx]
+            dados_grafico_historico.append({
+                'Período': periodo_str,
+                'Custo': float(row['Total']),
+                'CPU': float(row['CPU']) if 'CPU' in row and pd.notnull(row['CPU']) else 0.0,
+                'Volume': float(row['Volume']) if 'Volume' in row and pd.notnull(row['Volume']) else 0.0,
+                'Media_Acumulada': media_acumulada_valor,
+                'Tipo': 'Histórico'
+            })
+    
+    # Adicionar períodos de forecast
+    if colunas_meses:
+        # 🔧 CORREÇÃO: Usar df_forecast_para_grafico_hist que já tem CPU aplicado quando necessário
+        for mes in colunas_meses:
+            # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_para_grafico_hist para somar todas as linhas individuais
+            # Isso garante que quando CPU está selecionado, estamos somando CPUs
+            if mes in df_forecast_para_grafico_hist.columns:
+                forecast_mes_total = float(df_forecast_para_grafico_hist[mes].sum())
+            elif mes in df_forecast_bruto.columns:
+                forecast_mes_total = float(df_forecast_bruto[mes].sum())
+            elif mes in df_forecast.columns:
+                # Fallback: usar df_forecast se não tiver a coluna
+                forecast_mes_total = float(df_forecast[mes].sum())
+            else:
+                forecast_mes_total = 0
+            dados_grafico_historico.append({
+                'Período': str(mes),
+                'Custo': forecast_mes_total,
+                'Media_Acumulada': None,  # Não calcular média acumulada para forecast
+                'Tipo': 'Forecast'
+            })
+    
+    df_grafico_historico = pd.DataFrame(dados_grafico_historico)
+    
+    if not df_grafico_historico.empty:
+        # 🔧 CORREÇÃO: Calcular CPU para períodos de forecast usando merge eficiente
+        # Nota: Se tipo_visualizacao é CPU, os valores já foram calculados em df_forecast_para_grafico_hist
+        # Então não precisamos recalcular aqui, apenas garantir que CPU e Volume estejam presentes
+        if 'CPU' not in df_grafico_historico.columns:
+            df_grafico_historico['CPU'] = 0.0
+        if 'Volume' not in df_grafico_historico.columns:
+            df_grafico_historico['Volume'] = 0.0
+        
+        # Se tipo_visualizacao é CPU, os valores de forecast já estão em CPU
+        # Apenas precisamos calcular CPU para forecast se ainda não foi calculado
+        if tipo_visualizacao != "CPU (Custo por Unidade)":
+            # Calcular CPU para forecast usando merge (mais eficiente) apenas se não for CPU
+            if volume_por_mes is not None and not volume_por_mes.empty:
+                # Preparar volume_por_mes: normalizar período e agregar
+                volume_por_mes_merge = volume_por_mes.copy()
+                volume_por_mes_merge['Período_Normalizado'] = volume_por_mes_merge['Período'].astype(str).str.strip().str.lower()
+                volume_por_mes_merge['Período_Normalizado'] = volume_por_mes_merge['Período_Normalizado'].str.split(' ', expand=True)[0]
+                volume_agregado_forecast = volume_por_mes_merge.groupby('Período_Normalizado', as_index=False)['Volume'].sum()
                 
-                # Calcular valores da média acumulada (apenas períodos históricos)
-                df_medias_hist = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
-                max_media_valor = float(df_medias_hist['Media_Acumulada'].max()) if not df_medias_hist.empty else 0
-                min_media_valor = float(df_medias_hist['Media_Acumulada'].min()) if not df_medias_hist.empty else 0
-                
-                # Calcular posição desejada da linha (30% acima do maior valor das barras)
-                posicao_desejada_linha = max_custo_barras * 1.3
-                
-                # Calcular fator de escala para mapear valores reais para posição acima das barras
-                # A linha deve mostrar a evolução, mas ficar sempre acima das barras
-                if max_media_valor > 0:
-                    # Escalar para que o máximo da média fique na posição desejada
-                    fator_escala = posicao_desejada_linha / max_media_valor
-                else:
-                    fator_escala = 1.0
-                
-                # Manter valores reais da média acumulada para tooltips
-                df_grafico_historico['Media_Acumulada_Valor'] = df_grafico_historico['Media_Acumulada']
-                
-                # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
-                df_grafico_historico['Media_Acumulada_Escalada'] = None
-                
-                # Aplicar escala aos períodos históricos para posicionamento
-                mask_historico = df_grafico_historico['Tipo'] == 'Histórico'
-                if mask_historico.any():
-                    # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
-                    mask_historico_valido = mask_historico & df_grafico_historico['Media_Acumulada'].notna()
-                    if mask_historico_valido.any():
-                        df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
-                            df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
-                        )
-                df_grafico_historico.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
-                
-                # Calcular escala máxima para o eixo primário (barras)
-                max_escala_barras = max_custo_barras * 1.2
-                # Calcular escala máxima para o eixo secundário (linha) - posição desejada + margem
-                max_escala_linha = posicao_desejada_linha * 1.1
-                
-                # Ordenar períodos para o gráfico
-                ordem_periodos_historico = df_grafico_historico['Período'].tolist()
-                
-                # Criar gráfico de barras para meses individuais e forecast (sem legenda)
-                barras_meses = alt.Chart(df_grafico_historico).mark_bar(size=40).encode(
-                    x=alt.X('Período:N', 
-                        sort=ordem_periodos_historico, 
-                        title='Período',
-                        axis=alt.Axis(
-                            labelAngle=-45,  # Rotacionar labels para evitar sobreposição
-                            labelPadding=10,  # Espaçamento adicional
-                            labelLimit=100  # Limite de largura do label
-                        )
-                    ),
-                    y=alt.Y('Custo:Q', 
-                        title='Custo', 
-                        scale=alt.Scale(domain=[0, max_escala_barras])
-                    ),
-                    color=alt.Color('Tipo:N', 
-                        scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
-                        legend=None  # Remover legenda das barras
-                    ),
-                    tooltip=['Período:N', 'Custo:Q', 'Tipo:N']
-                ).properties(
-                    height=450,  # Aumentar altura para dar mais espaço
-                    title='Custo por Mês Histórico e Média Acumulada'
-                )
-                
-                # Adicionar rótulos nas barras
-                texto_barras_meses = barras_meses.mark_text(
-                    align='center',
-                    baseline='bottom',
-                    dy=-5,
-                    color='white',
-                    fontSize=10
-                ).encode(
-                    text=alt.Text('Custo:Q', format=',.0f')
-                )
-                
-                # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
-                df_grafico_linha = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
-                
-                # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
-                # Verificar se há dados válidos para a linha
-                if not df_grafico_linha.empty and 'Media_Acumulada_Escalada' in df_grafico_linha.columns:
-                    # Remover linhas com valores None ou NaN na média acumulada escalada
-                    df_grafico_linha = df_grafico_linha[df_grafico_linha['Media_Acumulada_Escalada'].notna()].copy()
+                # Normalizar períodos em df_grafico_historico para forecast
+                df_forecast_grafico = df_grafico_historico[df_grafico_historico['Tipo'] == 'Forecast'].copy()
+                if not df_forecast_grafico.empty:
+                    df_forecast_grafico['Período_Normalizado'] = df_forecast_grafico['Período'].astype(str).str.strip().str.lower()
+                    df_forecast_grafico['Período_Normalizado'] = df_forecast_grafico['Período_Normalizado'].str.split(' ', expand=True)[0]
                     
-                    # Se ainda houver dados válidos, criar a linha
-                    if not df_grafico_linha.empty:
+                    # Fazer merge
+                    df_forecast_grafico = pd.merge(
+                        df_forecast_grafico,
+                        volume_agregado_forecast.rename(columns={'Volume': 'Volume_Forecast'}),
+                        on='Período_Normalizado',
+                        how='left'
+                    )
+                    
+                    # Calcular CPU (operação vetorizada)
+                    mask_valid_forecast = (df_forecast_grafico['Volume_Forecast'].notna()) & \
+                                          (df_forecast_grafico['Volume_Forecast'] != 0) & \
+                                          (df_forecast_grafico['Custo'].notna())
+                    df_forecast_grafico.loc[mask_valid_forecast, 'CPU'] = (
+                        df_forecast_grafico.loc[mask_valid_forecast, 'Custo'] /
+                        df_forecast_grafico.loc[mask_valid_forecast, 'Volume_Forecast']
+                    )
+                    df_forecast_grafico.loc[mask_valid_forecast, 'Volume'] = df_forecast_grafico.loc[mask_valid_forecast, 'Volume_Forecast']
+                    
+                    # Atualizar df_grafico_historico com valores de forecast
+                    for idx in df_forecast_grafico.index:
+                        idx_original = df_grafico_historico[df_grafico_historico['Período'] == df_forecast_grafico.loc[idx, 'Período']].index
+                        if len(idx_original) > 0:
+                            idx_original = idx_original[0]
+                            df_grafico_historico.loc[idx_original, 'CPU'] = df_forecast_grafico.loc[idx, 'CPU']
+                            df_grafico_historico.loc[idx_original, 'Volume'] = df_forecast_grafico.loc[idx, 'Volume']
+        
+        # Calcular valores máximos para escala (apenas das barras)
+        max_custo_barras = float(df_grafico_historico['Custo'].max())
+        
+        # Calcular valores da média acumulada (apenas períodos históricos)
+        df_medias_hist = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
+        max_media_valor = float(df_medias_hist['Media_Acumulada'].max()) if not df_medias_hist.empty else 0
+        min_media_valor = float(df_medias_hist['Media_Acumulada'].min()) if not df_medias_hist.empty else 0
+        
+        # Calcular posição desejada da linha (30% acima do maior valor das barras)
+        posicao_desejada_linha = max_custo_barras * 1.3
+        
+        # Calcular fator de escala para mapear valores reais para posição acima das barras
+        # A linha deve mostrar a evolução, mas ficar sempre acima das barras
+        if max_media_valor > 0:
+            # Escalar para que o máximo da média fique na posição desejada
+            fator_escala = posicao_desejada_linha / max_media_valor
+        else:
+            fator_escala = 1.0
+        
+        # Manter valores reais da média acumulada para tooltips
+        df_grafico_historico['Media_Acumulada_Valor'] = df_grafico_historico['Media_Acumulada']
+        
+        # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
+        df_grafico_historico['Media_Acumulada_Escalada'] = None
+        
+        # Aplicar escala aos períodos históricos para posicionamento
+        mask_historico = df_grafico_historico['Tipo'] == 'Histórico'
+        if mask_historico.any():
+            # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
+            mask_historico_valido = mask_historico & df_grafico_historico['Media_Acumulada'].notna()
+            if mask_historico_valido.any():
+                df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
+                    df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
+                )
+        df_grafico_historico.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
+        
+        # Calcular escala máxima para o eixo primário (barras)
+        max_escala_barras = max_custo_barras * 1.2
+        # Calcular escala máxima para o eixo secundário (linha) - posição desejada + margem
+        max_escala_linha = posicao_desejada_linha * 1.1
+        
+        # Ordenar períodos para o gráfico
+        ordem_periodos_historico = df_grafico_historico['Período'].tolist()
+        
+        # Determinar coluna e título baseado no tipo de visualização
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            coluna_grafico_hist = 'CPU'
+            titulo_y_hist = 'CPU (R$/Unidade)'
+            titulo_grafico_hist = 'CPU por Mês Histórico e Média Acumulada'
+            formato_texto_hist = ',.2f'
+            # Ajustar escala para CPU - garantir que há valores válidos
+            if 'CPU' in df_grafico_historico.columns:
+                cpu_valores_validos = df_grafico_historico['CPU'].replace([np.inf, -np.inf], np.nan).dropna()
+                if not cpu_valores_validos.empty and cpu_valores_validos.max() > 0:
+                    max_valor_grafico = float(cpu_valores_validos.max())
+                    max_escala_barras_hist = max_valor_grafico * 1.2
+                else:
+                    max_escala_barras_hist = max_custo_barras
+            else:
+                max_escala_barras_hist = max_custo_barras
+        else:
+            coluna_grafico_hist = 'Custo'
+            titulo_y_hist = 'Custo (R$)'
+            titulo_grafico_hist = 'Custo por Mês Histórico e Média Acumulada'
+            formato_texto_hist = ',.0f'
+            max_escala_barras_hist = max_escala_barras
+        
+        # Criar gráfico de barras para meses individuais e forecast (sem legenda)
+        barras_meses = alt.Chart(df_grafico_historico).mark_bar(size=40).encode(
+            x=alt.X('Período:N', 
+                sort=ordem_periodos_historico, 
+                title='Período',
+                axis=alt.Axis(
+                    labelAngle=-45,  # Rotacionar labels para evitar sobreposição
+                    labelPadding=10,  # Espaçamento adicional
+                    labelLimit=100  # Limite de largura do label
+                )
+            ),
+            y=alt.Y(f'{coluna_grafico_hist}:Q', 
+                title=titulo_y_hist, 
+                scale=alt.Scale(domain=[0, max_escala_barras_hist])
+            ),
+            color=alt.Color('Tipo:N', 
+                scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
+                legend=None  # Remover legenda das barras
+            ),
+            tooltip=['Período:N', 'Custo:Q', 'Volume:Q', 'CPU:Q', 'Tipo:N']
+        ).properties(
+            height=450,  # Aumentar altura para dar mais espaço
+            title=titulo_grafico_hist
+        )
+        
+        # Adicionar rótulos nas barras
+        texto_barras_meses = barras_meses.mark_text(
+            align='center',
+            baseline='bottom',
+            dy=-5,
+            color='white',
+            fontSize=10
+        ).encode(
+            text=alt.Text(f'{coluna_grafico_hist}:Q', format=formato_texto_hist)
+        )
+        
+        # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
+        df_grafico_linha = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
+        
+        # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
+        # Verificar se há dados válidos para a linha
+        if not df_grafico_linha.empty and 'Media_Acumulada_Escalada' in df_grafico_linha.columns:
+            # Remover linhas com valores None ou NaN na média acumulada escalada
+            df_grafico_linha = df_grafico_linha[df_grafico_linha['Media_Acumulada_Escalada'].notna()].copy()
+            
+            # Se ainda houver dados válidos, criar a linha
+            if not df_grafico_linha.empty:
                         # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
                         linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
                             point=True,
@@ -3050,7 +3264,7 @@ else:
         if df_vol_medio_disp is not None and not df_vol_medio_disp.empty:
             # Agregar volume histórico por período (apenas meses usados para média)
             df_vol_hist = df_vol_medio_disp.groupby('Período', as_index=False)['Volume'].sum()
-            
+
             # 🔧 CORREÇÃO: Filtrar períodos para mostrar apenas os que foram usados para a média
             # (excluindo meses marcados para exclusão e considerando apenas períodos selecionados)
             if periodos_para_media and not df_vol_hist.empty:
@@ -3254,7 +3468,7 @@ else:
                 ).encode(
                     text=alt.Text('Volume:Q', format=',.0f')
                 )
-                
+
                 # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
                 df_grafico_linha_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
                 
@@ -3377,11 +3591,11 @@ else:
                 - **Volume Médio Histórico:** {volume_medio_historico_total_display:,.2f}
                 - **Última Média Acumulada:** {media_acumulada_final_volume:,.2f}
                 """)
-            else:
-                st.warning("⚠️ Não há dados suficientes de volume para gerar o gráfico detalhado.")
         else:
-            st.warning("⚠️ Volume histórico não disponível para gerar o gráfico detalhado.")
-    
+            st.warning("⚠️ Não há dados suficientes de volume para gerar o gráfico detalhado.")
+    else:
+        st.warning("⚠️ Volume histórico não disponível para gerar o gráfico detalhado.")
+
     # ====================================================================
     # Criar tabela agrupada por Oficina com expanders e subtotais
     st.markdown("---")
@@ -3395,12 +3609,114 @@ else:
         # Criar versão formatada para exibição (manter original para cálculos)
         df_forecast_display = df_forecast.copy()
         
+        # 🔧 ADICIONAR: Calcular CPU para tabelas se tipo_visualizacao for CPU (versão otimizada)
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            # Criar cópia numérica para cálculos
+            df_forecast_cpu = df_forecast.copy()
+            
+            # Calcular CPU para Média_Mensal_Histórica usando volume_base (merge eficiente)
+            if volume_base is not None and not volume_base.empty:
+                colunas_merge_vol = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais if col in df_forecast_cpu.columns]
+                colunas_merge_vol_existentes = [col for col in colunas_merge_vol if col in volume_base.columns]
+                
+                if len(colunas_merge_vol_existentes) > 0:
+                    df_forecast_cpu = pd.merge(
+                        df_forecast_cpu,
+                        volume_base[colunas_merge_vol_existentes + ['Volume_Medio_Historico']],
+                        on=colunas_merge_vol_existentes,
+                        how='left'
+                    )
+                    
+                    # Calcular CPU para Média_Mensal_Histórica (operação vetorizada)
+                    if 'Média_Mensal_Histórica' in df_forecast_cpu.columns and 'Volume_Medio_Historico' in df_forecast_cpu.columns:
+                        mask_valid = (df_forecast_cpu['Volume_Medio_Historico'].notna()) & \
+                                     (df_forecast_cpu['Volume_Medio_Historico'] != 0) & \
+                                     (df_forecast_cpu['Média_Mensal_Histórica'].notna())
+                        df_forecast_cpu.loc[mask_valid, 'Média_Mensal_Histórica'] = (
+                            df_forecast_cpu.loc[mask_valid, 'Média_Mensal_Histórica'] /
+                            df_forecast_cpu.loc[mask_valid, 'Volume_Medio_Historico']
+                        )
+                        df_forecast_cpu.loc[~mask_valid, 'Média_Mensal_Histórica'] = 0
+            
+            # Calcular CPU para cada mês usando volume_por_mes (merge eficiente)
+            if volume_por_mes is not None and not volume_por_mes.empty and colunas_meses:
+                # Preparar volume_por_mes para merge: criar coluna de mês normalizada
+                volume_por_mes_merge = volume_por_mes.copy()
+                volume_por_mes_merge['Mes_Normalizado'] = volume_por_mes_merge['Período'].astype(str).str.strip().str.lower()
+                volume_por_mes_merge['Mes_Normalizado'] = volume_por_mes_merge['Mes_Normalizado'].str.split(' ', expand=True)[0]
+                
+                # Agregar volume por combinação de chaves + mês
+                colunas_merge_mes = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais if col in volume_por_mes_merge.columns]
+                colunas_merge_mes_existentes = [col for col in colunas_merge_mes if col in volume_por_mes_merge.columns]
+                
+                if len(colunas_merge_mes_existentes) > 0:
+                    volume_agregado = volume_por_mes_merge.groupby(
+                        colunas_merge_mes_existentes + ['Mes_Normalizado'],
+                        as_index=False
+                    )['Volume'].sum()
+                    
+                    # Para cada mês, fazer merge e calcular CPU
+                    for mes in colunas_meses:
+                        if mes in df_forecast_cpu.columns:
+                            mes_normalizado = str(mes).strip().lower().split(' ', 1)[0]
+                            
+                            # Filtrar volume para este mês
+                            volume_mes = volume_agregado[volume_agregado['Mes_Normalizado'] == mes_normalizado].copy()
+                            if not volume_mes.empty:
+                                volume_mes = volume_mes.drop(columns=['Mes_Normalizado'])
+                                
+                                # Fazer merge com df_forecast_cpu
+                                df_forecast_cpu = pd.merge(
+                                    df_forecast_cpu,
+                                    volume_mes.rename(columns={'Volume': f'Volume_{mes}'}),
+                                    on=colunas_merge_mes_existentes,
+                                    how='left'
+                                )
+                                
+                                # Calcular CPU (operação vetorizada)
+                                # IMPORTANTE: Quando volume varia e inflação = 0%, se sensibilidade = 1.0:
+                                # - Custo forecast = Custo histórico × (1 + variação)
+                                # - Volume forecast = Volume histórico × (1 + variação)
+                                # - CPU = (Custo × (1+v)) / (Volume × (1+v)) = CPU histórico
+                                # Portanto, CPU deve ser igual ao CPU histórico quando essas condições são atendidas
+                                col_volume = f'Volume_{mes}'
+                                if col_volume in df_forecast_cpu.columns:
+                                    mask_valid_mes = (df_forecast_cpu[col_volume].notna()) & \
+                                                     (df_forecast_cpu[col_volume] != 0) & \
+                                                     (df_forecast_cpu[mes].notna())
+                                    # Calcular CPU: Custo forecast / Volume forecast
+                                    df_forecast_cpu.loc[mask_valid_mes, mes] = (
+                                        df_forecast_cpu.loc[mask_valid_mes, mes] /
+                                        df_forecast_cpu.loc[mask_valid_mes, col_volume]
+                                    )
+                                    df_forecast_cpu.loc[~mask_valid_mes, mes] = 0
+                                    df_forecast_cpu = df_forecast_cpu.drop(columns=[col_volume])
+            
+            # Recalcular Total_Forecast como CPU (soma dos CPUs dos meses)
+            if colunas_meses:
+                df_forecast_cpu['Total_Forecast'] = df_forecast_cpu[colunas_meses].sum(axis=1)
+            
+            # Remover coluna Volume_Medio_Historico se existir (não é mais necessária)
+            if 'Volume_Medio_Historico' in df_forecast_cpu.columns:
+                df_forecast_cpu = df_forecast_cpu.drop(columns=['Volume_Medio_Historico'])
+            
+            # Atualizar df_forecast_display com valores de CPU
+            df_forecast_display = df_forecast_cpu.copy()
+            # Guardar versão numérica antes da formatação para cálculos
+            df_forecast_numerico = df_forecast_cpu.copy()
+        else:
+            # Guardar versão numérica antes da formatação para cálculos
+            df_forecast_numerico = df_forecast.copy()
+        
         # Formatar colunas numéricas
         def formatar_monetario(val):
             if pd.isna(val):
                 return '-'
             if isinstance(val, (int, float)):
-                return f"R$ {val:,.2f}"
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    return f"R$ {val:,.4f}"  # Mais casas decimais para CPU
+                else:
+                    return f"R$ {val:,.2f}"
             return val
         
         # Aplicar formatação apenas nas colunas de valores
@@ -3416,8 +3732,9 @@ else:
             # Filtrar dados da oficina
             df_oficina = df_forecast_display[df_forecast_display['Oficina'] == oficina].copy()
             
-            # Calcular total da oficina (usar dados numéricos)
-            df_oficina_numerico = df_forecast[df_forecast['Oficina'] == oficina].copy()
+            # Calcular total da oficina (usar dados numéricos com CPU aplicado se necessário)
+            # 🔧 CORREÇÃO: Usar df_forecast_numerico que já tem CPU aplicado quando necessário
+            df_oficina_numerico = df_forecast_numerico[df_forecast_numerico['Oficina'] == oficina].copy()
             total_oficina = df_oficina_numerico['Total_Forecast'].sum() if 'Total_Forecast' in df_oficina_numerico.columns else 0
             total_formatado = formatar_monetario(total_oficina)
             
@@ -3432,12 +3749,23 @@ else:
                 # Remover coluna Oficina da tabela dentro do expander (já está no título)
                 df_oficina_display = df_oficina.drop(columns=['Oficina'])
                 
-                # Calcular totais por coluna usando dados numéricos
-                df_oficina_numerico_display = df_oficina_numerico.drop(columns=['Oficina'])
+                # Calcular totais por coluna usando dados numéricos (com CPU se necessário)
+                df_oficina_numerico_display = df_forecast_numerico[df_forecast_numerico['Oficina'] == oficina].copy()
+                df_oficina_numerico_display = df_oficina_numerico_display.drop(columns=['Oficina'])
                 
                 # Calcular média histórica mensal da oficina usando função padronizada
                 # 🔧 CORREÇÃO: Usar função padronizada com filtro de oficina (garante consistência)
                 media_historica_oficina = calcular_media_historica_padronizada(df_medias, periodos_para_media, filtro_oficina=oficina, df_forecast_fonte=None, meses_excluir_media_fonte=meses_excluir_media)
+                
+                # 🔧 ADICIONAR: Se tipo_visualizacao for CPU, calcular CPU da média histórica da oficina
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    # Buscar volume médio histórico da oficina
+                    if volume_base is not None and not volume_base.empty:
+                        volume_oficina = volume_base[volume_base['Oficina'] == oficina] if 'Oficina' in volume_base.columns else pd.DataFrame()
+                        if not volume_oficina.empty and 'Volume_Medio_Historico' in volume_oficina.columns:
+                            volume_medio_oficina = volume_oficina['Volume_Medio_Historico'].sum()
+                            if volume_medio_oficina != 0 and isinstance(media_historica_oficina, (int, float)):
+                                media_historica_oficina = media_historica_oficina / volume_medio_oficina
                 
                 # Criar linha de total
                 linha_total = {}
@@ -3493,15 +3821,15 @@ else:
 
         # Expander adicional com TOTAL GERAL (todas as linhas, sem quebra por oficina)
         try:
-            # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_bruto (antes do agrupamento) para calcular totais
-            # O df_forecast já foi agrupado, então pode estar perdendo linhas na soma
-            df_total_numerico = df_forecast_bruto.copy()
+            # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_numerico (já tem CPU aplicado se necessário) para calcular totais
+            # Isso garante que quando CPU está selecionado, estamos somando CPUs, não custos totais
+            df_total_numerico = df_forecast_numerico.copy()
             
             # Calcular Total_Forecast se não existir
             if 'Total_Forecast' not in df_total_numerico.columns and colunas_meses:
                 df_total_numerico['Total_Forecast'] = df_total_numerico[colunas_meses].sum(axis=1)
             
-            # 🔧 CORREÇÃO: Calcular total geral somando todas as linhas individuais (antes do agrupamento)
+            # 🔧 CORREÇÃO: Calcular total geral somando todas as linhas individuais
             if 'Total_Forecast' in df_total_numerico.columns:
                 total_geral = float(df_total_numerico['Total_Forecast'].sum())
             else:
@@ -3518,8 +3846,7 @@ else:
                 if 'Oficina' in df_total_display.columns:
                     df_total_display = df_total_display.drop(columns=['Oficina'])
 
-                # 🔧 CORREÇÃO: Usar df_forecast_bruto para display numérico (antes do agrupamento)
-                # Isso garante que estamos somando todas as linhas individuais
+                # 🔧 CORREÇÃO: Usar df_forecast_numerico (já tem CPU aplicado se necessário) para cálculos numéricos
                 df_total_numerico_display = df_total_numerico.copy()
                 if 'Oficina' in df_total_numerico_display.columns:
                     df_total_numerico_display = df_total_numerico_display.drop(columns=['Oficina'])
@@ -3558,6 +3885,24 @@ else:
                     if not isinstance(valor_media_total, (int, float)):
                         valor_media_total = df_total_numerico_display['Média_Mensal_Histórica'].sum()
                     
+                    # 🔧 ADICIONAR: Se tipo_visualizacao for CPU, calcular CPU da média histórica total
+                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                        # Buscar volume médio histórico total
+                        try:
+                            volume_medio_historico_total_val = volume_medio_historico_total
+                        except NameError:
+                            volume_medio_historico_total_val = None
+                        
+                        if volume_medio_historico_total_val is None:
+                            # Calcular volume médio histórico total
+                            df_vol_para_calculo_total = df_vol_medio if df_vol_medio is not None and not df_vol_medio.empty else df_vol
+                            volume_medio_historico_total_val = calcular_media_historica_volume_padronizada(
+                                df_vol_para_calculo_total, periodos_para_media, meses_excluir_media_fonte=meses_excluir_media
+                            )
+                        
+                        if volume_medio_historico_total_val is not None and volume_medio_historico_total_val != 0 and isinstance(valor_media_total, (int, float)):
+                            valor_media_total = valor_media_total / volume_medio_historico_total_val
+                    
                     linha_total_geral['Média_Mensal_Histórica'] = formatar_monetario(valor_media_total)
 
                 # 🔧 CORREÇÃO: Totais por mês - somar todas as linhas individuais
@@ -3585,8 +3930,10 @@ else:
                 )
 
                 st.dataframe(df_total_display, use_container_width=True)
-        except Exception:
-            pass
+        except Exception as e:
+            st.error(f"❌ Erro ao exibir tabela TOTAL GERAL: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
 
         # Botão de download da tabela
         if st.button(
