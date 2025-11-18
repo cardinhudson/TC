@@ -19,6 +19,7 @@ secao = st.sidebar.radio(
         "📊 Como Funciona o Forecast",
         "🎚️ Sensibilidade ao Volume",
         "📈 Inflação",
+        "🌊 Waterfall Analysis",
         "💡 Exemplos Práticos",
         "🔧 Configuração de Dados",
         "❓ Perguntas Frequentes"
@@ -81,12 +82,27 @@ elif secao == "📊 Como Funciona o Forecast":
     st.subheader("1️⃣ Cálculo da Média Mensal Histórica")
     st.markdown("""
     Para cada combinação de **Oficina**, **Veículo** e **Tipo de Custo** (Fixo/Variável),
-    calculamos a média mensal dos custos históricos.
+    calculamos a média mensal dos custos históricos usando uma **lógica padronizada** que garante
+    consistência entre gráficos, tabelas e cálculos de forecast.
+    
+    **Lógica Padronizada:**
+    1. **Normalização de Períodos**: Períodos sem ano recebem o ano de referência dos períodos selecionados
+    2. **Filtro por Períodos Selecionados**: Apenas os períodos marcados para cálculo são considerados
+    3. **Exclusão de Meses**: Meses marcados para exclusão são removidos do cálculo
+    4. **Filtro por Ano**: Apenas períodos do ano de referência são considerados (evita somar meses de anos diferentes)
+    5. **Agregação**: Soma dos totais por período único (mês + ano)
+    6. **Média**: Média aritmética dos valores agregados
     
     **Fórmula:**
     ```
-    Média_Mensal_Histórica = Soma(Custos_Históricos) / Número_de_Meses
+    Média_Mensal_Histórica = Média(Soma(Custos_por_Período_Único))
     ```
+    
+    **Importante:**
+    - Cada período (mês + ano) é tratado como único
+    - "Julho 2024" e "Julho 2025" são períodos diferentes
+    - A média é calculada sobre os totais agregados por período, não sobre linhas individuais
+    - Esta mesma lógica é aplicada tanto para custos quanto para volumes
     """)
     
     # Exemplo visual
@@ -107,12 +123,26 @@ elif secao == "📊 Como Funciona o Forecast":
     # Etapa 2
     st.subheader("2️⃣ Cálculo do Volume Médio Histórico")
     st.markdown("""
-    Calculamos o volume médio de produção histórico para cada **Oficina** e **Veículo**.
+    Calculamos o volume médio de produção histórico para cada **Oficina** e **Veículo** usando
+    a **mesma lógica padronizada** aplicada aos custos, garantindo consistência total.
+    
+    **Lógica Padronizada (Idêntica à de Custos):**
+    1. **Normalização de Períodos**: Períodos sem ano recebem o ano de referência
+    2. **Filtro por Períodos Selecionados**: Apenas períodos marcados para cálculo
+    3. **Exclusão de Meses**: Meses marcados para exclusão são removidos
+    4. **Filtro por Ano**: Apenas períodos do ano de referência (evita duplicação entre anos)
+    5. **Agregação**: Soma dos volumes por período único (mês + ano)
+    6. **Média**: Média aritmética dos volumes agregados
     
     **Fórmula:**
     ```
-    Volume_Médio_Histórico = Soma(Volumes_Históricos) / Número_de_Meses
+    Volume_Médio_Histórico = Média(Soma(Volumes_por_Período_Único))
     ```
+    
+    **Importante:**
+    - A mesma lógica de custos é aplicada para volumes
+    - Garante que a média histórica de volume corresponde à média acumulada do gráfico detalhado
+    - Evita somar volumes de meses com mesmo nome mas anos diferentes
     """)
     
     df_exemplo2 = pd.DataFrame({
@@ -180,11 +210,29 @@ elif secao == "📊 Como Funciona o Forecast":
     st.subheader("5️⃣ Cálculo do Forecast Final")
     st.markdown("""
     Finalmente, calculamos o forecast aplicando a proporção ajustada à média histórica.
+    O cálculo é feito **linha a linha** para cada combinação de Oficina, Veículo e Tipo de Custo,
+    garantindo precisão matemática.
     
-    **Fórmula:**
+    **Fórmula Completa (Linha a Linha):**
     ```
-    Forecast = Média_Mensal_Histórica × Proporção_Ajustada
+    Proporção_Volume = Volume_do_Mês / Volume_Médio_Histórico
+    Variação_Percentual = Proporção_Volume - 1.0
+    Variação_Ajustada = Variação_Percentual × Sensibilidade
+    Fator_Variação = 1.0 + Variação_Ajustada
+    Fator_Inflação = 1.0 + (Inflação / 100.0)
+    Forecast = Média_Mensal_Histórica × Fator_Variação × Fator_Inflação
     ```
+    
+    **Total do Forecast:**
+    ```
+    Total_Forecast = Soma(Forecast_de_Todas_as_Linhas)
+    ```
+    
+    **Características Importantes:**
+    - Cálculo linha a linha, sem ajustes manuais
+    - Total é sempre a soma das linhas individuais
+    - Se sensibilidade = 0 e inflação = 0, forecast = média histórica
+    - Aplicação consistente de sensibilidade baseada no Tipo_Custo (Fixo/Variável)
     """)
 
 # ===== SENSIBILIDADE AO VOLUME =====
@@ -565,6 +613,28 @@ elif secao == "💡 Exemplos Práticos":
     
     st.markdown("---")
     
+    # Nova seção sobre padronização
+    st.subheader("🔧 Padronização de Cálculos")
+    
+    st.markdown("""
+    **Importante:** O sistema utiliza uma lógica padronizada para garantir que todos os cálculos
+    (gráficos, tabelas, forecast) usem exatamente a mesma média histórica.
+    
+    **Benefícios:**
+    - ✅ Consistência entre gráficos e tabelas
+    - ✅ Média acumulada do gráfico detalhado = Média histórica do gráfico principal
+    - ✅ Total das tabelas = Soma das linhas individuais
+    - ✅ Forecast baseado na mesma média usada nos gráficos
+    
+    **Como Funciona:**
+    1. A média histórica é calculada uma única vez usando a função padronizada
+    2. Esta média é usada em todos os lugares (gráficos, tabelas, forecast)
+    3. Períodos são tratados como únicos (mês + ano)
+    4. Meses excluídos são removidos de todos os cálculos
+    """)
+    
+    st.markdown("---")
+    
     # Tabela comparativa
     st.subheader("📊 Comparação de Cenários")
     
@@ -611,6 +681,237 @@ elif secao == "💡 Exemplos Práticos":
     })
     
     st.dataframe(df_comp, use_container_width=True)
+
+# ===== WATERFALL ANALYSIS =====
+elif secao == "🌊 Waterfall Analysis":
+    st.header("🌊 Waterfall Analysis - Análise de Variação")
+    
+    st.markdown("""
+    ## O que é Waterfall Analysis?
+    
+    A Waterfall Analysis é uma ferramenta para comparar custos entre dois períodos e identificar
+    as causas das variações, separando os efeitos de volume, sensibilidade e inflação.
+    """)
+    
+    st.markdown("---")
+    
+    # Modos de comparação
+    st.subheader("📊 Modos de Comparação")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### 📅 Mês a Mês
+        
+        Compara dois meses específicos:
+        - Exemplo: Janeiro 2024 vs Fevereiro 2024
+        - Mostra variação entre os meses
+        - Inclui barras FLEX Volume e FLEX Inflação
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 📆 Ano a Ano
+        
+        Compara dois anos completos:
+        - Exemplo: 2024 vs 2025
+        - Usa volume TOTAL de cada ano
+        - Inclui barras FLEX Volume e FLEX Inflação
+        - **Correção implementada:** Agora usa volumes totais anuais corretamente
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 📋 Múltiplos Meses
+        
+        Compara o primeiro e último mês de uma série:
+        - Exemplo: Janeiro → Março → Maio → Julho
+        - Mostra todos os meses intermediários
+        - Útil para análises de tendência
+        """)
+    
+    st.markdown("---")
+    
+    # Cálculo FLEX
+    st.subheader("🔧 Cálculo FLEX (Volume + Inflação)")
+    
+    st.markdown("""
+    O FLEX é calculado separando dois efeitos:
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        ### 📈 FLEX Volume
+        
+        Representa o efeito da variação de volume + sensibilidade:
+        
+        **Fórmula:**
+        ```
+        Volume_Inicial = Volume do período inicial
+        Volume_Final = Volume do período final
+        Proporção = Volume_Final / Volume_Inicial
+        Variação % = Proporção - 1.0
+        
+        Para cada tipo de custo:
+        Variação_Ajustada = Variação % × Sensibilidade
+        Fator = 1.0 + Variação_Ajustada
+        Custo_Após_Volume = Custo_Inicial × Fator
+        FLEX_Volume = Custo_Após_Volume - Custo_Inicial
+        ```
+        
+        **Importante para Ano a Ano:**
+        - Usa volume TOTAL do ano inicial
+        - Usa volume TOTAL do ano final
+        - Não usa meses específicos (correção implementada)
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 💰 FLEX Inflação
+        
+        Representa o efeito da inflação aplicada:
+        
+        **Fórmula:**
+        ```
+        Fator_Inflação = 1.0 + (Inflação / 100.0)
+        Custo_Final = Custo_Após_Volume × Fator_Inflação
+        FLEX_Inflação = Custo_Final - Custo_Após_Volume
+        ```
+        
+        **Características:**
+        - Aplicado após o efeito de volume
+        - Pode ser global ou detalhado por categoria
+        - Sempre aparece quando inflação > 0%
+        """)
+    
+    st.markdown("---")
+    
+    # Exemplo prático
+    st.subheader("💡 Exemplo Prático: Ano a Ano")
+    
+    st.markdown("""
+    **Cenário:** Comparar 2024 vs 2025
+    
+    **Dados:**
+    - Volume Total 2024: 12.000 unidades
+    - Volume Total 2025: 12.000 unidades (igual!)
+    - Custo Total 2024: R$ 1.200.000
+      - Fixo: R$ 480.000
+      - Variável: R$ 720.000
+    - Sensibilidade: Fixo = 0%, Variável = 100%
+    - Inflação: 5%
+    """)
+    
+    st.markdown("**Cálculo FLEX Volume:**")
+    st.code("""
+    Volume Inicial = 12.000
+    Volume Final = 12.000
+    Proporção = 12.000 / 12.000 = 1.0
+    Variação % = 1.0 - 1.0 = 0% (zero!)
+    
+    Variação Ajustada Fixo = 0% × 0% = 0%
+    Variação Ajustada Variável = 0% × 100% = 0%
+    
+    Custo Após Volume = 480.000 × 1.0 + 720.000 × 1.0 = R$ 1.200.000
+    FLEX Volume = 1.200.000 - 1.200.000 = R$ 0,00 ✅
+    """)
+    
+    st.markdown("**Cálculo FLEX Inflação:**")
+    st.code("""
+    Fator Inflação = 1.0 + 5% = 1.05
+    Custo Final = 1.200.000 × 1.05 = R$ 1.260.000
+    FLEX Inflação = 1.260.000 - 1.200.000 = R$ 60.000 ✅
+    """)
+    
+    st.success("""
+    ✅ **Resultado:** Como os volumes são iguais, FLEX Volume = R$ 0.
+    Apenas a inflação de 5% é aplicada, resultando em FLEX Inflação = R$ 60.000.
+    """)
+    
+    st.markdown("---")
+    
+    # Modos de configuração
+    st.subheader("🎛️ Modos de Configuração")
+    
+    st.markdown("""
+    ### 1. Modo Global
+    
+    Sensibilidade e inflação aplicadas globalmente:
+    - Uma sensibilidade para custos fixos
+    - Uma sensibilidade para custos variáveis
+    - Uma inflação para todos os custos
+    
+    **Quando usar:**
+    - Análises rápidas e simplificadas
+    - Quando todos os custos têm comportamento similar
+    
+    ### 2. Modo Detalhado
+    
+    Sensibilidade e inflação configuradas por categoria:
+    - Sensibilidade específica para cada categoria (fixo e variável)
+    - Inflação específica para cada categoria
+    - Configuração linha a linha
+    
+    **Quando usar:**
+    - Análises precisas e detalhadas
+    - Quando diferentes categorias têm comportamentos distintos
+    - Quando há informações específicas por tipo de custo
+    """)
+    
+    st.markdown("---")
+    
+    # Correção implementada
+    st.subheader("🔧 Correção Implementada: Ano a Ano")
+    
+    st.warning("""
+    **Problema Identificado e Corrigido:**
+    
+    Anteriormente, no modo "Ano a Ano", o sistema estava:
+    - Usando o primeiro mês do ano inicial (ex: Janeiro 2024)
+    - Usando o último mês do ano final (ex: Dezembro 2025)
+    - Comparando volumes desses meses específicos
+    
+    **Problema:** Se o volume total de 2024 = volume total de 2025, mas Janeiro 2024 ≠ Dezembro 2025,
+    o FLEX Volume apareceria incorretamente!
+    
+    **Solução Implementada:**
+    - Agora usa volume TOTAL do ano inicial (soma de todos os meses de 2024)
+    - Agora usa volume TOTAL do ano final (soma de todos os meses de 2025)
+    - Compara volumes totais anuais corretamente
+    
+    **Resultado:** O cálculo agora está matematicamente correto! ✅
+    """)
+    
+    st.markdown("---")
+    
+    # Dicas
+    st.subheader("💡 Dicas Importantes")
+    
+    st.info("""
+    1. **Seleção de Períodos:**
+       - Para "Ano a Ano", selecione anos diferentes
+       - Para "Mês a Mês", selecione meses diferentes
+       - Para "Múltiplos Meses", selecione 3 ou mais meses
+    
+    2. **Interpretação das Barras:**
+       - Barras verdes = Aumento
+       - Barras vermelhas = Redução
+       - FLEX Volume = Efeito de volume + sensibilidade
+       - FLEX Inflação = Efeito da inflação
+    
+    3. **Validação:**
+       - Verifique se os totais fazem sentido
+       - Compare com os dados originais
+       - Use o modo detalhado para análises precisas
+    
+    4. **Performance:**
+       - Modo global é mais rápido
+       - Modo detalhado é mais preciso mas mais lento
+       - Use filtros para reduzir o volume de dados
+    """)
 
 # ===== CONFIGURAÇÃO DE DADOS =====
 elif secao == "🔧 Configuração de Dados":
@@ -875,6 +1176,47 @@ elif secao == "❓ Perguntas Frequentes":
         """)
     
     # FAQ 8
+    with st.expander("❓ Por que a média histórica no gráfico não corresponde à média acumulada?"):
+        st.markdown("""
+        **Causa comum:**
+        
+        A média histórica pode estar incorreta se períodos de anos diferentes estiverem sendo somados.
+        Por exemplo, se "Julho 2024" e "Julho 2025" estiverem sendo tratados como o mesmo período.
+        
+        **Solução:**
+        
+        O sistema já implementa uma lógica padronizada que:
+        1. Normaliza períodos com o ano de referência
+        2. Filtra apenas períodos do ano correto
+        3. Trata cada período (mês + ano) como único
+        
+        **Verificação:**
+        - A média histórica no gráfico principal deve ser igual à última média acumulada do gráfico detalhado
+        - Se houver diferença, verifique se os períodos estão com o ano correto
+        - Limpe o cache e recarregue os dados
+        """)
+    
+    # FAQ 9
+    with st.expander("❓ Como funciona a exclusão de meses do cálculo?"):
+        st.markdown("""
+        **Funcionalidade:**
+        
+        Você pode marcar meses para serem excluídos do cálculo da média histórica.
+        Isso é útil quando um mês teve valores atípicos ou não representa o padrão normal.
+        
+        **O que acontece:**
+        1. O mês marcado é removido do cálculo da média histórica
+        2. O mês também é removido do cálculo do volume médio histórico
+        3. O mês não aparece nos gráficos de meses individuais
+        4. A média é recalculada sem o mês excluído
+        
+        **Importante:**
+        - A exclusão afeta TODOS os cálculos (custos, volumes, forecast)
+        - A média histórica será recalculada automaticamente
+        - Os gráficos serão atualizados para refletir a nova média
+        """)
+    
+    # FAQ 10
     with st.expander("❓ O que fazer se o gráfico não aparecer?"):
         st.markdown("""
         **Verificações:**
@@ -898,12 +1240,53 @@ elif secao == "❓ Perguntas Frequentes":
         
         **Solução rápida:** Use os filtros da sidebar para reduzir os dados.
         """)
+    
+    # FAQ 11 - Waterfall
+    with st.expander("❓ Por que o FLEX Volume aparece mesmo quando os volumes são iguais?"):
+        st.markdown("""
+        **Causa:**
+        
+        No modo "Ano a Ano", se o sistema estiver usando meses específicos em vez de volumes totais,
+        pode haver diferença mesmo quando os totais anuais são iguais.
+        
+        **Solução:**
+        
+        O sistema foi corrigido para usar volumes totais anuais. Agora:
+        - Se Volume Total 2024 = Volume Total 2025 → FLEX Volume = R$ 0 ✅
+        - Se Volume Total 2024 ≠ Volume Total 2025 → FLEX Volume reflete a diferença correta ✅
+        
+        **Verificação:**
+        - Confirme que está usando a versão mais recente
+        - Verifique os volumes totais de cada ano
+        - Se ainda houver problema, limpe o cache e recarregue
+        """)
+    
+    # FAQ 12 - Waterfall
+    with st.expander("❓ Qual a diferença entre Mês a Mês e Ano a Ano no Waterfall?"):
+        st.markdown("""
+        **Mês a Mês:**
+        - Compara dois meses específicos (ex: Janeiro 2024 vs Fevereiro 2024)
+        - Usa volume do mês específico
+        - Útil para análises de variação mensal
+        
+        **Ano a Ano:**
+        - Compara dois anos completos (ex: 2024 vs 2025)
+        - Usa volume TOTAL de cada ano (soma de todos os meses)
+        - Útil para análises de variação anual
+        - **Correção:** Agora usa volumes totais corretamente
+        
+        **Quando usar:**
+        - Mês a Mês: Para entender variações sazonais ou mensais
+        - Ano a Ano: Para comparar performance anual completa
+        """)
 
 # Rodapé
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação do Sistema de Forecast | Versão 1.0 | Novembro 2024
+    📚 Documentação do Sistema de Forecast | Versão 1.2 | Dezembro 2024
+    <br>
+    <small>Atualizado com: Lógica padronizada de médias históricas | Waterfall Analysis | Correção FLEX Ano a Ano</small>
 </div>
 """, unsafe_allow_html=True)
 

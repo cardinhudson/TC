@@ -1624,10 +1624,18 @@ else:
     # ====================================================================
     def calcular_media_historica_volume_padronizada(df_vol_fonte, periodos_para_media_fonte, meses_excluir_media_fonte=None):
         """
-        Calcula média histórica de volume de forma padronizada usando a mesma lógica do gráfico.
+        Calcula média histórica de volume de forma padronizada usando a MESMA LÓGICA da função de custo.
         Retorna: float com a média histórica de volume ou None se não conseguir calcular
+        
+        LÓGICA IDÊNTICA À FUNÇÃO DE CUSTO (que está funcionando):
+        1. Normalizar Período para incluir ano ANTES do groupby
+        2. Filtrar períodos selecionados e excluir meses marcados
+        3. Filtrar APENAS períodos do ano de referência
+        4. Agregar volumes por período único (mês + ano)
+        5. Calcular média dos volumes agregados
         """
         try:
+            # OPÇÃO 2: Calcular agregando por período e tirando média (mesma lógica do gráfico e da função de custo)
             if df_vol_fonte is None or df_vol_fonte.empty:
                 return None
             
@@ -1636,7 +1644,7 @@ else:
             
             df_temp = df_vol_fonte.copy()
             
-            # Normalizar Período para incluir ano ANTES do groupby
+            # Normalizar Período para incluir ano ANTES do groupby (MESMA LÓGICA DA FUNÇÃO DE CUSTO)
             ano_referencia = None
             if periodos_para_media_fonte:
                 for p in periodos_para_media_fonte:
@@ -1659,25 +1667,25 @@ else:
                 df_temp['Período'] = df_temp['Período'].astype(str)
                 df_temp['Período'] = df_temp['Período'].apply(normalizar_periodo_com_ano_vol)
             
-            # Filtrar períodos selecionados e excluir meses marcados
+            # Filtrar períodos selecionados e excluir meses marcados (MESMA LÓGICA DA FUNÇÃO DE CUSTO)
             if periodos_para_media_fonte:
                 periodos_normalizados = [str(p).strip().lower() for p in periodos_para_media_fonte]
-                meses_excluir_normalizados = []
+                meses_excluir_media_normalizados = []
                 if meses_excluir_media_fonte:
                     for mes_excluir in meses_excluir_media_fonte:
                         mes_str = str(mes_excluir).strip().lower()
-                        meses_excluir_normalizados.append(mes_str)
+                        meses_excluir_media_normalizados.append(mes_str)
                 
                 def periodo_esta_selecionado_vol(p):
                     p_str = str(p).strip().lower()
                     
-                    if meses_excluir_normalizados:
+                    if meses_excluir_media_normalizados:
                         periodo_mes = None
                         if ' ' in p_str:
                             periodo_mes = p_str.split(' ', 1)[0]
                         else:
                             periodo_mes = p_str
-                        if periodo_mes in meses_excluir_normalizados:
+                        if periodo_mes in meses_excluir_media_normalizados:
                             return False
                     
                     if p_str in periodos_normalizados:
@@ -1698,6 +1706,7 @@ else:
                 mask = df_temp['Período'].apply(periodo_esta_selecionado_vol)
                 df_temp = df_temp[mask].copy()
             
+            # Filtrar APENAS períodos do ano de referência (MESMA LÓGICA DA FUNÇÃO DE CUSTO)
             if ano_referencia and 'Período' in df_temp.columns:
                 def periodo_tem_ano_correto_vol(periodo_val):
                     periodo_str = str(periodo_val).strip()
@@ -1711,11 +1720,14 @@ else:
             if df_temp.empty:
                 return None
             
-            # Agregar volume por período (soma de todos os volumes do período)
-            df_agregado = df_temp.groupby('Período', as_index=False)['Volume'].sum()
+            # Agregar volumes por período (MESMA LÓGICA DA FUNÇÃO DE CUSTO)
+            if 'Ano' in df_temp.columns:
+                df_agregado = df_temp.groupby(['Ano', 'Período'], as_index=False)['Volume'].sum()
+            else:
+                df_agregado = df_temp.groupby('Período', as_index=False)['Volume'].sum()
             
             if len(df_agregado) > 0:
-                # Calcular média dos volumes totais por período
+                # Calcular média dos volumes totais por período (MESMA LÓGICA DA FUNÇÃO DE CUSTO)
                 media_volume = float(df_agregado['Volume'].mean())
             else:
                 media_volume = None
@@ -2391,8 +2403,12 @@ else:
         
         # 🔧 CORREÇÃO: Volume médio histórico calculado de forma padronizada
         # (usando a mesma lógica do gráfico, excluindo meses marcados para exclusão)
+        # Usar df_vol_medio que já foi processado e filtrado (similar a df_medias)
+        # Se df_vol_medio não estiver disponível, usar df_vol original
+        df_vol_para_calculo = df_vol_medio if df_vol_medio is not None and not df_vol_medio.empty else df_vol
+        
         volume_medio_historico_total = calcular_media_historica_volume_padronizada(
-            df_vol, periodos_para_media, meses_excluir_media_fonte=meses_excluir_media
+            df_vol_para_calculo, periodos_para_media, meses_excluir_media_fonte=meses_excluir_media
         )
         
         # Fallback: se não conseguir calcular, usar soma das médias por linha
@@ -2852,11 +2868,18 @@ else:
                 # Manter valores reais da média acumulada para tooltips
                 df_grafico_historico['Media_Acumulada_Valor'] = df_grafico_historico['Media_Acumulada']
                 
+                # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
+                df_grafico_historico['Media_Acumulada_Escalada'] = None
+                
                 # Aplicar escala aos períodos históricos para posicionamento
                 mask_historico = df_grafico_historico['Tipo'] == 'Histórico'
-                df_grafico_historico.loc[mask_historico, 'Media_Acumulada_Escalada'] = (
-                    df_grafico_historico.loc[mask_historico, 'Media_Acumulada'] * fator_escala
-                )
+                if mask_historico.any():
+                    # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
+                    mask_historico_valido = mask_historico & df_grafico_historico['Media_Acumulada'].notna()
+                    if mask_historico_valido.any():
+                        df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
+                            df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
+                        )
                 df_grafico_historico.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
                 
                 # Calcular escala máxima para o eixo primário (barras)
@@ -2906,51 +2929,67 @@ else:
                 # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
                 df_grafico_linha = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
                 
-                # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
-                linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
-                    point=True,
-                    color='#1f77b4',
-                    strokeWidth=3,
-                    strokeDash=[5, 5]  # Linha pontilhada
-                ).encode(
-                    x=alt.X('Período:N', sort=ordem_periodos_historico),
-                    y=alt.Y('Media_Acumulada_Escalada:Q', 
-                           title='Média Acumulada',
-                           scale=alt.Scale(domain=[0, max_escala_linha]),
-                           axis=alt.Axis(
-                               orient='right', 
-                               titleColor='#1f77b4', 
-                               labelColor='#1f77b4',
-                               titlePadding=40,  # Aumentar muito o espaçamento do título para não sobrepor
-                               labelPadding=10,  # Aumentar espaçamento dos labels
-                               labelFlush=True,
-                               labelOverlap=False,  # Evitar sobreposição de labels
-                               tickCount=5,
-                               format='.2s',
-                               grid=False,  # Remover grid do eixo secundário para não poluir
-                               labelOpacity=1.0,  # Garantir que os labels apareçam
-                               titleOpacity=1.0,  # Garantir que o título apareça
-                               domain=False  # Remover linha do eixo para evitar duplicação visual
-                           )),
-                    tooltip=[
-                        alt.Tooltip('Período:N'), 
-                        alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
-                    ]
-                )
-                
-                # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
-                texto_media_acumulada = alt.Chart(df_grafico_linha).mark_text(
-                    align='center',
-                    baseline='bottom',
-                    dy=-10,
-                    color='#1f77b4',
-                    fontSize=10
-                ).encode(
-                    x=alt.X('Período:N', sort=ordem_periodos_historico),
-                    y=alt.Y('Media_Acumulada_Escalada:Q', 
-                           scale=alt.Scale(domain=[0, max_escala_linha])),
-                    text=alt.Text('Media_Acumulada_Valor:Q', format=',.2f')
-                )
+                # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
+                # Verificar se há dados válidos para a linha
+                if not df_grafico_linha.empty and 'Media_Acumulada_Escalada' in df_grafico_linha.columns:
+                    # Remover linhas com valores None ou NaN na média acumulada escalada
+                    df_grafico_linha = df_grafico_linha[df_grafico_linha['Media_Acumulada_Escalada'].notna()].copy()
+                    
+                    # Se ainda houver dados válidos, criar a linha
+                    if not df_grafico_linha.empty:
+                        # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
+                        linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
+                            point=True,
+                            color='#1f77b4',
+                            strokeWidth=3,
+                            strokeDash=[5, 5]  # Linha pontilhada
+                        ).encode(
+                            x=alt.X('Período:N', sort=ordem_periodos_historico),
+                            y=alt.Y('Media_Acumulada_Escalada:Q', 
+                                   title='Média Acumulada',
+                                   scale=alt.Scale(domain=[0, max_escala_linha]),
+                                   axis=alt.Axis(
+                                       orient='right', 
+                                       titleColor='#1f77b4', 
+                                       labelColor='#1f77b4',
+                                       titlePadding=40,  # Aumentar muito o espaçamento do título para não sobrepor
+                                       labelPadding=10,  # Aumentar espaçamento dos labels
+                                       labelFlush=True,
+                                       labelOverlap=False,  # Evitar sobreposição de labels
+                                       tickCount=5,
+                                       format='.2s',
+                                       grid=False,  # Remover grid do eixo secundário para não poluir
+                                       labelOpacity=1.0,  # Garantir que os labels apareçam
+                                       titleOpacity=1.0,  # Garantir que o título apareça
+                                       domain=False  # Remover linha do eixo para evitar duplicação visual
+                                   )),
+                            tooltip=[
+                                alt.Tooltip('Período:N'), 
+                                alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
+                            ]
+                        )
+                        
+                        # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
+                        texto_media_acumulada = alt.Chart(df_grafico_linha).mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-10,
+                            color='#1f77b4',
+                            fontSize=10
+                        ).encode(
+                            x=alt.X('Período:N', sort=ordem_periodos_historico),
+                            y=alt.Y('Media_Acumulada_Escalada:Q', 
+                                   scale=alt.Scale(domain=[0, max_escala_linha])),
+                            text=alt.Text('Media_Acumulada_Valor:Q', format=',.2f')
+                        )
+                    else:
+                        # Se não houver dados válidos, criar gráficos vazios (invisíveis)
+                        linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
+                        texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
+                else:
+                    # Se não houver dados históricos, criar gráficos vazios (invisíveis)
+                    linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
+                    texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
                 
                 # Combinar gráficos com eixos independentes
                 # Usar resolve_scale para garantir que apenas o eixo secundário mostre seus valores
@@ -3155,11 +3194,18 @@ else:
                 # Manter valores reais da média acumulada para tooltips
                 df_grafico_volume['Media_Acumulada_Valor'] = df_grafico_volume['Media_Acumulada']
                 
+                # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
+                df_grafico_volume['Media_Acumulada_Escalada'] = None
+                
                 # Aplicar escala aos períodos históricos para posicionamento
                 mask_historico = df_grafico_volume['Tipo'] == 'Histórico'
-                df_grafico_volume.loc[mask_historico, 'Media_Acumulada_Escalada'] = (
-                    df_grafico_volume.loc[mask_historico, 'Media_Acumulada'] * fator_escala
-                )
+                if mask_historico.any():
+                    # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
+                    mask_historico_valido = mask_historico & df_grafico_volume['Media_Acumulada'].notna()
+                    if mask_historico_valido.any():
+                        df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
+                            df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
+                        )
                 df_grafico_volume.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
                 
                 # Calcular escala máxima para o eixo primário (barras)
@@ -3212,51 +3258,68 @@ else:
                 # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
                 df_grafico_linha_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
                 
-                # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
-                linha_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_line(
-                    point=True,
-                    color='#1f77b4',
-                    strokeWidth=3,
-                    strokeDash=[5, 5]  # Linha pontilhada
-                ).encode(
-                    x=alt.X('Período:N', sort=ordem_periodos_volume),
-                    y=alt.Y('Media_Acumulada_Escalada:Q', 
-                           title='Média Acumulada',
-                           scale=alt.Scale(domain=[0, max_escala_linha]),
-                           axis=alt.Axis(
-                               orient='right', 
-                               titleColor='#1f77b4', 
-                               labelColor='#1f77b4',
-                               titlePadding=40,  # Aumentar muito o espaçamento do título para não sobrepor
-                               labelPadding=10,  # Aumentar espaçamento dos labels
-                               labelFlush=True,
-                               labelOverlap=False,  # Evitar sobreposição de labels
-                               tickCount=5,
-                               format='.2s',
-                               grid=False,  # Remover grid do eixo secundário para não poluir
-                               labelOpacity=1.0,  # Garantir que os labels apareçam
-                               titleOpacity=1.0,  # Garantir que o título apareça
-                               domain=False  # Remover linha do eixo para evitar duplicação visual
-                           )),
-                    tooltip=[
-                        alt.Tooltip('Período:N'), 
-                        alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
-                    ]
-                )
-                
-                # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
-                texto_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_text(
-                    align='center',
-                    baseline='bottom',
-                    dy=-10,
-                    color='#1f77b4',
-                    fontSize=10,
-                    fontWeight='bold'
-                ).encode(
-                    x=alt.X('Período:N', sort=ordem_periodos_volume),
-                    y=alt.Y('Media_Acumulada_Escalada:Q'),
-                    text=alt.Text('Media_Acumulada_Valor:Q', format=',.0f')
-                )
+                # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
+                # Verificar se há dados válidos para a linha
+                if not df_grafico_linha_volume.empty and 'Media_Acumulada_Escalada' in df_grafico_linha_volume.columns:
+                    # Remover linhas com valores None ou NaN na média acumulada escalada
+                    df_grafico_linha_volume = df_grafico_linha_volume[df_grafico_linha_volume['Media_Acumulada_Escalada'].notna()].copy()
+                    
+                    # Se ainda houver dados válidos, criar a linha
+                    if not df_grafico_linha_volume.empty:
+                        # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
+                        linha_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_line(
+                            point=True,
+                            color='#1f77b4',
+                            strokeWidth=3,
+                            strokeDash=[5, 5]  # Linha pontilhada
+                        ).encode(
+                            x=alt.X('Período:N', sort=ordem_periodos_volume),
+                            y=alt.Y('Media_Acumulada_Escalada:Q', 
+                                   title='Média Acumulada',
+                                   scale=alt.Scale(domain=[0, max_escala_linha]),
+                                   axis=alt.Axis(
+                                       orient='right', 
+                                       titleColor='#1f77b4', 
+                                       labelColor='#1f77b4',
+                                       titlePadding=50,  # Aumentar muito o espaçamento do título para não sobrepor
+                                       labelPadding=15,  # Aumentar espaçamento dos labels para evitar sobreposição
+                                       labelFlush=False,  # Não forçar flush para evitar duplicação
+                                       labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
+                                       tickCount=5,
+                                       format=',.0f',  # Formato numérico limpo sem notação científica
+                                       grid=False,  # Remover grid do eixo secundário para não poluir
+                                       labelOpacity=1.0,  # Garantir que os labels apareçam
+                                       titleOpacity=1.0,  # Garantir que o título apareça
+                                       domain=False,  # Remover linha do eixo para evitar duplicação visual
+                                       labelAngle=0  # Manter labels horizontais
+                                   )),
+                            tooltip=[
+                                alt.Tooltip('Período:N'), 
+                                alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
+                            ]
+                        )
+                        
+                        # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
+                        texto_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-10,
+                            color='#1f77b4',
+                            fontSize=10,
+                            fontWeight='bold'
+                        ).encode(
+                            x=alt.X('Período:N', sort=ordem_periodos_volume),
+                            y=alt.Y('Media_Acumulada_Escalada:Q'),
+                            text=alt.Text('Media_Acumulada_Valor:Q', format=',.0f')
+                        )
+                    else:
+                        # Se não houver dados válidos, criar gráficos vazios (invisíveis)
+                        linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
+                        texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
+                else:
+                    # Se não houver dados históricos, criar gráficos vazios (invisíveis)
+                    linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
+                    texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
                 
                 # Combinar gráficos com eixos independentes
                 # Usar resolve_scale para garantir que apenas o eixo secundário mostre seus valores
@@ -3269,14 +3332,20 @@ else:
                 ).configure_view(
                     strokeWidth=0  # Remover borda
                 ).configure_axisLeft(
-                    grid=True
+                    grid=True,
+                    gridWidth=0.5,  # Afinar as linhas de grade
+                    gridColor='#e0e0e0',
+                    gridOpacity=0.3
                 ).configure_axisRight(
                     grid=False,  # Não mostrar grid do eixo direito para não poluir
                     labelColor='#1f77b4',
                     labelOpacity=1.0,  # Garantir que os labels apareçam
                     titleOpacity=1.0,  # Garantir que o título apareça
-                    titlePadding=40,  # Aumentar espaçamento do título no configure também
-                    domain=False  # Remover linha do eixo para evitar duplicação visual
+                    titlePadding=50,  # Aumentar espaçamento do título no configure também
+                    labelPadding=15,  # Aumentar espaçamento dos labels
+                    labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
+                    domain=False,  # Remover linha do eixo para evitar duplicação visual
+                    format=',.0f'  # Formato numérico limpo
                 ).configure_axisBottom(
                     labelAngle=-45,  # Rotacionar labels para evitar sobreposição
                     labelPadding=10,  # Espaçamento adicional
