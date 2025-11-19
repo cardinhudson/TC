@@ -1261,6 +1261,27 @@ else:
     @st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
     def calcular_medias_forecast(df_filtrado_cache, colunas_adicionais_cache, periodos_para_media_cache, ultimo_periodo_dados_cache=None):
         """Calcula médias mensais históricas com cache, usando apenas os períodos selecionados"""
+        # 🔧 CORREÇÃO CRÍTICA: Extrair ano de referência ANTES de qualquer filtro
+        # Isso garante que o mesmo ano seja usado em todos os filtros
+        ano_referencia_filtro = None
+        if periodos_para_media_cache:
+            # Extrair ano dos períodos procurados
+            anos_nos_periodos = []
+            for periodo_procurado in periodos_para_media_cache:
+                periodo_str = str(periodo_procurado).strip()
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    if len(partes) > 1 and partes[1].isdigit():
+                        anos_nos_periodos.append(int(partes[1]))
+            if anos_nos_periodos:
+                ano_referencia_filtro = max(anos_nos_periodos)
+        if ano_referencia_filtro is None and ultimo_periodo_dados_cache:
+            ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip()
+            if ' ' in ultimo_periodo_str:
+                ano_str = ultimo_periodo_str.split(' ', 1)[1]
+                if ano_str.isdigit():
+                    ano_referencia_filtro = int(ano_str)
+        
         # Filtrar apenas os períodos que serão usados para calcular a média
         if periodos_para_media_cache and 'Período' in df_filtrado_cache.columns:
             # Normalizar períodos procurados (manter mês + ano se disponível)
@@ -1285,9 +1306,28 @@ else:
             # Verificar períodos no DataFrame
             periodos_no_df = df_filtrado_cache['Período'].astype(str).str.strip().str.lower()
             
+            # 🔧 CORREÇÃO: Usar ano_referencia_filtro já definido no início da função
+            # Se não foi definido, usar ultimo_ano_limite como fallback
+            if ano_referencia_filtro is None:
+                ano_referencia_filtro = ultimo_ano_limite
+            
             # Criar máscara: comparar período completo (mês + ano) quando disponível
+            # 🔧 CORREÇÃO CRÍTICA: Garantir que apenas períodos do ano de referência sejam incluídos
             def periodo_corresponde(periodo_df):
                 periodo_df_lower = str(periodo_df).strip().lower()
+                
+                # 🔧 CORREÇÃO CRÍTICA: Se há ano de referência definido, filtrar APENAS esse ano
+                if ano_referencia_filtro:
+                    periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                    if periodo_df_tem_ano:
+                        periodo_df_ano = int(periodo_df_lower.split(' ', 1)[1]) if periodo_df_lower.split(' ', 1)[1].isdigit() else None
+                        # Se o período tem ano diferente do ano de referência, NÃO incluir
+                        if periodo_df_ano != ano_referencia_filtro:
+                            return False
+                    else:
+                        # Se o período não tem ano mas há ano de referência, NÃO incluir
+                        # (evita incluir períodos sem ano quando há períodos com ano)
+                        return False
                 
                 # Verificar se o período está antes ou no último mês selecionado
                 if ultimo_mes_limite and ultimo_ano_limite:
@@ -1333,16 +1373,16 @@ else:
                         continue
                     
                     # Se nenhum tem ano ou apenas um tem, comparar apenas o mês
-                    # (compatibilidade com dados antigos)
-                    mes_df = periodo_df_lower.split(' ', 1)[0] if ' ' in periodo_df_lower else periodo_df_lower
-                    mes_procurado = periodo_procurado.split(' ', 1)[0] if ' ' in periodo_procurado else periodo_procurado
-                    
-                    if mes_df == mes_procurado:
-                        # Se o período procurado tem ano mas o do DF não tem, não incluir
-                        # (para evitar incluir períodos futuros sem ano)
-                        if periodo_procurado_tem_ano and not periodo_df_tem_ano:
-                            continue
-                        return True
+                    # MAS APENAS se não houver ano de referência definido
+                    if not ano_referencia_filtro:
+                        mes_df = periodo_df_lower.split(' ', 1)[0] if ' ' in periodo_df_lower else periodo_df_lower
+                        mes_procurado = periodo_procurado.split(' ', 1)[0] if ' ' in periodo_procurado else periodo_procurado
+                        
+                        if mes_df == mes_procurado:
+                            # Se o período procurado tem ano mas o do DF não tem, não incluir
+                            if periodo_procurado_tem_ano and not periodo_df_tem_ano:
+                                continue
+                            return True
                 
                 return False
             
@@ -1417,23 +1457,24 @@ else:
         
         # 🔧 CORREÇÃO CRÍTICA: Normalizar Período para SEMPRE incluir o ano antes do groupby
         # Isso evita somar meses de anos diferentes (ex: "Novembro 2024" + "Novembro 2025")
-        # Extrair ano de referência do último período ou dos períodos selecionados
-        ano_referencia = None
-        if ultimo_periodo_dados_cache:
-            ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip()
-            if ' ' in ultimo_periodo_str:
-                ano_str = ultimo_periodo_str.split(' ', 1)[1]
-                if ano_str.isdigit():
-                    ano_referencia = int(ano_str)
-        elif periodos_para_media_cache:
-            # Tentar extrair ano dos períodos selecionados
-            for p in periodos_para_media_cache:
-                p_str = str(p).strip()
-                if ' ' in p_str:
-                    ano_str = p_str.split(' ', 1)[1]
+        # 🔧 CORREÇÃO: Usar o mesmo ano_referencia_filtro que foi usado no filtro inicial
+        ano_referencia = ano_referencia_filtro
+        if ano_referencia is None:
+            if ultimo_periodo_dados_cache:
+                ultimo_periodo_str = str(ultimo_periodo_dados_cache).strip()
+                if ' ' in ultimo_periodo_str:
+                    ano_str = ultimo_periodo_str.split(' ', 1)[1]
                     if ano_str.isdigit():
                         ano_referencia = int(ano_str)
-                        break
+            elif periodos_para_media_cache:
+                # Tentar extrair ano dos períodos selecionados
+                for p in periodos_para_media_cache:
+                    p_str = str(p).strip()
+                    if ' ' in p_str:
+                        ano_str = p_str.split(' ', 1)[1]
+                        if ano_str.isdigit():
+                            ano_referencia = int(ano_str)
+                            break
         
         # 🔧 CORREÇÃO CRÍTICA: Normalizar Período usando coluna Ano ORIGINAL (não ano_referencia)
         # Estratégia: Se Período não tem ano, usar coluna Ano original dos dados
@@ -1480,9 +1521,29 @@ else:
             
             df_filtrado_media = df_filtrado_media.drop(columns=['Ano_Do_Periodo'], errors='ignore')
         
+        # 🔧 CORREÇÃO CRÍTICA: Filtrar por ano ANTES do groupby para evitar incluir dados de ambos os anos
+        # Isso garante que apenas períodos do ano de referência sejam agrupados
+        if ano_referencia:
+            if 'Ano' in df_filtrado_media.columns:
+                # Filtrar diretamente pela coluna Ano ANTES do groupby
+                df_filtrado_media = df_filtrado_media[df_filtrado_media['Ano'] == ano_referencia].copy()
+            elif 'Período' in df_filtrado_media.columns:
+                # Filtrar pelo ano no Período se não houver coluna Ano
+                def periodo_tem_ano_correto_pre_groupby(periodo_val):
+                    periodo_str = str(periodo_val).strip()
+                    if ' ' in periodo_str:
+                        ano_val = periodo_str.split(' ', 1)[1]
+                        if ano_val.isdigit():
+                            return int(ano_val) == ano_referencia
+                    return False
+                df_filtrado_media = df_filtrado_media[
+                    df_filtrado_media['Período'].apply(periodo_tem_ano_correto_pre_groupby)
+                ].copy()
+        
         # Agrupar por Oficina, Veículo, Período (com ano) e Tipo_Custo para obter totais
         # 🔧 CORREÇÃO: Se houver coluna Ano, incluí-la no groupby (mesma lógica da TC_Ext)
         # Isso garante que "Julho 2024" e "Julho 2025" sejam tratados separadamente
+        # MAS agora df_filtrado_media já contém APENAS o ano de referência
         colunas_groupby = ['Oficina', 'Veículo', 'Período', 'Tipo_Custo'] + colunas_adicionais_cache
         # Se houver coluna Ano, incluí-la no groupby para evitar somar meses de anos diferentes
         if 'Ano' in df_filtrado_media.columns:
@@ -1491,12 +1552,13 @@ else:
         agg_dict = {'Total': 'sum'}  # Usar 'sum' para ter valores totais reais
         df_medias = df_filtrado_media.groupby(colunas_groupby).agg(agg_dict).reset_index()
         
-        # 🔧 CORREÇÃO: Filtrar apenas o ano de referência antes de calcular média mensal
-        # Usar coluna Ano se disponível (mais eficiente), senão usar Período
+        # 🔧 CORREÇÃO: df_medias já contém apenas o ano de referência (foi filtrado antes do groupby)
+        # Mas vamos garantir novamente para segurança
+        df_medias_ano_recente = df_medias.copy()
         if ano_referencia:
-            if 'Ano' in df_medias.columns:
+            if 'Ano' in df_medias_ano_recente.columns:
                 # Filtrar diretamente pela coluna Ano (mais eficiente e correto)
-                df_medias_ano_recente = df_medias[df_medias['Ano'] == ano_referencia].copy()
+                df_medias_ano_recente = df_medias_ano_recente[df_medias_ano_recente['Ano'] == ano_referencia].copy()
             elif 'Período' in df_medias.columns:
                 # Fallback: filtrar pelo ano no Período
                 def periodo_tem_ano_correto(periodo_val):
@@ -1517,14 +1579,72 @@ else:
             # Se não temos ano de referência, usar todos (compatibilidade)
             df_medias_ano_recente = df_medias.copy()
         
+        # 🔍 DEBUG CRÍTICO: Verificar quantos períodos únicos existem por linha antes de calcular média
+        if 'Período' in df_medias_ano_recente.columns and not df_medias_ano_recente.empty:
+            # Contar períodos únicos por combinação de chave
+            colunas_chave_debug = ['Oficina', 'Veículo', 'Tipo_Custo'] + [col for col in colunas_adicionais_cache if col in df_medias_ano_recente.columns]
+            if 'Ano' in df_medias_ano_recente.columns:
+                colunas_chave_debug.insert(2, 'Ano')
+            colunas_chave_debug_existentes = [col for col in colunas_chave_debug if col in df_medias_ano_recente.columns]
+            
+            if len(colunas_chave_debug_existentes) > 0:
+                # Contar períodos por chave
+                periodos_por_chave = df_medias_ano_recente.groupby(colunas_chave_debug_existentes)['Período'].nunique()
+                if periodos_por_chave.max() > 12:
+                    st.sidebar.error(f"❌ PROBLEMA CRÍTICO: Algumas linhas têm {periodos_por_chave.max()} períodos únicos! (deveria ser no máximo 12)")
+                elif periodos_por_chave.max() > 6:
+                    st.sidebar.warning(f"⚠️ ATENÇÃO: Algumas linhas têm {periodos_por_chave.max()} períodos únicos (pode incluir meses de ambos os anos)")
+        
+        # Calcular média geral mensal por linha (média das médias dos meses selecionados)
+        # 🔧 CORREÇÃO CRÍTICA: Garantir que df_medias_ano_recente contém APENAS o ano de referência
+        # Se ainda houver dados de outros anos após o filtro, filtrar novamente
+        if ano_referencia and 'Ano' in df_medias_ano_recente.columns:
+            anos_ainda_presentes = df_medias_ano_recente['Ano'].dropna().unique()
+            if len(anos_ainda_presentes) > 1 or (len(anos_ainda_presentes) == 1 and anos_ainda_presentes[0] != ano_referencia):
+                # Forçar filtro novamente
+                df_medias_ano_recente = df_medias_ano_recente[df_medias_ano_recente['Ano'] == ano_referencia].copy()
+        elif ano_referencia and 'Período' in df_medias_ano_recente.columns:
+            # Filtrar pelo ano no Período se não houver coluna Ano
+            def periodo_tem_ano_correto_final(periodo_val):
+                periodo_str = str(periodo_val).strip()
+                if ' ' in periodo_str:
+                    ano_val = periodo_str.split(' ', 1)[1]
+                    if ano_val.isdigit():
+                        return int(ano_val) == ano_referencia
+                return False
+            df_medias_ano_recente = df_medias_ano_recente[
+                df_medias_ano_recente['Período'].apply(periodo_tem_ano_correto_final)
+            ].copy()
+        
         # Calcular média geral mensal por linha (média das médias dos meses selecionados)
         # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir (preservar ano para forecast)
+        # IMPORTANTE: df_medias_ano_recente já deve conter APENAS o ano de referência
         colunas_groupby_media = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
         if 'Ano' in df_medias_ano_recente.columns:
             colunas_groupby_media.insert(2, 'Ano')  # Inserir Ano após Veículo
         colunas_groupby_media = [col for col in colunas_groupby_media if col in df_medias_ano_recente.columns]
         agg_dict_media = {'Total': 'mean'}
         df_media_mensal = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
+        
+        # 🔍 DEBUG: Verificar se a média está correta
+        if 'Período' in df_medias_ano_recente.columns and not df_medias_ano_recente.empty:
+            # Para uma linha de exemplo, verificar se a média está correta
+            exemplo_chave = df_medias_ano_recente.iloc[0]
+            if len(colunas_chave_debug_existentes) > 0:
+                mask_exemplo = True
+                for col in colunas_chave_debug_existentes:
+                    if col in df_medias_ano_recente.columns:
+                        mask_exemplo = mask_exemplo & (df_medias_ano_recente[col] == exemplo_chave[col])
+                periodos_exemplo = df_medias_ano_recente[mask_exemplo]['Período'].unique()
+                soma_exemplo = df_medias_ano_recente[mask_exemplo]['Total'].sum()
+                media_exemplo = df_medias_ano_recente[mask_exemplo]['Total'].mean()
+                num_periodos_exemplo = len(periodos_exemplo)
+                if num_periodos_exemplo > 0:
+                    media_esperada = soma_exemplo / num_periodos_exemplo
+                    if abs(media_exemplo - media_esperada) > 0.01:
+                        st.sidebar.error(f"❌ PROBLEMA: Média calculada ({media_exemplo:,.2f}) ≠ esperada ({media_esperada:,.2f}) para {num_periodos_exemplo} períodos")
+                    else:
+                        st.sidebar.success(f"✅ Média correta: {media_exemplo:,.2f} = {soma_exemplo:,.2f} / {num_periodos_exemplo} períodos")
         
         # 🔧 VERIFICAÇÃO FINAL: Garantir que não há duplicatas após o agrupamento
         # Se ainda houver duplicatas, significa que o agrupamento não está funcionando corretamente
@@ -2191,7 +2311,10 @@ else:
         
         # 🔧 VERIFICAÇÃO: Garantir que df_media_mensal não tem duplicatas
         # Se houver duplicatas, o merge vai criar linhas multiplicadas
+        # 🔧 CORREÇÃO: Incluir 'Ano' na chave se existir (evita agrupar dados de 2024 com 2025)
         colunas_chave_media = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
+        if 'Ano' in df_media_mensal_cache.columns:
+            colunas_chave_media.insert(2, 'Ano')  # Inserir Ano após Veículo
         colunas_chave_media_existentes = [col for col in colunas_chave_media if col in df_media_mensal_cache.columns]
         
         if len(colunas_chave_media_existentes) > 0:
@@ -2206,21 +2329,61 @@ else:
         
         # 🔧 VERIFICAÇÃO: Garantir que volume_base não tem duplicatas
         # Se houver múltiplas linhas para mesma Oficina + Veículo, o merge vai duplicar
+        # 🔧 CORREÇÃO CRÍTICA: volume_base é volume médio histórico (não específico por ano)
+        # NÃO usar 'Ano' no agrupamento - volume_base já é uma média geral
         if not volume_base_cache.empty and 'Oficina' in volume_base_cache.columns and 'Veículo' in volume_base_cache.columns:
-            duplicatas_volume = volume_base_cache.duplicated(subset=['Oficina', 'Veículo'], keep=False)
+            colunas_dup_volume = ['Oficina', 'Veículo']
+            # NÃO incluir 'Ano' - volume_base é médio histórico geral
+            duplicatas_volume = volume_base_cache.duplicated(subset=colunas_dup_volume, keep=False)
             if duplicatas_volume.any():
                 # 🔧 CORREÇÃO CRÍTICA: Se houver duplicatas, SOMAR (não tirar média)
                 # Cada linha duplicada representa uma parte do volume que deve ser somada
                 volume_base_cache = volume_base_cache.groupby(
-                    ['Oficina', 'Veículo'], as_index=False
+                    colunas_dup_volume, as_index=False
                 ).agg({'Volume_Medio_Historico': 'sum'})  # SOMAR os volumes duplicados (não tirar média)
         
         # Fazer merge com volume_base
+        # 🔧 CORREÇÃO CRÍTICA: volume_base é volume médio histórico (não é por mês específico)
+        # NÃO usar 'Ano' como chave aqui, pois volume_base é uma média geral
+        # Usar apenas Oficina e Veículo (e colunas adicionais se necessário)
+        colunas_merge_volume = ['Oficina', 'Veículo']
+        # NÃO incluir 'Ano' aqui - volume_base é médio histórico, não específico por ano
+        
+        # 🔍 DEBUG CRÍTICO: Verificar linhas antes do merge
+        num_linhas_antes_merge = len(df_media_mensal_cache)
+        
         df_forecast_base = df_media_mensal_cache.merge(
             volume_base_cache,
-            on=['Oficina', 'Veículo'],
+            on=colunas_merge_volume,
             how='left'
         )
+        
+        # 🔍 DEBUG CRÍTICO: Verificar se o merge criou duplicatas
+        num_linhas_apos_merge = len(df_forecast_base)
+        if num_linhas_apos_merge > num_linhas_antes_merge:
+            # Verificar duplicatas por chave completa
+            colunas_chave_completa = colunas_merge_volume + ['Tipo_Custo'] + [col for col in colunas_adicionais_cache if col in df_forecast_base.columns]
+            colunas_chave_completa_existentes = [col for col in colunas_chave_completa if col in df_forecast_base.columns]
+            if len(colunas_chave_completa_existentes) > 0:
+                duplicatas_merge = df_forecast_base.duplicated(subset=colunas_chave_completa_existentes, keep=False)
+                num_duplicatas_merge = duplicatas_merge.sum()
+                if num_duplicatas_merge > 0:
+                    st.sidebar.error(f"❌ PROBLEMA CRÍTICO: Merge criou {num_duplicatas_merge} linhas duplicadas! Isso causa valores pela metade!")
+                    # 🔧 CORREÇÃO: Agrupar duplicatas somando valores numéricos
+                    agg_dict_merge_dup = {}
+                    for col in df_forecast_base.columns:
+                        if col not in colunas_chave_completa_existentes:
+                            if col == 'Média_Mensal_Histórica' or col == 'Total':
+                                agg_dict_merge_dup[col] = 'sum'  # Somar médias duplicadas
+                            elif col == 'Volume_Medio_Historico':
+                                agg_dict_merge_dup[col] = 'sum'  # Somar volumes duplicados
+                            else:
+                                agg_dict_merge_dup[col] = 'first'
+                    df_forecast_base = df_forecast_base.groupby(
+                        colunas_chave_completa_existentes, as_index=False
+                    ).agg(agg_dict_merge_dup)
+                    st.sidebar.success(f"✅ Corrigido: {len(df_forecast_base)} linhas após agrupamento de duplicatas")
+        
         # Se não houver volume médio histórico, manter como 0 para não distorcer a proporção
         df_forecast_base['Volume_Medio_Historico'] = df_forecast_base['Volume_Medio_Historico'].fillna(0.0)
         
@@ -2254,6 +2417,32 @@ else:
         
         # Renomear 'Total' para 'Média_Mensal_Histórica'
         df_forecast_base = df_forecast_base.rename(columns={'Total': 'Média_Mensal_Histórica'})
+        
+        # 🔍 VERIFICAÇÃO FINAL: Verificar se há duplicatas finais no df_forecast_base
+        # Isso garante que não há linhas duplicadas que causariam valores pela metade
+        colunas_chave_final = ['Oficina', 'Veículo', 'Tipo_Custo'] + [col for col in colunas_adicionais_cache if col in df_forecast_base.columns]
+        if 'Ano' in df_forecast_base.columns:
+            colunas_chave_final.insert(2, 'Ano')
+        colunas_chave_final_existentes = [col for col in colunas_chave_final if col in df_forecast_base.columns]
+        if len(colunas_chave_final_existentes) > 0:
+            duplicatas_final_base = df_forecast_base.duplicated(subset=colunas_chave_final_existentes, keep=False)
+            num_duplicatas_final_base = duplicatas_final_base.sum()
+            if num_duplicatas_final_base > 0:
+                st.sidebar.error(f"❌ PROBLEMA: {num_duplicatas_final_base} linhas duplicadas finais em df_forecast_base!")
+                # 🔧 CORREÇÃO FINAL: Agrupar duplicatas finais
+                agg_dict_final_dup = {}
+                for col in df_forecast_base.columns:
+                    if col not in colunas_chave_final_existentes:
+                        if col == 'Média_Mensal_Histórica':
+                            agg_dict_final_dup[col] = 'sum'  # Somar médias duplicadas
+                        elif col == 'Volume_Medio_Historico':
+                            agg_dict_final_dup[col] = 'sum'  # Somar volumes duplicados
+                        else:
+                            agg_dict_final_dup[col] = 'first'
+                df_forecast_base = df_forecast_base.groupby(
+                    colunas_chave_final_existentes, as_index=False
+                ).agg(agg_dict_final_dup)
+                st.sidebar.success(f"✅ Corrigido: {len(df_forecast_base)} linhas únicas após agrupamento final")
         
         # Criar DataFrame final de forecast
         # 🔧 CORREÇÃO: Incluir 'Ano' se existir em df_media_mensal (preservar ano original)
@@ -2314,24 +2503,35 @@ else:
                         pass
                 
                 # Selecionar colunas para merge
+                # 🔧 CORREÇÃO CRÍTICA: NÃO usar 'Ano' como chave separada
+                # O período já contém mês + ano (ex: "Novembro 2025")
+                # Usar apenas Oficina e Veículo para o merge
                 colunas_merge_vol = ['Oficina', 'Veículo', 'Volume']
-                if 'Ano' in volume_por_mes_cache.columns and 'Ano' in df_forecast_base.columns:
-                    colunas_merge_vol.append('Ano')
                 
                 vol_mes_df = volume_por_mes_cache[mask_corresponde][colunas_merge_vol].copy()
                 
                 if not vol_mes_df.empty:
-                    # Agrupar por Oficina, Veículo (e Ano se disponível) e SOMAR volumes (não fazer mean)
-                    # Se houver múltiplos registros com mesmo Oficina+Veículo+Ano, somar (não fazer média)
+                    # Agrupar por Oficina e Veículo e SOMAR volumes (não fazer mean)
+                    # 🔧 CORREÇÃO: NÃO usar 'Ano' no groupby - o período já foi filtrado corretamente
+                    # Se houver múltiplos registros com mesmo Oficina+Veículo para o mesmo período, somar
                     colunas_groupby_vol = ['Oficina', 'Veículo']
-                    if 'Ano' in vol_mes_df.columns:
-                        colunas_groupby_vol.append('Ano')
                     vol_mes_df = vol_mes_df.groupby(colunas_groupby_vol, as_index=False)['Volume'].sum()
                     
-                    # Fazer merge considerando Ano se disponível
+                    # Fazer merge usando apenas Oficina e Veículo
+                    # 🔧 CORREÇÃO: NÃO usar 'Ano' no merge - volume_por_mes já foi filtrado pelo período correto
                     colunas_merge_forecast = ['Oficina', 'Veículo']
-                    if 'Ano' in df_forecast_base.columns and 'Ano' in vol_mes_df.columns:
-                        colunas_merge_forecast.append('Ano')
+                    
+                    # 🔍 DEBUG CRÍTICO: Verificar se há duplicatas no merge
+                    num_linhas_antes_merge_vol = len(df_forecast_base)
+                    num_linhas_vol_mes = len(vol_mes_df)
+                    
+                    # Verificar se vol_mes_df tem duplicatas
+                    duplicatas_vol_mes = vol_mes_df.duplicated(subset=colunas_merge_forecast, keep=False)
+                    if duplicatas_vol_mes.any():
+                        st.sidebar.error(f"❌ PROBLEMA: {duplicatas_vol_mes.sum()} linhas duplicadas em vol_mes_df para {periodo}!")
+                        # Agrupar duplicatas antes do merge
+                        vol_mes_df = vol_mes_df.groupby(colunas_merge_forecast, as_index=False)['Volume'].sum()
+                        st.sidebar.info(f"✅ Corrigido: {len(vol_mes_df)} linhas únicas após agrupamento")
                     
                     df_vol_mes_merge = df_forecast_base[colunas_merge_forecast].merge(
                         vol_mes_df,
@@ -2339,6 +2539,12 @@ else:
                         how='left',
                         suffixes=('', '_mes')
                     )
+                    
+                    # 🔍 DEBUG: Verificar se o merge criou duplicatas
+                    num_linhas_apos_merge_vol = len(df_vol_mes_merge)
+                    if num_linhas_apos_merge_vol > num_linhas_antes_merge_vol:
+                        st.sidebar.error(f"❌ PROBLEMA: Merge com volume criou {num_linhas_apos_merge_vol - num_linhas_antes_merge_vol} linhas extras para {periodo}!")
+                    
                     volume_mes_serie = df_vol_mes_merge['Volume']
                 else:
                     # Sem volume para este período: não calcular forecast (mantém 0)
@@ -2359,6 +2565,17 @@ else:
             # Inicializar coluna de forecast
             df_forecast[periodo] = 0.0
             
+            # 🔍 DEBUG: Verificar se há duplicação no df_forecast_base antes de calcular
+            # Verificar duplicatas por chave (sem considerar Ano se não for necessário)
+            colunas_chave_debug = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais_cache
+            colunas_chave_debug_existentes = [col for col in colunas_chave_debug if col in df_forecast_base.columns]
+            if len(colunas_chave_debug_existentes) > 0:
+                duplicatas_base = df_forecast_base.duplicated(subset=colunas_chave_debug_existentes, keep=False)
+                num_duplicatas_base = duplicatas_base.sum()
+                if num_duplicatas_base > 0 and periodo == meses_restantes_cache[0] if meses_restantes_cache else False:
+                    # Avisar apenas no primeiro período para não poluir o log
+                    st.sidebar.warning(f"⚠️ {num_duplicatas_base} linhas duplicadas em df_forecast_base (pode causar valores pela metade)")
+            
             # Calcular forecast linha a linha
             for idx in df_forecast_base.index:
                 # 1. Obter valores da linha
@@ -2366,6 +2583,10 @@ else:
                 volume_medio_historico = float(df_forecast_base.loc[idx, 'Volume_Medio_Historico'])
                 volume_mes = float(volume_mes_aligned.loc[idx])
                 tipo_custo = df_forecast_base.loc[idx, 'Tipo_Custo']
+                
+                # 🔍 VERIFICAÇÃO CRÍTICA: Se volume_mes == volume_medio_historico e sensibilidade = 0,
+                # o forecast deveria ser igual à média histórica
+                # Se estiver pela metade, pode haver duplicação sendo corrigida incorretamente
                 
                 # 2. Calcular proporção de volume: Volume_mes / Volume_medio_historico
                 if volume_medio_historico > 0:
@@ -2390,6 +2611,10 @@ else:
                 else:
                     # Modo global: usar sensibilidade baseada no Tipo_Custo
                     sensibilidade = sensibilidade_fixo_cache if tipo_custo == 'Fixo' else sensibilidade_variavel_cache
+                
+                # 🔍 DEBUG: Verificar se sensibilidade está sendo aplicada (apenas primeira linha do primeiro período)
+                if idx == df_forecast_base.index[0] and periodo == meses_restantes_cache[0] if meses_restantes_cache else False:
+                    st.sidebar.info(f"ℹ️ Sensibilidade aplicada: {tipo_custo}={sensibilidade:.2f}, Variação={variacao_percentual:.2%}, Ajustada={variacao_percentual * sensibilidade:.2%}")
                 
                 # 5. Aplicar sensibilidade: variação_ajustada = variacao_percentual * sensibilidade
                 # Exemplos:
@@ -2420,6 +2645,15 @@ else:
                 fator_inflacao = 1.0 + inflacao_percentual
                 forecast = media_historica * fator_variacao * fator_inflacao
                 
+                # 🔍 VERIFICAÇÃO: Se sensibilidade = 0 e inflação = 0 e volume igual,
+                # forecast deveria ser igual à média histórica
+                # Se estiver pela metade, há problema de duplicação
+                if sensibilidade == 0 and inflacao_percentual == 0 and abs(proporcao_volume - 1.0) < 0.01:
+                    if abs(forecast - media_historica) > 0.01:
+                        # Avisar apenas uma vez por período
+                        if idx == df_forecast_base.index[0] and periodo == meses_restantes_cache[0] if meses_restantes_cache else False:
+                            st.sidebar.error(f"❌ PROBLEMA: forecast ({forecast:,.2f}) ≠ média ({media_historica:,.2f}) quando deveria ser igual!")
+                
                 # 8. Atribuir forecast à linha
                 df_forecast.loc[idx, periodo] = forecast
             
@@ -2444,6 +2678,10 @@ else:
     
     # 🔧 CORREÇÃO: Passar media_historica_total_padronizada para a função calcular_forecast_completo
     # para garantir que o forecast use a média correta
+    # 🔍 DEBUG: Verificar valores de sensibilidade antes de passar para a função
+    if sensibilidade_fixo is None or sensibilidade_variavel is None:
+        st.sidebar.error(f"❌ PROBLEMA: Sensibilidade None! Fixo={sensibilidade_fixo}, Variável={sensibilidade_variavel}")
+    
     df_forecast = calcular_forecast_completo(
         df_media_mensal, 
         volume_base if volume_base is not None else pd.DataFrame(columns=['Oficina', 'Veículo', 'Volume_Medio_Historico']),
@@ -2462,17 +2700,42 @@ else:
     # Guardar versão bruta do forecast (antes do agrupamento) para diagnósticos
     df_forecast_bruto = df_forecast.copy()
     
-    # 🔍 DEBUG: Verificar número de linhas antes do agrupamento
+    # 🔍 DEBUG DETALHADO: Verificar número de linhas antes do agrupamento e possíveis duplicações
     # Nota: colunas_meses ainda não está definido aqui, será definido depois do processar_tabela_forecast
     with st.expander("🔍 DEBUG - df_forecast_bruto (antes agrupamento)"):
         st.write(f"**Total de linhas:** {len(df_forecast_bruto)}")
+        
+        # Verificar se há coluna 'Ano' e quantos anos únicos existem
+        if 'Ano' in df_forecast_bruto.columns:
+            anos_unicos = df_forecast_bruto['Ano'].dropna().unique()
+            st.write(f"**Anos únicos encontrados:** {sorted(anos_unicos)}")
+            st.write(f"**Quantidade de anos:** {len(anos_unicos)}")
+            if len(anos_unicos) > 1:
+                st.warning("⚠️ **ATENÇÃO:** Há dados de múltiplos anos! Isso pode causar duplicação.")
+                for ano in sorted(anos_unicos):
+                    linhas_ano = len(df_forecast_bruto[df_forecast_bruto['Ano'] == ano])
+                    st.write(f"  - Ano {ano}: {linhas_ano} linhas")
+        
+        # Verificar duplicatas por chave de agrupamento
+        colunas_chave_agrupamento = ['Oficina', 'Veículo', 'Tipo_Custo'] + [col for col in colunas_adicionais if col in df_forecast_bruto.columns]
+        colunas_chave_existentes = [col for col in colunas_chave_agrupamento if col in df_forecast_bruto.columns]
+        if len(colunas_chave_existentes) > 0:
+            duplicatas = df_forecast_bruto.duplicated(subset=colunas_chave_existentes, keep=False)
+            num_duplicatas = duplicatas.sum()
+            if num_duplicatas > 0:
+                st.warning(f"⚠️ **ATENÇÃO:** {num_duplicatas} linhas duplicadas encontradas (mesma combinação de {', '.join(colunas_chave_existentes)})")
+                st.write(f"**Linhas únicas:** {len(df_forecast_bruto) - num_duplicatas}")
+                st.write(f"**Linhas duplicadas:** {num_duplicatas}")
+        
         # Verificar se há colunas de meses (periodos_restantes)
         if periodos_restantes:
+            st.write("**Somas por mês (ANTES do agrupamento):**")
             for mes in periodos_restantes:
                 if mes in df_forecast_bruto.columns:
                     soma_mes = df_forecast_bruto[mes].sum()
                     linhas_nao_zero = (df_forecast_bruto[mes] != 0).sum()
-                    st.write(f"**{mes}:** Soma={soma_mes:,.2f}, Linhas não-zero={linhas_nao_zero}, Linhas zero={len(df_forecast_bruto) - linhas_nao_zero}")
+                    linhas_zero = len(df_forecast_bruto) - linhas_nao_zero
+                    st.write(f"  - **{mes}:** Soma={soma_mes:,.2f}, Linhas não-zero={linhas_nao_zero}, Linhas zero={linhas_zero}")
     
     # Não há ajustes manuais: o cálculo linha a linha garante que os valores estão corretos
     # Total_Forecast será calculado depois que colunas_meses for definido
@@ -2486,13 +2749,44 @@ else:
         colunas_existentes = [col for col in colunas_ordenadas if col in df_forecast_cache.columns]
         df_forecast_processado = df_forecast_cache[colunas_existentes].copy()
         
+        # 🔍 DEBUG CRÍTICO: Verificar duplicatas ANTES do agrupamento
+        colunas_chave_antes_agrupamento = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais_cache if col in df_forecast_processado.columns] + ['Tipo_Custo']
+        if 'Ano' in df_forecast_processado.columns:
+            colunas_chave_antes_agrupamento.insert(2, 'Ano')
+        colunas_chave_antes_existentes = [col for col in colunas_chave_antes_agrupamento if col in df_forecast_processado.columns]
+        
+        if len(colunas_chave_antes_existentes) > 0 and len(df_forecast_processado) > 0:
+            duplicatas_antes = df_forecast_processado.duplicated(subset=colunas_chave_antes_existentes, keep=False)
+            num_duplicatas_antes = duplicatas_antes.sum()
+            if num_duplicatas_antes > 0:
+                st.sidebar.error(f"❌ PROBLEMA CRÍTICO: {num_duplicatas_antes} linhas duplicadas ANTES do agrupamento!")
+                # Mostrar exemplo de duplicatas
+                linhas_dup = df_forecast_processado[duplicatas_antes]
+                if len(linhas_dup) > 0:
+                    exemplo_dup = linhas_dup.iloc[0]
+                    mask_exemplo = True
+                    for col in colunas_chave_antes_existentes:
+                        mask_exemplo = mask_exemplo & (df_forecast_processado[col] == exemplo_dup[col])
+                    linhas_exemplo = df_forecast_processado[mask_exemplo]
+                    if len(linhas_exemplo) > 1:
+                        st.sidebar.write(f"**Exemplo:** {len(linhas_exemplo)} linhas com mesma chave:")
+                        for idx, row in linhas_exemplo.head(3).iterrows():
+                            valores_meses = [row[col] for col in meses_restantes_cache if col in row.index]
+                            soma_meses_exemplo = sum([v for v in valores_meses if isinstance(v, (int, float))])
+                            st.sidebar.write(f"  - Linha {idx}: soma meses = {soma_meses_exemplo:,.2f}")
+        
         # Calcular total por linha e identificar colunas de meses
         colunas_meses = [col for col in meses_restantes_cache if col in df_forecast_processado.columns]
         if colunas_meses:
             df_forecast_processado['Total_Forecast'] = df_forecast_processado[colunas_meses].sum(axis=1)
         
         # Agrupar linhas iguais (mesma combinação de Oficina+Veículo+Type+Tipo_Custo)
+        # 🔧 CORREÇÃO CRÍTICA: Se houver coluna 'Ano', incluí-la no agrupamento para evitar
+        # agrupar linhas de anos diferentes (ex: 2024 e 2025) que devem ser tratadas separadamente
         colunas_agrupamento = ['Oficina', 'Veículo'] + [col for col in colunas_adicionais_cache if col in df_forecast_processado.columns] + ['Tipo_Custo']
+        # Incluir 'Ano' no agrupamento se existir (evita agrupar dados de 2024 com 2025)
+        if 'Ano' in df_forecast_processado.columns:
+            colunas_agrupamento.append('Ano')
         colunas_agrupamento_existentes = [col for col in colunas_agrupamento if col in df_forecast_processado.columns]
         
         if len(colunas_agrupamento_existentes) > 0:
@@ -2513,9 +2807,27 @@ else:
                         pass
                     else:
                         agg_dict_grupo[col] = 'first'
+            # 🔍 DEBUG: Verificar soma ANTES do agrupamento
+            soma_antes_agrupamento = {}
+            if colunas_meses:
+                for mes in colunas_meses:
+                    if mes in df_forecast_processado.columns:
+                        soma_antes_agrupamento[mes] = df_forecast_processado[mes].sum()
+            
             df_forecast_processado = df_forecast_processado.groupby(
                 colunas_agrupamento_existentes, as_index=False
             ).agg(agg_dict_grupo).reset_index()
+            
+            # 🔍 DEBUG: Verificar soma APÓS o agrupamento e comparar
+            if colunas_meses:
+                for mes in colunas_meses:
+                    if mes in df_forecast_processado.columns and mes in soma_antes_agrupamento:
+                        soma_apos_agrupamento = df_forecast_processado[mes].sum()
+                        diferenca = soma_apos_agrupamento - soma_antes_agrupamento[mes]
+                        if abs(diferenca) > 0.01:
+                            percentual_diff = (diferenca / soma_antes_agrupamento[mes] * 100) if soma_antes_agrupamento[mes] != 0 else 0
+                            st.sidebar.error(f"❌ {mes}: Soma ANTES={soma_antes_agrupamento[mes]:,.2f}, APÓS={soma_apos_agrupamento:,.2f}, Dif={diferenca:,.2f} ({percentual_diff:+.2f}%)")
+                            st.sidebar.write(f"  - Isso indica que há duplicatas sendo somadas incorretamente!")
             
             # Recalcular Total_Forecast após agrupamento (soma dos meses agrupados)
             if colunas_meses:
@@ -2536,16 +2848,68 @@ else:
     # IMPORTANTE: df_forecast_bruto já foi criado ANTES deste processamento, então contém todas as linhas
     df_forecast, colunas_meses = processar_tabela_forecast(df_forecast, colunas_adicionais, periodos_restantes)
     
-    # 🔍 DEBUG: Verificar número de linhas após agrupamento
+            # 🔍 DEBUG DETALHADO: Verificar número de linhas após agrupamento e comparar totais
     with st.expander("🔍 DEBUG - df_forecast (após agrupamento)"):
-        st.write(f"**Total de linhas:** {len(df_forecast)}")
-        st.write(f"**Total de linhas df_forecast_bruto:** {len(df_forecast_bruto)}")
+        st.write(f"**Total de linhas df_forecast (após agrupamento):** {len(df_forecast)}")
+        st.write(f"**Total de linhas df_forecast_bruto (antes agrupamento):** {len(df_forecast_bruto)}")
+        st.write(f"**Redução de linhas:** {len(df_forecast_bruto) - len(df_forecast)} linhas")
+        
+        # 🔍 VERIFICAÇÃO CRÍTICA: Verificar se há coluna 'Ano' e quantos anos únicos
+        if 'Ano' in df_forecast_bruto.columns:
+            anos_unicos_bruto = df_forecast_bruto['Ano'].dropna().unique()
+            st.write(f"**Anos únicos em df_forecast_bruto:** {sorted(anos_unicos_bruto)}")
+            if len(anos_unicos_bruto) > 1:
+                st.warning("⚠️ **ATENÇÃO:** Há dados de múltiplos anos no df_forecast_bruto!")
+                for ano in sorted(anos_unicos_bruto):
+                    linhas_ano = len(df_forecast_bruto[df_forecast_bruto['Ano'] == ano])
+                    st.write(f"  - Ano {ano}: {linhas_ano} linhas")
+        
         if colunas_meses:
-            for mes in colunas_meses[:2]:  # Mostrar apenas os 2 primeiros meses
-                if mes in df_forecast.columns:
-                    st.write(f"**{mes} (soma df_forecast agrupado):** {df_forecast[mes].sum():,.2f}")
+            st.write("**🔍 COMPARAÇÃO DE TOTAIS (CRÍTICO PARA DIAGNÓSTICO):**")
+            for mes in colunas_meses:
+                soma_bruto = df_forecast_bruto[mes].sum() if mes in df_forecast_bruto.columns else 0
+                soma_agrupado = df_forecast[mes].sum() if mes in df_forecast.columns else 0
+                diferenca = soma_bruto - soma_agrupado
+                percentual_diferenca = (diferenca / soma_bruto * 100) if soma_bruto != 0 else 0
+                
+                # 🔍 VERIFICAÇÃO ADICIONAL: Verificar se há valores zero ou NaN
                 if mes in df_forecast_bruto.columns:
-                    st.write(f"**{mes} (soma df_forecast_bruto):** {df_forecast_bruto[mes].sum():,.2f}")
+                    valores_mes = df_forecast_bruto[mes]
+                    num_zeros = (valores_mes == 0).sum()
+                    num_nao_zero = (valores_mes != 0).sum()
+                    num_nan = valores_mes.isna().sum()
+                    media_valores_nao_zero = valores_mes[valores_mes != 0].mean() if num_nao_zero > 0 else 0
+                
+                st.write(f"  - **{mes}:**")
+                st.write(f"    - Soma BRUTO (antes agrupamento): {soma_bruto:,.2f}")
+                st.write(f"    - Soma AGRUPADO (após agrupamento): {soma_agrupado:,.2f}")
+                st.write(f"    - Diferença: {diferenca:,.2f} ({percentual_diferenca:+.2f}%)")
+                if mes in df_forecast_bruto.columns:
+                    st.write(f"    - Linhas não-zero: {num_nao_zero}, Linhas zero: {num_zeros}, NaN: {num_nan}")
+                    st.write(f"    - Média dos valores não-zero: {media_valores_nao_zero:,.2f}")
+                
+                if abs(percentual_diferenca) > 0.01:  # Mais de 0.01% de diferença
+                    st.error(f"    ⚠️ **PROBLEMA DETECTADO:** Diferença significativa entre bruto e agrupado!")
+                
+                # 🔍 VERIFICAÇÃO ESPECIAL: Se a soma está exatamente pela metade
+                if soma_bruto > 0 and abs(soma_agrupado - (soma_bruto / 2)) < 0.01:
+                    st.error(f"    ⚠️ **PROBLEMA CRÍTICO:** O valor agrupado está exatamente pela METADE do bruto!")
+                    st.write(f"    - Isso sugere que metade dos dados está sendo perdida no agrupamento!")
+            
+            # Comparar Total_Forecast se existir
+            if 'Total_Forecast' in df_forecast_bruto.columns and 'Total_Forecast' in df_forecast.columns:
+                total_bruto = df_forecast_bruto['Total_Forecast'].sum()
+                total_agrupado = df_forecast['Total_Forecast'].sum()
+                diferenca_total = total_bruto - total_agrupado
+                percentual_diferenca_total = (diferenca_total / total_bruto * 100) if total_bruto != 0 else 0
+                
+                st.write(f"  - **Total_Forecast:**")
+                st.write(f"    - Total BRUTO: {total_bruto:,.2f}")
+                st.write(f"    - Total AGRUPADO: {total_agrupado:,.2f}")
+                st.write(f"    - Diferença: {diferenca_total:,.2f} ({percentual_diferenca_total:+.2f}%)")
+                
+                if abs(percentual_diferenca_total) > 0.01:
+                    st.error(f"    ⚠️ **PROBLEMA DETECTADO:** Diferença significativa no Total_Forecast!")
     
     # ====================================================================
     # 🎯 CÁLCULO CPU - EXATAMENTE IGUAL TC EXT
@@ -3563,17 +3927,20 @@ else:
     if colunas_meses:
         # 🔧 CORREÇÃO: Usar df_forecast_para_grafico_hist que já tem CPU aplicado quando necessário
         for mes in colunas_meses:
-            # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_para_grafico_hist para somar todas as linhas individuais
-            # Isso garante que quando CPU está selecionado, estamos somando CPUs
-            if mes in df_forecast_para_grafico_hist.columns:
-                forecast_mes_total = float(df_forecast_para_grafico_hist[mes].sum())
-            elif mes in df_forecast_bruto.columns:
+            # 🔧 CORREÇÃO CRÍTICA: SEMPRE usar df_forecast_bruto para garantir valores atualizados com sensibilidade
+            # df_forecast_bruto é criado logo após calcular_forecast_completo e contém os valores mais recentes
+            # IMPORTANTE: Não usar df_forecast_para_grafico_hist aqui porque pode estar desatualizado
+            if mes in df_forecast_bruto.columns:
+                # Usar df_forecast_bruto diretamente (valores mais recentes com sensibilidade aplicada)
                 forecast_mes_total = float(df_forecast_bruto[mes].sum())
             elif mes in df_forecast.columns:
-                # Fallback: usar df_forecast se não tiver a coluna
+                # Fallback: usar df_forecast se df_forecast_bruto não tiver a coluna
                 forecast_mes_total = float(df_forecast[mes].sum())
             else:
                 forecast_mes_total = 0
+            
+            # Removido debug para melhorar performance
+            
             dados_grafico_historico.append({
                 'Período': str(mes),
                 'Custo': forecast_mes_total,
@@ -3584,92 +3951,104 @@ else:
     df_grafico_historico = pd.DataFrame(dados_grafico_historico)
     
     if not df_grafico_historico.empty:
-        # 🔧 CORREÇÃO: Calcular CPU para períodos de forecast usando merge eficiente
-        # Nota: Se tipo_visualizacao é CPU, os valores já foram calculados em df_forecast_para_grafico_hist
-        # Então não precisamos recalcular aqui, apenas garantir que CPU e Volume estejam presentes
+        # 🔧 OTIMIZAÇÃO: Garantir colunas necessárias e calcular CPU apenas se necessário
         if 'CPU' not in df_grafico_historico.columns:
             df_grafico_historico['CPU'] = 0.0
         if 'Volume' not in df_grafico_historico.columns:
             df_grafico_historico['Volume'] = 0.0
         
-        # Se tipo_visualizacao é CPU, os valores de forecast já estão em CPU
-        # Apenas precisamos calcular CPU para forecast se ainda não foi calculado
-        if tipo_visualizacao != "CPU (Custo por Unidade)":
-            # Calcular CPU para forecast usando merge (mais eficiente) apenas se não for CPU
-            if volume_por_mes is not None and not volume_por_mes.empty:
-                # Preparar volume_por_mes: normalizar período e agregar
-                volume_por_mes_merge = volume_por_mes.copy()
-                volume_por_mes_merge['Período_Normalizado'] = volume_por_mes_merge['Período'].astype(str).str.strip().str.lower()
-                volume_por_mes_merge['Período_Normalizado'] = volume_por_mes_merge['Período_Normalizado'].str.split(' ', expand=True)[0]
-                volume_agregado_forecast = volume_por_mes_merge.groupby('Período_Normalizado', as_index=False)['Volume'].sum()
+        # Calcular CPU apenas se tipo_visualizacao for CPU e houver volume disponível
+        if tipo_visualizacao == "CPU (Custo por Unidade)" and volume_por_mes is not None and not volume_por_mes.empty:
+            # Preparar volume agregado uma única vez
+            volume_por_mes_merge = volume_por_mes.copy()
+            volume_por_mes_merge['Período_Normalizado'] = volume_por_mes_merge['Período'].astype(str).str.strip().str.lower().str.split(' ', expand=True)[0]
+            volume_agregado_forecast = volume_por_mes_merge.groupby('Período_Normalizado', as_index=False)['Volume'].sum()
+            
+            # Atualizar apenas períodos de forecast usando merge eficiente
+            df_forecast_grafico = df_grafico_historico[df_grafico_historico['Tipo'] == 'Forecast'].copy()
+            if not df_forecast_grafico.empty:
+                df_forecast_grafico['Período_Normalizado'] = df_forecast_grafico['Período'].astype(str).str.strip().str.lower().str.split(' ', expand=True)[0]
+                df_forecast_grafico = pd.merge(
+                    df_forecast_grafico,
+                    volume_agregado_forecast.rename(columns={'Volume': 'Volume_Forecast'}),
+                    on='Período_Normalizado',
+                    how='left'
+                )
                 
-                # Normalizar períodos em df_grafico_historico para forecast
-                df_forecast_grafico = df_grafico_historico[df_grafico_historico['Tipo'] == 'Forecast'].copy()
-                if not df_forecast_grafico.empty:
-                    df_forecast_grafico['Período_Normalizado'] = df_forecast_grafico['Período'].astype(str).str.strip().str.lower()
-                    df_forecast_grafico['Período_Normalizado'] = df_forecast_grafico['Período_Normalizado'].str.split(' ', expand=True)[0]
-                    
-                    # Fazer merge
-                    df_forecast_grafico = pd.merge(
-                        df_forecast_grafico,
-                        volume_agregado_forecast.rename(columns={'Volume': 'Volume_Forecast'}),
-                        on='Período_Normalizado',
-                        how='left'
-                    )
-                    
-                    # Calcular CPU (operação vetorizada)
-                    mask_valid_forecast = (df_forecast_grafico['Volume_Forecast'].notna()) & \
-                                          (df_forecast_grafico['Volume_Forecast'] != 0) & \
-                                          (df_forecast_grafico['Custo'].notna())
-                    df_forecast_grafico.loc[mask_valid_forecast, 'CPU'] = (
-                        df_forecast_grafico.loc[mask_valid_forecast, 'Custo'] /
-                        df_forecast_grafico.loc[mask_valid_forecast, 'Volume_Forecast']
-                    )
-                    df_forecast_grafico.loc[mask_valid_forecast, 'Volume'] = df_forecast_grafico.loc[mask_valid_forecast, 'Volume_Forecast']
-                    
-                    # Atualizar df_grafico_historico com valores de forecast
-                    for idx in df_forecast_grafico.index:
-                        idx_original = df_grafico_historico[df_grafico_historico['Período'] == df_forecast_grafico.loc[idx, 'Período']].index
-                        if len(idx_original) > 0:
-                            idx_original = idx_original[0]
-                            df_grafico_historico.loc[idx_original, 'CPU'] = df_forecast_grafico.loc[idx, 'CPU']
-                            df_grafico_historico.loc[idx_original, 'Volume'] = df_forecast_grafico.loc[idx, 'Volume']
+                # Calcular CPU usando operação vetorizada
+                mask_valid = (df_forecast_grafico['Volume_Forecast'].notna()) & \
+                             (df_forecast_grafico['Volume_Forecast'] != 0) & \
+                             (df_forecast_grafico['Custo'].notna())
+                df_forecast_grafico.loc[mask_valid, 'CPU'] = (
+                    df_forecast_grafico.loc[mask_valid, 'Custo'] / df_forecast_grafico.loc[mask_valid, 'Volume_Forecast']
+                )
+                df_forecast_grafico.loc[mask_valid, 'Volume'] = df_forecast_grafico.loc[mask_valid, 'Volume_Forecast']
+                
+                # Atualizar df_grafico_historico usando merge (mais eficiente que loop)
+                df_grafico_historico = pd.merge(
+                    df_grafico_historico,
+                    df_forecast_grafico[['Período', 'CPU', 'Volume']].rename(columns={'CPU': 'CPU_Novo', 'Volume': 'Volume_Novo'}),
+                    on='Período',
+                    how='left'
+                )
+                mask_update = df_grafico_historico['CPU_Novo'].notna()
+                df_grafico_historico.loc[mask_update, 'CPU'] = df_grafico_historico.loc[mask_update, 'CPU_Novo']
+                df_grafico_historico.loc[mask_update, 'Volume'] = df_grafico_historico.loc[mask_update, 'Volume_Novo']
+                df_grafico_historico.loc[mask_update & (df_grafico_historico['Tipo'] == 'Forecast'), 'Custo'] = df_grafico_historico.loc[mask_update & (df_grafico_historico['Tipo'] == 'Forecast'), 'CPU_Novo']
+                df_grafico_historico = df_grafico_historico.drop(columns=['CPU_Novo', 'Volume_Novo'], errors='ignore')
         
         # Calcular valores máximos para escala (apenas das barras)
         max_custo_barras = float(df_grafico_historico['Custo'].max())
         
-        # Calcular valores da média acumulada (apenas períodos históricos)
+        # 🔧 OTIMIZAÇÃO: Calcular valores da média acumulada (apenas períodos históricos)
         df_medias_hist = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
-        max_media_valor = float(df_medias_hist['Media_Acumulada'].max()) if not df_medias_hist.empty else 0
-        min_media_valor = float(df_medias_hist['Media_Acumulada'].min()) if not df_medias_hist.empty else 0
+        
+        # Garantir que Media_Acumulada existe e tem valores válidos
+        if df_medias_hist.empty or 'Media_Acumulada' not in df_medias_hist.columns or df_medias_hist['Media_Acumulada'].isna().all():
+            # Recalcular média acumulada se necessário
+            if not df_medias_hist.empty and 'Custo' in df_medias_hist.columns:
+                valores_para_media = df_medias_hist['Custo'].tolist()
+                if valores_para_media:
+                    media_acumulada_recalc = []
+                    soma_acum = 0.0
+                    for i, valor in enumerate(valores_para_media):
+                        soma_acum += float(valor) if pd.notnull(valor) else 0.0
+                        media_acumulada_recalc.append(soma_acum / (i + 1))
+                    df_medias_hist['Media_Acumulada'] = media_acumulada_recalc
+                    # Atualizar df_grafico_historico usando merge (mais eficiente)
+                    df_grafico_historico = pd.merge(
+                        df_grafico_historico,
+                        df_medias_hist[['Período', 'Media_Acumulada']],
+                        on='Período',
+                        how='left',
+                        suffixes=('', '_novo')
+                    )
+                    mask_update_media = df_grafico_historico['Media_Acumulada_novo'].notna()
+                    df_grafico_historico.loc[mask_update_media, 'Media_Acumulada'] = df_grafico_historico.loc[mask_update_media, 'Media_Acumulada_novo']
+                    df_grafico_historico = df_grafico_historico.drop(columns=['Media_Acumulada_novo'], errors='ignore')
+                    # Atualizar df_medias_hist também
+                    df_medias_hist = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
+        
+        max_media_valor = float(df_medias_hist['Media_Acumulada'].max()) if not df_medias_hist.empty and 'Media_Acumulada' in df_medias_hist.columns and df_medias_hist['Media_Acumulada'].notna().any() else 0
         
         # Calcular posição desejada da linha (30% acima do maior valor das barras)
         posicao_desejada_linha = max_custo_barras * 1.3
         
         # Calcular fator de escala para mapear valores reais para posição acima das barras
-        # A linha deve mostrar a evolução, mas ficar sempre acima das barras
-        if max_media_valor > 0:
-            # Escalar para que o máximo da média fique na posição desejada
-            fator_escala = posicao_desejada_linha / max_media_valor
-        else:
-            fator_escala = 1.0
+        fator_escala = posicao_desejada_linha / max_media_valor if max_media_valor > 0 else 1.0
         
         # Manter valores reais da média acumulada para tooltips
         df_grafico_historico['Media_Acumulada_Valor'] = df_grafico_historico['Media_Acumulada']
         
-        # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
-        df_grafico_historico['Media_Acumulada_Escalada'] = None
-        
-        # Aplicar escala aos períodos históricos para posicionamento
+        # 🔧 OTIMIZAÇÃO: Calcular Media_Acumulada_Escalada de forma eficiente (uma única vez)
         mask_historico = df_grafico_historico['Tipo'] == 'Histórico'
+        df_grafico_historico['Media_Acumulada_Escalada'] = None
         if mask_historico.any():
-            # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
-            mask_historico_valido = mask_historico & df_grafico_historico['Media_Acumulada'].notna()
-            if mask_historico_valido.any():
-                df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
-                    df_grafico_historico.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
+            mask_valido = mask_historico & df_grafico_historico['Media_Acumulada'].notna()
+            if mask_valido.any():
+                df_grafico_historico.loc[mask_valido, 'Media_Acumulada_Escalada'] = (
+                    df_grafico_historico.loc[mask_valido, 'Media_Acumulada'] * fator_escala
                 )
-        df_grafico_historico.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
         
         # Calcular escala máxima para o eixo primário (barras)
         max_escala_barras = max_custo_barras * 1.2
@@ -3738,489 +4117,561 @@ else:
             text=alt.Text(f'{coluna_grafico_hist}:Q', format=formato_texto_hist)
         )
         
-        # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
+        # 🔧 CORREÇÃO CRÍTICA: Filtrar apenas períodos históricos para a linha (usar dados já calculados)
         df_grafico_linha = df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'].copy()
         
-        # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
-        # Verificar se há dados válidos para a linha
-        if not df_grafico_linha.empty and 'Media_Acumulada_Escalada' in df_grafico_linha.columns:
-            # Remover linhas com valores None ou NaN na média acumulada escalada
-            df_grafico_linha = df_grafico_linha[df_grafico_linha['Media_Acumulada_Escalada'].notna()].copy()
+        # 🔍 DEBUG TEMPORÁRIO: Verificar dados antes de criar a linha
+        if not df_grafico_linha.empty:
+            with st.expander("🔍 DEBUG - Dados da Linha (temporário)", expanded=True):
+                st.write(f"**Total de linhas históricas:** {len(df_grafico_linha)}")
+                st.write(f"**Colunas disponíveis:** {list(df_grafico_linha.columns)}")
+                st.write(f"**DataFrame completo:**")
+                st.dataframe(df_grafico_linha)
+                if 'Media_Acumulada' in df_grafico_linha.columns:
+                    st.write(f"**Media_Acumulada - Valores não-nulos:** {df_grafico_linha['Media_Acumulada'].notna().sum()}")
+                    st.write(f"**Media_Acumulada - Valores:** {df_grafico_linha['Media_Acumulada'].tolist()}")
+                if 'Media_Acumulada_Escalada' in df_grafico_linha.columns:
+                    st.write(f"**Media_Acumulada_Escalada - Valores não-nulos:** {df_grafico_linha['Media_Acumulada_Escalada'].notna().sum()}")
+                    st.write(f"**Media_Acumulada_Escalada - Valores:** {df_grafico_linha['Media_Acumulada_Escalada'].tolist()}")
+                st.write(f"**Fator de escala:** {fator_escala}")
+                st.write(f"**Max escala linha:** {max_escala_linha}")
+                st.write(f"**Max media valor:** {max_media_valor}")
+                st.write(f"**Posição desejada linha:** {posicao_desejada_linha}")
+        
+        # Garantir que a linha sempre apareça quando houver dados históricos válidos
+        if not df_grafico_linha.empty:
+            # Verificar se temos valores válidos de Media_Acumulada_Escalada
+            mask_valido = df_grafico_linha['Media_Acumulada_Escalada'].notna()
             
-            # Se ainda houver dados válidos, criar a linha
-            if not df_grafico_linha.empty:
-                        # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
-                        linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
-                            point=True,
-                            color='#1f77b4',
-                            strokeWidth=3,
-                            strokeDash=[5, 5]  # Linha pontilhada
-                        ).encode(
-                            x=alt.X('Período:N', sort=ordem_periodos_historico),
-                            y=alt.Y('Media_Acumulada_Escalada:Q', 
-                                   title='Média Acumulada',
-                                   scale=alt.Scale(domain=[0, max_escala_linha]),
-                                   axis=alt.Axis(
-                                       orient='right', 
-                                       titleColor='#1f77b4', 
-                                       labelColor='#1f77b4',
-                                       titlePadding=40,  # Aumentar muito o espaçamento do título para não sobrepor
-                                       labelPadding=10,  # Aumentar espaçamento dos labels
-                                       labelFlush=True,
-                                       labelOverlap=False,  # Evitar sobreposição de labels
-                                       tickCount=5,
-                                       format='.2s',
-                                       grid=False,  # Remover grid do eixo secundário para não poluir
-                                       labelOpacity=1.0,  # Garantir que os labels apareçam
-                                       titleOpacity=1.0,  # Garantir que o título apareça
-                                       domain=False  # Remover linha do eixo para evitar duplicação visual
-                                   )),
-                            tooltip=[
-                                alt.Tooltip('Período:N'), 
-                                alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
-                            ]
-                        )
-                        
-                        # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
-                        texto_media_acumulada = alt.Chart(df_grafico_linha).mark_text(
-                            align='center',
-                            baseline='bottom',
-                            dy=-10,
-                            color='#1f77b4',
-                            fontSize=10
-                        ).encode(
-                            x=alt.X('Período:N', sort=ordem_periodos_historico),
-                            y=alt.Y('Media_Acumulada_Escalada:Q', 
-                                   scale=alt.Scale(domain=[0, max_escala_linha])),
-                            text=alt.Text('Media_Acumulada_Valor:Q', format=',.2f')
-                        )
+            if not mask_valido.any():
+                # Se não há valores escalados, tentar recalcular
+                mask_media_valida = df_grafico_linha['Media_Acumulada'].notna()
+                if mask_media_valida.any():
+                    df_grafico_linha.loc[mask_media_valida, 'Media_Acumulada_Escalada'] = (
+                        df_grafico_linha.loc[mask_media_valida, 'Media_Acumulada'] * fator_escala
+                    )
+                    mask_valido = df_grafico_linha['Media_Acumulada_Escalada'].notna()
+            
+            if mask_valido.any():
+                df_grafico_linha = df_grafico_linha[mask_valido].copy()
+                
+                # Garantir que Media_Acumulada_Valor existe
+                if 'Media_Acumulada_Valor' not in df_grafico_linha.columns:
+                    df_grafico_linha['Media_Acumulada_Valor'] = df_grafico_linha['Media_Acumulada']
+                
+                # 🔧 CORREÇÃO CRÍTICA: Garantir que temos pelo menos 1 ponto para desenhar uma linha
+                if len(df_grafico_linha) >= 1:
+                    # 🔍 DEBUG: Verificar dados antes de criar o gráfico
+                    st.sidebar.write(f"✅ Criando linha com {len(df_grafico_linha)} pontos")
+                    st.sidebar.write(f"Períodos: {df_grafico_linha['Período'].tolist()}")
+                    st.sidebar.write(f"Valores escalados: {df_grafico_linha['Media_Acumulada_Escalada'].tolist()}")
+                    
+                    # Calcular valor máximo real da média acumulada para referência
+                    max_media_real = float(df_grafico_linha['Media_Acumulada_Valor'].max()) if 'Media_Acumulada_Valor' in df_grafico_linha.columns else max_media_valor
+                    # Adicionar 20% de margem acima do maior valor real
+                    max_media_real_com_margem = max_media_real * 1.2
+                    
+                    # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
+                    linha_media_acumulada = alt.Chart(df_grafico_linha).mark_line(
+                        point=True,
+                        color='#1f77b4',
+                        strokeWidth=3,
+                        strokeDash=[5, 5],  # Linha pontilhada
+                        interpolate='linear'  # Garantir interpolação linear
+                    ).encode(
+                        x=alt.X('Período:N', sort=ordem_periodos_historico, title='Período'),
+                        y=alt.Y('Media_Acumulada_Escalada:Q', 
+                               title='Média Acumulada (R$)',
+                               scale=alt.Scale(domain=[0, max_escala_linha]),
+                               axis=alt.Axis(
+                                   orient='right', 
+                                   titleColor='#1f77b4', 
+                                   labelColor='#1f77b4',
+                                   titlePadding=50,
+                                   labelPadding=15,
+                                   labelFlush=False,
+                                   labelOverlap=False,  # Desabilitar overlap para evitar sobreposição
+                                   tickCount=4,  # Reduzir número de ticks para evitar sobreposição
+                                   format='.2s',  # Formato científico abreviado (1.5M, 2.0M, etc)
+                                   grid=False,
+                                   labelOpacity=1.0,
+                                   titleOpacity=1.0,
+                                   domain=False,
+                                   labelAngle=0  # Manter labels horizontais
+                               )),
+                        tooltip=[
+                            alt.Tooltip('Período:N'), 
+                            alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
+                        ]
+                    )
+                    
+                    # Adicionar rótulos na linha
+                    texto_media_acumulada = alt.Chart(df_grafico_linha).mark_text(
+                        align='center',
+                        baseline='bottom',
+                        dy=-10,
+                        color='#1f77b4',
+                        fontSize=10
+                    ).encode(
+                        x=alt.X('Período:N', sort=ordem_periodos_historico),
+                        y=alt.Y('Media_Acumulada_Escalada:Q', 
+                               scale=alt.Scale(domain=[0, max_escala_linha])),
+                        text=alt.Text('Media_Acumulada_Valor:Q', format=',.2f')
+                    )
+                    
+                    st.sidebar.success("✅ Linha criada com sucesso!")
+                else:
+                    # Se não houver pontos suficientes, criar gráficos vazios
+                    st.sidebar.warning(f"⚠️ Não há pontos suficientes para criar linha ({len(df_grafico_linha)} pontos)")
+                    linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
+                    texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
             else:
-                # Se não houver dados históricos, criar gráficos vazios (invisíveis)
+                # Se não houver valores válidos, criar gráficos vazios
+                st.sidebar.error(f"❌ Não há valores válidos de Media_Acumulada_Escalada")
+                st.sidebar.write(f"Media_Acumulada presente: {'Media_Acumulada' in df_grafico_linha.columns}")
+                if 'Media_Acumulada' in df_grafico_linha.columns:
+                    st.sidebar.write(f"Media_Acumulada não-nulos: {df_grafico_linha['Media_Acumulada'].notna().sum()}")
                 linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
                 texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
+        else:
+            # Se não houver dados históricos, criar gráficos vazios
+            st.sidebar.error("❌ Não há dados históricos para criar a linha")
+            linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
+            texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
+        
+        # 🔧 CORREÇÃO CRÍTICA: Garantir que a linha sempre seja adicionada ao gráfico
+        # Verificar se linha_media_acumulada foi definida
+        if 'linha_media_acumulada' not in locals():
+            linha_media_acumulada = alt.Chart(pd.DataFrame()).mark_line()
+            texto_media_acumulada = alt.Chart(pd.DataFrame()).mark_text()
+        
+        # Combinar gráficos com eixos independentes
+        # IMPORTANTE: Sempre adicionar a linha, mesmo que vazia, para manter a estrutura do gráfico
+        grafico_combinado = (barras_meses + texto_barras_meses + linha_media_acumulada + texto_media_acumulada).resolve_scale(
+            y='independent'
+        ).properties(
+            height=450,
+            title=titulo_grafico_hist,
+            padding={'left': 60, 'right': 100, 'top': 20, 'bottom': 80}  # Aumentar padding direito para labels
+        ).configure_view(
+            strokeWidth=0  # Remover borda
+        ).configure_axisLeft(
+            grid=True
+        ).configure_axisRight(
+            grid=False,  # Não mostrar grid do eixo direito para não poluir
+            labelColor='#1f77b4',
+            labelOpacity=1.0,  # Garantir que os labels apareçam
+            titleOpacity=1.0,  # Garantir que o título apareça
+            titlePadding=60,  # Aumentar ainda mais o espaçamento do título
+            labelPadding=20,  # Aumentar espaçamento dos labels
+            labelOverlap=False,  # Desabilitar overlap
+            tickCount=4,  # Reduzir número de ticks para evitar sobreposição
+            format='.2s',  # Formato científico abreviado (1.5M, 2.0M, etc)
+            domain=False,  # Remover linha do eixo para evitar duplicação visual
+            labelAngle=0  # Manter labels horizontais
+        ).configure_axisBottom(
+            labelAngle=-45,  # Rotacionar labels para evitar sobreposição
+            labelPadding=10,  # Espaçamento adicional
+            labelLimit=100  # Limite de largura do label
+        )
+        
+        # Mostrar gráfico
+        st.altair_chart(grafico_combinado, use_container_width=True)
+        
+        # Informação adicional
+        media_acumulada_final = 0.0
+        if 'Media_Acumulada_Valor' in df_grafico_historico.columns:
+            media_acumulada_series = df_grafico_historico['Media_Acumulada_Valor'].dropna()
+            if len(media_acumulada_series) > 0:
+                media_acumulada_final = float(media_acumulada_series.iloc[-1])
+        
+        # 🔧 CORREÇÃO: A média histórica final é a última média acumulada (mesma lógica)
+        media_historica_final_grafico = media_acumulada_final if 'media_acumulada_final' in locals() else None
+        if media_historica_final_grafico is None:
+            # Tentar calcular a partir de df_medias_agregado se disponível
+            try:
+                if 'df_medias_agregado' in locals() and df_medias_agregado is not None and not df_medias_agregado.empty:
+                    media_historica_final_grafico = float(df_medias_agregado['Total'].mean())
+            except:
+                pass
+        
+        # Se ainda não encontrou, usar a última média acumulada
+        if media_historica_final_grafico is None and 'media_acumulada_final' in locals():
+            media_historica_final_grafico = media_acumulada_final
+        elif media_historica_final_grafico is None:
+            media_historica_final_grafico = 0.0
+        
+        st.info(f"""
+            📊 **Informações do Gráfico:**
+            - **Meses utilizados para média:** {len(df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'])} períodos
+            - **Média Histórica Final:** R$ {media_historica_final_grafico:,.2f}
+            - **Última Média Acumulada:** R$ {media_acumulada_final:,.2f}
+            """)
+    else:
+        st.warning("⚠️ Dados de meses históricos não disponíveis para gerar o gráfico detalhado.")
+
+    # ====================================================================
+    # 📊 NOVO GRÁFICO: Volume Histórico x Futuro (Meses Individuais)
+    # ====================================================================
+    st.markdown("### 📊 Gráfico - Volume Histórico e Futuro (Meses Individuais)")
+
+    try:
+        df_vol_medio_disp = df_vol_medio
+    except NameError:
+        df_vol_medio_disp = None
+
+    if df_vol_medio_disp is not None and not df_vol_medio_disp.empty:
+        # 🔧 CORREÇÃO: Agregar volume histórico por período (MESMA LÓGICA do gráfico de custos)
+        # Normalizar Período antes de agrupar e agrupar por ['Ano', 'Período'] se houver coluna Ano
+        df_vol_temp = df_vol_medio_disp.copy()
+        
+        if 'Ano' in df_vol_temp.columns:
+            # Normalizar Período ANTES de agrupar para garantir consistência
+            def normalizar_periodo_vol_hist(periodo_str, ano_val):
+                periodo_str = str(periodo_str).strip()
+                ano_str = str(ano_val).strip()
+                # Se o período já contém o ano, retornar como está
+                if ano_str in periodo_str:
+                    return periodo_str
+                # Caso contrário, adicionar o ano
+                return periodo_str + ' ' + ano_str
+            
+            # Normalizar Período antes de agrupar
+            df_vol_temp['Período_Normalizado'] = df_vol_temp.apply(
+                lambda row: normalizar_periodo_vol_hist(row['Período'], row['Ano']), axis=1
+            )
+            
+            # Agrupar por Ano e Período_Normalizado
+            df_vol_hist = df_vol_temp.groupby(['Ano', 'Período_Normalizado'], as_index=False)['Volume'].sum()
+            # Renomear Período_Normalizado de volta para Período
+            df_vol_hist = df_vol_hist.rename(columns={'Período_Normalizado': 'Período'})
+            # Remover coluna Ano (já está incluída no Período)
+            df_vol_hist = df_vol_hist.drop(columns=['Ano'])
+        else:
+            # Se não tem coluna Ano, agrupar apenas por Período (que já deve incluir o ano)
+            df_vol_hist = df_vol_temp.groupby('Período', as_index=False)['Volume'].sum()
+
+        # 🔧 CORREÇÃO: Filtrar períodos para mostrar apenas os que foram usados para a média
+        # (excluindo meses marcados para exclusão e considerando apenas períodos selecionados)
+        if periodos_para_media and not df_vol_hist.empty:
+            periodos_normalizados = [str(p).strip().lower() for p in periodos_para_media]
+            meses_excluir_normalizados = []
+            if meses_excluir_media:
+                meses_excluir_normalizados = [str(mes).strip().lower() for mes in meses_excluir_media]
+            
+            def periodo_esta_selecionado_vol(p):
+                p_str = str(p).strip().lower()
+                
+                # Excluir se o mês está na lista de excluídos
+                if meses_excluir_normalizados:
+                    periodo_mes = p_str.split(' ', 1)[0] if ' ' in p_str else p_str
+                    if periodo_mes in meses_excluir_normalizados:
+                        return False
+                
+                # Verificar se está nos períodos selecionados
+                if p_str in periodos_normalizados:
+                    return True
+                if ' ' in p_str:
+                    p_parts = p_str.split(' ', 1)
+                    p_mes = p_parts[0]
+                    p_ano = p_parts[1] if len(p_parts) > 1 else None
+                    for periodo_ref in periodos_normalizados:
+                        if ' ' in periodo_ref:
+                            ref_parts = periodo_ref.split(' ', 1)
+                            ref_mes = ref_parts[0]
+                            ref_ano = ref_parts[1] if len(ref_parts) > 1 else None
+                            if p_mes == ref_mes and p_ano and ref_ano and p_ano == ref_ano:
+                                return True
+                return False
+            
+            df_vol_hist = df_vol_hist[
+                df_vol_hist['Período'].apply(periodo_esta_selecionado_vol)
+            ].copy()
+        
+        # Ordenar períodos cronologicamente reutilizando a mesma lógica
+        def ordenar_periodo_volume(periodo_str):
+            periodo_str = str(periodo_str).strip()
+            if ' ' in periodo_str:
+                partes = periodo_str.split(' ', 1)
+                mes_nome = partes[0].capitalize()
+                ano = int(partes[1]) if partes[1].isdigit() else 0
+                mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                return (ano, mes_idx)
+            else:
+                mes_nome = periodo_str.capitalize()
+                mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
+                return (0, mes_idx)
+
+        # Preparar dados para gráfico de volume
+        dados_grafico_volume = []
+
+        # Meses históricos (volume médio utilizado na média)
+        for _, row in df_vol_hist.iterrows():
+            dados_grafico_volume.append({
+                'Período': str(row['Período']),
+                'Volume': float(row['Volume']),
+                'Tipo': 'Histórico'
+            })
+
+        # Meses futuros (volume de entrada para cada mês a prever)
+        if volume_por_mes is not None and not volume_por_mes.empty and colunas_meses:
+            for mes in colunas_meses:
+                volume_futuro_mes = 0.0
+                mes_procurado_str = str(mes).strip().lower()
+                mes_procurado_nome = mes_procurado_str.split(' ', 1)[0] if ' ' in mes_procurado_str else mes_procurado_str
+
+                def periodo_corresponde_volume(periodo_df):
+                    periodo_df_str = str(periodo_df).strip().lower()
+                    periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
+                    return periodo_df_mes == mes_procurado_nome
+
+                periodos_no_df_vol = volume_por_mes['Período'].astype(str)
+                mask_corresponde_vol = periodos_no_df_vol.apply(periodo_corresponde_volume)
+                vol_mes_df = volume_por_mes[mask_corresponde_vol]
+
+                if not vol_mes_df.empty:
+                    volume_futuro_mes = float(vol_mes_df['Volume'].sum())
+
+                dados_grafico_volume.append({
+                    'Período': str(mes),
+                    'Volume': volume_futuro_mes,
+                    'Tipo': 'Forecast'
+                })
+
+        df_grafico_volume = pd.DataFrame(dados_grafico_volume)
+
+        if not df_grafico_volume.empty:
+            # Ordenar períodos
+            df_grafico_volume['_ordem'] = df_grafico_volume['Período'].apply(ordenar_periodo_volume)
+            df_grafico_volume = df_grafico_volume.sort_values('_ordem').drop(columns=['_ordem'])
+            ordem_periodos_volume = df_grafico_volume['Período'].tolist()
+            
+            # Calcular média acumulada progressiva (apenas períodos históricos)
+            df_vol_hist_grafico = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
+            
+            if not df_vol_hist_grafico.empty:
+                # 🔧 CORREÇÃO: Recalcular média acumulada diretamente dos valores das barras para garantir consistência
+                # Isso garante que a média acumulada seja calculada exatamente dos mesmos valores que aparecem nas barras
+                valores_volumes = df_vol_hist_grafico['Volume'].tolist()
+                media_acumulada_recalculada = []
+                soma_acumulada = 0.0
+                for i, valor in enumerate(valores_volumes):
+                    soma_acumulada += float(valor)
+                    media_acumulada = soma_acumulada / (i + 1)
+                    media_acumulada_recalculada.append(media_acumulada)
+                
+                # Adicionar média acumulada ao DataFrame
+                df_vol_hist_grafico['Media_Acumulada'] = media_acumulada_recalculada
+                
+                # Atualizar df_grafico_volume com média acumulada
+                # Criar coluna Media_Acumulada inicializada com None
+                df_grafico_volume['Media_Acumulada'] = None
+                
+                # Atualizar apenas os períodos históricos
+                for idx in df_vol_hist_grafico.index:
+                    if idx in df_grafico_volume.index:
+                        df_grafico_volume.loc[idx, 'Media_Acumulada'] = df_vol_hist_grafico.loc[idx, 'Media_Acumulada']
+            
+            # Calcular valores máximos para escala (apenas das barras)
+            max_volume_barras = float(df_grafico_volume['Volume'].max())
+            
+            # Calcular valores da média acumulada (apenas períodos históricos)
+            df_vol_hist_para_linha = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
+            max_media_valor = float(df_vol_hist_para_linha['Media_Acumulada'].max()) if not df_vol_hist_para_linha.empty and 'Media_Acumulada' in df_vol_hist_para_linha.columns else 0
+            min_media_valor = float(df_vol_hist_para_linha['Media_Acumulada'].min()) if not df_vol_hist_para_linha.empty and 'Media_Acumulada' in df_vol_hist_para_linha.columns else 0
+            
+            # Calcular posição desejada da linha (30% acima do maior valor das barras)
+            posicao_desejada_linha = max_volume_barras * 1.3
+            
+            # Calcular fator de escala para mapear valores reais para posição acima das barras
+            # A linha deve mostrar a evolução, mas ficar sempre acima das barras
+            if max_media_valor > 0:
+                # Escalar para que o máximo da média fique na posição desejada
+                fator_escala = posicao_desejada_linha / max_media_valor
+            else:
+                fator_escala = 1.0
+            
+            # Manter valores reais da média acumulada para tooltips
+            df_grafico_volume['Media_Acumulada_Valor'] = df_grafico_volume['Media_Acumulada']
+            
+            # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
+            df_grafico_volume['Media_Acumulada_Escalada'] = None
+            
+            # Aplicar escala aos períodos históricos para posicionamento
+            mask_historico = df_grafico_volume['Tipo'] == 'Histórico'
+            if mask_historico.any():
+                # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
+                mask_historico_valido = mask_historico & df_grafico_volume['Media_Acumulada'].notna()
+                if mask_historico_valido.any():
+                    df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
+                        df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
+                    )
+            df_grafico_volume.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
+            
+            # Calcular escala máxima para o eixo primário (barras)
+            max_escala_barras = max_volume_barras * 1.2
+            # Calcular escala máxima para o eixo secundário (linha) - posição desejada + margem
+            max_escala_linha = posicao_desejada_linha * 1.1
+
+            # Criar gráfico de barras de volume
+            barras_volume_mes = alt.Chart(df_grafico_volume).mark_bar(size=40).encode(
+                x=alt.X('Período:N', 
+                    sort=ordem_periodos_volume, 
+                    title='Período',
+                    axis=alt.Axis(
+                        labelAngle=-45,  # Rotacionar labels para evitar sobreposição
+                        labelPadding=10,  # Espaçamento adicional
+                        labelLimit=100  # Limite de largura do label
+                    )
+                ),
+                y=alt.Y('Volume:Q', 
+                    title='Volume', 
+                    scale=alt.Scale(domain=[0, max_escala_barras]),
+                    axis=alt.Axis(
+                        grid=True,
+                        gridColor='#e0e0e0',
+                        gridOpacity=0.5,
+                        gridWidth=1
+                    )
+                ),
+                color=alt.Color(
+                    'Tipo:N',
+                    scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
+                    legend=None  # Remover legenda das barras
+                ),
+                tooltip=['Período:N', 'Volume:Q', 'Tipo:N']
+            ).properties(
+                height=450,  # Aumentar altura para dar mais espaço
+                title='Volume Histórico x Futuro - Meses Individuais'
+            )
+
+            texto_volume_mes = barras_volume_mes.mark_text(
+                align='center',
+                baseline='bottom',
+                dy=-5,
+                color='white',
+                fontSize=10
+            ).encode(
+                text=alt.Text('Volume:Q', format=',.0f')
+            )
+
+            # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
+            df_grafico_linha_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
+            
+            # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
+            # Verificar se há dados válidos para a linha
+            if not df_grafico_linha_volume.empty and 'Media_Acumulada_Escalada' in df_grafico_linha_volume.columns:
+                # Remover linhas com valores None ou NaN na média acumulada escalada
+                df_grafico_linha_volume = df_grafico_linha_volume[df_grafico_linha_volume['Media_Acumulada_Escalada'].notna()].copy()
+                
+                # Se ainda houver dados válidos, criar a linha
+                if not df_grafico_linha_volume.empty:
+                    # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
+                    linha_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_line(
+                        point=True,
+                        color='#1f77b4',
+                        strokeWidth=3,
+                        strokeDash=[5, 5]  # Linha pontilhada
+                    ).encode(
+                        x=alt.X('Período:N', sort=ordem_periodos_volume),
+                        y=alt.Y('Media_Acumulada_Escalada:Q', 
+                               title='Média Acumulada',
+                               scale=alt.Scale(domain=[0, max_escala_linha]),
+                               axis=alt.Axis(
+                                   orient='right', 
+                                   titleColor='#1f77b4', 
+                                   labelColor='#1f77b4',
+                                   titlePadding=50,  # Aumentar muito o espaçamento do título para não sobrepor
+                                   labelPadding=15,  # Aumentar espaçamento dos labels para evitar sobreposição
+                                   labelFlush=False,  # Não forçar flush para evitar duplicação
+                                   labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
+                                   tickCount=5,
+                                   format=',.0f',  # Formato numérico limpo sem notação científica
+                                   grid=False,  # Remover grid do eixo secundário para não poluir
+                                   labelOpacity=1.0,  # Garantir que os labels apareçam
+                                   titleOpacity=1.0,  # Garantir que o título apareça
+                                   domain=False,  # Remover linha do eixo para evitar duplicação visual
+                                   labelAngle=0  # Manter labels horizontais
+                               )),
+                        tooltip=[
+                            alt.Tooltip('Período:N'), 
+                            alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
+                        ]
+                    )
+                    
+                    # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
+                    texto_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_text(
+                        align='center',
+                        baseline='bottom',
+                        dy=-10,
+                        color='#1f77b4',
+                        fontSize=10,
+                        fontWeight='bold'
+                    ).encode(
+                        x=alt.X('Período:N', sort=ordem_periodos_volume),
+                        y=alt.Y('Media_Acumulada_Escalada:Q'),
+                        text=alt.Text('Media_Acumulada_Valor:Q', format=',.0f')
+                    )
+                else:
+                    # Se não houver dados válidos, criar gráficos vazios (invisíveis)
+                    linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
+                    texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
+            else:
+                # Se não houver dados históricos, criar gráficos vazios (invisíveis)
+                linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
+                texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
             
             # Combinar gráficos com eixos independentes
             # Usar resolve_scale para garantir que apenas o eixo secundário mostre seus valores
-            grafico_combinado = (barras_meses + texto_barras_meses + linha_media_acumulada + texto_media_acumulada).resolve_scale(
+            grafico_combinado_volume = (barras_volume_mes + texto_volume_mes + linha_media_acumulada_volume + texto_media_acumulada_volume).resolve_scale(
                 y='independent'
             ).properties(
                 height=450,
-                title='Custo por Mês Histórico e Média Acumulada',
+                title='Volume Histórico x Futuro - Meses Individuais',
                 padding={'left': 60, 'right': 80, 'top': 20, 'bottom': 80}  # Padding para evitar textos cortados
             ).configure_view(
                 strokeWidth=0  # Remover borda
             ).configure_axisLeft(
-                grid=True
+                grid=True,
+                gridWidth=0.5,  # Afinar as linhas de grade
+                gridColor='#e0e0e0',
+                gridOpacity=0.3
             ).configure_axisRight(
                 grid=False,  # Não mostrar grid do eixo direito para não poluir
                 labelColor='#1f77b4',
                 labelOpacity=1.0,  # Garantir que os labels apareçam
                 titleOpacity=1.0,  # Garantir que o título apareça
-                titlePadding=40,  # Aumentar espaçamento do título no configure também
-                domain=False  # Remover linha do eixo para evitar duplicação visual
+                titlePadding=50,  # Aumentar espaçamento do título no configure também
+                labelPadding=15,  # Aumentar espaçamento dos labels
+                labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
+                domain=False,  # Remover linha do eixo para evitar duplicação visual
+                format=',.0f'  # Formato numérico limpo
             ).configure_axisBottom(
                 labelAngle=-45,  # Rotacionar labels para evitar sobreposição
                 labelPadding=10,  # Espaçamento adicional
                 labelLimit=100  # Limite de largura do label
             )
-            
-            # Mostrar gráfico
-            st.altair_chart(grafico_combinado, use_container_width=True)
+
+            st.altair_chart(grafico_combinado_volume, use_container_width=True)
             
             # Informação adicional
-            media_acumulada_final = 0.0
-            if 'Media_Acumulada_Valor' in df_grafico_historico.columns:
-                media_acumulada_series = df_grafico_historico['Media_Acumulada_Valor'].dropna()
-                if len(media_acumulada_series) > 0:
-                    media_acumulada_final = float(media_acumulada_series.iloc[-1])
+            media_acumulada_final_volume = 0.0
+            if 'Media_Acumulada_Valor' in df_grafico_volume.columns:
+                media_acumulada_series_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico']['Media_Acumulada_Valor'].dropna()
+                if len(media_acumulada_series_volume) > 0:
+                    media_acumulada_final_volume = float(media_acumulada_series_volume.iloc[-1])
             
-            # 🔧 CORREÇÃO: A média histórica final é a última média acumulada (mesma lógica)
-            media_historica_final_grafico = media_acumulada_final if 'media_acumulada_final' in locals() else None
-            if media_historica_final_grafico is None:
-                # Tentar calcular a partir de df_medias_agregado se disponível
-                try:
-                    if 'df_medias_agregado' in locals() and df_medias_agregado is not None and not df_medias_agregado.empty:
-                        media_historica_final_grafico = float(df_medias_agregado['Total'].mean())
-                except:
-                    pass
-            
-            # Se ainda não encontrou, usar a última média acumulada
-            if media_historica_final_grafico is None and 'media_acumulada_final' in locals():
-                media_historica_final_grafico = media_acumulada_final
-            elif media_historica_final_grafico is None:
-                media_historica_final_grafico = 0.0
+            # Calcular média histórica de volume padronizada para exibição
+            try:
+                volume_medio_historico_total_display = calcular_media_historica_volume_padronizada(
+                    df_vol, periodos_para_media, meses_excluir_media_fonte=meses_excluir_media
+                )
+                if volume_medio_historico_total_display is None:
+                    volume_medio_historico_total_display = 0
+            except:
+                volume_medio_historico_total_display = 0
             
             st.info(f"""
-                📊 **Informações do Gráfico:**
-                - **Meses utilizados para média:** {len(df_grafico_historico[df_grafico_historico['Tipo'] == 'Histórico'])} períodos
-                - **Média Histórica Final:** R$ {media_historica_final_grafico:,.2f}
-                - **Última Média Acumulada:** R$ {media_acumulada_final:,.2f}
-                """)
-        else:
-            st.warning("⚠️ Dados de meses históricos não disponíveis para gerar o gráfico detalhado.")
-
-        # ====================================================================
-        # 📊 NOVO GRÁFICO: Volume Histórico x Futuro (Meses Individuais)
-        # ====================================================================
-        st.markdown("### 📊 Gráfico - Volume Histórico e Futuro (Meses Individuais)")
-
-        try:
-            df_vol_medio_disp = df_vol_medio
-        except NameError:
-            df_vol_medio_disp = None
-
-        if df_vol_medio_disp is not None and not df_vol_medio_disp.empty:
-            # 🔧 CORREÇÃO: Agregar volume histórico por período (MESMA LÓGICA do gráfico de custos)
-            # Normalizar Período antes de agrupar e agrupar por ['Ano', 'Período'] se houver coluna Ano
-            df_vol_temp = df_vol_medio_disp.copy()
-            
-            if 'Ano' in df_vol_temp.columns:
-                # Normalizar Período ANTES de agrupar para garantir consistência
-                def normalizar_periodo_vol_hist(periodo_str, ano_val):
-                    periodo_str = str(periodo_str).strip()
-                    ano_str = str(ano_val).strip()
-                    # Se o período já contém o ano, retornar como está
-                    if ano_str in periodo_str:
-                        return periodo_str
-                    # Caso contrário, adicionar o ano
-                    return periodo_str + ' ' + ano_str
-                
-                # Normalizar Período antes de agrupar
-                df_vol_temp['Período_Normalizado'] = df_vol_temp.apply(
-                    lambda row: normalizar_periodo_vol_hist(row['Período'], row['Ano']), axis=1
-                )
-                
-                # Agrupar por Ano e Período_Normalizado
-                df_vol_hist = df_vol_temp.groupby(['Ano', 'Período_Normalizado'], as_index=False)['Volume'].sum()
-                # Renomear Período_Normalizado de volta para Período
-                df_vol_hist = df_vol_hist.rename(columns={'Período_Normalizado': 'Período'})
-                # Remover coluna Ano (já está incluída no Período)
-                df_vol_hist = df_vol_hist.drop(columns=['Ano'])
-            else:
-                # Se não tem coluna Ano, agrupar apenas por Período (que já deve incluir o ano)
-                df_vol_hist = df_vol_temp.groupby('Período', as_index=False)['Volume'].sum()
-
-            # 🔧 CORREÇÃO: Filtrar períodos para mostrar apenas os que foram usados para a média
-            # (excluindo meses marcados para exclusão e considerando apenas períodos selecionados)
-            if periodos_para_media and not df_vol_hist.empty:
-                periodos_normalizados = [str(p).strip().lower() for p in periodos_para_media]
-                meses_excluir_normalizados = []
-                if meses_excluir_media:
-                    meses_excluir_normalizados = [str(mes).strip().lower() for mes in meses_excluir_media]
-                
-                def periodo_esta_selecionado_vol(p):
-                    p_str = str(p).strip().lower()
-                    
-                    # Excluir se o mês está na lista de excluídos
-                    if meses_excluir_normalizados:
-                        periodo_mes = p_str.split(' ', 1)[0] if ' ' in p_str else p_str
-                        if periodo_mes in meses_excluir_normalizados:
-                            return False
-                    
-                    # Verificar se está nos períodos selecionados
-                    if p_str in periodos_normalizados:
-                        return True
-                    if ' ' in p_str:
-                        p_parts = p_str.split(' ', 1)
-                        p_mes = p_parts[0]
-                        p_ano = p_parts[1] if len(p_parts) > 1 else None
-                        for periodo_ref in periodos_normalizados:
-                            if ' ' in periodo_ref:
-                                ref_parts = periodo_ref.split(' ', 1)
-                                ref_mes = ref_parts[0]
-                                ref_ano = ref_parts[1] if len(ref_parts) > 1 else None
-                                if p_mes == ref_mes and p_ano and ref_ano and p_ano == ref_ano:
-                                    return True
-                    return False
-                
-                df_vol_hist = df_vol_hist[
-                    df_vol_hist['Período'].apply(periodo_esta_selecionado_vol)
-                ].copy()
-            
-            # Ordenar períodos cronologicamente reutilizando a mesma lógica
-            def ordenar_periodo_volume(periodo_str):
-                periodo_str = str(periodo_str).strip()
-                if ' ' in periodo_str:
-                    partes = periodo_str.split(' ', 1)
-                    mes_nome = partes[0].capitalize()
-                    ano = int(partes[1]) if partes[1].isdigit() else 0
-                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
-                    return (ano, mes_idx)
-                else:
-                    mes_nome = periodo_str.capitalize()
-                    mes_idx = meses_ano.index(mes_nome) if mes_nome in meses_ano else 0
-                    return (0, mes_idx)
-
-            # Preparar dados para gráfico de volume
-            dados_grafico_volume = []
-
-            # Meses históricos (volume médio utilizado na média)
-            for _, row in df_vol_hist.iterrows():
-                dados_grafico_volume.append({
-                    'Período': str(row['Período']),
-                    'Volume': float(row['Volume']),
-                    'Tipo': 'Histórico'
-                })
-
-            # Meses futuros (volume de entrada para cada mês a prever)
-            if volume_por_mes is not None and not volume_por_mes.empty and colunas_meses:
-                for mes in colunas_meses:
-                    volume_futuro_mes = 0.0
-                    mes_procurado_str = str(mes).strip().lower()
-                    mes_procurado_nome = mes_procurado_str.split(' ', 1)[0] if ' ' in mes_procurado_str else mes_procurado_str
-
-                    def periodo_corresponde_volume(periodo_df):
-                        periodo_df_str = str(periodo_df).strip().lower()
-                        periodo_df_mes = periodo_df_str.split(' ', 1)[0] if ' ' in periodo_df_str else periodo_df_str
-                        return periodo_df_mes == mes_procurado_nome
-
-                    periodos_no_df_vol = volume_por_mes['Período'].astype(str)
-                    mask_corresponde_vol = periodos_no_df_vol.apply(periodo_corresponde_volume)
-                    vol_mes_df = volume_por_mes[mask_corresponde_vol]
-
-                    if not vol_mes_df.empty:
-                        volume_futuro_mes = float(vol_mes_df['Volume'].sum())
-
-                    dados_grafico_volume.append({
-                        'Período': str(mes),
-                        'Volume': volume_futuro_mes,
-                        'Tipo': 'Forecast'
-                    })
-
-            df_grafico_volume = pd.DataFrame(dados_grafico_volume)
-
-            if not df_grafico_volume.empty:
-                # Ordenar períodos
-                df_grafico_volume['_ordem'] = df_grafico_volume['Período'].apply(ordenar_periodo_volume)
-                df_grafico_volume = df_grafico_volume.sort_values('_ordem').drop(columns=['_ordem'])
-                ordem_periodos_volume = df_grafico_volume['Período'].tolist()
-                
-                # Calcular média acumulada progressiva (apenas períodos históricos)
-                df_vol_hist_grafico = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
-                
-                if not df_vol_hist_grafico.empty:
-                    # 🔧 CORREÇÃO: Recalcular média acumulada diretamente dos valores das barras para garantir consistência
-                    # Isso garante que a média acumulada seja calculada exatamente dos mesmos valores que aparecem nas barras
-                    valores_volumes = df_vol_hist_grafico['Volume'].tolist()
-                    media_acumulada_recalculada = []
-                    soma_acumulada = 0.0
-                    for i, valor in enumerate(valores_volumes):
-                        soma_acumulada += float(valor)
-                        media_acumulada = soma_acumulada / (i + 1)
-                        media_acumulada_recalculada.append(media_acumulada)
-                    
-                    # Adicionar média acumulada ao DataFrame
-                    df_vol_hist_grafico['Media_Acumulada'] = media_acumulada_recalculada
-                    
-                    # Atualizar df_grafico_volume com média acumulada
-                    # Criar coluna Media_Acumulada inicializada com None
-                    df_grafico_volume['Media_Acumulada'] = None
-                    
-                    # Atualizar apenas os períodos históricos
-                    for idx in df_vol_hist_grafico.index:
-                        if idx in df_grafico_volume.index:
-                            df_grafico_volume.loc[idx, 'Media_Acumulada'] = df_vol_hist_grafico.loc[idx, 'Media_Acumulada']
-                
-                # Calcular valores máximos para escala (apenas das barras)
-                max_volume_barras = float(df_grafico_volume['Volume'].max())
-                
-                # Calcular valores da média acumulada (apenas períodos históricos)
-                df_vol_hist_para_linha = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
-                max_media_valor = float(df_vol_hist_para_linha['Media_Acumulada'].max()) if not df_vol_hist_para_linha.empty and 'Media_Acumulada' in df_vol_hist_para_linha.columns else 0
-                min_media_valor = float(df_vol_hist_para_linha['Media_Acumulada'].min()) if not df_vol_hist_para_linha.empty and 'Media_Acumulada' in df_vol_hist_para_linha.columns else 0
-                
-                # Calcular posição desejada da linha (30% acima do maior valor das barras)
-                posicao_desejada_linha = max_volume_barras * 1.3
-                
-                # Calcular fator de escala para mapear valores reais para posição acima das barras
-                # A linha deve mostrar a evolução, mas ficar sempre acima das barras
-                if max_media_valor > 0:
-                    # Escalar para que o máximo da média fique na posição desejada
-                    fator_escala = posicao_desejada_linha / max_media_valor
-                else:
-                    fator_escala = 1.0
-                
-                # Manter valores reais da média acumulada para tooltips
-                df_grafico_volume['Media_Acumulada_Valor'] = df_grafico_volume['Media_Acumulada']
-                
-                # 🔧 CORREÇÃO: Inicializar coluna Media_Acumulada_Escalada antes de usar
-                df_grafico_volume['Media_Acumulada_Escalada'] = None
-                
-                # Aplicar escala aos períodos históricos para posicionamento
-                mask_historico = df_grafico_volume['Tipo'] == 'Histórico'
-                if mask_historico.any():
-                    # Garantir que Media_Acumulada não seja None ou NaN antes de multiplicar
-                    mask_historico_valido = mask_historico & df_grafico_volume['Media_Acumulada'].notna()
-                    if mask_historico_valido.any():
-                        df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada_Escalada'] = (
-                            df_grafico_volume.loc[mask_historico_valido, 'Media_Acumulada'] * fator_escala
-                        )
-                df_grafico_volume.loc[~mask_historico, 'Media_Acumulada_Escalada'] = None
-                
-                # Calcular escala máxima para o eixo primário (barras)
-                max_escala_barras = max_volume_barras * 1.2
-                # Calcular escala máxima para o eixo secundário (linha) - posição desejada + margem
-                max_escala_linha = posicao_desejada_linha * 1.1
-
-                # Criar gráfico de barras de volume
-                barras_volume_mes = alt.Chart(df_grafico_volume).mark_bar(size=40).encode(
-                    x=alt.X('Período:N', 
-                        sort=ordem_periodos_volume, 
-                        title='Período',
-                        axis=alt.Axis(
-                            labelAngle=-45,  # Rotacionar labels para evitar sobreposição
-                            labelPadding=10,  # Espaçamento adicional
-                            labelLimit=100  # Limite de largura do label
-                        )
-                    ),
-                    y=alt.Y('Volume:Q', 
-                        title='Volume', 
-                        scale=alt.Scale(domain=[0, max_escala_barras]),
-                        axis=alt.Axis(
-                            grid=True,
-                            gridColor='#e0e0e0',
-                            gridOpacity=0.5,
-                            gridWidth=1
-                        )
-                    ),
-                    color=alt.Color(
-                        'Tipo:N',
-                        scale=alt.Scale(domain=['Histórico', 'Forecast'], range=['#9467bd', '#ff7f0e']),
-                        legend=None  # Remover legenda das barras
-                    ),
-                    tooltip=['Período:N', 'Volume:Q', 'Tipo:N']
-                ).properties(
-                    height=450,  # Aumentar altura para dar mais espaço
-                    title='Volume Histórico x Futuro - Meses Individuais'
-                )
-
-                texto_volume_mes = barras_volume_mes.mark_text(
-                    align='center',
-                    baseline='bottom',
-                    dy=-5,
-                    color='white',
-                    fontSize=10
-                ).encode(
-                    text=alt.Text('Volume:Q', format=',.0f')
-                )
-
-                # Filtrar apenas períodos históricos para a linha (não mostrar linha nos períodos de forecast)
-                df_grafico_linha_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico'].copy()
-                
-                # 🔧 CORREÇÃO: Garantir que a linha sempre apareça quando houver dados históricos
-                # Verificar se há dados válidos para a linha
-                if not df_grafico_linha_volume.empty and 'Media_Acumulada_Escalada' in df_grafico_linha_volume.columns:
-                    # Remover linhas com valores None ou NaN na média acumulada escalada
-                    df_grafico_linha_volume = df_grafico_linha_volume[df_grafico_linha_volume['Media_Acumulada_Escalada'].notna()].copy()
-                    
-                    # Se ainda houver dados válidos, criar a linha
-                    if not df_grafico_linha_volume.empty:
-                        # Criar gráfico de linha para média acumulada (pontilhada, escalada para ficar acima das barras)
-                        linha_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_line(
-                            point=True,
-                            color='#1f77b4',
-                            strokeWidth=3,
-                            strokeDash=[5, 5]  # Linha pontilhada
-                        ).encode(
-                            x=alt.X('Período:N', sort=ordem_periodos_volume),
-                            y=alt.Y('Media_Acumulada_Escalada:Q', 
-                                   title='Média Acumulada',
-                                   scale=alt.Scale(domain=[0, max_escala_linha]),
-                                   axis=alt.Axis(
-                                       orient='right', 
-                                       titleColor='#1f77b4', 
-                                       labelColor='#1f77b4',
-                                       titlePadding=50,  # Aumentar muito o espaçamento do título para não sobrepor
-                                       labelPadding=15,  # Aumentar espaçamento dos labels para evitar sobreposição
-                                       labelFlush=False,  # Não forçar flush para evitar duplicação
-                                       labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
-                                       tickCount=5,
-                                       format=',.0f',  # Formato numérico limpo sem notação científica
-                                       grid=False,  # Remover grid do eixo secundário para não poluir
-                                       labelOpacity=1.0,  # Garantir que os labels apareçam
-                                       titleOpacity=1.0,  # Garantir que o título apareça
-                                       domain=False,  # Remover linha do eixo para evitar duplicação visual
-                                       labelAngle=0  # Manter labels horizontais
-                                   )),
-                            tooltip=[
-                                alt.Tooltip('Período:N'), 
-                                alt.Tooltip('Media_Acumulada_Valor:Q', format=',.2f', title='Média Acumulada (Valor Real)')
-                            ]
-                        )
-                        
-                        # Adicionar rótulos na linha (mostrar valor real, mas posicionar na linha escalada)
-                        texto_media_acumulada_volume = alt.Chart(df_grafico_linha_volume).mark_text(
-                            align='center',
-                            baseline='bottom',
-                            dy=-10,
-                            color='#1f77b4',
-                            fontSize=10,
-                            fontWeight='bold'
-                        ).encode(
-                            x=alt.X('Período:N', sort=ordem_periodos_volume),
-                            y=alt.Y('Media_Acumulada_Escalada:Q'),
-                            text=alt.Text('Media_Acumulada_Valor:Q', format=',.0f')
-                        )
-                    else:
-                        # Se não houver dados válidos, criar gráficos vazios (invisíveis)
-                        linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
-                        texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
-                else:
-                    # Se não houver dados históricos, criar gráficos vazios (invisíveis)
-                    linha_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_line()
-                    texto_media_acumulada_volume = alt.Chart(pd.DataFrame()).mark_text()
-                
-                # Combinar gráficos com eixos independentes
-                # Usar resolve_scale para garantir que apenas o eixo secundário mostre seus valores
-                grafico_combinado_volume = (barras_volume_mes + texto_volume_mes + linha_media_acumulada_volume + texto_media_acumulada_volume).resolve_scale(
-                    y='independent'
-                ).properties(
-                    height=450,
-                    title='Volume Histórico x Futuro - Meses Individuais',
-                    padding={'left': 60, 'right': 80, 'top': 20, 'bottom': 80}  # Padding para evitar textos cortados
-                ).configure_view(
-                    strokeWidth=0  # Remover borda
-                ).configure_axisLeft(
-                    grid=True,
-                    gridWidth=0.5,  # Afinar as linhas de grade
-                    gridColor='#e0e0e0',
-                    gridOpacity=0.3
-                ).configure_axisRight(
-                    grid=False,  # Não mostrar grid do eixo direito para não poluir
-                    labelColor='#1f77b4',
-                    labelOpacity=1.0,  # Garantir que os labels apareçam
-                    titleOpacity=1.0,  # Garantir que o título apareça
-                    titlePadding=50,  # Aumentar espaçamento do título no configure também
-                    labelPadding=15,  # Aumentar espaçamento dos labels
-                    labelOverlap='greedy',  # Usar estratégia greedy para evitar sobreposição
-                    domain=False,  # Remover linha do eixo para evitar duplicação visual
-                    format=',.0f'  # Formato numérico limpo
-                ).configure_axisBottom(
-                    labelAngle=-45,  # Rotacionar labels para evitar sobreposição
-                    labelPadding=10,  # Espaçamento adicional
-                    labelLimit=100  # Limite de largura do label
-                )
-
-                st.altair_chart(grafico_combinado_volume, use_container_width=True)
-                
-                # Informação adicional
-                media_acumulada_final_volume = 0.0
-                if 'Media_Acumulada_Valor' in df_grafico_volume.columns:
-                    media_acumulada_series_volume = df_grafico_volume[df_grafico_volume['Tipo'] == 'Histórico']['Media_Acumulada_Valor'].dropna()
-                    if len(media_acumulada_series_volume) > 0:
-                        media_acumulada_final_volume = float(media_acumulada_series_volume.iloc[-1])
-                
-                # Calcular média histórica de volume padronizada para exibição
-                try:
-                    volume_medio_historico_total_display = calcular_media_historica_volume_padronizada(
-                        df_vol, periodos_para_media, meses_excluir_media_fonte=meses_excluir_media
-                    )
-                    if volume_medio_historico_total_display is None:
-                        volume_medio_historico_total_display = 0
-                except:
-                    volume_medio_historico_total_display = 0
-                
-                st.info(f"""
                 📊 **Informações do Gráfico:**
                 - **Meses utilizados para média:** {len(df_vol_hist_grafico)} períodos
                 - **Volume Médio Histórico:** {volume_medio_historico_total_display:,.2f}
@@ -4536,18 +4987,18 @@ else:
                     df_total_numerico_display['Total_Forecast'] = df_total_numerico_display[colunas_meses].sum(axis=1)
                 
                 # 🔍 DEBUG: Verificar antes de calcular totais
-                with st.expander("🔍 DEBUG - df_total_numerico_display (para linha TOTAL GERAL)"):
-                    st.write(f"**Total de linhas:** {len(df_total_numerico_display)}")
-                    st.write(f"**Fonte:** df_forecast_numerico_bruto")
-                    if colunas_meses:
-                        for mes in colunas_meses:
-                            if mes in df_total_numerico_display.columns:
-                                soma_mes = df_total_numerico_display[mes].sum()
-                                st.write(f"**{mes} (soma):** {soma_mes:,.2f}")
-                        if 'Total_Forecast' in df_total_numerico_display.columns:
-                            st.write(f"**Total_Forecast (soma):** {df_total_numerico_display['Total_Forecast'].sum():,.2f}")
-                        else:
-                            st.write("**Total_Forecast:** Não calculado ainda")
+                st.info("🔍 **DEBUG - df_total_numerico_display (para linha TOTAL GERAL)**")
+                st.write(f"**Total de linhas:** {len(df_total_numerico_display)}")
+                st.write(f"**Fonte:** df_forecast_numerico_bruto")
+                if colunas_meses:
+                    for mes in colunas_meses:
+                        if mes in df_total_numerico_display.columns:
+                            soma_mes = df_total_numerico_display[mes].sum()
+                            st.write(f"**{mes} (soma):** {soma_mes:,.2f}")
+                    if 'Total_Forecast' in df_total_numerico_display.columns:
+                        st.write(f"**Total_Forecast (soma):** {df_total_numerico_display['Total_Forecast'].sum():,.2f}")
+                    else:
+                        st.write("**Total_Forecast:** Não calculado ainda")
                 
                 # IMPORTANTE: Manter df_total_numerico_display COM Oficina para cálculos
                 # Não remover Oficina antes de calcular totais!
@@ -4615,20 +5066,36 @@ else:
                 # IMPORTANTE: Usar df_total_numerico_display (COM Oficina) para garantir que estamos somando TODAS as linhas
                 for col in colunas_meses:
                     if col in df_total_numerico_display.columns:
+                        # 🔍 DEBUG DETALHADO: Verificar valores antes de somar
+                        valores_col = df_total_numerico_display[col]
+                        valores_nao_zero = valores_col[valores_col != 0]
+                        num_linhas_nao_zero = len(valores_nao_zero)
+                        num_linhas_zero = len(df_total_numerico_display) - num_linhas_nao_zero
+                        
                         # Somar todas as linhas individuais (garante consistência com tabelas por oficina)
                         total_col_geral = float(df_total_numerico_display[col].sum())
+                        
+                        # 🔍 VERIFICAÇÃO CRÍTICA: Comparar com df_total_numerico (antes de criar display)
+                        if col in df_total_numerico.columns:
+                            total_col_bruto = float(df_total_numerico[col].sum())
+                            if abs(total_col_geral - total_col_bruto) > 0.01:
+                                st.error(f"⚠️ **PROBLEMA DETECTADO:** Diferença entre bruto e display para {col}!")
+                                st.write(f"  - Total BRUTO (df_total_numerico): {total_col_bruto:,.2f}")
+                                st.write(f"  - Total DISPLAY (df_total_numerico_display): {total_col_geral:,.2f}")
+                                st.write(f"  - Diferença: {abs(total_col_geral - total_col_bruto):,.2f}")
+                        
                         linha_total_geral[col] = formatar_monetario(total_col_geral)
                         
                         # 🔍 DEBUG: Verificar cálculo do total por mês
                         if col == colunas_meses[0] if colunas_meses else None:
-                            st.sidebar.info(f"🔍 {col}: Total={total_col_geral:,.2f}, Linhas={len(df_total_numerico_display)}")
+                            st.sidebar.info(f"🔍 {col}: Total={total_col_geral:,.2f}, Linhas={len(df_total_numerico_display)}, Não-zero={num_linhas_nao_zero}, Zero={num_linhas_zero}")
                 
                 # 🔍 DEBUG CRÍTICO: Verificar todos os valores antes de calcular Total_Forecast
-                with st.expander("🔍 DEBUG CRÍTICO - Valores antes de calcular Total_Forecast na linha"):
-                    st.write("**Valores em linha_total_geral (por mês):**")
-                    for col in colunas_meses:
-                        if col in linha_total_geral:
-                            st.write(f"**{col}:** {linha_total_geral[col]}")
+                st.info("🔍 **DEBUG CRÍTICO - Valores antes de calcular Total_Forecast na linha**")
+                st.write("**Valores em linha_total_geral (por mês):**")
+                for col in colunas_meses:
+                    if col in linha_total_geral:
+                        st.write(f"**{col}:** {linha_total_geral[col]}")
 
                 # 🔧 CORREÇÃO CRÍTICA: Total_Forecast geral - recalcular somando todas as linhas individuais
                 # IMPORTANTE: Usar df_total_numerico_display (COM Oficina) para garantir que estamos somando TODAS as linhas
@@ -4650,14 +5117,14 @@ else:
                     linha_total_ordenada_geral[col] = linha_total_geral.get(col, '')
                 
                 # 🔍 DEBUG: Verificar valores antes de adicionar à tabela
-                with st.expander("🔍 DEBUG - linha_total_geral (valores calculados)"):
-                    st.write("**Valores em linha_total_geral:**")
-                    for key, value in linha_total_geral.items():
+                st.info("🔍 **DEBUG - linha_total_geral (valores calculados)**")
+                st.write("**Valores em linha_total_geral:**")
+                for key, value in linha_total_geral.items():
+                    st.write(f"**{key}:** {value}")
+                st.write("**Valores em linha_total_ordenada_geral (após ordenar):**")
+                for key, value in linha_total_ordenada_geral.items():
+                    if key in colunas_meses or key == 'Total_Forecast':
                         st.write(f"**{key}:** {value}")
-                    st.write("**Valores em linha_total_ordenada_geral (após ordenar):**")
-                    for key, value in linha_total_ordenada_geral.items():
-                        if key in colunas_meses or key == 'Total_Forecast':
-                            st.write(f"**{key}:** {value}")
 
                 # Adicionar linha TOTAL GERAL ao final
                 df_total_display = pd.concat(
