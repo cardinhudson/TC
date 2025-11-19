@@ -431,63 +431,100 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                 df_vol_calc = None
 
             if df_vol_calc is not None:
-                # Verificar se df_filtrado tem Veículo
+                # Verificar se df_filtrado tem Veículo e Ano
                 tem_veiculo = 'Veículo' in df_filtrado.columns
+                tem_ano = 'Ano' in df_filtrado.columns
 
-                # Agrupar Volume por Oficina e Período (e Veículo)
+                # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir
+                colunas_agrupamento = ['Oficina', 'Período']
+                if tem_ano:
+                    colunas_agrupamento.append('Ano')
+                if tem_veiculo:
+                    colunas_agrupamento.append('Veículo')
+
+                # Agrupar Volume por Oficina, Período, Ano (se existir) e Veículo (se existir)
                 if tem_veiculo and 'Veículo' in df_vol_calc.columns:
-                    # Agrupar Total incluindo Veículo
+                    # Agrupar Total incluindo Veículo e Ano
                     if 'Total' in df_filtrado.columns:
                         df_total_agrupado = df_filtrado.groupby(
-                            ['Oficina', 'Período', 'Veículo'],
+                            colunas_agrupamento,
                             as_index=False
                         )['Total'].sum()
                     else:
                         df_total_agrupado = df_filtrado.groupby(
-                            ['Oficina', 'Período', 'Veículo'],
+                            colunas_agrupamento,
                             as_index=False
                         )['Valor'].sum()
                         df_total_agrupado.rename(
                             columns={'Valor': 'Total'}, inplace=True
                         )
 
-                    # Agrupar Volume incluindo Veículo
+                    # Agrupar Volume incluindo Veículo e Ano
+                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    if tem_ano and 'Ano' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Ano')
+                    if 'Veículo' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Veículo')
+                    
                     df_vol_agrupado = df_vol_calc.groupby(
-                        ['Oficina', 'Período', 'Veículo'], as_index=False
+                        colunas_agrupamento_vol, as_index=False
                     )['Volume'].sum()
 
-                    # Fazer merge incluindo Veículo
+                    # Fazer merge incluindo Veículo e Ano
                     df_cpu = pd.merge(
                         df_total_agrupado,
                         df_vol_agrupado,
-                        on=['Oficina', 'Período', 'Veículo'],
+                        on=colunas_agrupamento,
                         how='left'
                     )
                 else:
-                    # Agrupar Volume apenas por Oficina e Período
+                    # Agrupar Total por Oficina, Período e Ano (se existir)
+                    if 'Total' in df_filtrado.columns:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Total'].sum()
+                    else:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Valor'].sum()
+                        df_total_agrupado.rename(
+                            columns={'Valor': 'Total'}, inplace=True
+                        )
+                    
+                    # Agrupar Volume por Oficina, Período e Ano (se existir)
+                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    if tem_ano and 'Ano' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Ano')
+                    
                     df_vol_agrupado = df_vol_calc.groupby(
-                        ['Oficina', 'Período'], as_index=False
+                        colunas_agrupamento_vol, as_index=False
                     )['Volume'].sum()
 
                     # Fazer merge
                     df_cpu = pd.merge(
                         df_total_agrupado,
                         df_vol_agrupado,
-                        on=['Oficina', 'Período'],
+                        on=colunas_agrupamento,
                         how='left'
                     )
 
                     # Se df_filtrado tem Veículo mas df_vol não, expandir
                     if tem_veiculo:
-                        # Fazer merge com df_filtrado para obter Veículo
+                        # Fazer merge com df_filtrado para obter Veículo e Ano
+                        colunas_merge_veiculo = ['Oficina', 'Período', 'Veículo']
+                        if tem_ano:
+                            colunas_merge_veiculo.append('Ano')
+                        
                         df_filtrado_veiculo = (
-                            df_filtrado[['Oficina', 'Período', 'Veículo']]
+                            df_filtrado[colunas_merge_veiculo]
                             .drop_duplicates()
                         )
                         df_cpu_expandido = pd.merge(
                             df_filtrado_veiculo,
                             df_cpu,
-                            on=['Oficina', 'Período'],
+                            on=colunas_agrupamento,
                             how='right'
                         )
                         # Usar o mesmo Volume para todos os veículos
@@ -807,24 +844,44 @@ if (coluna_visualizacao in df_visualizacao.columns and
     if df_vol is not None:
         # Verificar se tem as colunas necessárias
         if 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
-            # Aplicar os mesmos filtros do gráfico de período (Oficina e Veículo)
+            # Aplicar TODOS os filtros da sidebar ao df_vol
+            # Identificar colunas comuns entre df_filtrado e df_vol
+            colunas_comuns = set(df_filtrado.columns) & set(df_vol.columns)
+            # Remover colunas que não devem ser usadas para filtro
+            # Excluir Período para não filtrar por mês (mostrar todos os períodos)
+            colunas_filtro = [
+                col for col in colunas_comuns
+                if col not in ['Volume', 'Total', 'Valor', 'CPU', 'Período']
+            ]
+            
+            # Aplicar filtros do df_filtrado ao df_vol usando colunas comuns
             df_vol_filtrado = df_vol.copy()
             
-            # Aplicar filtro de Oficina se foi selecionado
+            for col in colunas_filtro:
+                if col in df_filtrado.columns:
+                    # Obter valores únicos da coluna no df_filtrado
+                    valores_filtrados = df_filtrado[col].dropna().unique()
+                    if len(valores_filtrados) > 0:
+                        # Filtrar df_vol com os mesmos valores
+                        df_vol_filtrado = df_vol_filtrado[
+                            df_vol_filtrado[col].isin(valores_filtrados)
+                        ].copy()
+            
+            # Aplicar também os filtros específicos do gráfico (Oficina e Veículo) se foram selecionados
+            # Isso permite que o gráfico de volume responda aos filtros do gráfico também
             if 'Oficina' in df_vol_filtrado.columns:
                 if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
                     df_vol_filtrado = df_vol_filtrado[
                         df_vol_filtrado['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
                     ].copy()
             
-            # Aplicar filtro de Veículo se foi selecionado
             if 'Veículo' in df_vol_filtrado.columns:
                 if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
                     df_vol_filtrado = df_vol_filtrado[
                         df_vol_filtrado['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                     ].copy()
             
-            # Criar gráfico com dados filtrados
+            # Criar gráfico com dados filtrados (sempre mostrando todos os períodos)
             grafico_volume = create_volume_chart(df_vol_filtrado)
             if grafico_volume:
                 st.altair_chart(grafico_volume, use_container_width=True)
@@ -857,23 +914,60 @@ if (coluna_visualizacao in df_visualizacao.columns and
     if tem_veiculo and tem_oficina and tem_periodo:
         # Usar coluna_visualizacao que já está definida
         if coluna_visualizacao in df_visualizacao.columns:
-            # Criar tabela pivot com Oficina e Veículo como índice (Oficina primeiro)
-            df_tabela = df_visualizacao.pivot_table(
-                index=['Oficina', 'Veículo'],
-                columns='Período',
-                values=coluna_visualizacao,
-                aggfunc='sum',
-                fill_value=0
-            )
+            # Verificar se há múltiplos anos e criar coluna combinada se necessário
+            tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
             
-            # Ordenar colunas por ordem cronológica dos meses
-            colunas_existentes = [
-                col for col in ORDEM_MESES if col in df_tabela.columns
-            ]
-            colunas_restantes = [
-                col for col in df_tabela.columns if col not in ORDEM_MESES
-            ]
-            df_tabela = df_tabela[colunas_existentes + colunas_restantes]
+            if tem_multiplos_anos:
+                # Criar coluna combinada Período + Ano para separar meses por ano
+                df_visualizacao_pivot = df_visualizacao.copy()
+                df_visualizacao_pivot['Período_Ano'] = (
+                    df_visualizacao_pivot['Período'].astype(str) + ' ' + 
+                    df_visualizacao_pivot['Ano'].astype(str)
+                )
+                
+                # Criar tabela pivot com Oficina e Veículo como índice (Oficina primeiro)
+                df_tabela = df_visualizacao_pivot.pivot_table(
+                    index=['Oficina', 'Veículo'],
+                    columns='Período_Ano',
+                    values=coluna_visualizacao,
+                    aggfunc='sum',
+                    fill_value=0
+                )
+                
+                # Ordenar colunas por ano e mês
+                colunas_ordenadas = []
+                anos_unicos = sorted(df_visualizacao_pivot['Ano'].unique())
+                
+                for ano in anos_unicos:
+                    for mes in ORDEM_MESES:
+                        coluna_combinada = f"{mes} {ano}"
+                        if coluna_combinada in df_tabela.columns:
+                            colunas_ordenadas.append(coluna_combinada)
+                
+                # Adicionar colunas que não são meses (ex: Total, outros períodos)
+                colunas_restantes = [
+                    col for col in df_tabela.columns 
+                    if col not in colunas_ordenadas
+                ]
+                df_tabela = df_tabela[colunas_ordenadas + colunas_restantes]
+            else:
+                # Criar tabela pivot com Oficina e Veículo como índice (Oficina primeiro)
+                df_tabela = df_visualizacao.pivot_table(
+                    index=['Oficina', 'Veículo'],
+                    columns='Período',
+                    values=coluna_visualizacao,
+                    aggfunc='sum',
+                    fill_value=0
+                )
+                
+                # Ordenar colunas por ordem cronológica dos meses
+                colunas_existentes = [
+                    col for col in ORDEM_MESES if col in df_tabela.columns
+                ]
+                colunas_restantes = [
+                    col for col in df_tabela.columns if col not in ORDEM_MESES
+                ]
+                df_tabela = df_tabela[colunas_existentes + colunas_restantes]
             
             # Calcular total por linha
             df_tabela['Total'] = df_tabela.sum(axis=1)
@@ -1320,22 +1414,60 @@ if ('Oficina' in df_visualizacao.columns and
         st.subheader("📋 Tabela Dinâmica - Valor por Oficina e Período")
 
     if coluna_visualizacao in df_visualizacao.columns:
-        df_pivot = df_visualizacao.pivot_table(
-            index='Oficina',
-            columns='Período',
-            values=coluna_visualizacao,
-            aggfunc='sum',
-            fill_value=0
-        )
+        # Verificar se há múltiplos anos e criar coluna combinada se necessário
+        tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
+        
+        if tem_multiplos_anos:
+            # Criar coluna combinada Período + Ano para separar meses por ano
+            df_visualizacao_pivot = df_visualizacao.copy()
+            df_visualizacao_pivot['Período_Ano'] = (
+                df_visualizacao_pivot['Período'].astype(str) + ' ' + 
+                df_visualizacao_pivot['Ano'].astype(str)
+            )
+            
+            # Criar tabela pivot
+            df_pivot = df_visualizacao_pivot.pivot_table(
+                index='Oficina',
+                columns='Período_Ano',
+                values=coluna_visualizacao,
+                aggfunc='sum',
+                fill_value=0
+            )
+            
+            # Ordenar colunas por ano e mês
+            colunas_ordenadas = []
+            anos_unicos = sorted(df_visualizacao_pivot['Ano'].unique())
+            
+            for ano in anos_unicos:
+                for mes in ORDEM_MESES:
+                    coluna_combinada = f"{mes} {ano}"
+                    if coluna_combinada in df_pivot.columns:
+                        colunas_ordenadas.append(coluna_combinada)
+            
+            # Adicionar colunas que não são meses (ex: Total, outros períodos)
+            colunas_restantes = [
+                col for col in df_pivot.columns 
+                if col not in colunas_ordenadas
+            ]
+            df_pivot = df_pivot[colunas_ordenadas + colunas_restantes]
+        else:
+            # Criar tabela pivot
+            df_pivot = df_visualizacao.pivot_table(
+                index='Oficina',
+                columns='Período',
+                values=coluna_visualizacao,
+                aggfunc='sum',
+                fill_value=0
+            )
 
-        # Ordenar colunas por ordem cronológica dos meses
-        colunas_existentes = [
-            col for col in ORDEM_MESES if col in df_pivot.columns
-        ]
-        colunas_restantes = [
-            col for col in df_pivot.columns if col not in ORDEM_MESES
-        ]
-        df_pivot = df_pivot[colunas_existentes + colunas_restantes]
+            # Ordenar colunas por ordem cronológica dos meses
+            colunas_existentes = [
+                col for col in ORDEM_MESES if col in df_pivot.columns
+            ]
+            colunas_restantes = [
+                col for col in df_pivot.columns if col not in ORDEM_MESES
+            ]
+            df_pivot = df_pivot[colunas_existentes + colunas_restantes]
 
         # Calcular total por linha
         df_pivot['Total'] = df_pivot.sum(axis=1)
