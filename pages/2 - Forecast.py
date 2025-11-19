@@ -4827,26 +4827,34 @@ else:
                     return f"R$ {val:,.2f}"
             return val
         
-        # Aplicar formatação apenas nas colunas de valores
+        # 🔧 REFAZER TABELAS: Usar dados BRUTOS (sem agrupamento) para mostrar TODAS as linhas individuais
+        # Criar versão formatada dos dados brutos para exibição
+        df_forecast_display_bruto = df_forecast_numerico_bruto.copy()
+        
+        # Remover colunas indesejadas ANTES de formatar
+        colunas_para_remover = ['mes', 'Mes', 'QTD', 'soma_percentuais', 'Soma_Percentuais']
+        for col in colunas_para_remover:
+            if col in df_forecast_display_bruto.columns:
+                df_forecast_display_bruto = df_forecast_display_bruto.drop(columns=[col])
+        
+        # Aplicar formatação apenas nas colunas de valores dos dados brutos
         colunas_formatar = ['Média_Mensal_Histórica', 'Total_Forecast'] + colunas_meses
         for col in colunas_formatar:
-            if col in df_forecast_display.columns:
-                df_forecast_display[col] = df_forecast_display[col].apply(formatar_monetario)
+            if col in df_forecast_display_bruto.columns:
+                df_forecast_display_bruto[col] = df_forecast_display_bruto[col].apply(formatar_monetario)
         
-        # Agrupar por Oficina e criar expanders
-        oficinas = df_forecast_display['Oficina'].unique()
+        # Agrupar por Oficina e criar expanders (usando dados BRUTOS - TODAS as linhas individuais)
+        oficinas = df_forecast_display_bruto['Oficina'].unique() if 'Oficina' in df_forecast_display_bruto.columns else []
         
         for oficina in sorted(oficinas):
-            # Filtrar dados da oficina
-            df_oficina = df_forecast_display[df_forecast_display['Oficina'] == oficina].copy()
+            # Filtrar dados da oficina (dados BRUTOS - todas as linhas individuais, SEM agrupamento)
+            df_oficina = df_forecast_display_bruto[df_forecast_display_bruto['Oficina'] == oficina].copy()
             
-            # Calcular total da oficina (usar dados BRUTOS - antes do agrupamento - para garantir soma correta)
-            # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_numerico_bruto que tem TODAS as linhas individuais
+            # Calcular total da oficina usando dados numéricos brutos
             df_oficina_numerico_bruto = df_forecast_numerico_bruto[df_forecast_numerico_bruto['Oficina'] == oficina].copy()
             if 'Total_Forecast' in df_oficina_numerico_bruto.columns:
                 total_oficina = df_oficina_numerico_bruto['Total_Forecast'].sum()
             elif colunas_meses:
-                # Calcular Total_Forecast se não existir
                 df_oficina_numerico_bruto['Total_Forecast'] = df_oficina_numerico_bruto[colunas_meses].sum(axis=1)
                 total_oficina = df_oficina_numerico_bruto['Total_Forecast'].sum()
             else:
@@ -4854,15 +4862,23 @@ else:
             total_formatado = formatar_monetario(total_oficina)
             
             # Contar veículos únicos
-            num_veiculos = df_oficina['Veículo'].nunique()
+            num_veiculos = df_oficina['Veículo'].nunique() if 'Veículo' in df_oficina.columns else 0
             
-            # Criar expander para cada oficina (fechado por padrão)
+            # Criar expander para cada oficina (aberto por padrão)
             with st.expander(
                 f"🏭 **{oficina}** - Total: {total_formatado} ({num_veiculos} veículo{'s' if num_veiculos > 1 else ''})",
-                expanded=False
+                expanded=True
             ):
                 # Remover coluna Oficina da tabela dentro do expander (já está no título)
-                df_oficina_display = df_oficina.drop(columns=['Oficina'])
+                if 'Oficina' in df_oficina.columns:
+                    df_oficina_display = df_oficina.drop(columns=['Oficina'])
+                else:
+                    df_oficina_display = df_oficina.copy()
+                
+                # Garantir que colunas indesejadas foram removidas
+                for col in colunas_para_remover:
+                    if col in df_oficina_display.columns:
+                        df_oficina_display = df_oficina_display.drop(columns=[col])
                 
                 # Calcular totais por coluna usando dados BRUTOS (antes do agrupamento) para garantir soma correta
                 # 🔧 CORREÇÃO CRÍTICA: Usar df_forecast_numerico_bruto que tem TODAS as linhas individuais
@@ -4970,12 +4986,19 @@ else:
 
             with st.expander(
                 f"📊 **TOTAL GERAL** - Total: {total_geral_formatado} ({num_veiculos_total} veículo{'s' if num_veiculos_total > 1 else ''})",
-                expanded=False
+                expanded=True
             ):
+                # 🔧 REFAZER: Usar dados BRUTOS (sem agrupamento) para mostrar TODAS as linhas individuais
                 # Tabela com TODAS as linhas (todas oficinas), sem coluna Oficina
-                df_total_display = df_forecast_display.copy()
+                df_total_display = df_forecast_display_bruto.copy()
                 if 'Oficina' in df_total_display.columns:
                     df_total_display = df_total_display.drop(columns=['Oficina'])
+                
+                # Garantir que colunas indesejadas foram removidas (já foram removidas antes, mas garantir)
+                colunas_para_remover = ['mes', 'Mes', 'QTD', 'soma_percentuais', 'Soma_Percentuais']
+                for col in colunas_para_remover:
+                    if col in df_total_display.columns:
+                        df_total_display = df_total_display.drop(columns=[col])
 
                 # 🔧 CORREÇÃO CRÍTICA: Usar df_total_numerico (que já é df_forecast_numerico_bruto) para cálculos numéricos
                 # IMPORTANTE: Não remover coluna 'Oficina' antes de calcular totais, pois precisamos somar todas as linhas
