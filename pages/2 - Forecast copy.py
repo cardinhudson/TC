@@ -58,23 +58,35 @@ def listar_anos_disponiveis():
 def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     """
     Busca arquivo parquet na seguinte ordem de prioridade:
-    1. Se ano_selecionado for None ou "Todos": Histórico consolidado (dados/historico_consolidado/)
+    1. Pasta Forecast (dados/Forecast/) - PRIORIDADE MÁXIMA
     2. Se ano_selecionado for especificado: Pasta do ano (dados/{ANO}/)
-    3. Pasta do ano mais recente (dados/{ANO}/)
-    4. Raiz do projeto (compatibilidade)
+    3. Histórico consolidado (dados/historico_consolidado/)
+    4. Pasta do ano mais recente (dados/{ANO}/)
+    5. Raiz do projeto (compatibilidade)
     """
+    # 1. PRIORIDADE: Tentar pasta Forecast primeiro
+    if nome_arquivo == "df_final.parquet":
+        caminho_forecast = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        if os.path.exists(caminho_forecast):
+            return caminho_forecast
+    
+    if nome_arquivo == "df_vol.parquet":
+        caminho_forecast_vol = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+        if os.path.exists(caminho_forecast_vol):
+            return caminho_forecast_vol
+    
     # Se ano específico foi selecionado, buscar na pasta do ano
     if ano_selecionado is not None and ano_selecionado != "Todos":
         caminho_ano = os.path.join("dados", str(ano_selecionado), nome_arquivo)
         if os.path.exists(caminho_ano):
             return caminho_ano
     
-    # 1. Tentar histórico consolidado (para "Todos" ou quando não especificado)
+    # 2. Tentar histórico consolidado (fallback)
     caminho_historico = os.path.join("dados", "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
     if os.path.exists(caminho_historico):
         return caminho_historico
     
-    # 2. Tentar pasta do ano mais recente
+    # 3. Tentar pasta do ano mais recente
     pasta_dados = "dados"
     if os.path.exists(pasta_dados):
         anos_disponiveis = []
@@ -89,7 +101,7 @@ def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
             if os.path.exists(caminho_ano):
                 return caminho_ano
     
-    # 3. Tentar raiz (compatibilidade)
+    # 4. Tentar raiz (compatibilidade)
     if os.path.exists(nome_arquivo):
         return nome_arquivo
     
@@ -130,20 +142,44 @@ st.sidebar.markdown("---")
     show_spinner=True
 )
 def load_data(ano_selecionado_param):
-    """Carrega os dados do arquivo parquet"""
+    """Carrega os dados do arquivo parquet - PRIORIZA PASTA FORECAST"""
     try:
-        # Converter "Todos" para None
-        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+        # PRIORIDADE 1: Tentar carregar de forecast_completo.parquet na pasta Forecast
+        caminho_forecast = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        if os.path.exists(caminho_forecast):
+            df = pd.read_parquet(caminho_forecast)
+            
+            # Se um ano específico foi selecionado, filtrar
+            if ano_selecionado_param != "Todos" and "Ano" in df.columns:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            
+            # Otimizar tipos de dados
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    unique_ratio = df[col].nunique() / len(df)
+                    if unique_ratio < 0.5:
+                        df[col] = df[col].astype('category')
+            
+            # Converter floats para tipos menores
+            for col in df.select_dtypes(include=['float64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            
+            # Converter ints para tipos menores
+            for col in df.select_dtypes(include=['int64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            
+            return df
         
-        # Buscar arquivo na ordem de prioridade
+        # FALLBACK: Usar função encontrar_arquivo_parquet (que também prioriza Forecast)
+        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
         arquivo_parquet = encontrar_arquivo_parquet("df_final.parquet", ano_para_busca)
 
         if arquivo_parquet is None:
             st.error(f"❌ Arquivo não encontrado: df_final.parquet")
             st.info("💡 Verifique se o arquivo existe em:")
+            st.info("   - dados/Forecast/forecast_completo.parquet (PRIORIDADE)")
             st.info("   - dados/historico_consolidado/df_final_historico.parquet")
             st.info("   - dados/{ANO}/df_final.parquet")
-            st.info("   - df_final.parquet (raiz)")
             st.stop()
 
         # Carregar dados
@@ -181,12 +217,36 @@ def load_data(ano_selecionado_param):
     show_spinner=True
 )
 def load_volume_data(ano_selecionado_param):
-    """Carrega os dados de volume do arquivo parquet"""
+    """Carrega os dados de volume do arquivo parquet - PRIORIZA PASTA FORECAST"""
     try:
-        # Converter "Todos" para None
-        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+        # PRIORIDADE 1: Tentar carregar de df_vol_historico.parquet na pasta Forecast
+        caminho_forecast_vol = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+        if os.path.exists(caminho_forecast_vol):
+            df = pd.read_parquet(caminho_forecast_vol)
+            
+            # Se um ano específico foi selecionado, filtrar
+            if ano_selecionado_param != "Todos" and "Ano" in df.columns:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            
+            # Otimizar tipos de dados
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    unique_ratio = df[col].nunique() / len(df)
+                    if unique_ratio < 0.5:
+                        df[col] = df[col].astype('category')
+            
+            # Converter floats para tipos menores
+            for col in df.select_dtypes(include=['float64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            
+            # Converter ints para tipos menores
+            for col in df.select_dtypes(include=['int64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            
+            return df
         
-        # Buscar arquivo na ordem de prioridade
+        # FALLBACK: Usar função encontrar_arquivo_parquet
+        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
         arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
 
         if arquivo_parquet is None:
@@ -219,12 +279,36 @@ def load_volume_data(ano_selecionado_param):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_volume_historico_data():
-    """Carrega os dados de volume histórico consolidado do arquivo parquet"""
+    """Carrega os dados de volume histórico da pasta Forecast"""
     try:
-        # Buscar arquivo na pasta dados/historico_consolidado
-        caminho_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        caminho_historico = os.path.join(caminho_base, "dados", "historico_consolidado", "df_vol_historico.parquet")
+        # PRIORIDADE: Buscar arquivo na pasta Forecast
+        caminho_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
         
+        if os.path.exists(caminho_forecast):
+            df = pd.read_parquet(caminho_forecast)
+            
+            # Otimizar tipos de dados
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    try:
+                        unique_ratio = df[col].nunique() / len(df)
+                        if unique_ratio < 0.5:
+                            df[col] = df[col].astype('category')
+                    except:
+                        pass
+            
+            # Converter floats para tipos menores
+            for col in df.select_dtypes(include=['float64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='float')
+            
+            # Converter ints para tipos menores
+            for col in df.select_dtypes(include=['int64']).columns:
+                df[col] = pd.to_numeric(df[col], downcast='integer')
+            
+            return df
+        
+        # FALLBACK: Tentar histórico consolidado
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
         if os.path.exists(caminho_historico):
             df = pd.read_parquet(caminho_historico)
             
@@ -247,8 +331,8 @@ def load_volume_historico_data():
                 df[col] = pd.to_numeric(df[col], downcast='integer')
             
             return df
-        else:
-            return None
+        
+        return None
     except Exception:
         return None
 
@@ -442,17 +526,19 @@ st.markdown("### 🔮 Configuração do Forecast")
 meses_ano = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-# Verificar se temos dados com múltiplos anos
-tem_anos = 'Ano' in df_filtrado.columns and df_filtrado['Ano'].nunique() > 1
+# Verificar se temos dados com múltiplos anos (usar df_total para ver TODOS os anos disponíveis)
+tem_anos = 'Ano' in df_total.columns and df_total['Ano'].nunique() > 1
 
-# Determinar o ano dos dados
-if tem_anos and 'Ano' in df_filtrado.columns:
-    anos_disponiveis = sorted(df_filtrado['Ano'].dropna().unique())
-    ano_maximo = int(df_filtrado['Ano'].max())
+# Determinar o ano dos dados (usar df_total para obter TODOS os anos, não apenas os filtrados)
+if tem_anos and 'Ano' in df_total.columns:
+    anos_disponiveis = sorted(df_total['Ano'].dropna().unique())
+    ano_maximo = int(df_total['Ano'].max())
+    ano_minimo = int(df_total['Ano'].min())
 else:
     from datetime import datetime
     anos_disponiveis = [datetime.now().year]
     ano_maximo = datetime.now().year
+    ano_minimo = datetime.now().year
 
 # Função auxiliar para ordenar períodos (definir antes de usar)
 def ordenar_periodo_para_select(periodo_str):
@@ -473,39 +559,106 @@ def ordenar_periodo_para_select(periodo_str):
         mes_idx = meses_ano.index(mes_nome_capitalizado) if mes_nome_capitalizado in meses_ano else 0
         return (0, mes_idx)
 
-# Criar lista de períodos disponíveis com ano (baseado nos dados reais)
+# Criar lista de períodos disponíveis com ano (baseado nos dados do historico_consolidado)
+# IMPORTANTE: Carregar períodos diretamente do arquivo historico_consolidado para obter TODOS os períodos disponíveis
 periodos_disponiveis = []
-if 'Período' in df_filtrado.columns:
-    # Pegar períodos únicos dos dados
-    periodos_unicos = df_filtrado['Período'].dropna().unique()
-    
-    # Verificar se os períodos já têm ano ou não
-    periodos_com_ano = any(' ' in str(p) and str(p).split(' ', 1)[1].isdigit() for p in periodos_unicos)
-    
-    # Se não tiver ano nos períodos mas temos múltiplos anos, adicionar ano
-    if not periodos_com_ano and tem_anos:
-        # Criar períodos com ano baseado no ano dos dados
-        periodos_com_ano_lista = []
-        for periodo in periodos_unicos:
-            periodo_str = str(periodo).strip()
-            # Capitalizar primeira letra
-            periodo_capitalizado = periodo_str.capitalize() if periodo_str else periodo_str
-            # Adicionar ano máximo (ano dos dados)
-            periodo_com_ano = f"{periodo_capitalizado} {ano_maximo}"
-            periodos_com_ano_lista.append(periodo_com_ano)
-        periodos_disponiveis = sorted(periodos_com_ano_lista, key=lambda x: ordenar_periodo_para_select(x))
-    else:
-        # Se já tem ano ou não tem múltiplos anos, usar como está
-        periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
-else:
-    # Fallback: criar períodos baseado nos meses e anos disponíveis
-    for ano in anos_disponiveis:
-        for mes in meses_ano:
-            if tem_anos:
-                periodo = f"{mes} {ano}"
+caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+
+if os.path.exists(caminho_historico):
+    try:
+        # Carregar dados do histórico consolidado para obter todos os períodos disponíveis
+        df_historico_periodos = pd.read_parquet(caminho_historico)
+        
+        if 'Período' in df_historico_periodos.columns:
+            # Pegar períodos únicos dos dados históricos consolidados
+            periodos_unicos = df_historico_periodos['Período'].dropna().unique()
+            
+            # Verificar se os períodos já têm ano ou não
+            periodos_com_ano = any(' ' in str(p) and str(p).split(' ', 1)[1].isdigit() for p in periodos_unicos)
+            
+            # Verificar se há múltiplos anos no histórico
+            tem_anos_historico = 'Ano' in df_historico_periodos.columns and df_historico_periodos['Ano'].nunique() > 1
+            
+            if tem_anos_historico:
+                anos_historico = sorted(df_historico_periodos['Ano'].dropna().unique())
             else:
-                periodo = mes
-            periodos_disponiveis.append(periodo)
+                anos_historico = anos_disponiveis
+            
+            # Se não tiver ano nos períodos mas temos múltiplos anos, adicionar ano para cada combinação
+            if not periodos_com_ano and tem_anos_historico:
+                # Criar períodos com ano para TODOS os anos disponíveis no histórico
+                periodos_com_ano_lista = []
+                for periodo in periodos_unicos:
+                    periodo_str = str(periodo).strip()
+                    # Capitalizar primeira letra
+                    periodo_capitalizado = periodo_str.capitalize() if periodo_str else periodo_str
+                    # Adicionar ano para cada ano disponível no histórico
+                    for ano in anos_historico:
+                        periodo_com_ano = f"{periodo_capitalizado} {ano}"
+                        # Verificar se esse período realmente existe nos dados históricos
+                        if len(df_historico_periodos[(df_historico_periodos['Período'].astype(str).str.strip().str.capitalize() == periodo_capitalizado) & 
+                                   (df_historico_periodos['Ano'] == ano)]) > 0:
+                            periodos_com_ano_lista.append(periodo_com_ano)
+                periodos_disponiveis = sorted(periodos_com_ano_lista, key=lambda x: ordenar_periodo_para_select(x))
+            elif periodos_com_ano and tem_anos_historico:
+                # Se já tem ano, usar como está
+                periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
+            else:
+                # Se não tem múltiplos anos, usar como está
+                periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
+        else:
+            # Fallback: criar períodos baseado nos meses e anos disponíveis no histórico
+            if tem_anos_historico and 'Ano' in df_historico_periodos.columns:
+                anos_historico = sorted(df_historico_periodos['Ano'].dropna().unique())
+            else:
+                anos_historico = anos_disponiveis
+            
+            for ano in anos_historico:
+                for mes in meses_ano:
+                    if tem_anos_historico:
+                        periodo = f"{mes} {ano}"
+                    else:
+                        periodo = mes
+                    periodos_disponiveis.append(periodo)
+    except Exception as e:
+        st.warning(f"⚠️ Erro ao carregar períodos do histórico consolidado: {str(e)}")
+        # Fallback: usar df_total se houver erro
+        if 'Período' in df_total.columns:
+            periodos_unicos = df_total['Período'].dropna().unique()
+            periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
+        else:
+            periodos_disponiveis = []
+else:
+    # Se o arquivo histórico não existir, usar df_total como fallback
+    st.warning(f"⚠️ Arquivo histórico consolidado não encontrado: {caminho_historico}")
+    st.info("ℹ️ Usando períodos dos dados carregados como fallback")
+    
+    if 'Período' in df_total.columns:
+        periodos_unicos = df_total['Período'].dropna().unique()
+        periodos_com_ano = any(' ' in str(p) and str(p).split(' ', 1)[1].isdigit() for p in periodos_unicos)
+        
+        if not periodos_com_ano and tem_anos:
+            periodos_com_ano_lista = []
+            for periodo in periodos_unicos:
+                periodo_str = str(periodo).strip()
+                periodo_capitalizado = periodo_str.capitalize() if periodo_str else periodo_str
+                for ano in anos_disponiveis:
+                    periodo_com_ano = f"{periodo_capitalizado} {ano}"
+                    if len(df_total[(df_total['Período'].astype(str).str.strip().str.capitalize() == periodo_capitalizado) & 
+                                   (df_total['Ano'] == ano)]) > 0:
+                        periodos_com_ano_lista.append(periodo_com_ano)
+            periodos_disponiveis = sorted(periodos_com_ano_lista, key=lambda x: ordenar_periodo_para_select(x))
+        else:
+            periodos_disponiveis = sorted(periodos_unicos, key=lambda x: ordenar_periodo_para_select(x))
+    else:
+        # Fallback final: criar períodos baseado nos meses e anos disponíveis
+        for ano in anos_disponiveis:
+            for mes in meses_ano:
+                if tem_anos:
+                    periodo = f"{mes} {ano}"
+                else:
+                    periodo = mes
+                periodos_disponiveis.append(periodo)
 
 # Layout em 2 colunas para os controles principais
 col_config1, col_config2 = st.columns(2)
@@ -549,7 +702,11 @@ with col_config1:
     # Normalizar para capitalizar (ex: "setembro" -> "Setembro")
     ultimo_mes_dados = ultimo_mes_dados.capitalize()
     
-    indice_ultimo_mes = meses_ano.index(ultimo_mes_dados) if ultimo_mes_dados in meses_ano else 0
+    # Encontrar índice do mês na lista meses_ano
+    if ultimo_mes_dados in meses_ano:
+        indice_ultimo_mes = meses_ano.index(ultimo_mes_dados)
+    else:
+        indice_ultimo_mes = 0
     
     # 2. Quantos meses prever
     meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
@@ -567,57 +724,49 @@ with col_config1:
 
 with col_config2:
     # 3. Quantos meses usar para calcular a média
+    # LÓGICA: Contar apenas os períodos que estão disponíveis no filtro até o período selecionado
+    
+    # Encontrar o índice do período selecionado na lista de períodos disponíveis
+    if ultimo_periodo_dados in periodos_disponiveis:
+        indice_periodo_selecionado = periodos_disponiveis.index(ultimo_periodo_dados)
+    else:
+        indice_periodo_selecionado = len(periodos_disponiveis) - 1 if periodos_disponiveis else 0
+    
+    # Filtrar apenas os períodos disponíveis até o período selecionado (inclusive)
+    periodos_disponiveis_ate_selecionado = periodos_disponiveis[:indice_periodo_selecionado + 1]
+    
+    # 🔧 CORREÇÃO: Filtrar apenas períodos do mesmo ano do período selecionado
+    # Extrair ano do período selecionado
+    ano_periodo_selecionado = None
+    if ' ' in str(ultimo_periodo_dados):
+        partes = str(ultimo_periodo_dados).split(' ', 1)
+        if len(partes) > 1 and partes[1].isdigit():
+            ano_periodo_selecionado = int(partes[1])
+    
+    # Filtrar apenas períodos do mesmo ano
+    if ano_periodo_selecionado is not None:
+        periodos_disponiveis_ate_selecionado = [
+            p for p in periodos_disponiveis_ate_selecionado
+            if ' ' in str(p) and str(p).split(' ', 1)[1].isdigit() and int(str(p).split(' ', 1)[1]) == ano_periodo_selecionado
+        ]
+    
+    # Contar quantos períodos existem até o período selecionado (inclusive)
+    # Isso considera apenas os períodos disponíveis no filtro do mesmo ano
+    max_meses_media = len(periodos_disponiveis_ate_selecionado)
+    
+    # Lista de meses até o último mês selecionado (inclusive) - usado depois
+    # Extrair mês do período selecionado para criar a lista de meses
+    if ' ' in str(ultimo_periodo_dados):
+        ultimo_mes_dados = str(ultimo_periodo_dados).split(' ', 1)[0].capitalize()
+    else:
+        ultimo_mes_dados = str(ultimo_periodo_dados).capitalize()
+    
+    if ultimo_mes_dados in meses_ano:
+        indice_ultimo_mes = meses_ano.index(ultimo_mes_dados)
+    else:
+        indice_ultimo_mes = 0
+    
     meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
-    
-    # 🔧 NOVA LÓGICA: Contar quantos meses até o último período têm valores (Total != 0)
-    # Isso limita o filtro apenas aos meses que realmente têm dados (inclui valores negativos, exclui apenas zeros)
-    meses_com_valor = len(meses_historicos_disponiveis)  # Valor padrão
-    if meses_historicos_disponiveis and not df_filtrado.empty and 'Período' in df_filtrado.columns and 'Total' in df_filtrado.columns:
-        # Extrair ano do último período
-        ano_referencia_contagem = None
-        if ' ' in str(ultimo_periodo_dados):
-            partes_periodo = str(ultimo_periodo_dados).split(' ', 1)
-            if len(partes_periodo) > 1 and partes_periodo[1].isdigit():
-                ano_referencia_contagem = partes_periodo[1]
-        if ano_referencia_contagem is None:
-            ano_referencia_contagem = str(ano_maximo) if 'ano_maximo' in locals() else str(datetime.now().year)
-        
-        # Criar lista de períodos até o último mês selecionado
-        periodos_ate_ultimo = []
-        for mes in meses_historicos_disponiveis:
-            # Adicionar período com ano
-            periodo_com_ano = f"{mes} {ano_referencia_contagem}".lower()
-            periodos_ate_ultimo.append(periodo_com_ano)
-            # Também adicionar apenas o mês (para compatibilidade com dados antigos)
-            periodos_ate_ultimo.append(mes.lower())
-        
-        # Normalizar períodos do DataFrame para comparação
-        df_filtrado_copy = df_filtrado.copy()
-        df_filtrado_copy['Período_Normalizado'] = df_filtrado_copy['Período'].astype(str).str.strip().str.lower()
-        
-        # Filtrar df_filtrado para períodos até o último mês
-        mask_periodos_ate_ultimo = df_filtrado_copy['Período_Normalizado'].isin(periodos_ate_ultimo)
-        df_periodos_ate_ultimo = df_filtrado_copy[mask_periodos_ate_ultimo].copy()
-        
-        # Contar períodos únicos que têm pelo menos uma linha com Total != 0 (inclui valores negativos, exclui apenas zeros)
-        if not df_periodos_ate_ultimo.empty:
-            # Verificar se há pelo menos uma linha com Total != 0 para cada período
-            # Agrupar por Período_Normalizado e verificar se há algum Total != 0
-            periodos_unicos = df_periodos_ate_ultimo['Período_Normalizado'].unique()
-            periodos_com_valor_lista = []
-            for periodo in periodos_unicos:
-                df_periodo = df_periodos_ate_ultimo[df_periodos_ate_ultimo['Período_Normalizado'] == periodo]
-                # Verificar se há pelo menos uma linha com Total != 0
-                if (df_periodo['Total'] != 0).any():
-                    periodos_com_valor_lista.append(periodo)
-            meses_com_valor = len(periodos_com_valor_lista)
-            
-            # Se não encontrou nenhum período com valor, usar o número de meses históricos disponíveis
-            if meses_com_valor == 0:
-                meses_com_valor = len(meses_historicos_disponiveis)
-    
-    # Limitar max_value aos meses que têm valores
-    max_meses_media = max(1, meses_com_valor)  # Garantir pelo menos 1
     
     # 🔧 CORREÇÃO: Ajustar valor inicial baseado no session_state ou no max disponível
     # Se houver valor salvo, usar ele, mas limitar ao novo max_meses_media
@@ -719,34 +868,62 @@ for i in range(num_meses_prever):
     periodos_restantes.append(periodo_futuro)
 
 # Calcular quais períodos serão usados para a média (com ano)
+# IMPORTANTE: Usar apenas os períodos disponíveis no filtro até o período selecionado
 periodos_para_media = []
 meses_para_media = []
 
-if meses_historicos_disponiveis:
-    meses_considerados = meses_historicos_disponiveis.copy()
+# Usar os períodos disponíveis até o período selecionado (já calculado acima)
+if 'periodos_disponiveis_ate_selecionado' in locals() and periodos_disponiveis_ate_selecionado:
+    # Filtrar períodos excluídos
+    periodos_considerados = [p for p in periodos_disponiveis_ate_selecionado if p not in meses_excluir_media]
     
-    # Remover meses excluídos
-    for mes_excluir in meses_excluir_media:
-        if mes_excluir in meses_considerados:
-            meses_considerados.remove(mes_excluir)
-    
-    # Pegar os últimos N meses (após excluir)
-    if meses_considerados:
-        meses_para_media = meses_considerados[-num_meses_media:] if len(meses_considerados) >= num_meses_media else meses_considerados
+    # Pegar os últimos N períodos (após excluir)
+    if periodos_considerados:
+        periodos_para_media = periodos_considerados[-num_meses_media:] if len(periodos_considerados) >= num_meses_media else periodos_considerados
         
-        # Criar períodos com ano se necessário
-        if tem_anos:
-            for mes in meses_para_media:
-                periodo_com_ano = f"{mes} {ultimo_ano_dados}"
-                periodos_para_media.append(periodo_com_ano)
-        else:
-            periodos_para_media = meses_para_media.copy()
+        # Extrair nomes dos meses para meses_para_media (usado em outros lugares)
+        meses_para_media = []
+        for periodo in periodos_para_media:
+            if ' ' in str(periodo):
+                mes_nome = str(periodo).split(' ', 1)[0]
+                meses_para_media.append(mes_nome)
+            else:
+                meses_para_media.append(str(periodo))
     else:
         meses_para_media = []
         periodos_para_media = []
 else:
-    meses_para_media = []
-    periodos_para_media = []
+    # Fallback: usar meses_historicos_disponiveis (comportamento antigo)
+    if meses_historicos_disponiveis:
+        meses_considerados = meses_historicos_disponiveis.copy()
+        
+        # Remover meses excluídos
+        for mes_excluir in meses_excluir_media:
+            mes_excluir_nome = str(mes_excluir).split(' ', 1)[0] if ' ' in str(mes_excluir) else str(mes_excluir)
+            if mes_excluir_nome in meses_considerados:
+                meses_considerados.remove(mes_excluir_nome)
+        
+        if meses_considerados:
+            meses_para_media = meses_considerados[-num_meses_media:] if len(meses_considerados) >= num_meses_media else meses_considerados
+            
+            ano_para_periodos = ultimo_ano_dados
+            if ' ' in str(ultimo_periodo_dados):
+                partes = str(ultimo_periodo_dados).split(' ', 1)
+                if len(partes) > 1 and partes[1].isdigit():
+                    ano_para_periodos = int(partes[1])
+            
+            for mes in meses_para_media:
+                periodo_com_ano = f"{mes} {ano_para_periodos}"
+                periodos_para_media.append(periodo_com_ano)
+        else:
+            meses_para_media = []
+            periodos_para_media = []
+    else:
+        meses_para_media = []
+        periodos_para_media = []
+
+# Debug: mostrar quais períodos foram criados para a média
+st.sidebar.info(f"🔍 Debug periodos_para_media:\n- Último ano dados: {ultimo_ano_dados}\n- Meses históricos disponíveis: {meses_historicos_disponiveis}\n- Meses para média: {meses_para_media}\n- Períodos para média: {periodos_para_media}\n- Número de meses para média: {num_meses_media}")
 
 # Mostrar resumo da configuração
 col_resumo1, col_resumo2 = st.columns(2)
@@ -1205,6 +1382,28 @@ if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None
     periodos_para_media = st.session_state.config_forecast_aplicada['periodos_para_media']
     ultimo_ano_dados = st.session_state.config_forecast_aplicada['ultimo_ano_dados']
     
+    # 🔧 CORREÇÃO: Garantir que periodos_para_media sempre tenha o ano
+    # Se os períodos não tiverem ano, adicionar o ano do último período
+    if periodos_para_media:
+        periodos_para_media_corrigidos = []
+        ano_para_corrigir = ultimo_ano_dados
+        if ' ' in str(ultimo_periodo_dados):
+            partes = str(ultimo_periodo_dados).split(' ', 1)
+            if len(partes) > 1 and partes[1].isdigit():
+                ano_para_corrigir = int(partes[1])
+        
+        for periodo in periodos_para_media:
+            periodo_str = str(periodo).strip()
+            # Se não tiver ano (não tem espaço ou o que vem depois do espaço não é um número)
+            if ' ' not in periodo_str or not periodo_str.split(' ', 1)[1].isdigit():
+                # Adicionar o ano
+                periodo_com_ano = f"{periodo_str} {ano_para_corrigir}"
+                periodos_para_media_corrigidos.append(periodo_com_ano)
+            else:
+                periodos_para_media_corrigidos.append(periodo_str)
+        
+        periodos_para_media = periodos_para_media_corrigidos
+    
     # Recalcular índices e meses baseados nas configurações aplicadas
     if ' ' in str(ultimo_periodo_dados):
         ultimo_mes_dados = str(ultimo_periodo_dados).split(' ', 1)[0]
@@ -1214,28 +1413,43 @@ if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None
     indice_ultimo_mes = meses_ano.index(ultimo_mes_dados) if ultimo_mes_dados in meses_ano else 0
     
     # 🔧 CORREÇÃO: Recalcular max_meses_media baseado no novo último período e ajustar num_meses_media
+    # IMPORTANTE: Limitar ao ano do último período selecionado
     meses_historicos_disponiveis_aplicado = meses_ano[:indice_ultimo_mes + 1]
+    
+    # Extrair ano do último período primeiro
+    ano_referencia_contagem_aplicado = None
+    if ' ' in str(ultimo_periodo_dados):
+        partes_periodo = str(ultimo_periodo_dados).split(' ', 1)
+        if len(partes_periodo) > 1 and partes_periodo[1].isdigit():
+            ano_referencia_contagem_aplicado = int(partes_periodo[1])
+    if ano_referencia_contagem_aplicado is None:
+        ano_referencia_contagem_aplicado = ano_maximo if 'ano_maximo' in locals() else datetime.now().year
+    
     meses_com_valor_aplicado = len(meses_historicos_disponiveis_aplicado)  # Valor padrão
     if meses_historicos_disponiveis_aplicado and not df_filtrado.empty and 'Período' in df_filtrado.columns and 'Total' in df_filtrado.columns:
-        # Extrair ano do último período
-        ano_referencia_contagem_aplicado = None
-        if ' ' in str(ultimo_periodo_dados):
-            partes_periodo = str(ultimo_periodo_dados).split(' ', 1)
-            if len(partes_periodo) > 1 and partes_periodo[1].isdigit():
-                ano_referencia_contagem_aplicado = partes_periodo[1]
-        if ano_referencia_contagem_aplicado is None:
-            ano_referencia_contagem_aplicado = str(ano_maximo) if 'ano_maximo' in locals() else str(datetime.now().year)
-        
-        # Criar lista de períodos até o último mês selecionado
+        # Criar lista de períodos até o último mês selecionado, APENAS do ano de referência
         periodos_ate_ultimo_aplicado = []
         for mes in meses_historicos_disponiveis_aplicado:
-            periodo_com_ano = f"{mes} {ano_referencia_contagem_aplicado}"
-            periodos_ate_ultimo_aplicado.append(periodo_com_ano.lower())
+            periodo_com_ano = f"{mes} {ano_referencia_contagem_aplicado}".lower()
+            periodos_ate_ultimo_aplicado.append(periodo_com_ano)
         
-        # Filtrar df_filtrado para períodos até o último mês
-        periodos_no_df_aplicado = df_filtrado['Período'].astype(str).str.strip().str.lower()
+        # 🔧 CORREÇÃO CRÍTICA: Filtrar também por Ano se a coluna existir
+        # Isso garante que apenas períodos do ano de referência sejam considerados
+        df_filtrado_copy_aplicado = df_filtrado.copy()
+        if 'Ano' in df_filtrado_copy_aplicado.columns:
+            # Filtrar primeiro por ano
+            df_filtrado_copy_aplicado = df_filtrado_copy_aplicado[df_filtrado_copy_aplicado['Ano'] == ano_referencia_contagem_aplicado].copy()
+        
+        # Filtrar df_filtrado para períodos até o último mês (já filtrado por ano)
+        periodos_no_df_aplicado = df_filtrado_copy_aplicado['Período'].astype(str).str.strip().str.lower()
         mask_periodos_ate_ultimo_aplicado = periodos_no_df_aplicado.isin(periodos_ate_ultimo_aplicado)
-        df_periodos_ate_ultimo_aplicado = df_filtrado[mask_periodos_ate_ultimo_aplicado].copy()
+        df_periodos_ate_ultimo_aplicado = df_filtrado_copy_aplicado[mask_periodos_ate_ultimo_aplicado].copy()
+        
+        # 🔧 CORREÇÃO CRÍTICA: Verificar se a coluna Ano existe e garantir que está filtrando corretamente
+        # Se a coluna Ano existir, fazer uma verificação adicional para garantir que apenas períodos do ano correto sejam contados
+        if 'Ano' in df_periodos_ate_ultimo_aplicado.columns:
+            # Filtrar novamente por ano para garantir que apenas períodos do ano de referência sejam contados
+            df_periodos_ate_ultimo_aplicado = df_periodos_ate_ultimo_aplicado[df_periodos_ate_ultimo_aplicado['Ano'] == ano_referencia_contagem_aplicado].copy()
         
         # Contar períodos únicos que têm pelo menos uma linha com Total != 0 (inclui valores negativos, exclui apenas zeros)
         if not df_periodos_ate_ultimo_aplicado.empty:
@@ -1244,7 +1458,16 @@ if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None
             df_periodos_ate_ultimo_aplicado_copy['Período_Normalizado'] = df_periodos_ate_ultimo_aplicado_copy['Período'].astype(str).str.strip().str.lower()
             
             # Verificar se há pelo menos uma linha com Total != 0 para cada período
-            periodos_unicos_aplicado = df_periodos_ate_ultimo_aplicado_copy['Período_Normalizado'].unique()
+            # IMPORTANTE: Agrupar por Período_Normalizado E Ano (se existir) para garantir unicidade
+            if 'Ano' in df_periodos_ate_ultimo_aplicado_copy.columns:
+                # Agrupar por Período_Normalizado e Ano para garantir que estamos contando apenas períodos do ano correto
+                periodos_unicos_df = df_periodos_ate_ultimo_aplicado_copy[['Período_Normalizado', 'Ano']].drop_duplicates()
+                # Filtrar apenas os do ano de referência
+                periodos_unicos_df = periodos_unicos_df[periodos_unicos_df['Ano'] == ano_referencia_contagem_aplicado]
+                periodos_unicos_aplicado = periodos_unicos_df['Período_Normalizado'].unique()
+            else:
+                periodos_unicos_aplicado = df_periodos_ate_ultimo_aplicado_copy['Período_Normalizado'].unique()
+            
             periodos_com_valor_lista_aplicado = []
             for periodo in periodos_unicos_aplicado:
                 df_periodo = df_periodos_ate_ultimo_aplicado_copy[df_periodos_ate_ultimo_aplicado_copy['Período_Normalizado'] == periodo]
@@ -1252,6 +1475,17 @@ if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None
                 if (df_periodo['Total'] != 0).any():
                     periodos_com_valor_lista_aplicado.append(periodo)
             meses_com_valor_aplicado = len(periodos_com_valor_lista_aplicado)
+            
+            # Se não encontrou nenhum período com valor, usar o número de meses históricos disponíveis
+            if meses_com_valor_aplicado == 0:
+                meses_com_valor_aplicado = len(meses_historicos_disponiveis_aplicado)
+        else:
+            # Se não encontrou nenhum período, usar o número de meses históricos disponíveis
+            meses_com_valor_aplicado = len(meses_historicos_disponiveis_aplicado)
+            
+            # Se não encontrou nenhum período com valor, usar o número de meses históricos disponíveis
+            if meses_com_valor_aplicado == 0:
+                meses_com_valor_aplicado = len(meses_historicos_disponiveis_aplicado)
     
     # Ajustar num_meses_media se exceder o novo máximo
     max_meses_media_aplicado = max(1, meses_com_valor_aplicado)
@@ -1275,8 +1509,9 @@ else:
         """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
         df_copy = df.copy()
         
-        # Se houver coluna "Ano" e múltiplos anos, ordenar por ano e mês
-        if 'Ano' in df_copy.columns and df_copy['Ano'].nunique() > 1:
+        # Se houver coluna "Ano", sempre ordenar por ano e mês (mesmo que haja apenas um ano)
+        # Isso garante que quando "Todos" está selecionado, todos os períodos sejam mostrados ordenados
+        if 'Ano' in df_copy.columns:
             # Criar coluna de ordenação: ano primeiro, depois mês
             df_copy['_ordem_ano'] = df_copy['Ano']
             df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
@@ -1285,7 +1520,7 @@ else:
             df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
             df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
         else:
-            # Ordenação simples por mês
+            # Ordenação simples por mês (comportamento original quando não há coluna Ano)
             df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
                 {mes: idx for idx, mes in enumerate(ORDEM_MESES_GRAFICO)}
             ).fillna(999)
@@ -1322,12 +1557,15 @@ else:
             
             # Verificar se há coluna Total
             if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
-                # Verificar se há múltiplos anos
-                tem_multiplos_anos = 'Ano' in df_forecast_grafico.columns and df_forecast_grafico['Ano'].nunique() > 1
+                # Converter Total para numérico caso seja categórico
+                df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
                 
-                if tem_multiplos_anos:
-                    # Agrupar por Ano e Período
-                    chart_data = df_forecast_grafico.groupby(['Ano', 'Período'])['Total'].sum().reset_index()
+                # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
+                tem_ano = 'Ano' in df_forecast_grafico.columns
+                
+                if tem_ano:
+                    # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
+                    chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
                     
                     # Criar coluna combinada para o rótulo do gráfico
                     chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
@@ -1337,8 +1575,8 @@ else:
                     ordem_periodos = chart_data['Período_Completo'].tolist()
                     coluna_periodo_grafico = 'Período_Completo'
                 else:
-                    # Agrupar apenas por Período
-                    chart_data = df_forecast_grafico.groupby('Período')['Total'].sum().reset_index()
+                    # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
+                    chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
                     
                     # Ordenar por mês
                     chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
@@ -1502,27 +1740,45 @@ if df_vol is not None and not df_vol.empty and 'df_filtrado' in locals() and df_
                     df_vol['Veículo'].astype(str).isin(veiculos_com_valores)
                 ].copy()
 
-# Verificar se temos as colunas necessárias
+# Verificar se temos as colunas necessárias (Custo é obrigatória e deve ser preservada)
 colunas_necessarias = ['Oficina', 'Veículo', 'Período', 'Total', 'Custo']
 colunas_faltando = [col for col in colunas_necessarias if col not in df_filtrado.columns]
 
 if colunas_faltando:
     st.error(f"❌ Colunas necessárias não encontradas: {', '.join(colunas_faltando)}")
-    st.info("ℹ️ Certifique-se de que o arquivo df_final.parquet contém todas as colunas necessárias.")
+    st.info("ℹ️ Certifique-se de que o arquivo df_final.parquet contém todas as colunas necessárias, incluindo a coluna 'Custo'.")
+    st.stop()
 else:
-    # Função para identificar se é custo fixo ou variável
-    def is_custo_fixo(valor_custo):
-        """Identifica se o custo é fixo baseado no valor da coluna Custo"""
-        if pd.isna(valor_custo):
-            return False
-        valor_str = str(valor_custo).strip().upper()
-        # Considerar como fixo se contém palavras-chave
-        palavras_fixo = ['FIXO', 'FIX', 'FIXED']
-        return any(palavra in valor_str for palavra in palavras_fixo)
+    # Garantir que a coluna 'Custo' está presente e não será removida
+    if 'Custo' not in df_filtrado.columns:
+        st.error("❌ Coluna 'Custo' não encontrada nos dados. Esta coluna é obrigatória.")
+        st.stop()
     
-    # Criar coluna indicando se é fixo ou variável
-    df_filtrado['Tipo_Custo'] = df_filtrado['Custo'].apply(is_custo_fixo)
-    df_filtrado['Tipo_Custo'] = df_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
+    # Criar coluna Tipo_Custo se não existir (baseada na coluna Custo)
+    if 'Tipo_Custo' not in df_filtrado.columns:
+        # Função para identificar se é custo fixo ou variável
+        def is_custo_fixo(valor_custo):
+            """Identifica se o custo é fixo baseado no valor da coluna Custo"""
+            if pd.isna(valor_custo):
+                return False
+            valor_str = str(valor_custo).strip().upper()
+            # Considerar como fixo se contém palavras-chave
+            palavras_fixo = ['FIXO', 'FIX', 'FIXED']
+            return any(palavra in valor_str for palavra in palavras_fixo)
+        
+        # Criar coluna indicando se é fixo ou variável (baseada na coluna Custo)
+        df_filtrado['Tipo_Custo'] = df_filtrado['Custo'].apply(is_custo_fixo)
+        df_filtrado['Tipo_Custo'] = df_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
+    else:
+        # Se Tipo_Custo já existe, garantir que tenha apenas valores válidos
+        valores_validos = df_filtrado['Tipo_Custo'].isin(['Fixo', 'Variável'])
+        if not valores_validos.all():
+            # Substituir valores inválidos por 'Variável'
+            df_filtrado.loc[~valores_validos, 'Tipo_Custo'] = 'Variável'
+            st.info("ℹ️ Alguns valores inválidos em 'Tipo_Custo' foram substituídos por 'Variável'.")
+    
+    # IMPORTANTE: A coluna 'Custo' deve ser preservada durante todo o processamento
+    # Ela não deve ser removida em nenhum drop ou merge
     
     # Validação: verificar se há períodos para calcular a média
     # Se não houver períodos configurados, tentar usar períodos disponíveis nos dados
@@ -1557,7 +1813,26 @@ else:
                 
                 if periodos_encontrados:
                     # Pegar os últimos N períodos encontrados
-                    periodos_para_media = periodos_encontrados[-num_meses_media:] if len(periodos_encontrados) >= num_meses_media else periodos_encontrados
+                    periodos_para_media_temp = periodos_encontrados[-num_meses_media:] if len(periodos_encontrados) >= num_meses_media else periodos_encontrados
+                    
+                    # 🔧 CORREÇÃO: Garantir que todos os períodos tenham o ano
+                    periodos_para_media = []
+                    ano_para_corrigir = ultimo_ano_dados
+                    if ' ' in str(ultimo_periodo_dados):
+                        partes = str(ultimo_periodo_dados).split(' ', 1)
+                        if len(partes) > 1 and partes[1].isdigit():
+                            ano_para_corrigir = int(partes[1])
+                    
+                    for periodo in periodos_para_media_temp:
+                        periodo_str = str(periodo).strip()
+                        # Se não tiver ano (não tem espaço ou o que vem depois do espaço não é um número)
+                        if ' ' not in periodo_str or not periodo_str.split(' ', 1)[1].isdigit():
+                            # Adicionar o ano
+                            periodo_com_ano = f"{periodo_str} {ano_para_corrigir}"
+                            periodos_para_media.append(periodo_com_ano)
+                        else:
+                            periodos_para_media.append(periodo_str)
+                    
                     st.warning(f"⚠️ **Aviso:** Não foram encontrados todos os {num_meses_media} períodos solicitados. Usando {len(periodos_para_media)} período(s) disponível(is): {', '.join(periodos_para_media)}")
                 else:
                     st.error("❌ **Erro de Configuração:** Nenhum período disponível para calcular a média histórica.")
@@ -1647,12 +1922,21 @@ else:
             # 🔧 CORREÇÃO CRÍTICA: Garantir que apenas períodos do ano de referência sejam incluídos
             def periodo_corresponde(periodo_df):
                 periodo_df_lower = str(periodo_df).strip().lower()
+                periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
+                periodo_df_ano = None
+                periodo_df_mes = None
+                
+                if periodo_df_tem_ano:
+                    partes = periodo_df_lower.split(' ', 1)
+                    periodo_df_mes = partes[0]
+                    if len(partes) > 1 and partes[1].isdigit():
+                        periodo_df_ano = int(partes[1])
+                else:
+                    periodo_df_mes = periodo_df_lower
                 
                 # 🔧 CORREÇÃO CRÍTICA: Se há ano de referência definido, filtrar APENAS esse ano
                 if ano_referencia_filtro:
-                    periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
-                    if periodo_df_tem_ano:
-                        periodo_df_ano = int(periodo_df_lower.split(' ', 1)[1]) if periodo_df_lower.split(' ', 1)[1].isdigit() else None
+                    if periodo_df_ano is not None:
                         # Se o período tem ano diferente do ano de referência, NÃO incluir
                         if periodo_df_ano != ano_referencia_filtro:
                             return False
@@ -1663,13 +1947,9 @@ else:
                 
                 # Verificar se o período está antes ou no último mês selecionado
                 if ultimo_mes_limite and ultimo_ano_limite:
-                    periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
-                    if periodo_df_tem_ano:
-                        periodo_df_ano = int(periodo_df_lower.split(' ', 1)[1]) if periodo_df_lower.split(' ', 1)[1].isdigit() else None
-                        periodo_df_mes = periodo_df_lower.split(' ', 1)[0]
-                        
+                    if periodo_df_ano is not None:
                         # Verificar se está antes do último mês
-                        if periodo_df_ano and periodo_df_ano > ultimo_ano_limite:
+                        if periodo_df_ano > ultimo_ano_limite:
                             return False
                         if periodo_df_ano == ultimo_ano_limite:
                             # Comparar meses usando índice
@@ -1681,7 +1961,6 @@ else:
                                     return False
                     else:
                         # Se o período do DataFrame não tem ano, verificar apenas pelo mês
-                        periodo_df_mes = periodo_df_lower
                         meses_ano_lower = [m.lower() for m in meses_ano]
                         if periodo_df_mes in meses_ano_lower and ultimo_mes_limite in meses_ano_lower:
                             idx_periodo = meses_ano_lower.index(periodo_df_mes)
@@ -1693,26 +1972,25 @@ else:
                 if periodo_df_lower in periodos_procurados_normalizados:
                     return True
                 
-                # Se não houver correspondência exata, verificar se ambos têm ano
-                periodo_df_tem_ano = ' ' in periodo_df_lower and len(periodo_df_lower.split(' ', 1)) > 1
-                
+                # Se não houver correspondência exata, verificar se o mês corresponde aos períodos procurados
                 for periodo_procurado in periodos_procurados_normalizados:
                     periodo_procurado_tem_ano = ' ' in periodo_procurado and len(periodo_procurado.split(' ', 1)) > 1
                     
-                    # Se ambos têm ano, comparar período completo (já verificamos exato acima)
-                    if periodo_df_tem_ano and periodo_procurado_tem_ano:
-                        # Se ambos têm ano mas não são iguais, não corresponde
-                        continue
-                    
-                    # Se nenhum tem ano ou apenas um tem, comparar apenas o mês
-                    # MAS APENAS se não houver ano de referência definido
-                    if not ano_referencia_filtro:
-                        mes_df = periodo_df_lower.split(' ', 1)[0] if ' ' in periodo_df_lower else periodo_df_lower
-                        mes_procurado = periodo_procurado.split(' ', 1)[0] if ' ' in periodo_procurado else periodo_procurado
+                    if periodo_procurado_tem_ano:
+                        partes_procurado = periodo_procurado.split(' ', 1)
+                        mes_procurado = partes_procurado[0]
+                        ano_procurado = int(partes_procurado[1]) if len(partes_procurado) > 1 and partes_procurado[1].isdigit() else None
                         
-                        if mes_df == mes_procurado:
-                            # Se o período procurado tem ano mas o do DF não tem, não incluir
-                            if periodo_procurado_tem_ano and not periodo_df_tem_ano:
+                        # Se ambos têm ano, comparar mês e ano
+                        if periodo_df_ano is not None and ano_procurado is not None:
+                            if periodo_df_mes == mes_procurado and periodo_df_ano == ano_procurado:
+                                return True
+                    else:
+                        # Se o período procurado não tem ano, comparar apenas o mês
+                        mes_procurado = periodo_procurado
+                        if periodo_df_mes == mes_procurado:
+                            # Se o período do DF tem ano mas o procurado não tem, não incluir
+                            if periodo_df_ano is not None:
                                 continue
                             return True
                 
@@ -1721,6 +1999,16 @@ else:
             df_filtrado_media = df_filtrado_cache[
                 periodos_no_df.apply(periodo_corresponde)
             ].copy()
+            
+            # Armazenar debug em session_state para exibir depois (função cached não pode exibir diretamente)
+            if not df_filtrado_media.empty:
+                periodos_encontrados_debug = df_filtrado_media['Período'].dropna().unique().tolist()
+                st.session_state['debug_calcular_medias'] = {
+                    'periodos_procurados': periodos_para_media_cache,
+                    'ano_referencia': ano_referencia_filtro,
+                    'periodos_encontrados': periodos_encontrados_debug,
+                    'total_registros': len(df_filtrado_media)
+                }
             
             # Se não encontrou correspondências, tentar encontrar períodos alternativos pelos meses
             # MAS APENAS se estiverem antes do último mês selecionado
@@ -1970,6 +2258,11 @@ else:
 
     # Calcular médias com cache (usando apenas os períodos selecionados)
     df_medias, df_media_mensal = calcular_medias_forecast(df_filtrado, colunas_adicionais, periodos_para_media, ultimo_periodo_dados)
+    
+    # Debug: exibir informações da função calcular_medias_forecast (armazenadas em session_state)
+    if 'debug_calcular_medias' in st.session_state:
+        debug_info = st.session_state['debug_calcular_medias']
+        st.sidebar.info(f"🔍 Debug calcular_medias_forecast:\n- Períodos procurados: {debug_info.get('periodos_procurados', [])}\n- Ano de referência: {debug_info.get('ano_referencia', None)}\n- Períodos encontrados: {debug_info.get('periodos_encontrados', [])}\n- Total de registros: {debug_info.get('total_registros', 0)}")
     
     # ====================================================================
     # 🔧 FUNÇÃO CENTRALIZADA: Calcular média histórica de forma padronizada
@@ -3041,6 +3334,11 @@ else:
                 )
                 
                 # 🔧 CORREÇÃO: Criar coluna Tipo_Custo se não existir (mesma lógica do código principal)
+                # IMPORTANTE: A coluna 'Custo' deve estar presente e ser preservada
+                if 'Custo' not in df_base_filtrado.columns:
+                    st.error("❌ Coluna 'Custo' não encontrada em df_base_filtrado. Esta coluna é obrigatória.")
+                    st.stop()
+                
                 if 'Tipo_Custo' not in df_base_filtrado.columns:
                     def is_custo_fixo(valor_custo):
                         """Identifica se o custo é fixo baseado no valor da coluna Custo"""
@@ -3051,13 +3349,9 @@ else:
                         palavras_fixo = ['FIXO', 'FIX', 'FIXED']
                         return any(palavra in valor_str for palavra in palavras_fixo)
                     
-                    # Verificar se existe coluna 'Custo' para determinar Tipo_Custo
-                    if 'Custo' in df_base_filtrado.columns:
-                        df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Custo'].apply(is_custo_fixo)
-                        df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
-                    else:
-                        # Se não existe coluna Custo, usar padrão 'Variável'
-                        df_base_filtrado['Tipo_Custo'] = 'Variável'
+                    # Criar Tipo_Custo baseado na coluna Custo (que deve estar presente)
+                    df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Custo'].apply(is_custo_fixo)
+                    df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
                 
                 # Calcular médias históricas linha a linha (mesma lógica do forecast)
                 # Agrupar por chave única (Oficina, Veículo, Tipo_Custo, etc) e período
@@ -3087,6 +3381,12 @@ else:
                 else:
                     df_medias_linha = pd.DataFrame(columns=colunas_chave_forecast_existentes + ['Média_Mensal_Histórica'])
                 
+                # Remover colunas de normalização se existirem
+                colunas_normalizacao_remover = ['Período_Norm', 'Período_Normalizado', 'Period_Norm', 'Period_Normalizado']
+                colunas_normalizacao_existentes = [col for col in colunas_normalizacao_remover if col in df_medias_linha.columns]
+                if colunas_normalizacao_existentes:
+                    df_medias_linha = df_medias_linha.drop(columns=colunas_normalizacao_existentes)
+                
                 # Fazer merge com volume_base para obter Volume_Medio_Historico
                 if volume_base is not None and not volume_base.empty:
                     colunas_merge_vol = ['Oficina', 'Veículo']
@@ -3105,7 +3405,20 @@ else:
                 # que usa a mesma lógica do modo Custo Total do gráfico
                 
                 # Primeiro, criar df_forecast_completo a partir de df_base_filtrado
+                # IMPORTANTE: Preservar a coluna 'Custo' durante todo o processamento
                 df_forecast_completo = df_base_filtrado.copy()
+                
+                # Verificar se a coluna 'Custo' está presente
+                if 'Custo' not in df_forecast_completo.columns:
+                    st.error("❌ Coluna 'Custo' não encontrada em df_forecast_completo. Esta coluna é obrigatória.")
+                    st.stop()
+                
+                # Remover colunas de normalização de período (não devem estar no arquivo final)
+                # MAS NUNCA REMOVER 'Custo'
+                colunas_normalizacao_remover = ['Período_Norm', 'Período_Normalizado', 'Period_Norm', 'Period_Normalizado']
+                colunas_normalizacao_existentes = [col for col in colunas_normalizacao_remover if col in df_forecast_completo.columns]
+                if colunas_normalizacao_existentes:
+                    df_forecast_completo = df_forecast_completo.drop(columns=colunas_normalizacao_existentes)
                 
                 # Adicionar Média_Mensal_Histórica e Volume_Medio_Historico via merge
                 # IMPORTANTE: Usar apenas as colunas chave que existem em ambos os DataFrames
@@ -3180,43 +3493,44 @@ else:
                 
                 # Calcular forecast para cada período linha a linha
                 for periodo in periodos_restantes:
-                    # Buscar volume para este período
+                    # Buscar volume para este período (sem normalização e sem adicionar colunas ao df_forecast_completo)
                     volume_mes_serie = None
                     if volume_por_mes is not None and not volume_por_mes.empty:
-                        periodo_str = str(periodo).strip()
-                        mes_procurado = periodo_str.split(' ', 1)[0].lower() if ' ' in periodo_str else periodo_str.lower()
-                        
-                        # Filtrar volume para este período
-                        volume_por_mes_temp = volume_por_mes.copy()
-                        volume_por_mes_temp['Período_Normalizado'] = volume_por_mes_temp['Período'].astype(str).str.strip().str.lower().str.split(' ', expand=True)[0]
-                        vol_mes_df = volume_por_mes_temp[volume_por_mes_temp['Período_Normalizado'] == mes_procurado].copy()
+                        # Filtrar volume para este período exato (sem normalização)
+                        vol_mes_df = volume_por_mes[volume_por_mes['Período'].astype(str).str.strip() == str(periodo).strip()].copy()
                         
                         if not vol_mes_df.empty:
                             # Agrupar por Oficina e Veículo
                             vol_mes_df = vol_mes_df.groupby(['Oficina', 'Veículo'], as_index=False)['Volume'].sum()
                             
-                            # Fazer merge com df_forecast_completo
-                            df_forecast_completo = df_forecast_completo.merge(
-                                vol_mes_df.rename(columns={'Volume': f'Volume_{periodo}'}),
-                                on=['Oficina', 'Veículo'],
-                                how='left'
-                            )
-                            # Verificar se Volume_Medio_Historico existe antes de usar
-                            if 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                                volume_mes_serie = df_forecast_completo[f'Volume_{periodo}'].fillna(df_forecast_completo['Volume_Medio_Historico'])
-                            else:
-                                volume_mes_serie = df_forecast_completo[f'Volume_{periodo}'].fillna(0.0)
-                            df_forecast_completo = df_forecast_completo.drop(columns=[f'Volume_{periodo}'])
+                            # Criar dicionário de volume sem adicionar coluna ao df_forecast_completo
+                            volume_dict = {}
+                            for _, row in vol_mes_df.iterrows():
+                                chave = (str(row['Oficina']), str(row['Veículo']))
+                                volume_dict[chave] = float(row['Volume'])
+                            
+                            # Criar série de volume baseada no índice do df_forecast_completo (sem adicionar coluna)
+                            volume_valores = []
+                            for idx in df_forecast_completo.index:
+                                chave = (str(df_forecast_completo.loc[idx, 'Oficina']), str(df_forecast_completo.loc[idx, 'Veículo']))
+                                if chave in volume_dict:
+                                    volume_valores.append(volume_dict[chave])
+                                elif 'Volume_Medio_Historico' in df_forecast_completo.columns:
+                                    volume_valores.append(float(df_forecast_completo.loc[idx, 'Volume_Medio_Historico']))
+                                else:
+                                    volume_valores.append(0.0)
+                            
+                            volume_mes_serie = pd.Series(volume_valores, index=df_forecast_completo.index)
                         else:
                             # Verificar se Volume_Medio_Historico existe antes de usar
                             if 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                                volume_mes_serie = df_forecast_completo['Volume_Medio_Historico']
+                                volume_mes_serie = df_forecast_completo['Volume_Medio_Historico'].copy()
                             else:
                                 volume_mes_serie = pd.Series(0.0, index=df_forecast_completo.index)
                     else:
                         # Verificar se Volume_Medio_Historico existe antes de usar
                         if 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                            volume_mes_serie = df_forecast_completo['Volume_Medio_Historico']
+                            volume_mes_serie = df_forecast_completo['Volume_Medio_Historico'].copy()
                         else:
                             volume_mes_serie = pd.Series(0.0, index=df_forecast_completo.index)
                     
@@ -3409,8 +3723,13 @@ else:
                         st.error("❌ Erro: DataFrame vazio! Não é possível salvar.")
                         st.stop()
                     
-                    # Remover colunas especificadas
+                    # Remover colunas especificadas (MAS NUNCA REMOVER 'Custo' - ela deve ser preservada)
                     colunas_para_remover = ['Nºconta', 'Nºdoc.ref.', 'Dt.lçto.', 'QTD', 'Nºdoc.ref', 'Doc.compra', 'Texto breve', 'Material', 'Usuário']
+                    # Remover também colunas de normalização de período
+                    colunas_normalizacao = ['Período_Norm', 'Período_Normalizado', 'Period_Norm', 'Period_Normalizado']
+                    colunas_para_remover.extend(colunas_normalizacao)
+                    # IMPORTANTE: Garantir que 'Custo' NUNCA seja removida
+                    colunas_para_remover = [col for col in colunas_para_remover if col != 'Custo']
                     colunas_para_remover_existentes = [col for col in colunas_para_remover if col in df_forecast_completo.columns]
                     if colunas_para_remover_existentes:
                         df_forecast_completo = df_forecast_completo.drop(columns=colunas_para_remover_existentes)
@@ -3530,53 +3849,81 @@ else:
                     # Salvar em excel (sempre substituir se existir)
                     caminho_excel = os.path.join(pasta_forecast, f"{nome_arquivo_base}.xlsx")
                     caminho_excel_absoluto = os.path.abspath(caminho_excel)
+                    excel_salvo = False
+                    
                     try:
                         st.info(f"💾 Salvando Excel em: {caminho_excel_absoluto}")
                         st.info(f"📊 Total de linhas para salvar: {len(df_forecast_completo):,}")
                         
-                        # Para arquivos grandes, pode ser necessário usar xlsxwriter ou dividir em chunks
-                        # Primeiro, tentar salvar normalmente (mode='w' substitui arquivo existente)
-                        with pd.ExcelWriter(caminho_excel, engine='openpyxl', mode='w') as writer:
-                            df_forecast_completo.to_excel(writer, index=False, sheet_name='Forecast')
-                        
-                        # Verificar se o arquivo foi criado
+                        # Tentar remover arquivo existente se houver (pode estar bloqueado)
                         if os.path.exists(caminho_excel):
-                            tamanho_arquivo = os.path.getsize(caminho_excel) / (1024 * 1024)  # Tamanho em MB
-                            st.success(f"✅ Excel salvo/substituído com sucesso!")
-                            st.info(f"   📄 Arquivo: {caminho_excel_absoluto}")
-                            st.info(f"   📏 Tamanho: {tamanho_arquivo:.2f} MB")
-                        else:
-                            st.error(f"❌ Arquivo Excel não foi criado: {caminho_excel_absoluto}")
-                            # Tentar salvar com xlsxwriter como alternativa
+                            try:
+                                os.remove(caminho_excel)
+                                st.info(f"🗑️ Arquivo Excel antigo removido")
+                            except PermissionError:
+                                st.warning(f"⚠️ Não foi possível remover arquivo Excel existente (pode estar aberto)")
+                                st.info(f"💡 Por favor, feche o arquivo Excel se estiver aberto: {caminho_excel_absoluto}")
+                            except Exception as e_remove:
+                                st.warning(f"⚠️ Erro ao remover arquivo Excel existente: {str(e_remove)}")
+                        
+                        # Tentar salvar com openpyxl
+                        try:
+                            with pd.ExcelWriter(caminho_excel, engine='openpyxl', mode='w') as writer:
+                                df_forecast_completo.to_excel(writer, index=False, sheet_name='Forecast')
+                            
+                            if os.path.exists(caminho_excel):
+                                tamanho_arquivo = os.path.getsize(caminho_excel) / (1024 * 1024)  # Tamanho em MB
+                                st.success(f"✅ Excel salvo/substituído com sucesso!")
+                                st.info(f"   📄 Arquivo: {caminho_excel_absoluto}")
+                                st.info(f"   📏 Tamanho: {tamanho_arquivo:.2f} MB")
+                                excel_salvo = True
+                        except PermissionError as e_perm:
+                            st.warning(f"⚠️ Erro de permissão ao salvar Excel: {str(e_perm)}")
+                            st.info(f"💡 O arquivo pode estar aberto em outro programa (Excel, etc.)")
+                            st.info(f"💡 Por favor, feche o arquivo e tente novamente: {caminho_excel_absoluto}")
+                            st.info(f"ℹ️ O arquivo Parquet foi salvo com sucesso, você pode continuar usando o sistema.")
+                            excel_salvo = False
+                        except Exception as e_openpyxl:
+                            st.warning(f"⚠️ Erro ao salvar com openpyxl: {str(e_openpyxl)}")
+                            excel_salvo = False
+                        
+                        # Se não conseguiu salvar com openpyxl, tentar com xlsxwriter
+                        if not excel_salvo:
                             try:
                                 import xlsxwriter
-                                st.info(f"🔄 Tentando salvar com xlsxwriter...")
+                                st.info(f"🔄 Tentando salvar com xlsxwriter como alternativa...")
+                                
+                                # Tentar remover novamente antes de salvar com xlsxwriter
+                                if os.path.exists(caminho_excel):
+                                    try:
+                                        os.remove(caminho_excel)
+                                    except:
+                                        pass
+                                
                                 with pd.ExcelWriter(caminho_excel, engine='xlsxwriter') as writer:
                                     df_forecast_completo.to_excel(writer, index=False, sheet_name='Forecast')
+                                
                                 if os.path.exists(caminho_excel):
                                     tamanho_arquivo = os.path.getsize(caminho_excel) / (1024 * 1024)
                                     st.success(f"✅ Excel salvo com xlsxwriter: {os.path.abspath(caminho_excel)} ({tamanho_arquivo:.2f} MB)")
-                            except Exception as e_excel_alt:
-                                st.error(f"❌ Erro ao salvar Excel com xlsxwriter: {str(e_excel_alt)}")
-                                import traceback
-                                st.error(f"Detalhes: {traceback.format_exc()}")
+                                    excel_salvo = True
+                            except PermissionError as e_perm_xlsx:
+                                st.warning(f"⚠️ Erro de permissão ao salvar Excel com xlsxwriter: {str(e_perm_xlsx)}")
+                                st.info(f"💡 O arquivo pode estar aberto em outro programa (Excel, etc.)")
+                                st.info(f"💡 Por favor, feche o arquivo e tente novamente: {caminho_excel_absoluto}")
+                                st.info(f"ℹ️ O arquivo Parquet foi salvo com sucesso, você pode continuar usando o sistema.")
+                            except Exception as e_xlsxwriter:
+                                st.warning(f"⚠️ Erro ao salvar Excel com xlsxwriter: {str(e_xlsxwriter)}")
+                                st.info(f"ℹ️ O arquivo Parquet foi salvo com sucesso, você pode continuar usando o sistema.")
+                        
+                        if not excel_salvo:
+                            st.warning(f"⚠️ Não foi possível salvar o arquivo Excel, mas o Parquet foi salvo com sucesso.")
+                            st.info(f"💡 Você pode tentar salvar o Excel manualmente ou fechar o arquivo se estiver aberto.")
                     except Exception as e_excel:
-                        st.error(f"❌ Erro ao salvar Excel: {str(e_excel)}")
-                        import traceback
-                        st.error(f"Detalhes: {traceback.format_exc()}")
-                        # Tentar salvar com xlsxwriter como alternativa
-                        try:
-                            import xlsxwriter
-                            st.info(f"🔄 Tentando salvar com xlsxwriter como alternativa...")
-                            with pd.ExcelWriter(caminho_excel, engine='xlsxwriter') as writer:
-                                df_forecast_completo.to_excel(writer, index=False, sheet_name='Forecast')
-                            if os.path.exists(caminho_excel):
-                                tamanho_arquivo = os.path.getsize(caminho_excel) / (1024 * 1024)
-                                st.success(f"✅ Excel salvo com xlsxwriter: {os.path.abspath(caminho_excel)} ({tamanho_arquivo:.2f} MB)")
-                        except Exception as e_excel_alt:
-                            st.error(f"❌ Erro ao salvar Excel com xlsxwriter: {str(e_excel_alt)}")
-                            import traceback
-                            st.error(f"Detalhes: {traceback.format_exc()}")
+                        st.warning(f"⚠️ Erro ao salvar Excel: {str(e_excel)}")
+                        if isinstance(e_excel, PermissionError):
+                            st.info(f"💡 O arquivo pode estar aberto. Por favor, feche o arquivo: {caminho_excel_absoluto}")
+                        st.info(f"ℹ️ O arquivo Parquet foi salvo com sucesso, você pode continuar usando o sistema.")
                     
                     st.success(f"✅ Tabela completa gerada com sucesso!")
                     st.info(f"📁 Arquivos salvos em: **{pasta_forecast}/**")
@@ -3825,54 +4172,32 @@ else:
                                     # Combinar
                                     df_consolidado_final = pd.concat([df_historico_agrupado, df_forecast_linhas], ignore_index=True)
                                     
-                                    # 6. Salvar arquivos na pasta dados\historico_consolidado
+                                    # 6. Salvar arquivos APENAS na pasta dados\Forecast (NÃO salvar em historico_consolidado)
                                     try:
-                                        pasta_historico_consolidado = os.path.join("dados", "historico_consolidado")
+                                        # Usar a pasta Forecast que já foi criada anteriormente
+                                        # pasta_forecast já está definida no escopo anterior
                                         
-                                        # Fazer cópia do arquivo original ANTES de atualizar (df_final_historico.parquet)
-                                        # Isso preserva o estado anterior antes de adicionar os dados de forecast
-                                        caminho_forecast = os.path.join(pasta_historico_consolidado, "df_final_historico_forecast.parquet")
-                                        import shutil
+                                        # Salvar arquivo consolidado com histórico + forecast na pasta Forecast
+                                        caminho_consolidado_forecast = os.path.join(pasta_forecast, "df_final_historico_forecast.parquet")
                                         
-                                        # Sempre fazer cópia se o arquivo original existir
-                                        if os.path.exists(caminho_historico_consolidado):
-                                            shutil.copy2(caminho_historico_consolidado, caminho_forecast)
-                                            st.info(f"📦 Arquivo forecast criado: {os.path.basename(caminho_forecast)}")
-                                            
-                                            # Gerar também em Excel
-                                            caminho_forecast_excel = caminho_forecast.replace('.parquet', '.xlsx')
-                                            try:
-                                                df_historico_completo.to_excel(caminho_forecast_excel, index=False, engine='openpyxl')
-                                                st.info(f"📊 Arquivo forecast Excel criado: {os.path.basename(caminho_forecast_excel)}")
-                                            except Exception as e_forecast_excel:
-                                                st.warning(f"⚠️ Erro ao criar arquivo forecast Excel: {str(e_forecast_excel)}")
-                                        else:
-                                            # Se o arquivo original não existir, criar o forecast a partir do consolidado
-                                            df_consolidado_final.to_parquet(caminho_forecast, index=False, engine='pyarrow')
-                                            st.info(f"📦 Arquivo forecast criado (novo): {os.path.basename(caminho_forecast)}")
-                                            
-                                            # Gerar também em Excel
-                                            caminho_forecast_excel = caminho_forecast.replace('.parquet', '.xlsx')
-                                            try:
-                                                df_consolidado_final.to_excel(caminho_forecast_excel, index=False, engine='openpyxl')
-                                                st.info(f"📊 Arquivo forecast Excel criado: {os.path.basename(caminho_forecast_excel)}")
-                                            except Exception as e_forecast_excel:
-                                                st.warning(f"⚠️ Erro ao criar arquivo forecast Excel: {str(e_forecast_excel)}")
-                                        
-                                        # SEMPRE salvar/substituir df_final_historico.parquet (arquivo consolidado com histórico + forecast)
-                                        # Criar pasta se não existir
-                                        if not os.path.exists(pasta_historico_consolidado):
-                                            os.makedirs(pasta_historico_consolidado)
-                                        
-                                        df_consolidado_final.to_parquet(caminho_historico_consolidado, index=False, engine='pyarrow')
-                                        st.success(f"✅ Arquivo consolidado salvo/substituído: {os.path.basename(caminho_historico_consolidado)}")
+                                        # Salvar arquivo consolidado
+                                        df_consolidado_final.to_parquet(caminho_consolidado_forecast, index=False, engine='pyarrow')
+                                        st.success(f"✅ Arquivo consolidado salvo na pasta Forecast: {os.path.basename(caminho_consolidado_forecast)}")
                                         st.info(f"📊 Total de linhas: {len(df_consolidado_final):,} (Histórico: {len(df_historico_agrupado):,} + Forecast: {len(df_forecast_linhas):,})")
                                         
-                                        # Gerar df_ke5z_historico.parquet
+                                        # Gerar também em Excel
+                                        caminho_consolidado_excel = caminho_consolidado_forecast.replace('.parquet', '.xlsx')
+                                        try:
+                                            df_consolidado_final.to_excel(caminho_consolidado_excel, index=False, engine='openpyxl')
+                                            st.info(f"📊 Arquivo consolidado Excel salvo: {os.path.basename(caminho_consolidado_excel)}")
+                                        except Exception as e_consolidado_excel:
+                                            st.warning(f"⚠️ Erro ao salvar arquivo consolidado Excel: {str(e_consolidado_excel)}")
+                                        
+                                        # Gerar df_ke5z_historico.parquet na pasta Forecast
                                         # Este arquivo deve conter dados agrupados por KE5Z (se houver coluna relacionada)
                                         # Por enquanto, vamos criar uma versão agrupada do df_consolidado_final
                                         # Se não houver coluna específica para KE5Z, vamos usar uma agregação similar
-                                        caminho_ke5z = os.path.join(pasta_historico_consolidado, "df_ke5z_historico.parquet")
+                                        caminho_ke5z = os.path.join(pasta_forecast, "df_ke5z_historico.parquet")
                                         
                                         # Verificar se há colunas relacionadas a KE5Z ou agrupar por chave única
                                         # Por padrão, vamos agrupar por Oficina, Veículo, Período, Ano (se existir)
@@ -4056,8 +4381,9 @@ else:
         """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
         df_copy = df.copy()
         
-        # Se houver coluna "Ano" e múltiplos anos, ordenar por ano e mês
-        if 'Ano' in df_copy.columns and df_copy['Ano'].nunique() > 1:
+        # Se houver coluna "Ano", sempre ordenar por ano e mês (mesmo que haja apenas um ano)
+        # Isso garante que quando "Todos" está selecionado, todos os períodos sejam mostrados ordenados
+        if 'Ano' in df_copy.columns:
             # Criar coluna de ordenação: ano primeiro, depois mês
             df_copy['_ordem_ano'] = df_copy['Ano']
             df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
@@ -4066,7 +4392,7 @@ else:
             df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
             df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
         else:
-            # Ordenação simples por mês
+            # Ordenação simples por mês (comportamento original quando não há coluna Ano)
             df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
                 {mes: idx for idx, mes in enumerate(ORDEM_MESES_GRAFICO_FINAL)}
             ).fillna(999)
@@ -4103,16 +4429,15 @@ else:
             
             # Verificar se há coluna Total
             if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
-                # Verificar se há múltiplos anos
-                tem_multiplos_anos = 'Ano' in df_forecast_grafico.columns and df_forecast_grafico['Ano'].nunique() > 1
-                
                 # Converter Total para numérico caso seja categórico
-                if 'Total' in df_forecast_grafico.columns:
-                    df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce')
+                df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
                 
-                if tem_multiplos_anos:
-                    # Agrupar por Ano e Período
-                    chart_data = df_forecast_grafico.groupby(['Ano', 'Período'])['Total'].sum().reset_index()
+                # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
+                tem_ano = 'Ano' in df_forecast_grafico.columns
+                
+                if tem_ano:
+                    # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
+                    chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
                     
                     # Criar coluna combinada para o rótulo do gráfico
                     chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
@@ -4122,8 +4447,8 @@ else:
                     ordem_periodos = chart_data['Período_Completo'].tolist()
                     coluna_periodo_grafico = 'Período_Completo'
                 else:
-                    # Agrupar apenas por Período
-                    chart_data = df_forecast_grafico.groupby('Período')['Total'].sum().reset_index()
+                    # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
+                    chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
                     
                     # Ordenar por mês
                     chart_data = ordenar_por_mes_forecast_final(chart_data, 'Período')
@@ -4194,8 +4519,9 @@ def ordenar_por_mes_forecast(df, coluna_periodo='Período'):
     """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
     df_copy = df.copy()
     
-    # Se houver coluna "Ano" e múltiplos anos, ordenar por ano e mês
-    if 'Ano' in df_copy.columns and df_copy['Ano'].nunique() > 1:
+    # Se houver coluna "Ano", sempre ordenar por ano e mês (mesmo que haja apenas um ano)
+    # Isso garante que quando "Todos" está selecionado, todos os períodos sejam mostrados ordenados
+    if 'Ano' in df_copy.columns:
         # Criar coluna de ordenação: ano primeiro, depois mês
         df_copy['_ordem_ano'] = df_copy['Ano']
         df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
@@ -4204,7 +4530,7 @@ def ordenar_por_mes_forecast(df, coluna_periodo='Período'):
         df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
         df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
     else:
-        # Ordenação simples por mês
+        # Ordenação simples por mês (comportamento original quando não há coluna Ano)
         df_copy['_ordem_mes'] = df_copy[coluna_periodo].astype(str).str.lower().map(
             {mes: idx for idx, mes in enumerate(ORDEM_MESES_GRAFICO)}
         ).fillna(999)
@@ -4242,14 +4568,14 @@ try:
         # Verificar se há coluna Total
         if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
             # Converter Total para numérico caso seja categórico
-            df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce')
+            df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
             
-            # Verificar se há múltiplos anos
-            tem_multiplos_anos = 'Ano' in df_forecast_grafico.columns and df_forecast_grafico['Ano'].nunique() > 1
+            # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
+            tem_ano = 'Ano' in df_forecast_grafico.columns
             
-            if tem_multiplos_anos:
-                # Agrupar por Ano e Período
-                chart_data = df_forecast_grafico.groupby(['Ano', 'Período'])['Total'].sum().reset_index()
+            if tem_ano:
+                # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
+                chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
                 
                 # Criar coluna combinada para o rótulo do gráfico
                 chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
@@ -4259,8 +4585,8 @@ try:
                 ordem_periodos = chart_data['Período_Completo'].tolist()
                 coluna_periodo_grafico = 'Período_Completo'
             else:
-                # Agrupar apenas por Período
-                chart_data = df_forecast_grafico.groupby('Período')['Total'].sum().reset_index()
+                # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
+                chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
                 
                 # Ordenar por mês
                 chart_data = ordenar_por_mes_forecast(chart_data, 'Período')

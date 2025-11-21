@@ -122,14 +122,26 @@ def load_data(ano_selecionado_param):
         # Quando "Todos" está selecionado, SEMPRE carregar do histórico consolidado
         if ano_selecionado_param == "Todos":
             caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+            caminho_absoluto = os.path.abspath(caminho_historico)
+            
             if os.path.exists(caminho_historico):
                 df = pd.read_parquet(caminho_historico)
-                # Debug: mostrar informações sobre os dados carregados
+                
+                # Debug: mostrar informações detalhadas sobre os dados carregados
+                st.sidebar.info(f"📁 Arquivo carregado: {caminho_absoluto}")
+                
                 if "Ano" in df.columns:
                     anos_carregados = sorted(df['Ano'].unique())
-                    st.sidebar.info(f"📁 Histórico consolidado: {anos_carregados} | Total de registros: {len(df):,}")
+                    st.sidebar.info(f"📊 Anos disponíveis: {anos_carregados} | Total de registros: {len(df):,}")
+                    
+                    # Verificar se há coluna Total e se tem valores
+                    if 'Total' in df.columns:
+                        total_sum = df['Total'].sum() if pd.api.types.is_numeric_dtype(df['Total']) else 0
+                        st.sidebar.info(f"💰 Soma Total: R$ {total_sum:,.2f}")
+                else:
+                    st.sidebar.warning("⚠️ Coluna 'Ano' não encontrada nos dados")
             else:
-                st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_historico}")
+                st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
                 st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
                 st.stop()
                 return None
@@ -246,13 +258,41 @@ def load_volume_data(ano_selecionado_param):
 # Carregar dados com o ano selecionado
 try:
     df_total = load_data(ano_selecionado)
+    
+    # Verificar se df_total foi carregado corretamente
+    if df_total is None:
+        st.error("❌ Erro: Nenhum dado foi carregado (df_total é None)")
+        st.stop()
+    
+    if df_total.empty:
+        st.error("❌ Erro: DataFrame carregado está vazio")
+        st.stop()
+    
     st.sidebar.success("✅ Dados carregados com sucesso")
+    
+    # Debug adicional: verificar colunas e valores
     if ano_selecionado == "Todos":
         st.sidebar.info(f"📊 {len(df_total):,} registros (Todos os anos)")
+        
+        # Verificar se há coluna Total e mostrar soma
+        if 'Total' in df_total.columns:
+            # Converter para numérico se necessário
+            if not pd.api.types.is_numeric_dtype(df_total['Total']):
+                df_total['Total'] = pd.to_numeric(df_total['Total'], errors='coerce')
+            
+            total_sum = df_total['Total'].sum()
+            st.sidebar.info(f"💰 Soma Total (df_total): R$ {total_sum:,.2f}")
+            
+            # Verificar anos disponíveis
+            if 'Ano' in df_total.columns:
+                anos_disponiveis = sorted(df_total['Ano'].unique())
+                st.sidebar.info(f"📅 Anos em df_total: {anos_disponiveis}")
     else:
         st.sidebar.info(f"📊 {len(df_total):,} registros (Ano {ano_selecionado})")
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")
+    import traceback
+    st.error(f"Detalhes: {traceback.format_exc()}")
     st.stop()
 
 # Função auxiliar para obter opções de filtro
@@ -764,7 +804,22 @@ def create_period_chart(df_data, coluna, tipo_viz):
     """Cria gráfico de barras por Período"""
     try:
         if coluna not in df_data.columns or 'Período' not in df_data.columns:
+            st.warning(f"⚠️ Colunas necessárias não encontradas. Coluna: {coluna}, Período: {'Período' in df_data.columns}")
             return None
+
+        # Debug: verificar dados recebidos
+        st.sidebar.write(f"🔍 Debug create_period_chart:")
+        st.sidebar.write(f"   - Total de registros recebidos: {len(df_data):,}")
+        st.sidebar.write(f"   - Coluna a ser usada: {coluna}")
+        st.sidebar.write(f"   - Tipo de visualização: {tipo_viz}")
+        
+        if coluna in df_data.columns:
+            # Verificar se a coluna tem valores
+            if pd.api.types.is_numeric_dtype(df_data[coluna]):
+                soma_coluna = df_data[coluna].sum()
+                st.sidebar.write(f"   - Soma da coluna {coluna}: {soma_coluna:,.2f}")
+            else:
+                st.sidebar.write(f"   - Coluna {coluna} não é numérica")
 
         # Verificar se há coluna Ano - sempre mostrar ano junto com período quando existir
         tem_ano = 'Ano' in df_data.columns
@@ -789,6 +844,12 @@ def create_period_chart(df_data, coluna, tipo_viz):
                 )
             else:
                 chart_data = df_data.groupby(['Ano', 'Período'])[coluna].sum().reset_index()
+            
+            # Debug: verificar dados agrupados
+            st.sidebar.write(f"   - Registros após agrupamento: {len(chart_data):,}")
+            if coluna in chart_data.columns and pd.api.types.is_numeric_dtype(chart_data[coluna]):
+                soma_agrupada = chart_data[coluna].sum()
+                st.sidebar.write(f"   - Soma após agrupamento: {soma_agrupada:,.2f}")
             
             # Criar coluna combinada para o rótulo do gráfico
             chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
