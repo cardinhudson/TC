@@ -140,6 +140,13 @@ def load_data(ano_selecionado_param):
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
             df = df[df['Ano'] == int(ano_selecionado_param)].copy()
 
+        # Converter colunas numéricas conhecidas para numérico ANTES da otimização
+        # Isso evita que sejam convertidas para categorical
+        colunas_numericas = ['Valor', 'Total', 'Volume', 'CPU']
+        for col in colunas_numericas:
+            if col in df.columns and df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
         # Otimizar tipos de dados
         for col in df.columns:
             if df[col].dtype == 'object':
@@ -184,6 +191,13 @@ def load_volume_data(ano_selecionado_param):
         # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
             df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+
+        # Converter colunas numéricas conhecidas para numérico ANTES da otimização
+        # Isso evita que sejam convertidas para categorical
+        colunas_numericas = ['Valor', 'Total', 'Volume', 'CPU']
+        for col in colunas_numericas:
+            if col in df.columns and df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
         # Otimizar tipos de dados
         for col in df.columns:
@@ -292,6 +306,9 @@ if 'USI' in df_filtrado.columns:
         ].copy()
 
 # Filtro 4: Período (com cache otimizado)
+# IMPORTANTE: Criar cópia ANTES do filtro de período para usar no gráfico
+df_para_grafico_periodo = df_filtrado.copy()
+
 if 'Período' in df_filtrado.columns:
     periodo_opcoes_raw = get_filter_options(df_filtrado, 'Período')
 
@@ -590,6 +607,7 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
         tipo_visualizacao = "Custo Total"
 else:
     # Usar Total ou Valor diretamente
+    # IMPORTANTE: Adicionar Volume ao df_visualizacao para que o gráfico funcione igual ao modo CPU
     if 'Total' in df_filtrado.columns:
         df_visualizacao = df_filtrado.copy()
         coluna_visualizacao = 'Total'
@@ -599,6 +617,70 @@ else:
     else:
         df_visualizacao = df_filtrado.copy()
         coluna_visualizacao = 'Total'
+    
+    # Adicionar Volume ao df_visualizacao usando a mesma lógica do modo CPU
+    # PROBLEMA IDENTIFICADO: df_visualizacao = df_filtrado.copy() pode ter múltiplas linhas
+    # para a mesma combinação de Oficina+Período+Veículo, causando duplicação no merge
+    # SOLUÇÃO: Agrupar df_visualizacao ANTES do merge, igual ao modo CPU faz com df_total_agrupado
+    if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.columns and 'Período' in df_visualizacao.columns:
+        df_vol_calc = load_volume_data(ano_selecionado)
+        if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
+            tem_veiculo = 'Veículo' in df_visualizacao.columns
+            tem_ano = 'Ano' in df_visualizacao.columns
+            
+            # Filtrar df_vol_calc pelos mesmos filtros (mesma lógica do modo CPU)
+            df_vol_calc_filtrado = df_vol_calc.copy()
+            
+            if tem_veiculo and 'Veículo' in df_vol_calc_filtrado.columns:
+                veiculos_filtrados = df_visualizacao['Veículo'].dropna().unique()
+                if len(veiculos_filtrados) > 0:
+                    df_vol_calc_filtrado = df_vol_calc_filtrado[
+                        df_vol_calc_filtrado['Veículo'].isin(veiculos_filtrados)
+                    ].copy()
+            
+            if 'Oficina' in df_visualizacao.columns and 'Oficina' in df_vol_calc_filtrado.columns:
+                oficinas_filtradas = df_visualizacao['Oficina'].dropna().unique()
+                if len(oficinas_filtradas) > 0:
+                    df_vol_calc_filtrado = df_vol_calc_filtrado[
+                        df_vol_calc_filtrado['Oficina'].isin(oficinas_filtradas)
+                    ].copy()
+            
+            df_vol_calc = df_vol_calc_filtrado
+            
+            # Agrupar Volume exatamente como no modo CPU
+            if tem_veiculo and 'Veículo' in df_vol_calc.columns:
+                colunas_agrupamento_vol = ['Oficina', 'Período']
+                if tem_ano and 'Ano' in df_vol_calc.columns:
+                    colunas_agrupamento_vol.append('Ano')
+                if 'Veículo' in df_vol_calc.columns:
+                    colunas_agrupamento_vol.append('Veículo')
+                
+                df_vol_agrupado = df_vol_calc.groupby(
+                    colunas_agrupamento_vol, as_index=False
+                )['Volume'].sum()
+                
+                # IMPORTANTE: Usar EXATAMENTE as mesmas colunas de agrupamento para o merge
+                # Garantir que colunas_agrupamento seja idêntica a colunas_agrupamento_vol
+                colunas_agrupamento = colunas_agrupamento_vol.copy()
+                
+                # Agrupar df_visualizacao mantendo apenas as colunas necessárias
+                if coluna_visualizacao in df_visualizacao.columns:
+                    # Se tiver coluna de visualização, somar ela também
+                    df_visualizacao_agrupado = df_visualizacao.groupby(
+                        colunas_agrupamento, as_index=False
+                    )[coluna_visualizacao].sum()
+                else:
+                    # Se não tiver, apenas agrupar para ter estrutura única
+                    df_visualizacao_agrupado = df_visualizacao[colunas_agrupamento].drop_duplicates()
+                
+                # Fazer merge com df_vol_agrupado usando as MESMAS colunas
+                # Isso garante que não há duplicação
+                df_visualizacao = pd.merge(
+                    df_visualizacao_agrupado,
+                    df_vol_agrupado[colunas_agrupamento_vol + ['Volume']],
+                    on=colunas_agrupamento_vol,
+                    how='left'
+                )
 
 # Resumo na sidebar
 st.sidebar.markdown("---")
@@ -659,11 +741,11 @@ def create_period_chart(df_data, coluna, tipo_viz):
         if coluna not in df_data.columns or 'Período' not in df_data.columns:
             return None
 
-        # Verificar se há múltiplos anos
-        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        # Verificar se há coluna Ano - sempre mostrar ano junto com período quando existir
+        tem_ano = 'Ano' in df_data.columns
         
-        if tem_multiplos_anos:
-            # Agrupar por Ano e Período
+        if tem_ano:
+            # Agrupar por Ano e Período (sempre que houver coluna Ano)
             # Para CPU, usar EXATAMENTE a mesma lógica da tabela (que está correta)
             if tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns and 'Volume' in df_data.columns:
                 # MESMA LÓGICA DA TABELA: Agrupar por Ano e Período, somar Total e Volume, calcular CPU
@@ -693,7 +775,7 @@ def create_period_chart(df_data, coluna, tipo_viz):
             # Usar Período_Completo no gráfico
             coluna_periodo_grafico = 'Período_Completo'
         else:
-            # Comportamento original: agrupar apenas por Período
+            # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
             # Para CPU, usar EXATAMENTE a mesma lógica da tabela (que está correta)
             if tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns and 'Volume' in df_data.columns:
                 # MESMA LÓGICA DA TABELA: Agrupar por Período, somar Total e Volume, calcular CPU
@@ -778,11 +860,11 @@ def create_volume_chart(df_data):
         if 'Volume' not in df_data.columns or 'Período' not in df_data.columns:
             return None
 
-        # Verificar se há múltiplos anos
-        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        # Verificar se há coluna Ano - sempre mostrar ano junto com período quando existir
+        tem_ano = 'Ano' in df_data.columns
         
-        if tem_multiplos_anos:
-            # Agrupar por Ano e Período
+        if tem_ano:
+            # Agrupar por Ano e Período (sempre que houver coluna Ano)
             chart_data = df_data.groupby(['Ano', 'Período'])['Volume'].sum().reset_index()
             
             # Criar coluna combinada para o rótulo do gráfico
@@ -795,7 +877,7 @@ def create_volume_chart(df_data):
             # Usar Período_Completo no gráfico
             coluna_periodo_grafico = 'Período_Completo'
         else:
-            # Comportamento original: agrupar apenas por Período
+            # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
             chart_data = df_data.groupby('Período')['Volume'].sum().reset_index()
             chart_data = ordenar_por_mes(chart_data, 'Período')
             ordem_periodos = chart_data['Período'].tolist()
@@ -847,8 +929,88 @@ if (coluna_visualizacao in df_visualizacao.columns and
     else:
         st.subheader("📊 Soma do Valor por Período")
     
+    # IMPORTANTE: Criar df_visualizacao_para_grafico usando df_para_grafico_periodo
+    # (dados ANTES do filtro de período) para mostrar TODOS os períodos no gráfico
+    # Aplicar a mesma lógica de preparação de dados, mas usando df_para_grafico_periodo
+    if tipo_visualizacao == "CPU (Custo por Unidade)":
+        df_vol_calc_grafico = load_volume_data(ano_selecionado)
+        if df_vol_calc_grafico is not None and 'Volume' in df_vol_calc_grafico.columns:
+            if ('Oficina' in df_para_grafico_periodo.columns and
+                    'Período' in df_para_grafico_periodo.columns):
+                tem_veiculo = 'Veículo' in df_para_grafico_periodo.columns
+                tem_ano = 'Ano' in df_para_grafico_periodo.columns
+                
+                # Aplicar mesmos filtros de Veículo e Oficina ao volume
+                df_vol_calc_filtrado_grafico = df_vol_calc_grafico.copy()
+                if tem_veiculo and 'Veículo' in df_vol_calc_filtrado_grafico.columns:
+                    veiculos_filtrados = df_para_grafico_periodo['Veículo'].dropna().unique()
+                    if len(veiculos_filtrados) > 0:
+                        df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                            df_vol_calc_filtrado_grafico['Veículo'].isin(veiculos_filtrados)
+                        ].copy()
+                if 'Oficina' in df_para_grafico_periodo.columns and 'Oficina' in df_vol_calc_filtrado_grafico.columns:
+                    oficinas_filtradas = df_para_grafico_periodo['Oficina'].dropna().unique()
+                    if len(oficinas_filtradas) > 0:
+                        df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                            df_vol_calc_filtrado_grafico['Oficina'].isin(oficinas_filtradas)
+                        ].copy()
+                
+                colunas_agrupamento_grafico = ['Oficina', 'Período']
+                if tem_ano:
+                    colunas_agrupamento_grafico.append('Ano')
+                if tem_veiculo:
+                    colunas_agrupamento_grafico.append('Veículo')
+                
+                if 'Total' in df_para_grafico_periodo.columns:
+                    df_total_agrupado_grafico = df_para_grafico_periodo.groupby(
+                        colunas_agrupamento_grafico, as_index=False
+                    )['Total'].sum()
+                else:
+                    df_total_agrupado_grafico = df_para_grafico_periodo.groupby(
+                        colunas_agrupamento_grafico, as_index=False
+                    )['Valor'].sum()
+                    df_total_agrupado_grafico.rename(columns={'Valor': 'Total'}, inplace=True)
+                
+                colunas_agrupamento_vol_grafico = ['Oficina', 'Período']
+                if tem_ano:
+                    colunas_agrupamento_vol_grafico.append('Ano')
+                if tem_veiculo:
+                    colunas_agrupamento_vol_grafico.append('Veículo')
+                
+                df_vol_agrupado_grafico = df_vol_calc_filtrado_grafico.groupby(
+                    colunas_agrupamento_vol_grafico, as_index=False
+                )['Volume'].sum()
+                
+                df_cpu_grafico = pd.merge(
+                    df_total_agrupado_grafico,
+                    df_vol_agrupado_grafico,
+                    on=colunas_agrupamento_grafico,
+                    how='left'
+                )
+                
+                df_cpu_grafico['CPU'] = df_cpu_grafico.apply(
+                    lambda row: (
+                        row['Total'] / row['Volume']
+                        if pd.notnull(row['Volume']) and row['Volume'] != 0
+                        else 0
+                    ),
+                    axis=1
+                )
+                
+                df_visualizacao_para_grafico = df_cpu_grafico.copy()
+                coluna_visualizacao_grafico = 'CPU'
+            else:
+                df_visualizacao_para_grafico = df_para_grafico_periodo.copy()
+                coluna_visualizacao_grafico = 'Total' if 'Total' in df_para_grafico_periodo.columns else 'Valor'
+        else:
+            df_visualizacao_para_grafico = df_para_grafico_periodo.copy()
+            coluna_visualizacao_grafico = 'Total' if 'Total' in df_para_grafico_periodo.columns else 'Valor'
+    else:
+        df_visualizacao_para_grafico = df_para_grafico_periodo.copy()
+        coluna_visualizacao_grafico = 'Total' if 'Total' in df_para_grafico_periodo.columns else 'Valor'
+    
     # Filtros específicos para este gráfico (multiselect)
-    df_grafico_periodo = df_visualizacao.copy()
+    df_grafico_periodo = df_visualizacao_para_grafico.copy()
     
     # Inicializar variáveis de filtro
     oficina_selecionadas_grafico = ["Todos"]
@@ -887,9 +1049,9 @@ if (coluna_visualizacao in df_visualizacao.columns and
                     df_grafico_periodo['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                 ].copy()
     
-    # Criar gráfico com dados filtrados
+    # Criar gráfico com dados filtrados (usar coluna_visualizacao_grafico que foi criada acima)
     grafico_periodo = create_period_chart(
-        df_grafico_periodo, coluna_visualizacao, tipo_visualizacao
+        df_grafico_periodo, coluna_visualizacao_grafico, tipo_visualizacao
     )
     if grafico_periodo:
         st.altair_chart(grafico_periodo, use_container_width=True)
@@ -897,13 +1059,14 @@ if (coluna_visualizacao in df_visualizacao.columns and
     # Exibir gráfico de Volume logo abaixo, usando os mesmos filtros
     st.subheader("📊 Volume Total por Período")
     
-    # Carregar dados de volume do arquivo df_vol.parquet
+    # IMPORTANTE: Usar a mesma lógica de filtragem em ambos os modos
+    # para garantir que os volumes sejam consistentes
     df_vol = load_volume_data(ano_selecionado)
     
     if df_vol is not None:
         # Verificar se tem as colunas necessárias
         if 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
-            # Aplicar TODOS os filtros da sidebar ao df_vol
+            # Aplicar TODOS os filtros da sidebar ao df_vol (mesma lógica para ambos os modos)
             # Identificar colunas comuns entre df_filtrado e df_vol
             colunas_comuns = set(df_filtrado.columns) & set(df_vol.columns)
             # Remover colunas que não devem ser usadas para filtro
@@ -956,6 +1119,7 @@ if (coluna_visualizacao in df_visualizacao.columns and
             "ℹ️ Carregue o arquivo df_vol.parquet para visualizar "
             "o gráfico de volume."
         )
+    
     
     # Usar df_visualizacao (já tem os dados calculados com filtros da sidebar)
     # Verificar se tem as colunas necessárias
@@ -2556,57 +2720,13 @@ if 'Veículo' in df_visualizacao.columns:
                 st.altair_chart(grafico_total, use_container_width=True)
         
         # Gráfico de Volume por Veículo (logo abaixo do gráfico de Total)
-        # Carregar dados de volume se necessário
-        if 'Veículo' in df_filtrado.columns:
-            # Tentar usar Volume de df_filtrado se disponível
-            if 'Volume' in df_filtrado.columns:
-                df_volume_para_grafico = df_filtrado
-            else:
-                # Carregar dados de volume
-                df_vol_calc = load_volume_data(ano_selecionado)
-                if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
-                    # Fazer merge com df_filtrado para obter os mesmos filtros
-                    colunas_merge = ['Oficina', 'Período']
-                    if 'Ano' in df_filtrado.columns and 'Ano' in df_vol_calc.columns:
-                        colunas_merge.append('Ano')
-                    if 'Veículo' in df_vol_calc.columns:
-                        colunas_merge.append('Veículo')
-                    
-                    # Aplicar filtros do df_filtrado ao df_vol_calc
-                    colunas_comuns = set(df_filtrado.columns) & set(df_vol_calc.columns)
-                    colunas_filtro = [col for col in colunas_comuns if col not in ['Volume', 'Total', 'Valor', 'CPU', 'Período']]
-                    
-                    df_vol_filtrado = df_vol_calc.copy()
-                    for col in colunas_filtro:
-                        if col in df_filtrado.columns:
-                            valores_filtrados = df_filtrado[col].dropna().unique()
-                            if len(valores_filtrados) > 0:
-                                df_vol_filtrado = df_vol_filtrado[
-                                    df_vol_filtrado[col].isin(valores_filtrados)
-                                ].copy()
-                    
-                    # Fazer merge com df_filtrado para obter Veículo
-                    if 'Veículo' in df_filtrado.columns:
-                        df_veiculos = df_filtrado[['Oficina', 'Período', 'Veículo']].drop_duplicates()
-                        if 'Ano' in df_filtrado.columns:
-                            df_veiculos = df_filtrado[['Oficina', 'Período', 'Ano', 'Veículo']].drop_duplicates()
-                        df_volume_para_grafico = pd.merge(
-                            df_veiculos,
-                            df_vol_filtrado,
-                            on=[col for col in colunas_merge if col in df_vol_filtrado.columns],
-                            how='left'
-                        )
-                    else:
-                        df_volume_para_grafico = df_vol_filtrado
-                else:
-                    df_volume_para_grafico = None
-            
-            # Exibir gráfico de volume se tiver dados
-            if df_volume_para_grafico is not None and 'Volume' in df_volume_para_grafico.columns and 'Veículo' in df_volume_para_grafico.columns:
-                st.subheader("📊 Volume por Veículo")
-                grafico_volume = create_volume_veiculo_chart(df_volume_para_grafico)
-                if grafico_volume is not None:
-                    st.altair_chart(grafico_volume, use_container_width=True)
+        # COPIAR EXATAMENTE DO MODO CPU - usar df_visualizacao diretamente
+        # No modo CPU funciona porque df_visualizacao já tem Volume e está agrupado corretamente
+        if 'Volume' in df_visualizacao.columns and 'Veículo' in df_visualizacao.columns:
+            st.subheader("📊 Volume por Veículo")
+            grafico_volume = create_volume_veiculo_chart(df_visualizacao)
+            if grafico_volume is not None:
+                st.altair_chart(grafico_volume, use_container_width=True)
 elif 'Período' in df_visualizacao.columns:
     # Fallback para Período se não tiver Veículo
     if tipo_visualizacao == "CPU (Custo por Unidade)":

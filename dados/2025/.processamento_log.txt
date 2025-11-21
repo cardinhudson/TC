@@ -1,12 +1,12 @@
 Processamento de Dados - Ano 2025
 ==================================================
-Data/Hora: 2025-11-16 11:34:35
+Data/Hora: 2025-11-21 09:23:59
 Arquivos processados:
   - KE5Z_veiculos.xlsx
   - Dados SAPIENS.xlsx
   - Reporting fluxo anexo.xlsx
 
-Processamento concluído: 2025-11-16 11:34:35
+Processamento concluído: 2025-11-21 09:23:59
 Arquivos gerados:
   - df_final.parquet (34,092 linhas)
   - df_vol.parquet (408 linhas)
