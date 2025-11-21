@@ -119,22 +119,38 @@ st.sidebar.markdown("**🔍 Filtros**")
 def load_data(ano_selecionado_param):
     """Carrega os dados do arquivo parquet"""
     try:
-        # Converter "Todos" para None
-        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
-        
-        # Buscar arquivo na ordem de prioridade
-        arquivo_parquet = encontrar_arquivo_parquet("df_final.parquet", ano_para_busca)
+        # Quando "Todos" está selecionado, SEMPRE carregar do histórico consolidado
+        if ano_selecionado_param == "Todos":
+            caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+            if os.path.exists(caminho_historico):
+                df = pd.read_parquet(caminho_historico)
+                # Debug: mostrar informações sobre os dados carregados
+                if "Ano" in df.columns:
+                    anos_carregados = sorted(df['Ano'].unique())
+                    st.sidebar.info(f"📁 Histórico consolidado: {anos_carregados} | Total de registros: {len(df):,}")
+            else:
+                st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_historico}")
+                st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
+                st.stop()
+                return None
+        else:
+            # Converter "Todos" para None
+            ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+            
+            # Buscar arquivo na ordem de prioridade
+            arquivo_parquet = encontrar_arquivo_parquet("df_final.parquet", ano_para_busca)
 
-        if arquivo_parquet is None:
-            st.error(f"❌ Arquivo não encontrado: df_final.parquet")
-            st.info("💡 Verifique se o arquivo existe em:")
-            st.info("   - dados/historico_consolidado/df_final_historico.parquet")
-            st.info("   - dados/{ANO}/df_final.parquet")
-            st.info("   - df_final.parquet (raiz)")
-            st.stop()
+            if arquivo_parquet is None:
+                st.error(f"❌ Arquivo não encontrado: df_final.parquet")
+                st.info("💡 Verifique se o arquivo existe em:")
+                st.info("   - dados/historico_consolidado/df_final_historico.parquet")
+                st.info("   - dados/{ANO}/df_final.parquet")
+                st.info("   - df_final.parquet (raiz)")
+                st.stop()
+                return None
 
-        # Carregar dados
-        df = pd.read_parquet(arquivo_parquet)
+            # Carregar dados
+            df = pd.read_parquet(arquivo_parquet)
 
         # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
@@ -177,16 +193,24 @@ def load_data(ano_selecionado_param):
 def load_volume_data(ano_selecionado_param):
     """Carrega os dados de volume do arquivo parquet"""
     try:
-        # Converter "Todos" para None
-        ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
-        
-        # Buscar arquivo na ordem de prioridade
-        arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
+        # Quando "Todos" está selecionado, SEMPRE carregar do histórico consolidado
+        if ano_selecionado_param == "Todos":
+            caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
+            if os.path.exists(caminho_historico):
+                df = pd.read_parquet(caminho_historico)
+            else:
+                return None
+        else:
+            # Converter "Todos" para None
+            ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
+            
+            # Buscar arquivo na ordem de prioridade
+            arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
 
-        if arquivo_parquet is None:
-            return None
+            if arquivo_parquet is None:
+                return None
 
-        df = pd.read_parquet(arquivo_parquet)
+            df = pd.read_parquet(arquivo_parquet)
 
         # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
@@ -713,8 +737,9 @@ def ordenar_por_mes(df, coluna_periodo='Período'):
     """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
     df_copy = df.copy()
     
-    # Se houver coluna "Ano" e múltiplos anos, ordenar por ano e mês
-    if 'Ano' in df_copy.columns and df_copy['Ano'].nunique() > 1:
+    # Se houver coluna "Ano", sempre ordenar por ano e mês (mesmo que haja apenas um ano)
+    # Isso garante que quando "Todos" está selecionado, todos os períodos sejam mostrados ordenados
+    if 'Ano' in df_copy.columns:
         # Criar coluna de ordenação: ano primeiro, depois mês
         df_copy['_ordem_ano'] = df_copy['Ano']
         df_copy['_ordem_mes'] = df_copy[coluna_periodo].str.lower().map(
@@ -723,7 +748,7 @@ def ordenar_por_mes(df, coluna_periodo='Período'):
         df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
         df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
     else:
-        # Ordenação simples por mês (comportamento original)
+        # Ordenação simples por mês (comportamento original quando não há coluna Ano)
         df_copy['_ordem_mes'] = df_copy[coluna_periodo].str.lower().map(
             {mes: idx for idx, mes in enumerate(ORDEM_MESES)}
         ).fillna(999)
@@ -981,12 +1006,25 @@ if (coluna_visualizacao in df_visualizacao.columns and
                     colunas_agrupamento_vol_grafico, as_index=False
                 )['Volume'].sum()
                 
-                df_cpu_grafico = pd.merge(
-                    df_total_agrupado_grafico,
-                    df_vol_agrupado_grafico,
-                    on=colunas_agrupamento_grafico,
-                    how='left'
-                )
+                # Fazer merge preservando todos os períodos de todos os anos
+                # Usar 'outer' quando "Todos" está selecionado para garantir que todos os períodos sejam mostrados
+                if ano_selecionado == "Todos" and tem_ano:
+                    df_cpu_grafico = pd.merge(
+                        df_total_agrupado_grafico,
+                        df_vol_agrupado_grafico,
+                        on=colunas_agrupamento_grafico,
+                        how='outer'
+                    )
+                    # Preencher valores faltantes com 0 após merge outer
+                    df_cpu_grafico['Total'] = df_cpu_grafico['Total'].fillna(0)
+                    df_cpu_grafico['Volume'] = df_cpu_grafico['Volume'].fillna(0)
+                else:
+                    df_cpu_grafico = pd.merge(
+                        df_total_agrupado_grafico,
+                        df_vol_agrupado_grafico,
+                        on=colunas_agrupamento_grafico,
+                        how='left'
+                    )
                 
                 df_cpu_grafico['CPU'] = df_cpu_grafico.apply(
                     lambda row: (
@@ -1049,7 +1087,11 @@ if (coluna_visualizacao in df_visualizacao.columns and
                     df_grafico_periodo['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                 ].copy()
     
+    # IMPORTANTE: Quando "Todos" está selecionado, garantir que todos os períodos de todos os anos sejam mostrados
+    # O create_period_chart já faz o agrupamento correto por Ano e Período quando há coluna Ano
+    
     # Criar gráfico com dados filtrados (usar coluna_visualizacao_grafico que foi criada acima)
+    # O create_period_chart já faz o agrupamento correto por Ano e Período quando há coluna Ano
     grafico_periodo = create_period_chart(
         df_grafico_periodo, coluna_visualizacao_grafico, tipo_visualizacao
     )
