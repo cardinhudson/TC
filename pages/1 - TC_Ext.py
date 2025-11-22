@@ -888,6 +888,19 @@ def create_period_chart(df_data, coluna, tipo_viz):
         if tipo_viz == "CPU (Custo por Unidade)":
             titulo_y = "CPU (R$/Unidade)"
             titulo_grafico = "CPU por Período"
+            # Remover valores nulos e zero do gráfico no modo CPU
+            chart_data = chart_data[
+                (chart_data[coluna].notna()) & 
+                (chart_data[coluna] != 0) & 
+                (chart_data[coluna] != 0.0)
+            ].copy()
+            # Reordenar após filtrar
+            if tem_ano:
+                chart_data = ordenar_por_mes(chart_data, 'Período')
+                ordem_periodos = chart_data['Período_Completo'].tolist()
+            else:
+                chart_data = ordenar_por_mes(chart_data, 'Período')
+                ordem_periodos = chart_data['Período'].tolist()
         else:
             titulo_y = "Soma do Valor (R$)"
             titulo_grafico = "Soma do Valor por Período"

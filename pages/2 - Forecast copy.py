@@ -125,8 +125,13 @@ ano_selecionado = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 
-# Modo de visualização fixo: apenas Custo Total
-tipo_visualizacao = "Custo Total"
+# Seletor de tipo de visualização (mesma lógica do TC_Ext)
+st.sidebar.markdown("**📊 Tipo de Visualização**")
+tipo_visualizacao = st.sidebar.radio(
+    "Selecione o tipo:",
+    ["Custo Total", "CPU (Custo por Unidade)"],
+    index=0
+)
 st.sidebar.markdown("---")
 
 # Botão para limpar cache (útil após mudanças no código)
@@ -425,9 +430,9 @@ def aplicar_filtros(df_total_cache, oficina_selecionadas_cache, veiculo_selecion
     
     # Filtro 4: Período
     if 'Período' in df_filtrado.columns:
-        if periodo_selecionado_cache and periodo_selecionado_cache != "Todos":
+        if periodo_selecionado_cache and "Todos" not in periodo_selecionado_cache:
             df_filtrado = df_filtrado[
-                df_filtrado['Período'].astype(str) == str(periodo_selecionado_cache)
+                df_filtrado['Período'].astype(str).isin(periodo_selecionado_cache)
             ].copy()
     
     return df_filtrado
@@ -458,8 +463,8 @@ if 'USI' in df_total.columns:
         "Selecione a USI:", usi_opcoes, default=default_usi
     )
 
-# Filtro 4: Período
-periodo_selecionado = "Todos"
+# Filtro 4: Período (multiselect - igual aos outros filtros)
+periodo_selecionado = ["Todos"]
 if 'Período' in df_total.columns:
     periodo_opcoes_raw = get_filter_options(df_total, 'Período')
     
@@ -484,9 +489,13 @@ if 'Período' in df_total.columns:
     # Combinar: Todos + meses ordenados + outros períodos
     periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
     
-    periodo_selecionado = st.sidebar.selectbox(
-        "Selecione o Período:", periodo_opcoes
+    periodo_selecionado = st.sidebar.multiselect(
+        "Selecione o Período:", periodo_opcoes, default=["Todos"]
     )
+
+# 🔧 CORREÇÃO CRÍTICA: Criar cópia ANTES do filtro de período para usar no gráfico (mesma lógica do TC_Ext linha 374)
+# Isso garante que o gráfico mostre TODOS os períodos, mesmo quando um período específico está selecionado
+df_para_grafico_periodo = df_total.copy()
 
 # Aplicar todos os filtros com cache
 df_filtrado = aplicar_filtros(
@@ -494,25 +503,322 @@ df_filtrado = aplicar_filtros(
     tuple(oficina_selecionadas) if oficina_selecionadas else tuple(),
     tuple(veiculo_selecionados) if veiculo_selecionados else tuple(),
     tuple(usi_selecionada) if usi_selecionada else tuple(),
-    periodo_selecionado
+    tuple(periodo_selecionado) if periodo_selecionado else tuple()
 )
+
+# 🔧 CORREÇÃO: Aplicar filtros (exceto Período) ao df_para_grafico_periodo (mesma lógica do TC_Ext)
+# Isso garante que o gráfico mostre todos os períodos, mas respeite os outros filtros
+if oficina_selecionadas and "Todos" not in oficina_selecionadas:
+    if 'Oficina' in df_para_grafico_periodo.columns:
+        df_para_grafico_periodo = df_para_grafico_periodo[
+            df_para_grafico_periodo['Oficina'].astype(str).isin(oficina_selecionadas)
+        ].copy()
+if veiculo_selecionados and "Todos" not in veiculo_selecionados:
+    if 'Veículo' in df_para_grafico_periodo.columns:
+        df_para_grafico_periodo = df_para_grafico_periodo[
+            df_para_grafico_periodo['Veículo'].astype(str).isin(veiculo_selecionados)
+        ].copy()
+if usi_selecionada and "Todos" not in usi_selecionada:
+    if 'USI' in df_para_grafico_periodo.columns:
+        df_para_grafico_periodo = df_para_grafico_periodo[
+            df_para_grafico_periodo['USI'].astype(str).isin(usi_selecionada)
+        ].copy()
+
+# ====================================================================
+# 🔧 MODO CPU: Preparar dados para visualização (mesma lógica do TC_Ext)
+# ====================================================================
+# IMPORTANTE: Usar dados da pasta Forecast
+# - Valores: dados\Forecast\forecast_completo.parquet
+# - Volume: dados\Forecast\df_vol_historico.parquet
+if tipo_visualizacao == "CPU (Custo por Unidade)":
+    # Carregar dados de volume da pasta Forecast
+    caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+    df_vol_calc = None
+    if os.path.exists(caminho_vol_forecast):
+        df_vol_calc = pd.read_parquet(caminho_vol_forecast)
+    else:
+        # Fallback: tentar carregar do histórico consolidado
+        df_vol_calc = load_volume_historico_data()
+    
+    if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
+        # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+        # Isso garante que apenas o ano selecionado seja considerado
+        if ano_selecionado != "Todos" and 'Ano' in df_vol_calc.columns:
+            df_vol_calc = df_vol_calc[
+                df_vol_calc['Ano'] == int(ano_selecionado)
+            ].copy()
+        
+        # 🔧 CORREÇÃO CRÍTICA: Normalizar Período no volume para corresponder ao formato do forecast
+        # No forecast: Período = "Novembro", Ano = 2025 (separados)
+        # No volume: pode estar como "Novembro 2025" ou "Novembro" com Ano separado
+        if 'Período' in df_vol_calc.columns:
+            df_vol_calc = df_vol_calc.copy()
+            # Extrair apenas o nome do mês do Período (remover ano se estiver incluído)
+            def normalizar_periodo_volume_cpu(periodo_str):
+                periodo_str = str(periodo_str).strip()
+                # Se contém espaço, pegar apenas a primeira parte (nome do mês)
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    mes_nome = partes[0].strip().capitalize()
+                    # Se a segunda parte é um número (ano), retornar tupla
+                    if len(partes) > 1 and partes[1].strip().isdigit():
+                        ano_val = int(partes[1].strip())
+                        return (mes_nome, ano_val)
+                    return (mes_nome, None)
+                return (periodo_str.capitalize(), None)
+            
+            # Aplicar normalização e separar período e ano
+            periodos_normalizados = df_vol_calc['Período'].apply(normalizar_periodo_volume_cpu)
+            df_vol_calc['Período'] = periodos_normalizados.apply(lambda x: x[0])
+            
+            # Extrair anos e atualizar coluna Ano
+            anos_extraidos = periodos_normalizados.apply(lambda x: x[1] if x[1] is not None else None)
+            if anos_extraidos.notna().any():
+                if 'Ano' not in df_vol_calc.columns:
+                    df_vol_calc['Ano'] = anos_extraidos
+                else:
+                    # Atualizar apenas onde o ano foi extraído do Período
+                    mask_ano_extraido = anos_extraidos.notna()
+                    df_vol_calc.loc[mask_ano_extraido, 'Ano'] = anos_extraidos[mask_ano_extraido].astype(int)
+        
+        # 🔧 CORREÇÃO: Normalizar Período no df_filtrado também (garantir formato consistente)
+        if 'Período' in df_filtrado.columns:
+            df_filtrado = df_filtrado.copy()
+            # Converter para string para evitar problemas com CategoricalIndex
+            df_filtrado['Período'] = df_filtrado['Período'].astype(str)
+            def normalizar_periodo_forecast_cpu(periodo_str):
+                periodo_str = str(periodo_str).strip()
+                # Se contém espaço, pegar apenas a primeira parte (nome do mês)
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    mes_nome = partes[0].strip().capitalize()
+                    return mes_nome
+                return periodo_str.capitalize()
+            
+            df_filtrado['Período'] = df_filtrado['Período'].apply(normalizar_periodo_forecast_cpu)
+        
+        # Agrupar df_filtrado por Oficina e Período para calcular Total
+        if ('Oficina' in df_filtrado.columns and
+                'Período' in df_filtrado.columns):
+            # Agrupar Total por Oficina e Período
+            if 'Total' in df_filtrado.columns:
+                df_total_agrupado = df_filtrado.groupby(
+                    ['Oficina', 'Período'], as_index=False
+                )['Total'].sum()
+            elif 'Valor' in df_filtrado.columns:
+                df_total_agrupado = df_filtrado.groupby(
+                    ['Oficina', 'Período'], as_index=False
+                )['Valor'].sum()
+                df_total_agrupado.rename(
+                    columns={'Valor': 'Total'}, inplace=True
+                )
+            else:
+                st.warning(
+                    "⚠️ Colunas 'Total' ou 'Valor' necessárias para "
+                    "calcular CPU"
+                )
+                df_visualizacao = df_filtrado.copy()
+                coluna_visualizacao = (
+                    'Total' if 'Total' in df_filtrado.columns else 'Valor'
+                )
+                tipo_visualizacao = "Custo Total"
+                df_vol_calc = None
+
+            if df_vol_calc is not None:
+                # Verificar se df_filtrado tem Veículo e Ano
+                tem_veiculo = 'Veículo' in df_filtrado.columns
+                tem_ano = 'Ano' in df_filtrado.columns
+                
+                # IMPORTANTE: Filtrar df_vol_calc pelos mesmos filtros aplicados em df_filtrado
+                df_vol_calc_filtrado = df_vol_calc.copy()
+                
+                # Aplicar filtros de Veículo se existir
+                if tem_veiculo and 'Veículo' in df_vol_calc_filtrado.columns:
+                    veiculos_filtrados = df_filtrado['Veículo'].dropna().unique()
+                    if len(veiculos_filtrados) > 0:
+                        df_vol_calc_filtrado = df_vol_calc_filtrado[
+                            df_vol_calc_filtrado['Veículo'].isin(veiculos_filtrados)
+                        ].copy()
+                
+                # Aplicar filtros de Oficina se existir
+                if 'Oficina' in df_filtrado.columns and 'Oficina' in df_vol_calc_filtrado.columns:
+                    oficinas_filtradas = df_filtrado['Oficina'].dropna().unique()
+                    if len(oficinas_filtradas) > 0:
+                        df_vol_calc_filtrado = df_vol_calc_filtrado[
+                            df_vol_calc_filtrado['Oficina'].isin(oficinas_filtradas)
+                        ].copy()
+                
+                # Usar df_vol_calc_filtrado em vez de df_vol_calc
+                df_vol_calc = df_vol_calc_filtrado
+
+                # Incluir 'Ano' no groupby se existir
+                colunas_agrupamento = ['Oficina', 'Período']
+                if tem_ano:
+                    colunas_agrupamento.append('Ano')
+                if tem_veiculo:
+                    colunas_agrupamento.append('Veículo')
+
+                # Agrupar Volume por Oficina, Período, Ano (se existir) e Veículo (se existir)
+                if tem_veiculo and 'Veículo' in df_vol_calc.columns:
+                    # Agrupar Total incluindo Veículo e Ano
+                    if 'Total' in df_filtrado.columns:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Total'].sum()
+                    else:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Valor'].sum()
+                        df_total_agrupado.rename(
+                            columns={'Valor': 'Total'}, inplace=True
+                        )
+
+                    # Agrupar Volume incluindo Veículo e Ano
+                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    if tem_ano and 'Ano' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Ano')
+                    if 'Veículo' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Veículo')
+                    
+                    df_vol_agrupado = df_vol_calc.groupby(
+                        colunas_agrupamento_vol, as_index=False
+                    )['Volume'].sum()
+
+                    # Fazer merge incluindo Veículo e Ano
+                    df_cpu = pd.merge(
+                        df_total_agrupado,
+                        df_vol_agrupado,
+                        on=colunas_agrupamento,
+                        how='left'
+                    )
+                else:
+                    # Agrupar Total por Oficina, Período e Ano (se existir)
+                    if 'Total' in df_filtrado.columns:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Total'].sum()
+                    else:
+                        df_total_agrupado = df_filtrado.groupby(
+                            colunas_agrupamento,
+                            as_index=False
+                        )['Valor'].sum()
+                        df_total_agrupado.rename(
+                            columns={'Valor': 'Total'}, inplace=True
+                        )
+                    
+                    # Agrupar Volume por Oficina, Período e Ano (se existir)
+                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    if tem_ano and 'Ano' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.append('Ano')
+                    
+                    df_vol_agrupado = df_vol_calc.groupby(
+                        colunas_agrupamento_vol, as_index=False
+                    )['Volume'].sum()
+
+                    # Fazer merge
+                    df_cpu = pd.merge(
+                        df_total_agrupado,
+                        df_vol_agrupado,
+                        on=colunas_agrupamento,
+                        how='left'
+                    )
+
+                    # Se df_filtrado tem Veículo mas df_vol não, expandir
+                    if tem_veiculo:
+                        # Fazer merge com df_filtrado para obter Veículo e Ano
+                        colunas_merge_veiculo = ['Oficina', 'Período', 'Veículo']
+                        if tem_ano:
+                            colunas_merge_veiculo.append('Ano')
+                        
+                        df_filtrado_veiculo = (
+                            df_filtrado[colunas_merge_veiculo]
+                            .drop_duplicates()
+                        )
+                        df_cpu_expandido = pd.merge(
+                            df_filtrado_veiculo,
+                            df_cpu,
+                            on=colunas_agrupamento,
+                            how='right'
+                        )
+                        # Usar o mesmo Volume para todos os veículos
+                        df_cpu = df_cpu_expandido.copy()
+
+                # Calcular CPU (evitando divisão por zero)
+                df_cpu['CPU'] = df_cpu.apply(
+                    lambda row: (
+                        row['Total'] / row['Volume']
+                        if pd.notnull(row['Volume']) and row['Volume'] != 0
+                        else 0
+                    ),
+                    axis=1
+                )
+
+                # Criar DataFrame para visualização com CPU
+                df_visualizacao = df_cpu.copy()
+                coluna_visualizacao = 'CPU'
+        else:
+            st.warning(
+                "⚠️ Colunas 'Oficina' e 'Período' necessárias para "
+                "calcular CPU"
+            )
+            df_visualizacao = df_filtrado.copy()
+            coluna_visualizacao = (
+                'Total' if 'Total' in df_filtrado.columns else 'Valor'
+            )
+            tipo_visualizacao = "Custo Total"
+    else:
+        st.warning(
+            "⚠️ Dados de volume não disponíveis. "
+            "Mostrando Custo Total."
+        )
+        df_visualizacao = df_filtrado.copy()
+        coluna_visualizacao = (
+            'Total' if 'Total' in df_filtrado.columns else 'Valor'
+        )
+        tipo_visualizacao = "Custo Total"
+else:
+    # Usar Total ou Valor diretamente
+    if 'Total' in df_filtrado.columns:
+        df_visualizacao = df_filtrado.copy()
+        coluna_visualizacao = 'Total'
+    elif 'Valor' in df_filtrado.columns:
+        df_visualizacao = df_filtrado.copy()
+        coluna_visualizacao = 'Valor'
+    else:
+        df_visualizacao = df_filtrado.copy()
+        coluna_visualizacao = 'Total'
 
 # Resumo na sidebar
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Resumo**")
-st.sidebar.write(f"**Linhas:** {df_filtrado.shape[0]:,}")
+st.sidebar.write(f"**Linhas:** {df_visualizacao.shape[0]:,}")
 
 # Calcular totais se as colunas existirem
-if 'Valor' in df_filtrado.columns:
-    # Converter para numérico caso seja categórico
-    valor_series = pd.to_numeric(df_filtrado['Valor'], errors='coerce')
-    valor_total = valor_series.sum()
-    st.sidebar.write(f"**Total Valor:** R$ {valor_total:,.2f}")
-if 'Total' in df_filtrado.columns:
-    # Converter para numérico caso seja categórico
-    total_series = pd.to_numeric(df_filtrado['Total'], errors='coerce')
-    total_sum = total_series.sum()
-    st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
+if tipo_visualizacao == "CPU (Custo por Unidade)":
+    if 'CPU' in df_visualizacao.columns:
+        # Para CPU, mostrar média ponderada ou total
+        cpu_medio = df_visualizacao['CPU'].mean()
+        st.sidebar.write(f"**CPU Médio:** R$ {cpu_medio:,.2f}")
+    if 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+        total_sum = df_visualizacao['Total'].sum()
+        volume_sum = df_visualizacao['Volume'].sum()
+        if volume_sum > 0:
+            cpu_geral = total_sum / volume_sum
+            st.sidebar.write(f"**CPU Geral:** R$ {cpu_geral:,.2f}")
+else:
+    if 'Valor' in df_visualizacao.columns:
+        # Converter para numérico caso seja categórico
+        valor_series = pd.to_numeric(df_visualizacao['Valor'], errors='coerce')
+        valor_total = valor_series.sum()
+        st.sidebar.write(f"**Total Valor:** R$ {valor_total:,.2f}")
+    if 'Total' in df_visualizacao.columns:
+        # Converter para numérico caso seja categórico
+        total_series = pd.to_numeric(df_visualizacao['Total'], errors='coerce')
+        total_sum = total_series.sum()
+        st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
 
 # Área principal - Forecast
 st.markdown("## 📈 Forecast - Previsão de Custo Total")
@@ -1371,6 +1677,10 @@ if aplicar_config_forecast:
     st.success("✅ Configurações aplicadas com sucesso! Recalculando forecast...")
     st.rerun()
 
+# Resetar flag de gráfico gerado no início de cada execução
+if 'grafico_volume_veiculo_gerado' in st.session_state:
+    st.session_state.grafico_volume_veiculo_gerado = False
+
 # Usar configurações aplicadas (se existirem) ou temporárias
 if st.session_state.config_forecast_aplicada['ultimo_periodo_dados'] is not None:
     # Usar configurações aplicadas
@@ -1537,14 +1847,344 @@ else:
         
         return df_copy
     
+    # ====================================================================
+    # Funções de gráfico replicadas do TC_Ext
+    # ====================================================================
+    
+    # Gráfico: Volume por Veículo (mesma lógica do TC_Ext)
+    @st.cache_data(ttl=900, max_entries=2)
+    def create_volume_veiculo_chart(df_data):
+        """Cria gráfico de barras de Volume por Veículo"""
+        try:
+            if 'Volume' not in df_data.columns or 'Veículo' not in df_data.columns:
+                return None
+            
+            # Filtrar linhas com Volume e Veículo não nulos
+            df_data = df_data[df_data['Volume'].notna() & df_data['Veículo'].notna()].copy()
+            
+            if len(df_data) == 0:
+                return None
+            
+            # Agrupar por Veículo e somar Volume
+            # Se houver múltiplos anos, agrupar por Veículo, Período e Ano primeiro
+            tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+            
+            if tem_multiplos_anos and 'Período' in df_data.columns:
+                # Agrupar por Veículo, Período e Ano, somar Volume
+                df_agrupado_periodo = df_data.groupby(['Veículo', 'Período', 'Ano']).agg({
+                    'Volume': 'sum'
+                }).reset_index()
+                # Agora agrupar por Veículo, somar Volume de todos os períodos
+                chart_data = df_agrupado_periodo.groupby('Veículo').agg({
+                    'Volume': 'sum'
+                }).reset_index()
+            elif 'Período' in df_data.columns:
+                # Agrupar por Veículo e Período, somar Volume
+                df_agrupado_periodo = df_data.groupby(['Veículo', 'Período']).agg({
+                    'Volume': 'sum'
+                }).reset_index()
+                # Agora agrupar por Veículo, somar Volume de todos os períodos
+                chart_data = df_agrupado_periodo.groupby('Veículo').agg({
+                    'Volume': 'sum'
+                }).reset_index()
+            else:
+                # Se não tiver Período, agrupar apenas por Veículo
+                chart_data = df_data.groupby('Veículo').agg({
+                    'Volume': 'sum'
+                }).reset_index()
+            
+            # Verificar se há dados
+            if len(chart_data) == 0:
+                return None
+            
+            # Filtrar valores nulos
+            chart_data = chart_data[chart_data['Volume'].notna()].copy()
+            
+            if len(chart_data) == 0:
+                return None
+            
+            chart_data = chart_data.sort_values('Volume', ascending=False)
+            
+            grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+                x=alt.X(
+                    'Veículo:N',
+                    title='Veículo',
+                    sort='-y'
+                ),
+                y=alt.Y('Volume:Q', title='Volume (Unidades)'),
+                color=alt.Color(
+                    'Volume:Q',
+                    title='Volume',
+                    scale=alt.Scale(scheme='greens')
+                ),
+                tooltip=[
+                    alt.Tooltip('Veículo:N', title='Veículo'),
+                    alt.Tooltip('Volume:Q', title='Volume', format=',.0f')
+                ]
+            ).properties(
+                title="Volume por Veículo",
+                height=400
+            )
+            
+            # Adicionar rótulos
+            rotulos = grafico_barras.mark_text(
+                align='center',
+                baseline='middle',
+                dy=-10,
+                color='black',
+                fontSize=12
+            ).encode(
+                text=alt.Text('Volume:Q', format=',.0f')
+            )
+            
+            return grafico_barras + rotulos
+        except Exception as e:
+            st.error(f"Erro ao criar gráfico de volume: {e}")
+            return None
+    
+    # Gráfico: Volume por Período (mesma lógica do TC_Ext)
+    @st.cache_data(ttl=900, max_entries=2)
+    def create_volume_chart(df_data):
+        """Cria gráfico de barras de Volume por Período"""
+        try:
+            if 'Volume' not in df_data.columns or 'Período' not in df_data.columns:
+                return None
+
+            # Verificar se há coluna Ano - sempre mostrar ano junto com período quando existir
+            tem_ano = 'Ano' in df_data.columns
+            
+            if tem_ano:
+                # Agrupar por Ano e Período (sempre que houver coluna Ano)
+                chart_data = df_data.groupby(['Ano', 'Período'])['Volume'].sum().reset_index()
+                
+                # Criar coluna combinada para o rótulo do gráfico
+                chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
+                
+                # Ordenar por ano e mês
+                chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
+                ordem_periodos = chart_data['Período_Completo'].tolist()
+                
+                # Usar Período_Completo no gráfico
+                coluna_periodo_grafico = 'Período_Completo'
+            else:
+                # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
+                chart_data = df_data.groupby('Período')['Volume'].sum().reset_index()
+                chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
+                ordem_periodos = chart_data['Período'].tolist()
+                coluna_periodo_grafico = 'Período'
+
+            grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+                x=alt.X(
+                    f'{coluna_periodo_grafico}:N',
+                    title='Período',
+                    sort=ordem_periodos
+                ),
+                y=alt.Y('Volume:Q', title='Volume Total'),
+                color=alt.Color(
+                    'Volume:Q',
+                    title='Volume',
+                    scale=alt.Scale(scheme='blues')
+                ),
+                tooltip=[
+                    alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
+                    alt.Tooltip('Volume:Q', title='Volume', format=',.2f')
+                ]
+            ).properties(
+                title='Volume Total por Período',
+                height=400
+            )
+
+            # Adicionar rótulos
+            rotulos = grafico_barras.mark_text(
+                align='center',
+                baseline='middle',
+                dy=-10,
+                color='black',
+                fontSize=12
+            ).encode(
+                text=alt.Text('Volume:Q', format=',.2f')
+            )
+
+            return grafico_barras + rotulos
+        except Exception as e:
+            st.error(f"Erro ao criar gráfico: {e}")
+            return None
+    
     try:
+        # 🔧 CORREÇÃO CRÍTICA: Usar df_para_grafico_periodo (dados ANTES do filtro de período) para o gráfico
+        # Isso garante que TODOS os períodos sejam mostrados no gráfico, mesmo quando um período específico está selecionado
+        # Mesma lógica do TC_Ext.py linha 1031-1033
+        
         # Carregar dados do arquivo forecast gerado na pasta Forecast
         caminho_forecast_grafico = os.path.join("dados", "Forecast", "forecast_completo.parquet")
         if os.path.exists(caminho_forecast_grafico):
-            df_forecast_grafico = pd.read_parquet(caminho_forecast_grafico)
+            df_forecast_grafico_base = pd.read_parquet(caminho_forecast_grafico)
             
-            # Aplicar filtros (Oficina, Veículo, USI) mas NÃO filtrar por Período
-            # As variáveis já estão definidas no escopo global
+            # 🔧 CORREÇÃO: Aplicar filtros (exceto Período) ao df_forecast_grafico_base para criar df_para_grafico_periodo_forecast
+            # Isso garante que o gráfico mostre todos os períodos, mas respeite os outros filtros
+            df_para_grafico_periodo_forecast = df_forecast_grafico_base.copy()
+            
+            if 'Oficina' in df_para_grafico_periodo_forecast.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                df_para_grafico_periodo_forecast = df_para_grafico_periodo_forecast[
+                    df_para_grafico_periodo_forecast['Oficina'].astype(str).isin(oficina_selecionadas)
+                ].copy()
+            if 'Veículo' in df_para_grafico_periodo_forecast.columns and veiculo_selecionados and "Todos" not in veiculo_selecionados:
+                df_para_grafico_periodo_forecast = df_para_grafico_periodo_forecast[
+                    df_para_grafico_periodo_forecast['Veículo'].astype(str).isin(veiculo_selecionados)
+                ].copy()
+            if 'USI' in df_para_grafico_periodo_forecast.columns and usi_selecionada and "Todos" not in usi_selecionada:
+                df_para_grafico_periodo_forecast = df_para_grafico_periodo_forecast[
+                    df_para_grafico_periodo_forecast['USI'].astype(str).isin(usi_selecionada)
+                ].copy()
+            
+            # Usar df_para_grafico_periodo_forecast para o gráfico (sem filtro de Período)
+            df_forecast_grafico = df_para_grafico_periodo_forecast.copy()
+            
+            # 🔧 CORREÇÃO: Para modo CPU, carregar e fazer merge com volume ANTES dos filtros
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+                df_vol_grafico = None
+                if os.path.exists(caminho_vol_forecast):
+                    df_vol_grafico = pd.read_parquet(caminho_vol_forecast)
+                else:
+                    # Fallback: tentar carregar do histórico consolidado
+                    df_vol_grafico = load_volume_historico_data()
+                
+                # Fazer merge com volume se disponível
+                if df_vol_grafico is not None and 'Volume' in df_vol_grafico.columns:
+                    # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+                    # Isso garante que apenas o ano selecionado seja considerado
+                    if ano_selecionado != "Todos" and 'Ano' in df_vol_grafico.columns:
+                        df_vol_grafico = df_vol_grafico[
+                            df_vol_grafico['Ano'] == int(ano_selecionado)
+                        ].copy()
+                    
+                    # 🔧 CORREÇÃO CRÍTICA: Normalizar Período no volume para corresponder ao formato do forecast
+                    # No forecast: Período = "Novembro", Ano = 2025 (separados)
+                    # No volume: pode estar como "Novembro 2025" ou "Novembro" com Ano separado
+                    if 'Período' in df_vol_grafico.columns:
+                        df_vol_grafico = df_vol_grafico.copy()
+                        # Extrair apenas o nome do mês do Período (remover ano se estiver incluído)
+                        def normalizar_periodo_volume(periodo_str):
+                            periodo_str = str(periodo_str).strip()
+                            # Se contém espaço, pegar apenas a primeira parte (nome do mês)
+                            if ' ' in periodo_str:
+                                partes = periodo_str.split(' ', 1)
+                                mes_nome = partes[0].strip().capitalize()
+                                # Se a segunda parte é um número (ano), retornar tupla
+                                if len(partes) > 1 and partes[1].strip().isdigit():
+                                    ano_val = int(partes[1].strip())
+                                    return (mes_nome, ano_val)
+                                return (mes_nome, None)
+                            return (periodo_str.capitalize(), None)
+                        
+                        # Aplicar normalização e separar período e ano
+                        periodos_normalizados = df_vol_grafico['Período'].apply(normalizar_periodo_volume)
+                        df_vol_grafico['Período'] = periodos_normalizados.apply(lambda x: x[0])
+                        
+                        # Extrair anos e atualizar coluna Ano
+                        anos_extraidos = periodos_normalizados.apply(lambda x: x[1] if x[1] is not None else None)
+                        if anos_extraidos.notna().any():
+                            if 'Ano' not in df_vol_grafico.columns:
+                                df_vol_grafico['Ano'] = anos_extraidos
+                            else:
+                                # Atualizar apenas onde o ano foi extraído do Período
+                                mask_ano_extraido = anos_extraidos.notna()
+                                df_vol_grafico.loc[mask_ano_extraido, 'Ano'] = anos_extraidos[mask_ano_extraido].astype(int)
+                    
+                    # 🔧 CORREÇÃO CRÍTICA: Seguir EXATAMENTE a mesma lógica do TC_Ext.py (linha 1043-1101)
+                    # 1. Filtrar volume pelos mesmos veículos e oficinas do forecast
+                    # 2. Agrupar Total por ['Oficina', 'Período', 'Ano', 'Veículo']
+                    # 3. Agrupar Volume por ['Oficina', 'Período', 'Ano', 'Veículo']
+                    # 4. Fazer merge entre os dois agrupados
+                    # 5. Calcular CPU
+                    # 6. Depois agrupar por ['Ano', 'Período'] e recalcular CPU (feito mais abaixo)
+                    
+                    # Aplicar mesmos filtros ao volume
+                    df_vol_calc_filtrado_grafico = df_vol_grafico.copy()
+                    
+                    # Filtrar por Veículo (mesma lógica do TC_Ext linha 1044-1049)
+                    if 'Veículo' in df_para_grafico_periodo_forecast.columns and 'Veículo' in df_vol_calc_filtrado_grafico.columns:
+                        veiculos_filtrados = df_para_grafico_periodo_forecast['Veículo'].dropna().unique()
+                        if len(veiculos_filtrados) > 0:
+                            df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                                df_vol_calc_filtrado_grafico['Veículo'].isin(veiculos_filtrados)
+                            ].copy()
+                    
+                    # Filtrar por Oficina (mesma lógica do TC_Ext linha 1050-1055)
+                    if 'Oficina' in df_para_grafico_periodo_forecast.columns and 'Oficina' in df_vol_calc_filtrado_grafico.columns:
+                        oficinas_filtradas = df_para_grafico_periodo_forecast['Oficina'].dropna().unique()
+                        if len(oficinas_filtradas) > 0:
+                            df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                                df_vol_calc_filtrado_grafico['Oficina'].isin(oficinas_filtradas)
+                            ].copy()
+                    
+                    # Agrupar Total por ['Oficina', 'Período', 'Ano', 'Veículo'] (mesma lógica do TC_Ext linha 1063-1071)
+                    tem_ano = 'Ano' in df_para_grafico_periodo_forecast.columns
+                    tem_veiculo = 'Veículo' in df_para_grafico_periodo_forecast.columns
+                    
+                    colunas_agrupamento_grafico = ['Oficina', 'Período']
+                    if tem_ano:
+                        colunas_agrupamento_grafico.append('Ano')
+                    if tem_veiculo:
+                        colunas_agrupamento_grafico.append('Veículo')
+                    
+                    if 'Total' in df_para_grafico_periodo_forecast.columns:
+                        df_total_agrupado_grafico = df_para_grafico_periodo_forecast.groupby(
+                            colunas_agrupamento_grafico, as_index=False
+                        )['Total'].sum()
+                    else:
+                        df_total_agrupado_grafico = df_para_grafico_periodo_forecast.groupby(
+                            colunas_agrupamento_grafico, as_index=False
+                        )['Valor'].sum()
+                        df_total_agrupado_grafico.rename(columns={'Valor': 'Total'}, inplace=True)
+                    
+                    # Agrupar Volume por ['Oficina', 'Período', 'Ano', 'Veículo'] (mesma lógica do TC_Ext linha 1079-1081)
+                    colunas_agrupamento_vol_grafico = ['Oficina', 'Período']
+                    if tem_ano:
+                        colunas_agrupamento_vol_grafico.append('Ano')
+                    if tem_veiculo:
+                        colunas_agrupamento_vol_grafico.append('Veículo')
+                    
+                    df_vol_agrupado_grafico = df_vol_calc_filtrado_grafico.groupby(
+                        colunas_agrupamento_vol_grafico, as_index=False
+                    )['Volume'].sum()
+                    
+                    # Fazer merge (mesma lógica do TC_Ext linha 1086-1101)
+                    if ano_selecionado == "Todos" and tem_ano:
+                        df_cpu_grafico = pd.merge(
+                            df_total_agrupado_grafico,
+                            df_vol_agrupado_grafico,
+                            on=colunas_agrupamento_grafico,
+                            how='outer'
+                        )
+                        df_cpu_grafico['Total'] = df_cpu_grafico['Total'].fillna(0)
+                        df_cpu_grafico['Volume'] = df_cpu_grafico['Volume'].fillna(0)
+                    else:
+                        df_cpu_grafico = pd.merge(
+                            df_total_agrupado_grafico,
+                            df_vol_agrupado_grafico,
+                            on=colunas_agrupamento_grafico,
+                            how='left'
+                        )
+                    
+                    # Calcular CPU (mesma lógica do TC_Ext linha 1103-1110)
+                    df_cpu_grafico['CPU'] = df_cpu_grafico.apply(
+                        lambda row: (
+                            row['Total'] / row['Volume']
+                            if pd.notnull(row['Volume']) and row['Volume'] != 0
+                            else 0
+                        ),
+                        axis=1
+                    )
+                    
+                    # Usar df_cpu_grafico para o gráfico (mesma lógica do TC_Ext linha 1112)
+                    df_forecast_grafico = df_cpu_grafico.copy()
+            
+            # 🔧 CORREÇÃO CRÍTICA: NÃO aplicar filtro de Período no gráfico principal
+            # O gráfico deve mostrar TODOS os períodos, mesmo quando um período específico está selecionado
+            # Mesma lógica do TC_Ext.py - o gráfico usa df_para_grafico_periodo que não tem filtro de período
+            # Aplicar apenas filtros de Oficina, Veículo e USI (mas NÃO Período)
             if 'Oficina' in df_forecast_grafico.columns:
                 if oficina_selecionadas and "Todos" not in oficina_selecionadas:
                     df_forecast_grafico = df_forecast_grafico[
@@ -1563,71 +2203,173 @@ else:
                         df_forecast_grafico['USI'].astype(str).isin(usi_selecionada)
                     ].copy()
             
-            # Verificar se há coluna Total (sempre usar Total)
-            if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
-                # Converter Total para numérico caso seja categórico
+            # 🔧 CORREÇÃO: Suportar modo CPU (mesma lógica do TC_Ext)
+            # Para CPU, precisamos de Total e Volume para recalcular CPU após agrupamento
+            chart_data = None
+            coluna_valor_grafico = None
+            coluna_periodo_grafico = None
+            ordem_periodos = None
+            
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                # 🔧 CORREÇÃO CRÍTICA: Seguir a mesma lógica do TC_Ext
+                # Primeiro agrupar por Oficina, Período, Ano (se existir), Veículo (se existir)
+                # Somar Total e Volume, fazer merge, calcular CPU
+                # DEPOIS agrupar por Período (e Ano) para o gráfico
+                if 'Total' in df_forecast_grafico.columns and 'Volume' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
+                    # Converter para numérico
+                    df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
+                    df_forecast_grafico['Volume'] = pd.to_numeric(df_forecast_grafico['Volume'], errors='coerce').fillna(0.0)
+                    
+                    tem_ano = 'Ano' in df_forecast_grafico.columns
+                    tem_veiculo = 'Veículo' in df_forecast_grafico.columns
+                    tem_oficina = 'Oficina' in df_forecast_grafico.columns
+                    
+                    # Primeiro agrupamento: por Oficina, Período, Ano (se existir), Veículo (se existir)
+                    colunas_agrupamento_inicial = []
+                    if tem_oficina:
+                        colunas_agrupamento_inicial.append('Oficina')
+                    colunas_agrupamento_inicial.append('Período')
+                    if tem_ano:
+                        colunas_agrupamento_inicial.append('Ano')
+                    if tem_veiculo:
+                        colunas_agrupamento_inicial.append('Veículo')
+                    
+                    # 🔧 CORREÇÃO CRÍTICA: Seguir EXATAMENTE a mesma lógica do TC_Ext.py
+                    # No TC_Ext.py (linha 1064-1110): agrupa Total e Volume por ['Oficina', 'Período', 'Ano', 'Veículo'],
+                    # faz merge, calcula CPU uma vez, depois create_period_chart agrupa por ['Ano', 'Período'] e recalcula CPU
+                    # Aqui vamos fazer o mesmo: agrupar por ['Ano', 'Período'] diretamente, somar Total e Volume, calcular CPU
+                    # (o merge com volume já foi feito antes nas linhas 2125-2131)
+                    
+                    # Agrupar diretamente por Período (e Ano) para o gráfico
+                    # Mesma lógica do create_period_chart do TC_Ext.py (linha 832-844)
+                    colunas_agrupamento_final = ['Período']
+                    if tem_ano:
+                        colunas_agrupamento_final.append('Ano')
+                    
+                    chart_data = df_forecast_grafico.groupby(colunas_agrupamento_final, as_index=False).agg({
+                        'Total': 'sum',
+                        'Volume': 'sum'
+                    })
+                    
+                    # Calcular CPU (mesma lógica do create_period_chart do TC_Ext.py linha 837-843)
+                    chart_data['CPU'] = chart_data.apply(
+                        lambda row: (
+                            row['Total'] / row['Volume']
+                            if pd.notnull(row['Volume']) and row['Volume'] != 0
+                            else 0
+                        ),
+                        axis=1
+                    )
+                    
+                    coluna_valor_grafico = 'CPU'
+                    
+                    # 🔧 DEBUG: Verificar valores antes de calcular CPU
+                    total_agregado = chart_data['Total'].sum()
+                    volume_agregado = chart_data['Volume'].sum()
+                    if volume_agregado == 0:
+                        st.warning(f"⚠️ Volume agregado é zero após agrupamento. Total agregado: {total_agregado:,.2f}")
+                    
+                    if tem_ano:
+                        # Criar Período_Completo
+                        def criar_periodo_completo(periodo_str, ano_val):
+                            periodo_str = str(periodo_str).strip()
+                            ano_str = str(ano_val).strip()
+                            if ' ' in periodo_str:
+                                partes = periodo_str.split(' ', 1)
+                                if len(partes) > 1 and partes[1].isdigit() and partes[1] == ano_str:
+                                    return periodo_str
+                            return f"{periodo_str} {ano_str}"
+                        
+                        chart_data['Período_Completo'] = chart_data.apply(
+                            lambda row: criar_periodo_completo(row['Período'], row['Ano']), axis=1
+                        )
+                        chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
+                        ordem_periodos = chart_data['Período_Completo'].tolist()
+                        coluna_periodo_grafico = 'Período_Completo'
+                    else:
+                        chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
+                        ordem_periodos = chart_data['Período'].tolist()
+                        coluna_periodo_grafico = 'Período'
+                else:
+                    # Fallback: se não tiver Volume, usar Custo Total
+                    if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
+                        st.warning("⚠️ Volume não disponível para calcular CPU. Mostrando Custo Total.")
+                        # chart_data será None, então continuará para o modo Custo Total abaixo
+                    else:
+                        st.warning("⚠️ Colunas 'Total', 'Volume' ou 'Período' não encontradas para calcular CPU no gráfico.")
+            
+            # Modo Custo Total (comportamento original ou fallback do CPU quando Volume não está disponível)
+            if chart_data is None and 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
+                # Modo Custo Total (comportamento original)
                 df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
-                
-                # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
                 tem_ano = 'Ano' in df_forecast_grafico.columns
                 
                 if tem_ano:
-                    # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
                     chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
+                    coluna_valor_grafico = 'Total'
                     
-                    # 🔧 CORREÇÃO: Verificar se Período já contém o ano antes de concatenar
-                    # Se o Período já tiver o ano (ex: "novembro 2025"), usar apenas o Período
-                    # Caso contrário, concatenar Período + Ano
                     def criar_periodo_completo(periodo_str, ano_val):
                         periodo_str = str(periodo_str).strip()
                         ano_str = str(ano_val).strip()
-                        
-                        # Verificar se o período já contém o ano
                         if ' ' in periodo_str:
                             partes = periodo_str.split(' ', 1)
                             if len(partes) > 1 and partes[1].isdigit() and partes[1] == ano_str:
-                                # Período já contém o ano correto, retornar apenas o período
                                 return periodo_str
-                        
-                        # Período não contém o ano ou ano diferente, concatenar
                         return f"{periodo_str} {ano_str}"
                     
                     chart_data['Período_Completo'] = chart_data.apply(
                         lambda row: criar_periodo_completo(row['Período'], row['Ano']), axis=1
                     )
-                    
-                    # Ordenar por ano e mês (usar função similar ao TC_Ext)
                     chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
                     ordem_periodos = chart_data['Período_Completo'].tolist()
                     coluna_periodo_grafico = 'Período_Completo'
                 else:
-                    # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
                     chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
-                    
-                    # Ordenar por mês
+                    coluna_valor_grafico = 'Total'
                     chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
                     ordem_periodos = chart_data['Período'].tolist()
                     coluna_periodo_grafico = 'Período'
+            
+            # 🔧 CORREÇÃO: Filtrar valores nulos/zero antes de criar o gráfico
+            if chart_data is not None and not chart_data.empty:
+                # Remover linhas onde o valor é zero ou nulo
+                if coluna_valor_grafico in chart_data.columns:
+                    # Filtrar valores diferentes de zero e não nulos
+                    chart_data = chart_data[
+                        (chart_data[coluna_valor_grafico] != 0) & 
+                        (chart_data[coluna_valor_grafico].notna())
+                    ].copy()
+            
+            # Criar gráfico (mesma lógica do TC_Ext) - suporta CPU e Custo Total
+            if chart_data is not None and not chart_data.empty and coluna_valor_grafico and coluna_periodo_grafico:
+                # Determinar título e label do eixo Y baseado no tipo de visualização
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    titulo_grafico = 'CPU (Custo por Unidade) por Período'
+                    titulo_eixo_y = 'CPU (R$)'
+                    formato_tooltip = ',.2f'
+                else:
+                    titulo_grafico = 'Soma do Valor por Período'
+                    titulo_eixo_y = 'Soma do Valor (R$)'
+                    formato_tooltip = ',.2f'
                 
-                # Criar gráfico (mesma lógica do TC_Ext) - fora do if/else de tem_ano
                 grafico_barras = alt.Chart(chart_data).mark_bar().encode(
                     x=alt.X(
                         f'{coluna_periodo_grafico}:N',
                         title='Período',
                         sort=ordem_periodos
                     ),
-                    y=alt.Y('Total:Q', title='Soma do Valor (R$)'),
+                    y=alt.Y(f'{coluna_valor_grafico}:Q', title=titulo_eixo_y),
                     color=alt.Color(
-                        'Total:Q',
-                        title='Total',
+                        f'{coluna_valor_grafico}:Q',
+                        title=coluna_valor_grafico,
                         scale=alt.Scale(scheme='blues')
                     ),
                     tooltip=[
                         alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
-                        alt.Tooltip('Total:Q', title='Soma do Valor', format=',.2f')
+                        alt.Tooltip(f'{coluna_valor_grafico}:Q', title=coluna_valor_grafico, format=formato_tooltip)
                     ]
                 ).properties(
-                    title='Soma do Valor por Período',
+                    title=titulo_grafico,
                     height=400
                 )
                 
@@ -1639,15 +2381,29 @@ else:
                     color='white',
                     fontSize=11
                 ).encode(
-                    text=alt.Text('Total:Q', format=',.2f')
+                    text=alt.Text(f'{coluna_valor_grafico}:Q', format=formato_tooltip)
                 )
                 
                 grafico_final = grafico_barras + rotulos
                 st.altair_chart(grafico_final, use_container_width=True)
                 
                 # Mostrar resumo
-                total_geral = chart_data['Total'].sum()
-                st.info(f"📊 **Total Geral:** R$ {total_geral:,.2f}")
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    # Para CPU, calcular média ou total agregado
+                    if 'Total' in chart_data.columns and 'Volume' in chart_data.columns:
+                        total_geral = chart_data['Total'].sum()
+                        volume_geral = chart_data['Volume'].sum()
+                        if volume_geral > 0:
+                            cpu_geral = total_geral / volume_geral
+                            st.info(f"📊 **CPU Geral:** R$ {cpu_geral:,.2f} (Total: R$ {total_geral:,.2f} / Volume: {volume_geral:,.0f})")
+                        else:
+                            st.info(f"📊 **CPU Geral:** R$ 0,00 (Volume zero)")
+                    else:
+                        cpu_medio = chart_data['CPU'].mean()
+                        st.info(f"📊 **CPU Médio:** R$ {cpu_medio:,.2f}")
+                else:
+                    total_geral = chart_data[coluna_valor_grafico].sum()
+                    st.info(f"📊 **Total Geral:** R$ {total_geral:,.2f}")
             else:
                 st.warning("⚠️ Colunas 'Total' ou 'Período' não encontradas no arquivo forecast.")
         else:
@@ -1657,6 +2413,490 @@ else:
         st.error(f"❌ Erro ao criar gráfico 'Soma do Valor por Período': {str(e)}")
         import traceback
         st.error(f"Detalhes: {traceback.format_exc()}")
+    
+    # ====================================================================
+    # 🔧 GRÁFICO 2: Volume por Período (mesma lógica do TC_Ext)
+    # ====================================================================
+    try:
+        # IMPORTANTE: Usar a mesma lógica de filtragem em ambos os modos
+        # para garantir que os volumes sejam consistentes
+        caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+        
+        if os.path.exists(caminho_vol_forecast):
+            df_vol_grafico = pd.read_parquet(caminho_vol_forecast)
+            
+            # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+            # Isso garante que apenas o ano selecionado seja considerado
+            if ano_selecionado != "Todos" and 'Ano' in df_vol_grafico.columns:
+                df_vol_grafico = df_vol_grafico[
+                    df_vol_grafico['Ano'] == int(ano_selecionado)
+                ].copy()
+            
+            # Normalizar Período no volume
+            if 'Período' in df_vol_grafico.columns:
+                df_vol_grafico = df_vol_grafico.copy()
+                df_vol_grafico['Período'] = df_vol_grafico['Período'].astype(str)
+                def normalizar_periodo_vol(periodo_str):
+                    periodo_str = str(periodo_str).strip()
+                    if ' ' in periodo_str:
+                        return periodo_str.split(' ', 1)[0].strip().capitalize()
+                    return periodo_str.capitalize()
+                df_vol_grafico['Período'] = df_vol_grafico['Período'].apply(normalizar_periodo_vol)
+            
+            # 🔧 CORREÇÃO: Aplicar TODOS os filtros da sidebar ao df_vol (mesma lógica do TC_Ext)
+            # Identificar colunas comuns entre df_filtrado e df_vol_grafico
+            colunas_comuns = set(df_filtrado.columns) & set(df_vol_grafico.columns)
+            # Remover colunas que não devem ser usadas para filtro
+            # Manter Período para aplicar filtro de período também
+            colunas_filtro = [
+                col for col in colunas_comuns
+                if col not in ['Volume', 'Total', 'Valor', 'CPU']
+            ]
+            
+            # Aplicar filtros do df_filtrado ao df_vol usando colunas comuns
+            df_vol_filtrado = df_vol_grafico.copy()
+            
+            for col in colunas_filtro:
+                if col in df_filtrado.columns:
+                    # Obter valores únicos da coluna no df_filtrado
+                    valores_filtrados = df_filtrado[col].dropna().unique()
+                    if len(valores_filtrados) > 0:
+                        # Filtrar df_vol com os mesmos valores
+                        df_vol_filtrado = df_vol_filtrado[
+                            df_vol_filtrado[col].isin(valores_filtrados)
+                        ].copy()
+            
+            # 🔧 CORREÇÃO: Aplicar filtro de Período diretamente da sidebar
+            if 'Período' in df_vol_filtrado.columns:
+                if periodo_selecionado and "Todos" not in periodo_selecionado:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Período'].astype(str).isin(periodo_selecionado)
+                    ].copy()
+            
+            # Usar função create_volume_chart (mesma lógica do TC_Ext)
+            if 'Volume' in df_vol_filtrado.columns and 'Período' in df_vol_filtrado.columns:
+                st.subheader("📊 Volume Total por Período")
+                grafico_volume = create_volume_chart(df_vol_filtrado)
+                if grafico_volume:
+                    st.altair_chart(grafico_volume, use_container_width=True)
+                else:
+                    st.info("Não foi possível criar o gráfico de volume.")
+            else:
+                st.warning(
+                    "⚠️ O arquivo df_vol_historico.parquet não contém as colunas "
+                    "'Período' e 'Volume' necessárias."
+                )
+        else:
+            st.info(
+                "ℹ️ Carregue o arquivo df_vol_historico.parquet para visualizar "
+                "o gráfico de volume."
+            )
+    except Exception as e:
+        st.error(f"❌ Erro ao criar gráfico 'Volume por Período': {str(e)}")
+    
+    # ====================================================================
+    # 🔧 GRÁFICO 3: Por Oficina (mesma lógica do TC_Ext)
+    # ====================================================================
+    try:
+        caminho_forecast_grafico = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        if os.path.exists(caminho_forecast_grafico):
+            df_forecast_oficina = pd.read_parquet(caminho_forecast_grafico)
+            
+            # Aplicar TODOS os filtros da sidebar (Oficina, Veículo, USI, Período)
+            if 'Oficina' in df_forecast_oficina.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                df_forecast_oficina = df_forecast_oficina[df_forecast_oficina['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
+            if 'Veículo' in df_forecast_oficina.columns and veiculo_selecionados and "Todos" not in veiculo_selecionados:
+                df_forecast_oficina = df_forecast_oficina[df_forecast_oficina['Veículo'].astype(str).isin(veiculo_selecionados)].copy()
+            if 'USI' in df_forecast_oficina.columns and usi_selecionada and "Todos" not in usi_selecionada:
+                df_forecast_oficina = df_forecast_oficina[df_forecast_oficina['USI'].astype(str).isin(usi_selecionada)].copy()
+            # 🔧 CORREÇÃO: Aplicar filtro de Período
+            if 'Período' in df_forecast_oficina.columns:
+                if periodo_selecionado and "Todos" not in periodo_selecionado:
+                    df_forecast_oficina = df_forecast_oficina[
+                        df_forecast_oficina['Período'].astype(str).isin(periodo_selecionado)
+                    ].copy()
+            
+            if 'Oficina' in df_forecast_oficina.columns:
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    st.subheader("📊 CPU por Oficina")
+                else:
+                    st.subheader("📊 Soma do Valor por Oficina")
+                
+                # Preparar dados para gráfico por Oficina
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    # Carregar volume e fazer merge
+                    caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+                    if os.path.exists(caminho_vol_forecast):
+                        df_vol_oficina = pd.read_parquet(caminho_vol_forecast)
+                        
+                        # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+                        # Isso garante que apenas o ano selecionado seja considerado
+                        if ano_selecionado != "Todos" and 'Ano' in df_vol_oficina.columns:
+                            df_vol_oficina = df_vol_oficina[
+                                df_vol_oficina['Ano'] == int(ano_selecionado)
+                            ].copy()
+                        
+                        # Normalizar e aplicar filtros no volume
+                        if 'Período' in df_vol_oficina.columns:
+                            df_vol_oficina = df_vol_oficina.copy()
+                            df_vol_oficina['Período'] = df_vol_oficina['Período'].astype(str)
+                            def normalizar_periodo_vol_oficina(periodo_str):
+                                periodo_str = str(periodo_str).strip()
+                                if ' ' in periodo_str:
+                                    return periodo_str.split(' ', 1)[0].strip().capitalize()
+                                return periodo_str.capitalize()
+                            df_vol_oficina['Período'] = df_vol_oficina['Período'].apply(normalizar_periodo_vol_oficina)
+                        
+                        # 🔧 CORREÇÃO: Filtrar df_vol_oficina pelos mesmos veículos de df_forecast_oficina
+                        # Isso garante que apenas veículos que tiveram consumo sejam considerados
+                        if 'Veículo' in df_forecast_oficina.columns and 'Veículo' in df_vol_oficina.columns:
+                            veiculos_filtrados = df_forecast_oficina['Veículo'].dropna().unique()
+                            if len(veiculos_filtrados) > 0:
+                                df_vol_oficina = df_vol_oficina[
+                                    df_vol_oficina['Veículo'].isin(veiculos_filtrados)
+                                ].copy()
+                        
+                        if 'Oficina' in df_vol_oficina.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                            df_vol_oficina = df_vol_oficina[df_vol_oficina['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
+                        
+                        # Agrupar por Oficina, Período, Ano (se existir), Veículo (se existir)
+                        # IMPORTANTE: Sempre incluir 'Ano' no agrupamento quando existir
+                        colunas_agrupamento_oficina = ['Oficina', 'Período']
+                        if 'Ano' in df_forecast_oficina.columns and 'Ano' in df_vol_oficina.columns:
+                            colunas_agrupamento_oficina.append('Ano')
+                        if 'Veículo' in df_forecast_oficina.columns and 'Veículo' in df_vol_oficina.columns:
+                            colunas_agrupamento_oficina.append('Veículo')
+                        
+                        df_total_oficina = df_forecast_oficina.groupby(colunas_agrupamento_oficina, as_index=False)['Total'].sum()
+                        df_vol_oficina_agrupado = df_vol_oficina.groupby(colunas_agrupamento_oficina, as_index=False)['Volume'].sum()
+                        
+                        df_cpu_oficina = pd.merge(df_total_oficina, df_vol_oficina_agrupado, on=colunas_agrupamento_oficina, how='left')
+                        df_cpu_oficina['Volume'] = df_cpu_oficina['Volume'].fillna(0.0)
+                        
+                        # 🔧 CORREÇÃO: Agrupar por Período+Ano primeiro, depois por Oficina (mesma lógica do TC_Ext)
+                        # Se houver múltiplos anos ou Período, agrupar primeiro por Período+Ano
+                        if 'Período' in df_cpu_oficina.columns:
+                            if 'Ano' in df_cpu_oficina.columns:
+                                # Agrupar por Oficina, Período e Ano, somar Total e Volume
+                                df_agrupado_periodo = df_cpu_oficina.groupby(['Oficina', 'Período', 'Ano']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                            else:
+                                # Agrupar por Oficina e Período, somar Total e Volume
+                                df_agrupado_periodo = df_cpu_oficina.groupby(['Oficina', 'Período']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                            
+                            # Agora agrupar por Oficina, somar Total e Volume de todos os períodos
+                            chart_data_oficina = df_agrupado_periodo.groupby('Oficina', as_index=False).agg({
+                                'Total': 'sum',
+                                'Volume': 'sum'
+                            })
+                        else:
+                            # Se não tiver Período, agrupar apenas por Oficina
+                            chart_data_oficina = df_cpu_oficina.groupby('Oficina', as_index=False).agg({
+                                'Total': 'sum',
+                                'Volume': 'sum'
+                            })
+                        
+                        chart_data_oficina['CPU'] = chart_data_oficina.apply(
+                            lambda row: (row['Total'] / row['Volume'] if pd.notnull(row['Volume']) and row['Volume'] != 0 else 0),
+                            axis=1
+                        )
+                        chart_data_oficina = chart_data_oficina[['Oficina', 'CPU']].sort_values('CPU', ascending=False)
+                        coluna_oficina = 'CPU'
+                        titulo_y_oficina = "CPU (R$/Unidade)"
+                        formato_oficina = ',.4f'
+                    else:
+                        chart_data_oficina = df_forecast_oficina.groupby('Oficina')['Total'].sum().reset_index().sort_values('Total', ascending=False)
+                        coluna_oficina = 'Total'
+                        titulo_y_oficina = "Soma do Valor (R$)"
+                        formato_oficina = ',.2f'
+                else:
+                    chart_data_oficina = df_forecast_oficina.groupby('Oficina')['Total'].sum().reset_index().sort_values('Total', ascending=False)
+                    coluna_oficina = 'Total'
+                    titulo_y_oficina = "Soma do Valor (R$)"
+                    formato_oficina = ',.2f'
+                
+                grafico_oficina = alt.Chart(chart_data_oficina).mark_bar().encode(
+                    x=alt.X('Oficina:N', title='Oficina', sort='-y'),
+                    y=alt.Y(f'{coluna_oficina}:Q', title=titulo_y_oficina),
+                    color=alt.Color(f'{coluna_oficina}:Q', title=coluna_oficina, scale=alt.Scale(scheme='blues')),
+                    tooltip=[
+                        alt.Tooltip('Oficina:N', title='Oficina'),
+                        alt.Tooltip(f'{coluna_oficina}:Q', title=coluna_oficina, format=formato_oficina)
+                    ]
+                ).properties(
+                    title="CPU por Oficina" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Soma do Valor por Oficina",
+                    height=400
+                )
+                
+                rotulos_oficina = grafico_oficina.mark_text(
+                    align='center', baseline='middle', dy=-10, color='black', fontSize=12
+                ).encode(text=alt.Text(f'{coluna_oficina}:Q', format=formato_oficina))
+                
+                st.altair_chart(grafico_oficina + rotulos_oficina, use_container_width=True)
+    except Exception as e:
+        st.error(f"❌ Erro ao criar gráfico 'Por Oficina': {str(e)}")
+    
+    # ====================================================================
+    # 🔧 GRÁFICO 4: Por Veículo (mesma lógica do TC_Ext)
+    # ====================================================================
+    try:
+        caminho_forecast_grafico = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        if os.path.exists(caminho_forecast_grafico):
+            df_forecast_veiculo = pd.read_parquet(caminho_forecast_grafico)
+            
+            # Aplicar TODOS os filtros da sidebar (Oficina, Veículo, USI, Período)
+            if 'Oficina' in df_forecast_veiculo.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                df_forecast_veiculo = df_forecast_veiculo[df_forecast_veiculo['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
+            if 'Veículo' in df_forecast_veiculo.columns and veiculo_selecionados and "Todos" not in veiculo_selecionados:
+                df_forecast_veiculo = df_forecast_veiculo[df_forecast_veiculo['Veículo'].astype(str).isin(veiculo_selecionados)].copy()
+            if 'USI' in df_forecast_veiculo.columns and usi_selecionada and "Todos" not in usi_selecionada:
+                df_forecast_veiculo = df_forecast_veiculo[df_forecast_veiculo['USI'].astype(str).isin(usi_selecionada)].copy()
+            # 🔧 CORREÇÃO: Aplicar filtro de Período
+            if 'Período' in df_forecast_veiculo.columns:
+                if periodo_selecionado and "Todos" not in periodo_selecionado:
+                    df_forecast_veiculo = df_forecast_veiculo[
+                        df_forecast_veiculo['Período'].astype(str).isin(periodo_selecionado)
+                    ].copy()
+            
+            if 'Veículo' in df_forecast_veiculo.columns:
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    st.subheader("📊 CPU por Veículo")
+                else:
+                    st.subheader("📊 Total por Veículo")
+                
+                # Preparar dados para gráfico por Veículo
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    # Carregar volume e fazer merge
+                    caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+                    if os.path.exists(caminho_vol_forecast):
+                        df_vol_veiculo = pd.read_parquet(caminho_vol_forecast)
+                        
+                        # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+                        # Isso garante que apenas o ano selecionado seja considerado
+                        if ano_selecionado != "Todos" and 'Ano' in df_vol_veiculo.columns:
+                            df_vol_veiculo = df_vol_veiculo[
+                                df_vol_veiculo['Ano'] == int(ano_selecionado)
+                            ].copy()
+                        
+                        # Normalizar e aplicar filtros no volume
+                        if 'Período' in df_vol_veiculo.columns:
+                            df_vol_veiculo = df_vol_veiculo.copy()
+                            df_vol_veiculo['Período'] = df_vol_veiculo['Período'].astype(str)
+                            def normalizar_periodo_vol_veiculo(periodo_str):
+                                periodo_str = str(periodo_str).strip()
+                                if ' ' in periodo_str:
+                                    return periodo_str.split(' ', 1)[0].strip().capitalize()
+                                return periodo_str.capitalize()
+                            df_vol_veiculo['Período'] = df_vol_veiculo['Período'].apply(normalizar_periodo_vol_veiculo)
+                        
+                        # 🔧 CORREÇÃO: Filtrar df_vol_veiculo pelos mesmos veículos de df_forecast_veiculo
+                        # Isso garante que apenas veículos que tiveram consumo sejam considerados
+                        if 'Veículo' in df_forecast_veiculo.columns and 'Veículo' in df_vol_veiculo.columns:
+                            veiculos_filtrados = df_forecast_veiculo['Veículo'].dropna().unique()
+                            if len(veiculos_filtrados) > 0:
+                                df_vol_veiculo = df_vol_veiculo[
+                                    df_vol_veiculo['Veículo'].isin(veiculos_filtrados)
+                                ].copy()
+                        
+                        if 'Oficina' in df_vol_veiculo.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                            df_vol_veiculo = df_vol_veiculo[df_vol_veiculo['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
+                        
+                        # Agrupar por Veículo, Período, Ano (se existir)
+                        # IMPORTANTE: Sempre incluir 'Ano' no agrupamento quando existir
+                        colunas_agrupamento_veiculo = ['Veículo', 'Período']
+                        if 'Ano' in df_forecast_veiculo.columns and 'Ano' in df_vol_veiculo.columns:
+                            colunas_agrupamento_veiculo.append('Ano')
+                        
+                        df_total_veiculo = df_forecast_veiculo.groupby(colunas_agrupamento_veiculo, as_index=False)['Total'].sum()
+                        df_vol_veiculo_agrupado = df_vol_veiculo.groupby(colunas_agrupamento_veiculo, as_index=False)['Volume'].sum()
+                        
+                        df_cpu_veiculo = pd.merge(df_total_veiculo, df_vol_veiculo_agrupado, on=colunas_agrupamento_veiculo, how='left')
+                        df_cpu_veiculo['Volume'] = df_cpu_veiculo['Volume'].fillna(0.0)
+                        
+                        # 🔧 CORREÇÃO: Agrupar por Período+Ano primeiro, depois por Veículo (mesma lógica do TC_Ext)
+                        # Se houver múltiplos anos ou Período, agrupar primeiro por Período+Ano
+                        if 'Período' in df_cpu_veiculo.columns:
+                            if 'Ano' in df_cpu_veiculo.columns:
+                                # Agrupar por Veículo, Período e Ano, somar Total e Volume
+                                df_agrupado_periodo = df_cpu_veiculo.groupby(['Veículo', 'Período', 'Ano']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                            else:
+                                # Agrupar por Veículo e Período, somar Total e Volume
+                                df_agrupado_periodo = df_cpu_veiculo.groupby(['Veículo', 'Período']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                            
+                            # Agora agrupar por Veículo, somar Total e Volume de todos os períodos
+                            chart_data_veiculo = df_agrupado_periodo.groupby('Veículo', as_index=False).agg({
+                                'Total': 'sum',
+                                'Volume': 'sum'
+                            })
+                        else:
+                            # Se não tiver Período, agrupar apenas por Veículo
+                            chart_data_veiculo = df_cpu_veiculo.groupby('Veículo', as_index=False).agg({
+                                'Total': 'sum',
+                                'Volume': 'sum'
+                            })
+                        
+                        chart_data_veiculo['CPU'] = chart_data_veiculo.apply(
+                            lambda row: (row['Total'] / row['Volume'] if pd.notnull(row['Volume']) and row['Volume'] != 0 else 0),
+                            axis=1
+                        )
+                        chart_data_veiculo = chart_data_veiculo[['Veículo', 'CPU']].sort_values('CPU', ascending=False)
+                        coluna_veiculo = 'CPU'
+                        titulo_y_veiculo = "CPU (R$/Unidade)"
+                        formato_veiculo = ',.4f'
+                    else:
+                        chart_data_veiculo = df_forecast_veiculo.groupby('Veículo')['Total'].sum().reset_index().sort_values('Total', ascending=False)
+                        coluna_veiculo = 'Total'
+                        titulo_y_veiculo = "Total (R$)"
+                        formato_veiculo = ',.2f'
+                else:
+                    chart_data_veiculo = df_forecast_veiculo.groupby('Veículo')['Total'].sum().reset_index().sort_values('Total', ascending=False)
+                    coluna_veiculo = 'Total'
+                    titulo_y_veiculo = "Total (R$)"
+                    formato_veiculo = ',.2f'
+                
+                grafico_veiculo = alt.Chart(chart_data_veiculo).mark_bar().encode(
+                    x=alt.X('Veículo:N', title='Veículo', sort='-y'),
+                    y=alt.Y(f'{coluna_veiculo}:Q', title=titulo_y_veiculo),
+                    color=alt.Color(f'{coluna_veiculo}:Q', title=coluna_veiculo, scale=alt.Scale(scheme='blues')),
+                    tooltip=[
+                        alt.Tooltip('Veículo:N', title='Veículo'),
+                        alt.Tooltip(f'{coluna_veiculo}:Q', title=coluna_veiculo, format=formato_veiculo)
+                    ]
+                ).properties(
+                    title="CPU por Veículo" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Total por Veículo",
+                    height=400
+                )
+                
+                rotulos_veiculo = grafico_veiculo.mark_text(
+                    align='center', baseline='middle', dy=-10, color='black', fontSize=12
+                ).encode(text=alt.Text(f'{coluna_veiculo}:Q', format=formato_veiculo))
+                
+                st.altair_chart(grafico_veiculo + rotulos_veiculo, use_container_width=True)
+                
+                # Gráfico de Volume por Veículo (mesma lógica do TC_Ext)
+                # 🔧 CORREÇÃO: Usar a mesma lógica do TC_Ext - criar df_visualizacao com Volume via merge
+                # No TC_Ext, o Volume é adicionado ao df_visualizacao antes de passar para a função
+                df_visualizacao_veiculo = df_forecast_veiculo.copy()
+                
+                # Carregar e preparar dados de volume (mesma lógica do TC_Ext)
+                caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+                if os.path.exists(caminho_vol_forecast):
+                    df_vol_calc = pd.read_parquet(caminho_vol_forecast)
+                    
+                    # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
+                    if ano_selecionado != "Todos" and 'Ano' in df_vol_calc.columns:
+                        df_vol_calc = df_vol_calc[
+                            df_vol_calc['Ano'] == int(ano_selecionado)
+                        ].copy()
+                    
+                    # Normalizar Período no volume (mesma lógica do TC_Ext)
+                    if 'Período' in df_vol_calc.columns:
+                        df_vol_calc = df_vol_calc.copy()
+                        df_vol_calc['Período'] = df_vol_calc['Período'].astype(str)
+                        def normalizar_periodo_vol(periodo_str):
+                            periodo_str = str(periodo_str).strip()
+                            if ' ' in periodo_str:
+                                return periodo_str.split(' ', 1)[0].strip().capitalize()
+                            return periodo_str.capitalize()
+                        df_vol_calc['Período'] = df_vol_calc['Período'].apply(normalizar_periodo_vol)
+                    
+                    # 🔧 CORREÇÃO CRÍTICA: Aplicar filtros da sidebar DIRETAMENTE no volume (mesma lógica do TC_Ext)
+                    # Isso garante que apenas os valores selecionados nos filtros sejam considerados
+                    df_vol_calc_filtrado = df_vol_calc.copy()
+                    
+                    # Aplicar filtro de Oficina da sidebar (se não for "Todos")
+                    if 'Oficina' in df_vol_calc_filtrado.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                        df_vol_calc_filtrado = df_vol_calc_filtrado[
+                            df_vol_calc_filtrado['Oficina'].astype(str).isin(oficina_selecionadas)
+                        ].copy()
+                    
+                    # Aplicar filtro de Veículo da sidebar (se não for "Todos")
+                    if 'Veículo' in df_vol_calc_filtrado.columns and veiculo_selecionados and "Todos" not in veiculo_selecionados:
+                        df_vol_calc_filtrado = df_vol_calc_filtrado[
+                            df_vol_calc_filtrado['Veículo'].astype(str).isin(veiculo_selecionados)
+                        ].copy()
+                    
+                    # 🔧 CORREÇÃO: Aplicar filtro de Período da sidebar (se não for "Todos")
+                    if 'Período' in df_vol_calc_filtrado.columns:
+                        if periodo_selecionado and "Todos" not in periodo_selecionado:
+                            df_vol_calc_filtrado = df_vol_calc_filtrado[
+                                df_vol_calc_filtrado['Período'].astype(str).isin(periodo_selecionado)
+                            ].copy()
+                    
+                    # 🔧 FILTRAR df_vol_calc pelos mesmos valores de df_visualizacao_veiculo (mesma lógica do TC_Ext)
+                    # Isso garante que apenas veículos e oficinas que têm valores sejam considerados
+                    tem_veiculo = 'Veículo' in df_visualizacao_veiculo.columns
+                    tem_ano = 'Ano' in df_visualizacao_veiculo.columns
+                    tem_oficina = 'Oficina' in df_visualizacao_veiculo.columns
+                    
+                    # Filtrar por Veículo (mesma lógica do TC_Ext linha 698-703)
+                    if tem_veiculo and 'Veículo' in df_vol_calc_filtrado.columns:
+                        veiculos_filtrados = df_visualizacao_veiculo['Veículo'].dropna().unique()
+                        if len(veiculos_filtrados) > 0:
+                            df_vol_calc_filtrado = df_vol_calc_filtrado[
+                                df_vol_calc_filtrado['Veículo'].isin(veiculos_filtrados)
+                            ].copy()
+                    
+                    # Filtrar por Oficina (mesma lógica do TC_Ext linha 705-710)
+                    if tem_oficina and 'Oficina' in df_visualizacao_veiculo.columns and 'Oficina' in df_vol_calc_filtrado.columns:
+                        oficinas_filtradas = df_visualizacao_veiculo['Oficina'].dropna().unique()
+                        if len(oficinas_filtradas) > 0:
+                            df_vol_calc_filtrado = df_vol_calc_filtrado[
+                                df_vol_calc_filtrado['Oficina'].isin(oficinas_filtradas)
+                            ].copy()
+                    
+                    df_vol_calc = df_vol_calc_filtrado
+                    
+                    # Agrupar Volume exatamente como no TC_Ext (linha 715-724)
+                    if tem_veiculo and 'Veículo' in df_vol_calc.columns:
+                        colunas_agrupamento_vol = ['Oficina', 'Período']
+                        if tem_ano and 'Ano' in df_vol_calc.columns:
+                            colunas_agrupamento_vol.append('Ano')
+                        if 'Veículo' in df_vol_calc.columns:
+                            colunas_agrupamento_vol.append('Veículo')
+                        
+                        df_vol_agrupado = df_vol_calc.groupby(
+                            colunas_agrupamento_vol, as_index=False
+                        )['Volume'].sum()
+                        
+                        # Agrupar df_visualizacao_veiculo mantendo apenas as colunas necessárias (mesma lógica do TC_Ext linha 730-738)
+                        colunas_agrupamento = colunas_agrupamento_vol.copy()
+                        
+                        if 'Total' in df_visualizacao_veiculo.columns:
+                            df_visualizacao_agrupado = df_visualizacao_veiculo.groupby(
+                                colunas_agrupamento, as_index=False
+                            )['Total'].sum()
+                        else:
+                            df_visualizacao_agrupado = df_visualizacao_veiculo[colunas_agrupamento].drop_duplicates()
+                        
+                        # Fazer merge com df_vol_agrupado usando as MESMAS colunas (mesma lógica do TC_Ext linha 742-747)
+                        df_visualizacao_veiculo = pd.merge(
+                            df_visualizacao_agrupado,
+                            df_vol_agrupado[colunas_agrupamento_vol + ['Volume']],
+                            on=colunas_agrupamento_vol,
+                            how='left'
+                        )
+                        df_visualizacao_veiculo['Volume'] = df_visualizacao_veiculo['Volume'].fillna(0.0)
+                
+                # Usar função create_volume_veiculo_chart com df_visualizacao_veiculo (mesma lógica do TC_Ext linha 2803-2807)
+                if 'Volume' in df_visualizacao_veiculo.columns and 'Veículo' in df_visualizacao_veiculo.columns:
+                    st.subheader("📊 Volume por Veículo")
+                    grafico_vol_veiculo = create_volume_veiculo_chart(df_visualizacao_veiculo)
+                    if grafico_vol_veiculo is not None:
+                        st.altair_chart(grafico_vol_veiculo, use_container_width=True)
+    except Exception as e:
+        st.error(f"❌ Erro ao criar gráfico 'Por Veículo': {str(e)}")
     
     st.stop()
 
@@ -3704,6 +4944,14 @@ else:
                                 lambda p: normalizar_periodo_historico(p)
                             )
                     
+                    # 🔧 CORREÇÃO: Sistema de mensagens em expander único
+                    # Coletar todas as mensagens de debug/info para exibir em um único expander
+                    mensagens_debug = []
+                    
+                    def adicionar_mensagem(tipo, mensagem):
+                        """Adiciona mensagem à lista de debug"""
+                        mensagens_debug.append((tipo, mensagem))
+                    
                     # 🔧 CORREÇÃO CRÍTICA: Filtrar períodos históricos para remover os que serão previstos
                     # Isso garante que não haverá duplicação quando juntar histórico + forecast
                     # O arquivo forecast_historico.parquet NÃO deve conter os meses que estão sendo previstos
@@ -3739,10 +4987,10 @@ else:
                             # Confirmação: mostrar quantas linhas foram removidas
                             linhas_removidas = linhas_antes_filtro_historico - len(df_historico_linhas)
                             if linhas_removidas > 0:
-                                st.success(f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos períodos que serão previstos: {', '.join(periodos_forecast_formatados)}")
-                                st.info(f"📊 O arquivo forecast_historico.parquet NÃO conterá estes períodos para evitar duplicação ao juntar com forecast_previsao.parquet")
+                                adicionar_mensagem("success", f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos períodos que serão previstos: {', '.join(periodos_forecast_formatados)}")
+                                adicionar_mensagem("info", f"📊 O arquivo forecast_historico.parquet NÃO conterá estes períodos para evitar duplicação ao juntar com forecast_previsao.parquet")
                             else:
-                                st.info(f"ℹ️ Nenhuma linha histórica removida (períodos de forecast não encontrados no histórico)")
+                                adicionar_mensagem("info", f"ℹ️ Nenhuma linha histórica removida (períodos de forecast não encontrados no histórico)")
                         else:
                             # Se não há coluna Ano ou não há anos de forecast, filtrar apenas por mês
                             mask_remover = df_historico_linhas['Período'].isin(meses_forecast)
@@ -3751,12 +4999,12 @@ else:
                             # Confirmação: mostrar quantas linhas foram removidas
                             linhas_removidas = linhas_antes_filtro_historico - len(df_historico_linhas)
                             if linhas_removidas > 0:
-                                st.success(f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos meses que serão previstos: {', '.join(meses_forecast)}")
-                                st.info(f"📊 O arquivo forecast_historico.parquet NÃO conterá estes meses para evitar duplicação ao juntar com forecast_previsao.parquet")
+                                adicionar_mensagem("success", f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos meses que serão previstos: {', '.join(meses_forecast)}")
+                                adicionar_mensagem("info", f"📊 O arquivo forecast_historico.parquet NÃO conterá estes meses para evitar duplicação ao juntar com forecast_previsao.parquet")
                             else:
-                                st.info(f"ℹ️ Nenhuma linha histórica removida (meses de forecast não encontrados no histórico)")
+                                adicionar_mensagem("info", f"ℹ️ Nenhuma linha histórica removida (meses de forecast não encontrados no histórico)")
                     else:
-                        st.warning(f"⚠️ Coluna 'Período' não encontrada no histórico. Não é possível filtrar períodos de forecast.")
+                        adicionar_mensagem("warning", f"⚠️ Coluna 'Período' não encontrada no histórico. Não é possível filtrar períodos de forecast.")
                     
                     # Adicionar coluna Tipo = 'Histórico'
                     df_historico_linhas['Tipo'] = 'Histórico'
@@ -3771,15 +5019,15 @@ else:
                     if 'df_forecast_bruto' in globals() and df_forecast_bruto is not None and not df_forecast_bruto.empty:
                         df_fonte_forecast = df_forecast_bruto.copy()
                         df_forecast_bruto_disponivel = True
-                        st.info("✅ Usando valores do df_forecast_bruto (mesma lógica do gráfico)")
+                        adicionar_mensagem("info", "✅ Usando valores do df_forecast_bruto (mesma lógica do gráfico)")
                     elif 'df_forecast_bruto' in locals() and df_forecast_bruto is not None and not df_forecast_bruto.empty:
                         df_fonte_forecast = df_forecast_bruto.copy()
                         df_forecast_bruto_disponivel = True
-                        st.info("✅ Usando valores do df_forecast_bruto (mesma lógica do gráfico)")
+                        adicionar_mensagem("info", "✅ Usando valores do df_forecast_bruto (mesma lógica do gráfico)")
                     else:
                         # Fallback: usar df_forecast_completo com valores calculados
                         df_fonte_forecast = df_forecast_completo.copy()
-                        st.info("ℹ️ Usando valores calculados do df_forecast_completo")
+                        adicionar_mensagem("info", "ℹ️ Usando valores calculados do df_forecast_completo")
                     
                     # 🔧 CORREÇÃO: Fazer merge com histórico para garantir que colunas importantes estejam presentes
                     colunas_importantes_historico = ['Custo', 'Centocst', 'Fornec.', 'Fornecedor', 'USI']
@@ -3850,23 +5098,23 @@ else:
                                                     valores_para_preencher = indices_para_preencher.map(serie_historico)
                                                     df_fonte_forecast.loc[mask_nulos, col] = valores_para_preencher.values
                                 
-                                st.info(f"✅ Colunas adicionadas do histórico via merge: {', '.join(colunas_faltantes)}")
+                                adicionar_mensagem("info", f"✅ Colunas adicionadas do histórico via merge: {', '.join(colunas_faltantes)}")
                                 # Debug: verificar quantos valores foram preenchidos
                                 for col in colunas_faltantes:
                                     if col in df_fonte_forecast.columns:
                                         valores_preenchidos = df_fonte_forecast[col].notna().sum()
                                         total_linhas = len(df_fonte_forecast)
-                                        st.info(f"📊 {col}: {valores_preenchidos:,} de {total_linhas:,} linhas preenchidas ({valores_preenchidos/total_linhas*100:.1f}%)")
+                                        adicionar_mensagem("info", f"📊 {col}: {valores_preenchidos:,} de {total_linhas:,} linhas preenchidas ({valores_preenchidos/total_linhas*100:.1f}%)")
                     
                     # 🔧 DEBUG: Verificar se há períodos para criar forecast
-                    st.info(f"📊 Períodos restantes para criar forecast: {periodos_restantes}")
+                    adicionar_mensagem("info", f"📊 Períodos restantes para criar forecast: {periodos_restantes}")
                     if df_fonte_forecast is not None and not df_fonte_forecast.empty:
-                        st.info(f"📊 Total de linhas em df_fonte_forecast: {len(df_fonte_forecast)}")
-                        st.info(f"📊 Colunas disponíveis em df_fonte_forecast: {list(df_fonte_forecast.columns)[:15]}...")
+                        adicionar_mensagem("info", f"📊 Total de linhas em df_fonte_forecast: {len(df_fonte_forecast)}")
+                        adicionar_mensagem("info", f"📊 Colunas disponíveis em df_fonte_forecast: {list(df_fonte_forecast.columns)[:15]}...")
                         colunas_periodos = [col for col in df_fonte_forecast.columns if col in periodos_restantes]
-                        st.info(f"📊 Colunas de períodos encontradas: {colunas_periodos}")
+                        adicionar_mensagem("info", f"📊 Colunas de períodos encontradas: {colunas_periodos}")
                         if not colunas_periodos:
-                            st.warning(f"⚠️ Nenhuma coluna de período encontrada! Períodos esperados: {periodos_restantes}")
+                            adicionar_mensagem("warning", f"⚠️ Nenhuma coluna de período encontrada! Períodos esperados: {periodos_restantes}")
                     
                     # OTIMIZAÇÃO: Coletar todas as linhas de forecast em uma lista de dicionários
                     # e criar um único DataFrame no final (muito mais rápido)
@@ -3874,16 +5122,16 @@ else:
                     linhas_forecast_criadas = 0
                     
                     # 🔧 DEBUG: Verificar períodos e df_fonte_forecast antes do loop
-                    st.info(f"📊 Iniciando criação de linhas de forecast para {len(periodos_restantes)} períodos")
+                    adicionar_mensagem("info", f"📊 Iniciando criação de linhas de forecast para {len(periodos_restantes)} períodos")
                     if df_fonte_forecast is None or df_fonte_forecast.empty:
-                        st.error(f"❌ df_fonte_forecast está None ou vazio! Não é possível criar forecast.")
+                        adicionar_mensagem("error", f"❌ df_fonte_forecast está None ou vazio! Não é possível criar forecast.")
                     else:
-                        st.info(f"📊 df_fonte_forecast tem {len(df_fonte_forecast):,} linhas e {len(df_fonte_forecast.columns)} colunas")
+                        adicionar_mensagem("info", f"📊 df_fonte_forecast tem {len(df_fonte_forecast):,} linhas e {len(df_fonte_forecast.columns)} colunas")
                     
                     for periodo in periodos_restantes:
-                        st.info(f"📊 Processando período: {periodo}")
+                        adicionar_mensagem("info", f"📊 Processando período: {periodo}")
                         if df_fonte_forecast is not None and periodo in df_fonte_forecast.columns:
-                            st.info(f"✅ Período '{periodo}' encontrado em df_fonte_forecast")
+                            adicionar_mensagem("info", f"✅ Período '{periodo}' encontrado em df_fonte_forecast")
                             # Para cada linha única, criar uma nova linha com Período = periodo
                             colunas_chave_linha = ['Oficina', 'Veículo', 'Tipo_Custo'] + colunas_adicionais
                             if 'Ano' in df_fonte_forecast.columns:
@@ -3964,31 +5212,31 @@ else:
                                 linhas_forecast_dicts.append(nova_linha)
                                 linhas_forecast_criadas += 1
                         else:
-                            st.warning(f"⚠️ Período '{periodo}' não encontrado nas colunas de df_fonte_forecast")
+                            adicionar_mensagem("warning", f"⚠️ Período '{periodo}' não encontrado nas colunas de df_fonte_forecast")
                     
                     # OTIMIZAÇÃO: Criar um único DataFrame de todas as linhas de forecast de uma vez
                     # 🔧 DEBUG: Verificar se há linhas de forecast
-                    st.info(f"📊 Total de dicionários de forecast coletados: {len(linhas_forecast_dicts)}")
+                    adicionar_mensagem("info", f"📊 Total de dicionários de forecast coletados: {len(linhas_forecast_dicts)}")
                     if linhas_forecast_dicts:
                         df_forecast_final_temp = pd.DataFrame(linhas_forecast_dicts)
-                        st.info(f"📊 DataFrame de forecast criado com {len(df_forecast_final_temp):,} linhas")
-                        st.info(f"📊 Colunas no DataFrame de forecast: {list(df_forecast_final_temp.columns)[:10]}...")
+                        adicionar_mensagem("info", f"📊 DataFrame de forecast criado com {len(df_forecast_final_temp):,} linhas")
+                        adicionar_mensagem("info", f"📊 Colunas no DataFrame de forecast: {list(df_forecast_final_temp.columns)[:10]}...")
                         if 'Tipo' in df_forecast_final_temp.columns:
                             tipos_unicos = df_forecast_final_temp['Tipo'].unique()
-                            st.info(f"📊 Valores únicos na coluna 'Tipo': {tipos_unicos}")
+                            adicionar_mensagem("info", f"📊 Valores únicos na coluna 'Tipo': {tipos_unicos}")
                         linhas_finais.append(df_forecast_final_temp)
                     else:
-                        st.warning(f"⚠️ Nenhuma linha de forecast foi criada! Verifique se há períodos restantes e se df_fonte_forecast contém dados.")
-                        st.info(f"📊 Períodos restantes: {periodos_restantes}")
+                        adicionar_mensagem("warning", f"⚠️ Nenhuma linha de forecast foi criada! Verifique se há períodos restantes e se df_fonte_forecast contém dados.")
+                        adicionar_mensagem("info", f"📊 Períodos restantes: {periodos_restantes}")
                         if df_fonte_forecast is not None and not df_fonte_forecast.empty:
-                            st.info(f"📊 df_fonte_forecast tem {len(df_fonte_forecast):,} linhas")
-                            st.info(f"📊 Colunas em df_fonte_forecast: {list(df_fonte_forecast.columns)[:15]}...")
+                            adicionar_mensagem("info", f"📊 df_fonte_forecast tem {len(df_fonte_forecast):,} linhas")
+                            adicionar_mensagem("info", f"📊 Colunas em df_fonte_forecast: {list(df_fonte_forecast.columns)[:15]}...")
                         else:
-                            st.warning(f"⚠️ df_fonte_forecast está vazio ou None!")
+                            adicionar_mensagem("warning", f"⚠️ df_fonte_forecast está vazio ou None!")
                     
                     # 🔧 DEBUG: Mostrar quantas linhas de forecast foram criadas
-                    st.info(f"📊 Linhas de forecast criadas: {linhas_forecast_criadas}")
-                    st.info(f"📊 Total de DataFrames em linhas_finais: {len(linhas_finais)}")
+                    adicionar_mensagem("info", f"📊 Linhas de forecast criadas: {linhas_forecast_criadas}")
+                    adicionar_mensagem("info", f"📊 Total de DataFrames em linhas_finais: {len(linhas_finais)}")
                     
                     # 3. Separar histórico e forecast em DataFrames distintos
                     df_historico_final = None
@@ -4009,18 +5257,18 @@ else:
                             df_consolidado_final = df_todos.copy()
                             
                             # 🔧 DEBUG: Verificar separação
-                            st.info(f"🔍 DEBUG: Total de linhas em df_todos: {len(df_todos):,}")
+                            adicionar_mensagem("info", f"🔍 DEBUG: Total de linhas em df_todos: {len(df_todos):,}")
                             tipos_unicos = df_todos['Tipo'].unique()
-                            st.info(f"🔍 DEBUG: Valores únicos na coluna 'Tipo': {tipos_unicos}")
+                            adicionar_mensagem("info", f"🔍 DEBUG: Valores únicos na coluna 'Tipo': {tipos_unicos}")
                             for tipo in tipos_unicos:
                                 count = len(df_todos[df_todos['Tipo'] == tipo])
-                                st.info(f"🔍 DEBUG: Linhas com Tipo='{tipo}': {count:,}")
-                            st.info(f"🔍 DEBUG: df_historico_final: {len(df_historico_final):,} linhas")
-                            st.info(f"🔍 DEBUG: df_forecast_final: {len(df_forecast_final):,} linhas")
+                                adicionar_mensagem("info", f"🔍 DEBUG: Linhas com Tipo='{tipo}': {count:,}")
+                            adicionar_mensagem("info", f"🔍 DEBUG: df_historico_final: {len(df_historico_final):,} linhas")
+                            adicionar_mensagem("info", f"🔍 DEBUG: df_forecast_final: {len(df_forecast_final):,} linhas")
                         else:
                             # Se não tem coluna Tipo, assumir que tudo é histórico
-                            st.warning(f"⚠️ Coluna 'Tipo' não encontrada em df_todos! Assumindo que tudo é histórico.")
-                            st.info(f"🔍 DEBUG: Colunas disponíveis: {list(df_todos.columns)[:15]}...")
+                            adicionar_mensagem("warning", f"⚠️ Coluna 'Tipo' não encontrada em df_todos! Assumindo que tudo é histórico.")
+                            adicionar_mensagem("info", f"🔍 DEBUG: Colunas disponíveis: {list(df_todos.columns)[:15]}...")
                             df_historico_final = df_todos.copy()
                             df_forecast_final = pd.DataFrame()
                             df_consolidado_final = df_todos.copy()
@@ -4028,34 +5276,34 @@ else:
                         # Substituir df_forecast_completo pelo resultado consolidado
                         df_forecast_completo = df_consolidado_final
                         
-                        st.info(f"✅ Tabela criada com {len(df_consolidado_final):,} linhas (histórico + forecast)")
-                        st.info(f"📊 Histórico: {len(df_historico_final):,} linhas")
-                        st.info(f"📊 Forecast: {len(df_forecast_final):,} linhas")
-                        st.info(f"📊 Períodos de forecast incluídos: {', '.join(periodos_restantes)}")
+                        adicionar_mensagem("info", f"✅ Tabela criada com {len(df_consolidado_final):,} linhas (histórico + forecast)")
+                        adicionar_mensagem("info", f"📊 Histórico: {len(df_historico_final):,} linhas")
+                        adicionar_mensagem("info", f"📊 Forecast: {len(df_forecast_final):,} linhas")
+                        adicionar_mensagem("info", f"📊 Períodos de forecast incluídos: {', '.join(periodos_restantes)}")
                         
                         # Debug: Verificar períodos únicos e anos
                         if 'Período' in df_forecast_completo.columns:
                             periodos_unicos = df_forecast_completo['Período'].unique()
-                            st.info(f"📅 Períodos únicos no arquivo: {len(periodos_unicos)} períodos")
-                            st.info(f"📅 Lista de períodos: {sorted(periodos_unicos)}")
+                            adicionar_mensagem("info", f"📅 Períodos únicos no arquivo: {len(periodos_unicos)} períodos")
+                            adicionar_mensagem("info", f"📅 Lista de períodos: {sorted(periodos_unicos)}")
                             if 'Ano' in df_forecast_completo.columns:
                                 anos_unicos = df_forecast_completo['Ano'].unique()
-                                st.info(f"📅 Anos únicos no arquivo: {sorted(anos_unicos)}")
+                                adicionar_mensagem("info", f"📅 Anos únicos no arquivo: {sorted(anos_unicos)}")
                             
                             # Verificar se há períodos históricos
                             if 'Tipo' in df_forecast_completo.columns:
                                 periodos_historicos = df_forecast_completo[df_forecast_completo['Tipo'] == 'Histórico']['Período'].unique()
                                 periodos_forecast = df_forecast_completo[df_forecast_completo['Tipo'] == 'Forecast']['Período'].unique()
-                                st.info(f"📊 Períodos históricos: {len(periodos_historicos)} períodos")
-                                st.info(f"📊 Períodos de forecast: {len(periodos_forecast)} períodos")
+                                adicionar_mensagem("info", f"📊 Períodos históricos: {len(periodos_historicos)} períodos")
+                                adicionar_mensagem("info", f"📊 Períodos de forecast: {len(periodos_forecast)} períodos")
                     else:
-                        st.warning("⚠️ Nenhuma linha foi criada!")
+                        adicionar_mensagem("warning", "⚠️ Nenhuma linha foi criada!")
                         # Se não criou linhas, usar df_base_filtrado como base
                         df_historico_final = df_base_filtrado.copy()
                         df_historico_final['Tipo'] = 'Histórico'
                         df_forecast_final = pd.DataFrame()
                         df_forecast_completo = df_historico_final.copy()
-                        st.info("ℹ️ Usando apenas dados históricos (sem forecast)")
+                        adicionar_mensagem("info", "ℹ️ Usando apenas dados históricos (sem forecast)")
                     
                     # Verificar se df_forecast_completo existe e não está vazio
                     if df_forecast_completo is None or df_forecast_completo.empty:
@@ -4106,24 +5354,21 @@ else:
                         df_historico_final = limpar_dataframe(df_historico_final)
                         linhas_depois_hist = len(df_historico_final)
                         if linhas_antes_hist != linhas_depois_hist:
-                            st.info(f"🧹 Histórico: {linhas_antes_hist:,} → {linhas_depois_hist:,} linhas após limpeza")
+                            adicionar_mensagem("info", f"🧹 Histórico: {linhas_antes_hist:,} → {linhas_depois_hist:,} linhas após limpeza")
                     
                     if df_forecast_final is not None and not df_forecast_final.empty:
                         linhas_antes_for = len(df_forecast_final)
-                        st.info(f"🔍 DEBUG: df_forecast_final antes da limpeza: {linhas_antes_for:,} linhas")
+                        adicionar_mensagem("info", f"🔍 DEBUG: df_forecast_final antes da limpeza: {linhas_antes_for:,} linhas")
                         if 'Total' in df_forecast_final.columns:
                             valores_nao_zero = (df_forecast_final['Total'].notna() & (df_forecast_final['Total'] != 0)).sum()
-                            st.info(f"🔍 DEBUG: Linhas com Total não-zero: {valores_nao_zero:,} de {linhas_antes_for:,}")
-                        if 'Total' in df_forecast_final.columns:
-                            totais_nao_zero = (df_forecast_final['Total'].notna() & (df_forecast_final['Total'] != 0)).sum()
-                            st.info(f"🔍 DEBUG: Linhas com Total não-zero: {totais_nao_zero:,} de {linhas_antes_for:,}")
+                            adicionar_mensagem("info", f"🔍 DEBUG: Linhas com Total não-zero: {valores_nao_zero:,} de {linhas_antes_for:,}")
                         
                         df_forecast_final = limpar_dataframe(df_forecast_final)
                         linhas_depois_for = len(df_forecast_final)
                         if linhas_antes_for != linhas_depois_for:
-                            st.warning(f"⚠️ Forecast: {linhas_antes_for:,} → {linhas_depois_for:,} linhas após limpeza ({linhas_antes_for - linhas_depois_for:,} removidas)")
+                            adicionar_mensagem("warning", f"⚠️ Forecast: {linhas_antes_for:,} → {linhas_depois_for:,} linhas após limpeza ({linhas_antes_for - linhas_depois_for:,} removidas)")
                         else:
-                            st.info(f"✅ Forecast: {linhas_depois_for:,} linhas (nenhuma removida na limpeza)")
+                            adicionar_mensagem("info", f"✅ Forecast: {linhas_depois_for:,} linhas (nenhuma removida na limpeza)")
                     
                     # Aplicar limpeza no consolidado
                     linhas_antes = len(df_forecast_completo)
@@ -4132,7 +5377,7 @@ else:
                     linhas_removidas = linhas_antes - linhas_depois
                     
                     if linhas_removidas > 0:
-                        st.info(f"🧹 Consolidado: Removidas {linhas_removidas:,} linhas com valores nulos/zerados (de {linhas_antes:,} para {linhas_depois:,})")
+                        adicionar_mensagem("info", f"🧹 Consolidado: Removidas {linhas_removidas:,} linhas com valores nulos/zerados (de {linhas_antes:,} para {linhas_depois:,})")
                     
                     # 🔧 CORREÇÃO: Padronizar colunas para garantir mesma ordem e nomes consistentes
                     def padronizar_colunas(df, nome_tipo="DataFrame"):
@@ -4215,8 +5460,8 @@ else:
                             df_forecast_completo = padronizar_colunas(df_forecast_completo, "Consolidado")
                             
                             # Debug: verificar se as colunas estão alinhadas
-                            st.info(f"✅ Colunas padronizadas: {len(colunas_finais)} colunas na mesma ordem")
-                            st.info(f"📊 Primeiras colunas: {', '.join(colunas_finais[:10])}...")
+                            adicionar_mensagem("info", f"✅ Colunas padronizadas: {len(colunas_finais)} colunas na mesma ordem")
+                            adicionar_mensagem("info", f"📊 Primeiras colunas: {', '.join(colunas_finais[:10])}...")
                         elif not df_historico_final.empty:
                             df_forecast_completo = padronizar_colunas(df_historico_final.copy(), "Consolidado")
                         elif not df_forecast_final.empty:
@@ -4226,31 +5471,31 @@ else:
                     pasta_dados = "dados"
                     pasta_forecast = os.path.join(pasta_dados, "Forecast")
                     
-                    st.info(f"📁 Preparando para salvar em: {os.path.abspath(pasta_forecast)}")
+                    adicionar_mensagem("info", f"📁 Preparando para salvar em: {os.path.abspath(pasta_forecast)}")
                     try:
                         # Criar pasta dados se não existir
                         if not os.path.exists(pasta_dados):
                             os.makedirs(pasta_dados, exist_ok=True)
-                            st.info(f"📁 Pasta 'dados' criada: {os.path.abspath(pasta_dados)}")
+                            adicionar_mensagem("info", f"📁 Pasta 'dados' criada: {os.path.abspath(pasta_dados)}")
                         
                         # Criar pasta Forecast dentro de dados
                         if not os.path.exists(pasta_forecast):
                             os.makedirs(pasta_forecast, exist_ok=True)
-                            st.success(f"✅ Pasta Forecast criada: {os.path.abspath(pasta_forecast)}")
+                            adicionar_mensagem("success", f"✅ Pasta Forecast criada: {os.path.abspath(pasta_forecast)}")
                         else:
-                            st.info(f"📁 Pasta Forecast já existe: {os.path.abspath(pasta_forecast)}")
+                            adicionar_mensagem("info", f"📁 Pasta Forecast já existe: {os.path.abspath(pasta_forecast)}")
                     except Exception as e_pasta:
-                        st.error(f"❌ Erro ao criar pasta Forecast: {str(e_pasta)}")
+                        adicionar_mensagem("error", f"❌ Erro ao criar pasta Forecast: {str(e_pasta)}")
                         import traceback
-                        st.error(f"Detalhes: {traceback.format_exc()}")
+                        adicionar_mensagem("error", f"Detalhes: {traceback.format_exc()}")
                         # Fallback: tentar criar na raiz
                         pasta_forecast = "Forecast"
                         try:
                             os.makedirs(pasta_forecast, exist_ok=True)
-                            st.warning(f"⚠️ Usando pasta Forecast na raiz: {os.path.abspath(pasta_forecast)}")
+                            adicionar_mensagem("warning", f"⚠️ Usando pasta Forecast na raiz: {os.path.abspath(pasta_forecast)}")
                         except:
                             pasta_forecast = "."  # Último fallback: diretório atual
-                            st.error(f"❌ Usando diretório atual como fallback: {os.path.abspath(pasta_forecast)}")
+                            adicionar_mensagem("error", f"❌ Usando diretório atual como fallback: {os.path.abspath(pasta_forecast)}")
                     
                     # Usar nome fixo para substituir arquivo existente (não usar timestamp)
                     nome_arquivo_base = "forecast_completo"
@@ -4272,14 +5517,14 @@ else:
                             caminho_vol_historico_excel = os.path.join(pasta_forecast, "df_vol_historico.xlsx")
                             df_vol_historico_completo.to_excel(caminho_vol_historico_excel, index=False, engine='openpyxl')
                             
-                            st.success(f"✅ Arquivo de volume histórico copiado: {os.path.abspath(caminho_vol_historico_destino)}")
-                            st.info(f"   📊 Total de linhas: {len(df_vol_historico_completo):,}")
+                            adicionar_mensagem("success", f"✅ Arquivo de volume histórico copiado: {os.path.abspath(caminho_vol_historico_destino)}")
+                            adicionar_mensagem("info", f"   📊 Total de linhas: {len(df_vol_historico_completo):,}")
                         else:
-                            st.warning(f"⚠️ Arquivo de volume histórico não encontrado: {caminho_vol_historico_original}")
+                            adicionar_mensagem("warning", f"⚠️ Arquivo de volume histórico não encontrado: {caminho_vol_historico_original}")
                     except Exception as e_volume:
-                        st.warning(f"⚠️ Erro ao copiar arquivo de volume histórico: {str(e_volume)}")
+                        adicionar_mensagem("warning", f"⚠️ Erro ao copiar arquivo de volume histórico: {str(e_volume)}")
                         import traceback
-                        st.error(f"Detalhes: {traceback.format_exc()}")
+                        adicionar_mensagem("error", f"Detalhes: {traceback.format_exc()}")
                     
                     # ============================================================
                     # PASSO 2: Salvar arquivos separados (histórico, forecast, consolidado)
@@ -4353,9 +5598,9 @@ else:
                         colunas_hist = list(df_historico_final.columns)
                         colunas_for = list(df_forecast_final.columns)
                         if colunas_hist == colunas_for:
-                            st.success(f"✅ CONFIRMADO: Histórico e Forecast têm {len(colunas_hist)} colunas na mesma ordem")
+                            adicionar_mensagem("success", f"✅ CONFIRMADO: Histórico e Forecast têm {len(colunas_hist)} colunas na mesma ordem")
                         else:
-                            st.warning(f"⚠️ Colunas diferentes! Histórico: {len(colunas_hist)}, Forecast: {len(colunas_for)}")
+                            adicionar_mensagem("warning", f"⚠️ Colunas diferentes! Histórico: {len(colunas_hist)}, Forecast: {len(colunas_for)}")
                             # Forçar alinhamento
                             todas_colunas = sorted(set(colunas_hist + colunas_for))
                             df_historico_final = df_historico_final.reindex(columns=todas_colunas)
@@ -4363,12 +5608,39 @@ else:
                             # Padronizar novamente
                             df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
                             df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
-                            st.info(f"✅ Colunas alinhadas e padronizadas: {len(todas_colunas)} colunas")
+                            adicionar_mensagem("info", f"✅ Colunas alinhadas e padronizadas: {len(todas_colunas)} colunas")
                     
                     # Salvar arquivos e coletar informações
                     info_historico = salvar_arquivo(df_historico_final, "forecast_historico", "Histórico")
                     info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "Forecast")
                     info_consolidado = salvar_arquivo(df_forecast_completo, nome_arquivo_base, "Consolidado")
+                    
+                    # 🔧 CORREÇÃO: Exibir todas as mensagens de debug em um único expander
+                    if mensagens_debug:
+                        # Contar mensagens por tipo para o título
+                        total_mensagens = len(mensagens_debug)
+                        tipos_contagem = {}
+                        for tipo, _ in mensagens_debug:
+                            tipos_contagem[tipo] = tipos_contagem.get(tipo, 0) + 1
+                        
+                        # Criar título resumido
+                        titulo_expander = f"📊 Log de Processamento ({total_mensagens} mensagens)"
+                        if tipos_contagem.get('error', 0) > 0:
+                            titulo_expander += f" ⚠️ {tipos_contagem['error']} erro(s)"
+                        elif tipos_contagem.get('warning', 0) > 0:
+                            titulo_expander += f" ⚠️ {tipos_contagem['warning']} aviso(s)"
+                        
+                        with st.expander(titulo_expander, expanded=False):
+                            for tipo, mensagem in mensagens_debug:
+                                # Usar texto menor e sem caixas coloridas
+                                if tipo == "error":
+                                    st.markdown(f"<small style='color: #ff4b4b;'>❌ {mensagem}</small>", unsafe_allow_html=True)
+                                elif tipo == "warning":
+                                    st.markdown(f"<small style='color: #ffa500;'>⚠️ {mensagem}</small>", unsafe_allow_html=True)
+                                elif tipo == "success":
+                                    st.markdown(f"<small style='color: #00cc00;'>✅ {mensagem}</small>", unsafe_allow_html=True)
+                                else:  # info
+                                    st.markdown(f"<small>{mensagem}</small>", unsafe_allow_html=True)
                     
                     # Exibir status em expander compacto
                     with st.expander("📊 Status de Salvamento dos Arquivos", expanded=False):
@@ -4403,28 +5675,27 @@ else:
                         st.markdown("<small>---</small>", unsafe_allow_html=True)
                         st.markdown(f"<small>📊 Histórico: {info_historico.get('linhas', 0):,} linhas | Forecast: {info_forecast.get('linhas', 0):,} linhas | Consolidado: {info_consolidado.get('linhas', 0):,} linhas</small>", unsafe_allow_html=True)
                     
-                    st.success(f"✅ Tabela completa gerada com sucesso!")
+                    adicionar_mensagem("success", f"✅ Tabela completa gerada com sucesso!")
                     
                     # ====================================================================
                     # 🆕 OTIMIZAÇÃO: Usar arquivos já salvos para criar consolidado (muito mais rápido)
                     # ====================================================================
-                    st.markdown("---")
-                    st.markdown("### 📝 Gerando arquivo consolidado com histórico + forecast")
+                    adicionar_mensagem("info", "📝 Gerando arquivo consolidado com histórico + forecast")
                     
                     try:
-                        with st.spinner("🔄 Carregando arquivos salvos e consolidando..."):
-                            # OTIMIZAÇÃO: Em vez de reprocessar tudo, apenas carregar os arquivos já salvos e juntar
-                            caminho_historico_salvo = os.path.join(pasta_forecast, "forecast_historico.parquet")
-                            caminho_forecast_salvo = os.path.join(pasta_forecast, "forecast_previsao.parquet")
-                            
-                            # Carregar arquivos salvos (muito mais rápido que reprocessar)
-                            if os.path.exists(caminho_historico_salvo) and os.path.exists(caminho_forecast_salvo):
-                                st.info("✅ Carregando arquivos já salvos (otimizado)")
+                        # OTIMIZAÇÃO: Em vez de reprocessar tudo, apenas carregar os arquivos já salvos e juntar
+                        # Removido st.spinner para evitar mensagens separadas - tudo vai para o expander
+                        caminho_historico_salvo = os.path.join(pasta_forecast, "forecast_historico.parquet")
+                        caminho_forecast_salvo = os.path.join(pasta_forecast, "forecast_previsao.parquet")
+                        
+                        # Carregar arquivos salvos (muito mais rápido que reprocessar)
+                        if os.path.exists(caminho_historico_salvo) and os.path.exists(caminho_forecast_salvo):
+                                adicionar_mensagem("info", "✅ Carregando arquivos já salvos (otimizado)")
                                 df_historico_carregado = pd.read_parquet(caminho_historico_salvo)
                                 df_forecast_carregado = pd.read_parquet(caminho_forecast_salvo)
                                 
-                                st.info(f"📊 Histórico carregado: {len(df_historico_carregado):,} linhas")
-                                st.info(f"📊 Forecast carregado: {len(df_forecast_carregado):,} linhas")
+                                adicionar_mensagem("info", f"📊 Histórico carregado: {len(df_historico_carregado):,} linhas")
+                                adicionar_mensagem("info", f"📊 Forecast carregado: {len(df_forecast_carregado):,} linhas")
                                 
                                 # OTIMIZAÇÃO: Juntar diretamente sem reprocessar (muito mais rápido)
                                 # Garantir que todas as colunas estejam presentes
@@ -4435,12 +5706,12 @@ else:
                                 # Combinar (muito rápido - apenas concat)
                                 df_consolidado_final = pd.concat([df_historico_carregado, df_forecast_carregado], ignore_index=True)
                                 
-                                st.success(f"✅ Consolidado criado: {len(df_consolidado_final):,} linhas (Histórico: {len(df_historico_carregado):,} + Forecast: {len(df_forecast_carregado):,})")
+                                adicionar_mensagem("success", f"✅ Consolidado criado: {len(df_consolidado_final):,} linhas (Histórico: {len(df_historico_carregado):,} + Forecast: {len(df_forecast_carregado):,})")
                                 
                                 # Salvar arquivo consolidado
                                 caminho_consolidado_forecast = os.path.join(pasta_forecast, "df_final_historico_forecast.parquet")
                                 df_consolidado_final.to_parquet(caminho_consolidado_forecast, index=False, engine='pyarrow')
-                                st.success(f"✅ Arquivo consolidado salvo na pasta Forecast: {os.path.basename(caminho_consolidado_forecast)}")
+                                adicionar_mensagem("success", f"✅ Arquivo consolidado salvo na pasta Forecast: {os.path.basename(caminho_consolidado_forecast)}")
                                 
                                 # Gerar também em Excel
                                 caminho_consolidado_excel = caminho_consolidado_forecast.replace('.parquet', '.xlsx')
@@ -4456,27 +5727,27 @@ else:
                                     
                                     if os.path.exists(caminho_consolidado_excel):
                                         tamanho = os.path.getsize(caminho_consolidado_excel) / (1024 * 1024)
-                                        st.success(f"✅ Arquivo consolidado Excel salvo: {os.path.basename(caminho_consolidado_excel)} ({tamanho:.2f} MB)")
+                                        adicionar_mensagem("success", f"✅ Arquivo consolidado Excel salvo: {os.path.basename(caminho_consolidado_excel)} ({tamanho:.2f} MB)")
                                 except Exception as e_excel:
-                                    st.warning(f"⚠️ Erro ao salvar Excel consolidado: {str(e_excel)}")
-                                
-                            else:
+                                    adicionar_mensagem("warning", f"⚠️ Erro ao salvar Excel consolidado: {str(e_excel)}")
+                            
+                        else:
                                 # Fallback: se os arquivos não existirem, usar o método antigo (mas otimizado)
-                                st.warning("⚠️ Arquivos não encontrados, usando método alternativo...")
+                                adicionar_mensagem("warning", "⚠️ Arquivos não encontrados, usando método alternativo...")
                                 # Usar df_forecast_completo que já foi criado anteriormente
                                 if df_forecast_completo is not None and not df_forecast_completo.empty:
                                     df_consolidado_final = df_forecast_completo.copy()
                                     caminho_consolidado_forecast = os.path.join(pasta_forecast, "df_final_historico_forecast.parquet")
                                     df_consolidado_final.to_parquet(caminho_consolidado_forecast, index=False, engine='pyarrow')
-                                    st.success(f"✅ Arquivo consolidado salvo: {os.path.basename(caminho_consolidado_forecast)}")
+                                    adicionar_mensagem("success", f"✅ Arquivo consolidado salvo: {os.path.basename(caminho_consolidado_forecast)}")
                                 else:
-                                    st.error("❌ Não foi possível criar arquivo consolidado: dados não disponíveis")
+                                    adicionar_mensagem("error", "❌ Não foi possível criar arquivo consolidado: dados não disponíveis")
                                     raise Exception("Dados não disponíveis para consolidação")
                             
                     except Exception as e_consolidado:
-                        st.error(f"❌ Erro ao criar arquivo consolidado: {str(e_consolidado)}")
+                        adicionar_mensagem("error", f"❌ Erro ao criar arquivo consolidado: {str(e_consolidado)}")
                         import traceback
-                        st.error(f"Detalhes: {traceback.format_exc()}")
+                        adicionar_mensagem("error", f"Detalhes: {traceback.format_exc()}")
                     
                     # ====================================================================
                     # CÓDIGO ANTIGO (MUITO LENTO) - REMOVIDO PARA OTIMIZAÇÃO
@@ -4490,10 +5761,44 @@ else:
                     # Limpar flag
                     st.session_state.gerar_tabela_completa_forecast = False
                     
+                    # 🔧 CORREÇÃO: Exibir todas as mensagens de debug em um único expander
+                    # IMPORTANTE: Exibir DEPOIS de todas as operações para garantir que todas as mensagens sejam coletadas
+                    if 'mensagens_debug' in locals() and mensagens_debug:
+                        # Contar mensagens por tipo para o título
+                        total_mensagens = len(mensagens_debug)
+                        tipos_contagem = {}
+                        for tipo, _ in mensagens_debug:
+                            tipos_contagem[tipo] = tipos_contagem.get(tipo, 0) + 1
+                        
+                        # Criar título resumido
+                        titulo_expander = f"📊 Log de Processamento ({total_mensagens} mensagens)"
+                        if tipos_contagem.get('error', 0) > 0:
+                            titulo_expander += f" ⚠️ {tipos_contagem['error']} erro(s)"
+                        elif tipos_contagem.get('warning', 0) > 0:
+                            titulo_expander += f" ⚠️ {tipos_contagem['warning']} aviso(s)"
+                        
+                        with st.expander(titulo_expander, expanded=False):
+                            for tipo, mensagem in mensagens_debug:
+                                # Usar texto menor e sem caixas coloridas
+                                if tipo == "error":
+                                    st.markdown(f"<small style='color: #ff4b4b;'>❌ {mensagem}</small>", unsafe_allow_html=True)
+                                elif tipo == "warning":
+                                    st.markdown(f"<small style='color: #ffa500;'>⚠️ {mensagem}</small>", unsafe_allow_html=True)
+                                elif tipo == "success":
+                                    st.markdown(f"<small style='color: #00cc00;'>✅ {mensagem}</small>", unsafe_allow_html=True)
+                                else:  # info
+                                    st.markdown(f"<small>{mensagem}</small>", unsafe_allow_html=True)
+                    
         except Exception as e:
-            st.error(f"❌ Erro ao gerar tabela completa: {str(e)}")
-            import traceback
-            st.error(f"Detalhes: {traceback.format_exc()}")
+            # Se mensagens_debug existe, adicionar erro; senão, usar st.error (fallback)
+            if 'mensagens_debug' in locals():
+                adicionar_mensagem("error", f"❌ Erro ao gerar tabela completa: {str(e)}")
+                import traceback
+                adicionar_mensagem("error", f"Detalhes: {traceback.format_exc()}")
+            else:
+                st.error(f"❌ Erro ao gerar tabela completa: {str(e)}")
+                import traceback
+                st.error(f"Detalhes: {traceback.format_exc()}")
             st.session_state.gerar_tabela_completa_forecast = False
     
     # Não há ajustes manuais: o cálculo linha a linha garante que os valores estão corretos
@@ -4654,8 +5959,72 @@ else:
         if os.path.exists(caminho_forecast_grafico):
             df_forecast_grafico = pd.read_parquet(caminho_forecast_grafico)
             
-            # Aplicar filtros (Oficina, Veículo, USI) mas NÃO filtrar por Período
-            # As variáveis já estão definidas no escopo global
+            # 🔧 CORREÇÃO: Para modo CPU, também carregar dados de volume
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                caminho_vol_forecast = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+                df_vol_grafico = None
+                if os.path.exists(caminho_vol_forecast):
+                    df_vol_grafico = pd.read_parquet(caminho_vol_forecast)
+                else:
+                    df_vol_grafico = load_volume_historico_data()
+                
+                if df_vol_grafico is not None and 'Volume' in df_vol_grafico.columns:
+                    # 🔧 CORREÇÃO CRÍTICA: Normalizar Período no volume para corresponder ao formato do forecast
+                    if 'Período' in df_vol_grafico.columns:
+                        df_vol_grafico = df_vol_grafico.copy()
+                        def normalizar_periodo_volume(periodo_str):
+                            periodo_str = str(periodo_str).strip()
+                            if ' ' in periodo_str:
+                                partes = periodo_str.split(' ', 1)
+                                mes_nome = partes[0].strip().capitalize()
+                                if len(partes) > 1 and partes[1].strip().isdigit():
+                                    ano_val = int(partes[1].strip())
+                                    return (mes_nome, ano_val)
+                                return (mes_nome, None)
+                            return (periodo_str.capitalize(), None)
+                        
+                        periodos_normalizados = df_vol_grafico['Período'].apply(normalizar_periodo_volume)
+                        df_vol_grafico['Período'] = periodos_normalizados.apply(lambda x: x[0])
+                        anos_extraidos = periodos_normalizados.apply(lambda x: x[1] if x[1] is not None else None)
+                        if anos_extraidos.notna().any():
+                            if 'Ano' not in df_vol_grafico.columns:
+                                df_vol_grafico['Ano'] = anos_extraidos
+                            else:
+                                mask_ano_extraido = anos_extraidos.notna()
+                                df_vol_grafico.loc[mask_ano_extraido, 'Ano'] = anos_extraidos[mask_ano_extraido].astype(int)
+                    
+                    if 'Oficina' in df_vol_grafico.columns:
+                        if oficina_selecionadas and "Todos" not in oficina_selecionadas:
+                            df_vol_grafico = df_vol_grafico[
+                                df_vol_grafico['Oficina'].astype(str).isin(oficina_selecionadas)
+                            ].copy()
+                    if 'Veículo' in df_vol_grafico.columns:
+                        if veiculo_selecionados and "Todos" not in veiculo_selecionados:
+                            df_vol_grafico = df_vol_grafico[
+                                df_vol_grafico['Veículo'].astype(str).isin(veiculo_selecionados)
+                            ].copy()
+                    
+                    colunas_merge_vol = ['Oficina', 'Período']
+                    if 'Ano' in df_vol_grafico.columns and 'Ano' in df_forecast_grafico.columns:
+                        colunas_merge_vol.append('Ano')
+                    if 'Veículo' in df_vol_grafico.columns and 'Veículo' in df_forecast_grafico.columns:
+                        colunas_merge_vol.append('Veículo')
+                    
+                    colunas_merge_existentes = [col for col in colunas_merge_vol if col in df_forecast_grafico.columns and col in df_vol_grafico.columns]
+                    if len(colunas_merge_existentes) > 0:
+                        df_vol_agrupado = df_vol_grafico.groupby(colunas_merge_existentes, as_index=False)['Volume'].sum()
+                        df_forecast_grafico = pd.merge(
+                            df_forecast_grafico,
+                            df_vol_agrupado,
+                            on=colunas_merge_existentes,
+                            how='left'
+                        )
+                        df_forecast_grafico['Volume'] = df_forecast_grafico['Volume'].fillna(0.0)
+                    else:
+                        st.warning(f"⚠️ Não foi possível fazer merge: colunas de merge não encontradas.")
+                        df_forecast_grafico['Volume'] = 0.0
+            
+            # Aplicar TODOS os filtros da sidebar (Oficina, Veículo, USI, Período)
             if 'Oficina' in df_forecast_grafico.columns:
                 if oficina_selecionadas and "Todos" not in oficina_selecionadas:
                     df_forecast_grafico = df_forecast_grafico[
@@ -4674,75 +6043,144 @@ else:
                         df_forecast_grafico['USI'].astype(str).isin(usi_selecionada)
                     ].copy()
             
-            # Verificar se há coluna Total (sempre usar Total)
-            if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
-                # Converter Total para numérico caso seja categórico
+            # 🔧 CORREÇÃO: Aplicar filtro de Período
+            if 'Período' in df_forecast_grafico.columns:
+                if periodo_selecionado and "Todos" not in periodo_selecionado:
+                    df_forecast_grafico = df_forecast_grafico[
+                        df_forecast_grafico['Período'].astype(str).isin(periodo_selecionado)
+                    ].copy()
+            
+            # 🔧 CORREÇÃO: Suportar modo CPU (mesma lógica do TC_Ext)
+            chart_data = None
+            coluna_valor_grafico = None
+            coluna_periodo_grafico = None
+            ordem_periodos = None
+            
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                if 'Total' in df_forecast_grafico.columns and 'Volume' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
+                    df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
+                    df_forecast_grafico['Volume'] = pd.to_numeric(df_forecast_grafico['Volume'], errors='coerce').fillna(0.0)
+                    tem_ano = 'Ano' in df_forecast_grafico.columns
+                    
+                    if tem_ano:
+                        chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False).agg({
+                            'Total': 'sum',
+                            'Volume': 'sum'
+                        })
+                        chart_data['CPU'] = chart_data.apply(
+                            lambda row: (
+                                row['Total'] / row['Volume']
+                                if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                else 0
+                            ),
+                            axis=1
+                        )
+                        coluna_valor_grafico = 'CPU'
+                        
+                        def criar_periodo_completo(periodo_str, ano_val):
+                            periodo_str = str(periodo_str).strip()
+                            ano_str = str(ano_val).strip()
+                            if ' ' in periodo_str:
+                                partes = periodo_str.split(' ', 1)
+                                if len(partes) > 1 and partes[1].isdigit() and partes[1] == ano_str:
+                                    return periodo_str
+                            return f"{periodo_str} {ano_str}"
+                        
+                        chart_data['Período_Completo'] = chart_data.apply(
+                            lambda row: criar_periodo_completo(row['Período'], row['Ano']), axis=1
+                        )
+                        chart_data = ordenar_por_mes_forecast_final(chart_data, 'Período')
+                        ordem_periodos = chart_data['Período_Completo'].tolist()
+                        coluna_periodo_grafico = 'Período_Completo'
+                    else:
+                        chart_data = df_forecast_grafico.groupby('Período', as_index=False).agg({
+                            'Total': 'sum',
+                            'Volume': 'sum'
+                        })
+                        chart_data['CPU'] = chart_data.apply(
+                            lambda row: (
+                                row['Total'] / row['Volume']
+                                if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                else 0
+                            ),
+                            axis=1
+                        )
+                        coluna_valor_grafico = 'CPU'
+                        chart_data = ordenar_por_mes_forecast_final(chart_data, 'Período')
+                        ordem_periodos = chart_data['Período'].tolist()
+                        coluna_periodo_grafico = 'Período'
+            elif 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
                 df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
-                
-                # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
                 tem_ano = 'Ano' in df_forecast_grafico.columns
                 
                 if tem_ano:
-                    # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
                     chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
+                    coluna_valor_grafico = 'Total'
                     
-                    # 🔧 CORREÇÃO: Verificar se Período já contém o ano antes de concatenar
-                    # Se o Período já tiver o ano (ex: "novembro 2025"), usar apenas o Período
-                    # Caso contrário, concatenar Período + Ano
                     def criar_periodo_completo(periodo_str, ano_val):
                         periodo_str = str(periodo_str).strip()
                         ano_str = str(ano_val).strip()
-                        
-                        # Verificar se o período já contém o ano
                         if ' ' in periodo_str:
                             partes = periodo_str.split(' ', 1)
                             if len(partes) > 1 and partes[1].isdigit() and partes[1] == ano_str:
-                                # Período já contém o ano correto, retornar apenas o período
                                 return periodo_str
-                        
-                        # Período não contém o ano ou ano diferente, concatenar
                         return f"{periodo_str} {ano_str}"
                     
                     chart_data['Período_Completo'] = chart_data.apply(
                         lambda row: criar_periodo_completo(row['Período'], row['Ano']), axis=1
                     )
-                    
-                    # Ordenar por ano e mês (usar função similar ao TC_Ext)
                     chart_data = ordenar_por_mes_forecast_final(chart_data, 'Período')
                     ordem_periodos = chart_data['Período_Completo'].tolist()
                     coluna_periodo_grafico = 'Período_Completo'
                 else:
-                    # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
                     chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
-                    
-                    # Ordenar por mês
+                    coluna_valor_grafico = 'Total'
                     chart_data = ordenar_por_mes_forecast_final(chart_data, 'Período')
                     ordem_periodos = chart_data['Período'].tolist()
                     coluna_periodo_grafico = 'Período'
+            
+            # 🔧 CORREÇÃO: Filtrar valores nulos/zero antes de criar o gráfico
+            if chart_data is not None and not chart_data.empty:
+                # Remover linhas onde o valor é zero ou nulo
+                if coluna_valor_grafico in chart_data.columns:
+                    # Filtrar valores diferentes de zero e não nulos
+                    chart_data = chart_data[
+                        (chart_data[coluna_valor_grafico] != 0) & 
+                        (chart_data[coluna_valor_grafico].notna())
+                    ].copy()
+            
+            # Criar gráfico (mesma lógica do TC_Ext) - suporta CPU e Custo Total
+            if chart_data is not None and not chart_data.empty and coluna_valor_grafico and coluna_periodo_grafico:
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    titulo_grafico = 'CPU (Custo por Unidade) por Período'
+                    titulo_eixo_y = 'CPU (R$)'
+                    formato_tooltip = ',.2f'
+                else:
+                    titulo_grafico = 'Soma do Valor por Período'
+                    titulo_eixo_y = 'Soma do Valor (R$)'
+                    formato_tooltip = ',.2f'
                 
-                # Criar gráfico (mesma lógica do TC_Ext)
                 grafico_barras = alt.Chart(chart_data).mark_bar().encode(
                     x=alt.X(
                         f'{coluna_periodo_grafico}:N',
                         title='Período',
                         sort=ordem_periodos
                     ),
-                    y=alt.Y('Total:Q', title='Soma do Valor (R$)'),
+                    y=alt.Y(f'{coluna_valor_grafico}:Q', title=titulo_eixo_y),
                     color=alt.Color(
-                        'Total:Q',
-                        title='Total',
+                        f'{coluna_valor_grafico}:Q',
+                        title=coluna_valor_grafico,
                         scale=alt.Scale(scheme='blues')
                     ),
                     tooltip=[
                         alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
-                        alt.Tooltip('Total:Q', title='Soma do Valor', format=',.2f')
+                        alt.Tooltip(f'{coluna_valor_grafico}:Q', title=coluna_valor_grafico, format=formato_tooltip)
                     ]
                 ).properties(
-                    title='Soma do Valor por Período',
+                    title=titulo_grafico,
                     height=400
                 )
                 
-                # Adicionar rótulos com valores nas barras
                 rotulos = grafico_barras.mark_text(
                     align='center',
                     baseline='middle',
@@ -4750,15 +6188,28 @@ else:
                     color='white',
                     fontSize=11
                 ).encode(
-                    text=alt.Text('Total:Q', format=',.2f')
+                    text=alt.Text(f'{coluna_valor_grafico}:Q', format=formato_tooltip)
                 )
                 
                 grafico_final = grafico_barras + rotulos
                 st.altair_chart(grafico_final, use_container_width=True)
                 
                 # Mostrar resumo
-                total_geral = chart_data['Total'].sum()
-                st.info(f"📊 **Total Geral:** R$ {total_geral:,.2f}")
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    if 'Total' in chart_data.columns and 'Volume' in chart_data.columns:
+                        total_geral = chart_data['Total'].sum()
+                        volume_geral = chart_data['Volume'].sum()
+                        if volume_geral > 0:
+                            cpu_geral = total_geral / volume_geral
+                            st.info(f"📊 **CPU Geral:** R$ {cpu_geral:,.2f} (Total: R$ {total_geral:,.2f} / Volume: {volume_geral:,.0f})")
+                        else:
+                            st.info(f"📊 **CPU Geral:** R$ 0,00 (Volume zero)")
+                    else:
+                        cpu_medio = chart_data['CPU'].mean()
+                        st.info(f"📊 **CPU Médio:** R$ {cpu_medio:,.2f}")
+                else:
+                    total_geral = chart_data[coluna_valor_grafico].sum()
+                    st.info(f"📊 **Total Geral:** R$ {total_geral:,.2f}")
             else:
                 st.warning("⚠️ Colunas 'Total' ou 'Período' não encontradas no arquivo forecast.")
         else:
@@ -4770,179 +6221,10 @@ else:
         st.error(f"Detalhes: {traceback.format_exc()}")
 
 # ====================================================================
-# 📊 GRÁFICO "SOMA DO VALOR POR PERÍODO" - USANDO DADOS DA PASTA FORECAST
-# Este gráfico aparece SEMPRE que houver dados na pasta Forecast
+# GRÁFICO REMOVIDO - Já está sendo gerado nas seções anteriores
+# (linha 1730 quando não há configurações aplicadas, linha 4986 quando há)
+# Esta seção foi removida para evitar duplicação de gráficos
 # ====================================================================
-st.markdown("---")
-st.markdown("### 📊 Soma do Valor por Período (Dados do Forecast)")
-
-# Função para ordenar por mês (mesma do TC_Ext)
-ORDEM_MESES_GRAFICO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-                       'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-
-def ordenar_por_mes_forecast(df, coluna_periodo='Período'):
-    """Ordena DataFrame por ordem cronológica dos meses, considerando ano se disponível"""
-    df_copy = df.copy()
-    
-    # 🔧 CORREÇÃO: Extrair apenas o nome do mês do Período (pode conter ano)
-    def extrair_mes(periodo_str):
-        periodo_str = str(periodo_str).strip().lower()
-        # Se contém espaço, pegar apenas a primeira parte (nome do mês)
-        if ' ' in periodo_str:
-            return periodo_str.split(' ', 1)[0]
-        return periodo_str
-    
-    # Se houver coluna "Ano", sempre ordenar por ano e mês (mesmo que haja apenas um ano)
-    # Isso garante que quando "Todos" está selecionado, todos os períodos sejam mostrados ordenados
-    if 'Ano' in df_copy.columns:
-        # Criar coluna de ordenação: ano primeiro, depois mês
-        df_copy['_ordem_ano'] = df_copy['Ano']
-        df_copy['_ordem_mes'] = df_copy[coluna_periodo].apply(extrair_mes).map(
-            {mes: idx for idx, mes in enumerate(ORDEM_MESES_GRAFICO)}
-        ).fillna(999)
-        df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
-        df_copy = df_copy.drop(columns=['_ordem_ano', '_ordem_mes'])
-    else:
-        # Ordenação simples por mês (comportamento original quando não há coluna Ano)
-        df_copy['_ordem_mes'] = df_copy[coluna_periodo].apply(extrair_mes).map(
-            {mes: idx for idx, mes in enumerate(ORDEM_MESES_GRAFICO)}
-        ).fillna(999)
-        df_copy = df_copy.sort_values('_ordem_mes')
-        df_copy = df_copy.drop(columns=['_ordem_mes'])
-    
-    return df_copy
-
-try:
-    # Carregar dados do arquivo forecast gerado na pasta Forecast
-    caminho_forecast_grafico = os.path.join("dados", "Forecast", "forecast_completo.parquet")
-    if os.path.exists(caminho_forecast_grafico):
-        df_forecast_grafico = pd.read_parquet(caminho_forecast_grafico)
-        
-        # 🔧 DEBUG: Verificar períodos disponíveis no arquivo
-        if 'Período' in df_forecast_grafico.columns:
-            periodos_no_arquivo = df_forecast_grafico['Período'].unique()
-            st.sidebar.info(f"📊 Períodos no arquivo forecast_completo.parquet: {len(periodos_no_arquivo)} períodos")
-            st.sidebar.write(f"Períodos: {sorted(periodos_no_arquivo)}")
-        
-        # Aplicar filtros (Oficina, Veículo, USI) mas NÃO filtrar por Período
-        # As variáveis já estão definidas no escopo global
-        if 'Oficina' in df_forecast_grafico.columns:
-            if oficina_selecionadas and "Todos" not in oficina_selecionadas:
-                df_forecast_grafico = df_forecast_grafico[
-                    df_forecast_grafico['Oficina'].astype(str).isin(oficina_selecionadas)
-                ].copy()
-        
-        if 'Veículo' in df_forecast_grafico.columns:
-            if veiculo_selecionados and "Todos" not in veiculo_selecionados:
-                df_forecast_grafico = df_forecast_grafico[
-                    df_forecast_grafico['Veículo'].astype(str).isin(veiculo_selecionados)
-                ].copy()
-        
-        if 'USI' in df_forecast_grafico.columns:
-            if usi_selecionada and "Todos" not in usi_selecionada:
-                df_forecast_grafico = df_forecast_grafico[
-                    df_forecast_grafico['USI'].astype(str).isin(usi_selecionada)
-                ].copy()
-        
-        # Verificar se há coluna Total
-        if 'Total' in df_forecast_grafico.columns and 'Período' in df_forecast_grafico.columns:
-            # Converter Total para numérico caso seja categórico
-            df_forecast_grafico['Total'] = pd.to_numeric(df_forecast_grafico['Total'], errors='coerce').fillna(0.0)
-            
-            # 🔧 DEBUG: Verificar períodos após filtros
-            periodos_apos_filtros = df_forecast_grafico['Período'].unique()
-            st.sidebar.info(f"📊 Períodos após filtros (final): {len(periodos_apos_filtros)} períodos")
-            st.sidebar.write(f"Períodos: {sorted(periodos_apos_filtros)}")
-            
-            # Verificar se há coluna Ano - sempre agrupar por Ano e Período quando ambas existirem
-            tem_ano = 'Ano' in df_forecast_grafico.columns
-            
-            if tem_ano:
-                # SEMPRE agrupar por Ano e Período quando ambas as colunas existem
-                chart_data = df_forecast_grafico.groupby(['Ano', 'Período'], as_index=False)['Total'].sum()
-                
-                # 🔧 CORREÇÃO: Verificar se Período já contém o ano antes de concatenar
-                # Se o Período já tiver o ano (ex: "novembro 2025"), usar apenas o Período
-                # Caso contrário, concatenar Período + Ano
-                def criar_periodo_completo(periodo_str, ano_val):
-                    periodo_str = str(periodo_str).strip()
-                    ano_str = str(ano_val).strip()
-                    
-                    # Verificar se o período já contém o ano
-                    if ' ' in periodo_str:
-                        partes = periodo_str.split(' ', 1)
-                        if len(partes) > 1 and partes[1].isdigit() and partes[1] == ano_str:
-                            # Período já contém o ano correto, retornar apenas o período
-                            return periodo_str
-                    
-                    # Período não contém o ano ou ano diferente, concatenar
-                    return f"{periodo_str} {ano_str}"
-                
-                chart_data['Período_Completo'] = chart_data.apply(
-                    lambda row: criar_periodo_completo(row['Período'], row['Ano']), axis=1
-                )
-                
-                # Ordenar por ano e mês (usar função similar ao TC_Ext)
-                chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
-                ordem_periodos = chart_data['Período_Completo'].tolist()
-                coluna_periodo_grafico = 'Período_Completo'
-            else:
-                # Comportamento original: agrupar apenas por Período (quando não há coluna Ano)
-                chart_data = df_forecast_grafico.groupby('Período', as_index=False)['Total'].sum()
-                
-                # Ordenar por mês
-                chart_data = ordenar_por_mes_forecast(chart_data, 'Período')
-                ordem_periodos = chart_data['Período'].tolist()
-                coluna_periodo_grafico = 'Período'
-            
-            # Criar gráfico (mesma lógica do TC_Ext)
-            grafico_barras = alt.Chart(chart_data).mark_bar().encode(
-                x=alt.X(
-                    f'{coluna_periodo_grafico}:N',
-                    title='Período',
-                    sort=ordem_periodos
-                ),
-                y=alt.Y('Total:Q', title='Soma do Valor (R$)'),
-                color=alt.Color(
-                    'Total:Q',
-                    title='Total',
-                    scale=alt.Scale(scheme='blues')
-                ),
-                tooltip=[
-                    alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
-                    alt.Tooltip('Total:Q', title='Soma do Valor', format=',.2f')
-                ]
-            ).properties(
-                title='Soma do Valor por Período',
-                height=400
-            )
-            
-            # Adicionar rótulos com valores nas barras
-            rotulos = grafico_barras.mark_text(
-                align='center',
-                baseline='middle',
-                dy=-10,
-                color='white',
-                fontSize=11
-            ).encode(
-                text=alt.Text('Total:Q', format=',.2f')
-            )
-            
-            grafico_final = grafico_barras + rotulos
-            st.altair_chart(grafico_final, use_container_width=True)
-            
-            # Mostrar resumo
-            total_geral = chart_data['Total'].sum()
-            st.info(f"📊 **Total Geral:** R$ {total_geral:,.2f}")
-        else:
-            st.warning("⚠️ Colunas 'Total' ou 'Período' não encontradas no arquivo forecast.")
-    else:
-        st.warning(f"⚠️ Arquivo não encontrado: {caminho_forecast_grafico}")
-        st.info("ℹ️ O arquivo será gerado quando você clicar em 'Aplicar Configurações do Forecast'.")
-except Exception as e:
-    st.error(f"❌ Erro ao criar gráfico 'Soma do Valor por Período': {str(e)}")
-    import traceback
-    st.error(f"Detalhes: {traceback.format_exc()}")
 
 # Footer
 st.markdown("---")
