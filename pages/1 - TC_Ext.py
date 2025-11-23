@@ -117,54 +117,38 @@ st.sidebar.markdown("**🔍 Filtros**")
     show_spinner=True
 )
 def load_data(ano_selecionado_param):
-    """Carrega os dados do arquivo parquet"""
+    """Carrega os dados do arquivo parquet - SEMPRE do histórico consolidado"""
     try:
-        # Quando "Todos" está selecionado, SEMPRE carregar do histórico consolidado
-        if ano_selecionado_param == "Todos":
-            caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
-            caminho_absoluto = os.path.abspath(caminho_historico)
+        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
+        # Apenas aplicar filtro de ano quando necessário
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+        caminho_absoluto = os.path.abspath(caminho_historico)
+        
+        if os.path.exists(caminho_historico):
+            df = pd.read_parquet(caminho_historico)
             
-            if os.path.exists(caminho_historico):
-                df = pd.read_parquet(caminho_historico)
+            # Debug: mostrar informações detalhadas sobre os dados carregados
+            st.sidebar.info(f"📁 Arquivo carregado: {caminho_absoluto}")
+            
+            if "Ano" in df.columns:
+                anos_carregados = sorted(df['Ano'].unique())
+                st.sidebar.info(f"📊 Anos disponíveis: {anos_carregados} | Total de registros: {len(df):,}")
                 
-                # Debug: mostrar informações detalhadas sobre os dados carregados
-                st.sidebar.info(f"📁 Arquivo carregado: {caminho_absoluto}")
-                
-                if "Ano" in df.columns:
-                    anos_carregados = sorted(df['Ano'].unique())
-                    st.sidebar.info(f"📊 Anos disponíveis: {anos_carregados} | Total de registros: {len(df):,}")
-                    
-                    # Verificar se há coluna Total e se tem valores
-                    if 'Total' in df.columns:
-                        total_sum = df['Total'].sum() if pd.api.types.is_numeric_dtype(df['Total']) else 0
-                        st.sidebar.info(f"💰 Soma Total: R$ {total_sum:,.2f}")
-                else:
-                    st.sidebar.warning("⚠️ Coluna 'Ano' não encontrada nos dados")
+                # Verificar se há coluna Total e se tem valores
+                if 'Total' in df.columns:
+                    total_sum = df['Total'].sum() if pd.api.types.is_numeric_dtype(df['Total']) else 0
+                    st.sidebar.info(f"💰 Soma Total: R$ {total_sum:,.2f}")
             else:
-                st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
-                st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
-                st.stop()
-                return None
+                st.sidebar.warning("⚠️ Coluna 'Ano' não encontrada nos dados")
         else:
-            # Converter "Todos" para None
-            ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
-            
-            # Buscar arquivo na ordem de prioridade
-            arquivo_parquet = encontrar_arquivo_parquet("df_final.parquet", ano_para_busca)
+            st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
+            st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
+            st.stop()
+            return None
 
-            if arquivo_parquet is None:
-                st.error(f"❌ Arquivo não encontrado: df_final.parquet")
-                st.info("💡 Verifique se o arquivo existe em:")
-                st.info("   - dados/historico_consolidado/df_final_historico.parquet")
-                st.info("   - dados/{ANO}/df_final.parquet")
-                st.info("   - df_final.parquet (raiz)")
-                st.stop()
-                return None
-
-            # Carregar dados
-            df = pd.read_parquet(arquivo_parquet)
-
-        # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
+        # Se um ano específico foi selecionado, filtrar após carregar
+        # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
+        # e apenas filtramos pelo ano, mantendo consistência
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
             df = df[df['Ano'] == int(ano_selecionado_param)].copy()
 
@@ -203,28 +187,20 @@ def load_data(ano_selecionado_param):
     show_spinner=True
 )
 def load_volume_data(ano_selecionado_param):
-    """Carrega os dados de volume do arquivo parquet"""
+    """Carrega os dados de volume do arquivo parquet - SEMPRE do histórico consolidado"""
     try:
-        # Quando "Todos" está selecionado, SEMPRE carregar do histórico consolidado
-        if ano_selecionado_param == "Todos":
-            caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
-            if os.path.exists(caminho_historico):
-                df = pd.read_parquet(caminho_historico)
-            else:
-                return None
+        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
+        # Apenas aplicar filtro de ano quando necessário
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
+        
+        if os.path.exists(caminho_historico):
+            df = pd.read_parquet(caminho_historico)
         else:
-            # Converter "Todos" para None
-            ano_para_busca = None if ano_selecionado_param == "Todos" else ano_selecionado_param
-            
-            # Buscar arquivo na ordem de prioridade
-            arquivo_parquet = encontrar_arquivo_parquet("df_vol.parquet", ano_para_busca)
+            return None
 
-            if arquivo_parquet is None:
-                return None
-
-            df = pd.read_parquet(arquivo_parquet)
-
-        # Se carregou do histórico consolidado e um ano específico foi selecionado, filtrar
+        # Se um ano específico foi selecionado, filtrar após carregar
+        # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
+        # e apenas filtramos pelo ano, mantendo consistência
         if ano_selecionado_param != "Todos" and "Ano" in df.columns:
             df = df[df['Ano'] == int(ano_selecionado_param)].copy()
 
@@ -826,7 +802,8 @@ def create_period_chart(df_data, coluna, tipo_viz):
         
         if tem_ano:
             # Agrupar por Ano e Período (sempre que houver coluna Ano)
-            # Para CPU, usar EXATAMENTE a mesma lógica da tabela (que está correta)
+            # IMPORTANTE: Sempre agrupar por Ano e Período para garantir consistência
+            # independentemente de "Todos" estar selecionado ou um ano específico
             if tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns and 'Volume' in df_data.columns:
                 # MESMA LÓGICA DA TABELA: Agrupar por Ano e Período, somar Total e Volume, calcular CPU
                 chart_data = df_data.groupby(['Ano', 'Período']).agg({
@@ -843,6 +820,8 @@ def create_period_chart(df_data, coluna, tipo_viz):
                     axis=1
                 )
             else:
+                # Para Custo Total, também agrupar por Ano e Período para garantir consistência
+                # Isso garante que o mesmo ano e mês sempre tenha o mesmo valor
                 chart_data = df_data.groupby(['Ano', 'Período'])[coluna].sum().reset_index()
             
             # Debug: verificar dados agrupados
@@ -1080,25 +1059,17 @@ if (coluna_visualizacao in df_visualizacao.columns and
                     colunas_agrupamento_vol_grafico, as_index=False
                 )['Volume'].sum()
                 
-                # Fazer merge preservando todos os períodos de todos os anos
-                # Usar 'outer' quando "Todos" está selecionado para garantir que todos os períodos sejam mostrados
-                if ano_selecionado == "Todos" and tem_ano:
-                    df_cpu_grafico = pd.merge(
-                        df_total_agrupado_grafico,
-                        df_vol_agrupado_grafico,
-                        on=colunas_agrupamento_grafico,
-                        how='outer'
-                    )
-                    # Preencher valores faltantes com 0 após merge outer
-                    df_cpu_grafico['Total'] = df_cpu_grafico['Total'].fillna(0)
-                    df_cpu_grafico['Volume'] = df_cpu_grafico['Volume'].fillna(0)
-                else:
-                    df_cpu_grafico = pd.merge(
-                        df_total_agrupado_grafico,
-                        df_vol_agrupado_grafico,
-                        on=colunas_agrupamento_grafico,
-                        how='left'
-                    )
+                # Fazer merge usando sempre 'left' para manter consistência
+                # O df_total_agrupado_grafico já contém todas as combinações válidas
+                # Usar 'left' garante que apenas combinações que existem nos dados sejam mantidas
+                df_cpu_grafico = pd.merge(
+                    df_total_agrupado_grafico,
+                    df_vol_agrupado_grafico,
+                    on=colunas_agrupamento_grafico,
+                    how='left'
+                )
+                # Preencher valores faltantes de Volume com 0 (mas não criar novas linhas)
+                df_cpu_grafico['Volume'] = df_cpu_grafico['Volume'].fillna(0)
                 
                 df_cpu_grafico['CPU'] = df_cpu_grafico.apply(
                     lambda row: (
