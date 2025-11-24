@@ -2651,11 +2651,29 @@ if aplicar_config_forecast:
                     adicionar_mensagem("info", f"📊 Média de períodos únicos por chave: {periodos_por_chave.mean():.2f}")
                     adicionar_mensagem("info", f"📊 Min períodos por chave: {periodos_por_chave.min()}, Max: {periodos_por_chave.max()}")
             
-            # Calcular média aritmética dos totais (MESMA LÓGICA DO FORECAST COPY linha 5043-5044)
-            # O pandas .mean() automaticamente divide pela quantidade de períodos únicos por chave
-            agg_dict_media = {'Total': 'mean'}  # Sempre usar 'Total'
-            df_medias_linha = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
-            df_medias_linha.rename(columns={'Total': 'Média_Mensal_Histórica'}, inplace=True)
+            # 🔧 CORREÇÃO CRÍTICA: Garantir que todas as chaves sejam divididas pelos 4 períodos selecionados
+            # O problema é que algumas chaves não têm dados para todos os 4 períodos, então o .mean() divide
+            # pela quantidade de períodos que cada chave tem, não pelos 4 períodos selecionados.
+            # Solução: Calcular a média manualmente dividindo a soma pelo número de períodos selecionados
+            if periodos_para_media and len(periodos_para_media) > 0:
+                num_periodos_selecionados = len(periodos_para_media)
+                adicionar_mensagem("info", f"📊 Calculando média dividindo pela quantidade de períodos selecionados: {num_periodos_selecionados} períodos")
+                
+                # Calcular soma dos totais por chave
+                df_soma_totais = df_medias_ano_recente.groupby(colunas_groupby_media, as_index=False)['Total'].sum()
+                df_soma_totais.rename(columns={'Total': 'Soma_Total'}, inplace=True)
+                
+                # Dividir pela quantidade de períodos selecionados (não pela quantidade que cada chave tem)
+                df_soma_totais['Média_Mensal_Histórica'] = df_soma_totais['Soma_Total'] / num_periodos_selecionados
+                df_soma_totais = df_soma_totais.drop(columns=['Soma_Total'], errors='ignore')
+                
+                df_medias_linha = df_soma_totais
+                adicionar_mensagem("info", f"📊 Média calculada como Soma / {num_periodos_selecionados} períodos (garantindo divisão correta)")
+            else:
+                # Fallback: usar média aritmética normal se não houver períodos selecionados
+                agg_dict_media = {'Total': 'mean'}  # Sempre usar 'Total'
+                df_medias_linha = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
+                df_medias_linha.rename(columns={'Total': 'Média_Mensal_Histórica'}, inplace=True)
             
             # 🔧 VERIFICAÇÃO FINAL: Garantir que não há duplicatas (MESMA LÓGICA DO FORECAST COPY linha 5046-5054)
             if len(colunas_groupby_media) > 0:
