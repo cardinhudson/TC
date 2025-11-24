@@ -250,7 +250,7 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
                         custo_variavel_cat = float(df_cat[col_valor].sum())
                     
                     # Obter sensibilidade para esta categoria
-                    if modo_sensibilidade == "Detalhado" and dict_sens_fixo and dict_sens_variavel:
+                    if modo_sensibilidade == "Detalhado" and dict_sens_fixo is not None and dict_sens_variavel is not None:
                         sens_fixo_cat = dict_sens_fixo.get(str(categoria), sensibilidade_fixo)
                         sens_var_cat = dict_sens_variavel.get(str(categoria), sensibilidade_variavel)
                     else:
@@ -269,7 +269,7 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
                     flex_volume_cat = custo_apos_volume_cat - custo_inicial_cat
                     
                     # Obter inflação para esta categoria
-                    if modo_inflacao == "Detalhado" and dict_inflacao:
+                    if modo_inflacao == "Detalhado" and dict_inflacao is not None:
                         inflacao_cat = dict_inflacao.get(str(categoria), inflacao)
                     else:
                         inflacao_cat = inflacao
@@ -324,13 +324,20 @@ if 'modo_inflacao' not in st.session_state:
 
 # ========== MODO SENSIBILIDADE ==========
 st.sidebar.markdown("### 🎯 Sensibilidade")
+# Usar o valor do session_state diretamente, ou calcular o index
+# Se a key do radio já existe, usar esse valor; senão, usar o valor do modo_sensibilidade
+valor_atual_sens = st.session_state.get('radio_modo_sens', st.session_state.get('modo_sensibilidade', 'Global'))
+index_sens = 0 if valor_atual_sens == "Global" else 1
+
 modo_sensibilidade = st.sidebar.radio(
     "Modo de Sensibilidade:",
     options=["Global", "Detalhado"],
-    index=0 if st.session_state.modo_sensibilidade == "Global" else 1,
+    index=index_sens,
     key="radio_modo_sens",
     help="Global: mesma sensibilidade para todos | Detalhado: configuração por categoria"
 )
+# Sincronizar session_state com o valor do radio button
+# O Streamlit armazena o valor na key automaticamente, então usamos diretamente
 st.session_state.modo_sensibilidade = modo_sensibilidade
 
 if modo_sensibilidade == "Global":
@@ -377,13 +384,20 @@ else:
 
 # ========== MODO INFLAÇÃO ==========
 st.sidebar.markdown("### 📈 Inflação")
+# Usar o valor do session_state diretamente, ou calcular o index
+# Se a key do radio já existe, usar esse valor; senão, usar o valor do modo_inflacao
+valor_atual_inf = st.session_state.get('radio_modo_inf', st.session_state.get('modo_inflacao', 'Global'))
+index_inf = 0 if valor_atual_inf == "Global" else 1
+
 modo_inflacao = st.sidebar.radio(
     "Modo de Inflação:",
     options=["Global", "Detalhado"],
-    index=0 if st.session_state.modo_inflacao == "Global" else 1,
+    index=index_inf,
     key="radio_modo_inf",
     help="Global: mesma inflação para todos | Detalhado: configuração por categoria"
 )
+# Sincronizar session_state com o valor do radio button
+# O Streamlit armazena o valor na key automaticamente, então usamos diretamente
 st.session_state.modo_inflacao = modo_inflacao
 
 if modo_inflacao == "Global":
