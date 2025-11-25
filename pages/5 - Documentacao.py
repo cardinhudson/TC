@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📚 Documentação - Sistema de Forecast")
+st.title("📚 Documentação - Sistema Forecast")
 
 # Menu lateral
 st.sidebar.title("📑 Navegação")
