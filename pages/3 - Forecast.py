@@ -979,6 +979,51 @@ def create_volume_chart(df_data):
             st.error(f"Erro ao criar gráfico: {e}")
             return None
 
+# ====================================================================
+# 🔧 FILTROS PARA OS DOIS PRIMEIROS GRÁFICOS (Por Período e Por Oficina)
+# ====================================================================
+# Filtros específicos que afetam apenas os dois primeiros gráficos
+oficina_filtro_graficos = ["Todos"]
+veiculo_filtro_graficos = ["Todos"]
+
+# Carregar dados para obter opções de filtro
+caminho_forecast_filtro = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+if os.path.exists(caminho_forecast_filtro):
+    df_filtro_graficos = pd.read_parquet(caminho_forecast_filtro)
+    
+    # Aplicar filtro de ano se necessário
+    if ano_selecionado != "Todos" and 'Ano' in df_filtro_graficos.columns:
+        df_filtro_graficos = df_filtro_graficos[
+            df_filtro_graficos['Ano'] == int(ano_selecionado)
+        ].copy()
+    
+    # Criar duas colunas para os filtros
+    col1_filtro, col2_filtro = st.columns(2)
+    
+    # Filtro de Oficina
+    with col1_filtro:
+        if 'Oficina' in df_filtro_graficos.columns:
+            oficina_opcoes_graficos = get_filter_options(df_filtro_graficos, 'Oficina')
+            oficina_filtro_graficos = st.multiselect(
+                "🏭 Filtrar por Oficina:",
+                oficina_opcoes_graficos,
+                default=["Todos"],
+                key="filtro_oficina_graficos_principais"
+            )
+    
+    # Filtro de Veículo
+    with col2_filtro:
+        if 'Veículo' in df_filtro_graficos.columns:
+            veiculo_opcoes_graficos = get_filter_options(df_filtro_graficos, 'Veículo')
+            veiculo_filtro_graficos = st.multiselect(
+                "🚗 Filtrar por Veículo:",
+                veiculo_opcoes_graficos,
+                default=["Todos"],
+                key="filtro_veiculo_graficos_principais"
+            )
+
+st.markdown("---")
+
 try:
     # 🔧 CORREÇÃO CRÍTICA: Verificar se df_para_grafico_periodo está disponível
     if df_para_grafico_periodo is None or df_para_grafico_periodo.empty:
@@ -994,6 +1039,17 @@ try:
         # 🔧 CORREÇÃO CRÍTICA: Usar df_para_grafico_periodo que foi criado ANTES do filtro de Período (mesma lógica do TC_Ext)
         # Isso garante que o gráfico use os mesmos dados que o modo CPU, mas sem o filtro de Período
         df_para_grafico_periodo_forecast = df_para_grafico_periodo.copy()
+        
+        # 🔧 NOVO: Aplicar filtros específicos dos gráficos principais (Oficina e Veículo)
+        if 'Oficina' in df_para_grafico_periodo_forecast.columns and oficina_filtro_graficos and "Todos" not in oficina_filtro_graficos:
+            df_para_grafico_periodo_forecast = df_para_grafico_periodo_forecast[
+                df_para_grafico_periodo_forecast['Oficina'].astype(str).isin(oficina_filtro_graficos)
+            ].copy()
+        
+        if 'Veículo' in df_para_grafico_periodo_forecast.columns and veiculo_filtro_graficos and "Todos" not in veiculo_filtro_graficos:
+            df_para_grafico_periodo_forecast = df_para_grafico_periodo_forecast[
+                df_para_grafico_periodo_forecast['Veículo'].astype(str).isin(veiculo_filtro_graficos)
+            ].copy()
         
         # 🔧 CORREÇÃO CRÍTICA: Normalizar Período no df_para_grafico_periodo_forecast (mesma lógica do modo CPU linha 584-598)
         # Isso garante que o formato do Período seja consistente com o que o modo CPU espera
@@ -1074,6 +1130,17 @@ try:
                 
                 # Aplicar mesmos filtros ao volume
                 df_vol_calc_filtrado_grafico = df_vol_grafico.copy()
+                
+                # 🔧 NOVO: Aplicar filtros específicos dos gráficos principais PRIMEIRO
+                if 'Oficina' in df_vol_calc_filtrado_grafico.columns and oficina_filtro_graficos and "Todos" not in oficina_filtro_graficos:
+                    df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                        df_vol_calc_filtrado_grafico['Oficina'].astype(str).isin(oficina_filtro_graficos)
+                    ].copy()
+                
+                if 'Veículo' in df_vol_calc_filtrado_grafico.columns and veiculo_filtro_graficos and "Todos" not in veiculo_filtro_graficos:
+                    df_vol_calc_filtrado_grafico = df_vol_calc_filtrado_grafico[
+                        df_vol_calc_filtrado_grafico['Veículo'].astype(str).isin(veiculo_filtro_graficos)
+                    ].copy()
                 
                 # Filtrar por Veículo (mesma lógica do TC_Ext linha 1044-1049)
                 if 'Veículo' in df_para_grafico_periodo_forecast.columns and 'Veículo' in df_vol_calc_filtrado_grafico.columns:
@@ -1497,7 +1564,19 @@ try:
                 df_forecast_oficina['Ano'] == int(ano_selecionado)
             ].copy()
         
-        # Aplicar TODOS os filtros da sidebar (Oficina, Veículo, USI, Período)
+        # 🔧 NOVO: Aplicar filtros específicos dos gráficos principais PRIMEIRO (Oficina e Veículo)
+        # Esses filtros são independentes dos filtros da sidebar e afetam apenas os dois primeiros gráficos
+        if 'Oficina' in df_forecast_oficina.columns and oficina_filtro_graficos and "Todos" not in oficina_filtro_graficos:
+            df_forecast_oficina = df_forecast_oficina[
+                df_forecast_oficina['Oficina'].astype(str).isin(oficina_filtro_graficos)
+            ].copy()
+        
+        if 'Veículo' in df_forecast_oficina.columns and veiculo_filtro_graficos and "Todos" not in veiculo_filtro_graficos:
+            df_forecast_oficina = df_forecast_oficina[
+                df_forecast_oficina['Veículo'].astype(str).isin(veiculo_filtro_graficos)
+            ].copy()
+        
+        # Aplicar TODOS os filtros da sidebar (Oficina, Veículo, USI, Período) - mantém compatibilidade
         if 'Oficina' in df_forecast_oficina.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
             df_forecast_oficina = df_forecast_oficina[df_forecast_oficina['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
         if 'Veículo' in df_forecast_oficina.columns and veiculo_selecionados and "Todos" not in veiculo_selecionados:
@@ -1553,6 +1632,18 @@ try:
                                     df_vol_oficina['Veículo'].isin(veiculos_filtrados)
                                 ].copy()
                         
+                        # 🔧 NOVO: Aplicar filtros específicos dos gráficos principais no volume também
+                        if 'Oficina' in df_vol_oficina.columns and oficina_filtro_graficos and "Todos" not in oficina_filtro_graficos:
+                            df_vol_oficina = df_vol_oficina[
+                                df_vol_oficina['Oficina'].astype(str).isin(oficina_filtro_graficos)
+                            ].copy()
+                        
+                        if 'Veículo' in df_vol_oficina.columns and veiculo_filtro_graficos and "Todos" not in veiculo_filtro_graficos:
+                            df_vol_oficina = df_vol_oficina[
+                                df_vol_oficina['Veículo'].astype(str).isin(veiculo_filtro_graficos)
+                            ].copy()
+                        
+                        # Manter também os filtros da sidebar para compatibilidade
                         if 'Oficina' in df_vol_oficina.columns and oficina_selecionadas and "Todos" not in oficina_selecionadas:
                             df_vol_oficina = df_vol_oficina[df_vol_oficina['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
                         
