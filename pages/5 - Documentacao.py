@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📚 Documentação - Sistema Forecast")
+st.title("📚 Documentação Completa do Sistema")
 
 # Menu lateral
 st.sidebar.title("📑 Navegação")
@@ -16,10 +16,13 @@ secao = st.sidebar.radio(
     "Selecione uma seção:",
     [
         "🏠 Visão Geral",
+        "📄 Página 1 - TC Ext",
+        "📄 Página 2 - Simulador Forecast",
+        "📄 Página 3 - Forecast",
+        "📄 Página 4 - Waterfall Analysis",
         "📊 Como Funciona o Forecast",
         "🎚️ Sensibilidade ao Volume",
         "📈 Inflação",
-        "🌊 Waterfall Analysis",
         "💡 Exemplos Práticos",
         "🔧 Configuração de Dados",
         "❓ Perguntas Frequentes"
@@ -31,41 +34,821 @@ if secao == "🏠 Visão Geral":
     st.header("🏠 Visão Geral do Sistema")
     
     st.markdown("""
-    ## O que é o Sistema de Forecast?
+    ## Sistema Completo de Análise de Custos e Forecast
     
-    O Sistema de Forecast é uma ferramenta desenvolvida para prever custos totais até o final do ano,
-    considerando a variação de volume de produção e a sensibilidade de cada tipo de custo.
+    Este sistema é uma plataforma completa desenvolvida em Streamlit para análise de custos,
+    visualização de dados históricos, previsão de custos futuros e análise de variações.
     
-    ### Principais Funcionalidades:
+    ### Estrutura do Sistema:
     
-    1. **📈 Previsão de Custos**
-       - Calcula o forecast de custos fixos e variáveis
-       - Considera volumes futuros de produção
-       - Aplica sensibilidade configurável
+    O sistema é composto por **5 páginas principais**:
     
-    2. **🎚️ Análise de Sensibilidade**
-       - Ajuste independente para custos fixos e variáveis
-       - Varia de 0 (sem variação) a 1 (variação total)
-       - Permite simulações de cenários
+    1. **📊 Página 1 - TC Ext**: Dashboard de visualização de dados históricos com gráficos interativos
+    2. **📈 Página 2 - Simulador Forecast**: Simulador interativo para testar cenários de forecast
+    3. **📉 Página 3 - Forecast**: Sistema completo de previsão de custos com sensibilidade e inflação
+    4. **🌊 Página 4 - Waterfall Analysis**: Análise de variações entre períodos
+    5. **📚 Página 5 - Documentação**: Esta documentação completa
     
-    3. **📈 Ajuste de Inflação**
-       - Inflação aplicada uma única vez no primeiro mês
-       - Configuração global ou por Type 06
-       - Valores mantidos nos meses seguintes
+    ### Arquitetura Técnica:
     
-    4. **📊 Visualizações**
-       - Gráficos de premissas (custo e volume)
-       - Tabelas detalhadas por veículo e oficina
-       - Agrupamento e download de dados
+    - **Framework**: Streamlit
+    - **Visualizações**: Altair (gráficos interativos)
+    - **Processamento de Dados**: Pandas
+    - **Formato de Dados**: Parquet (otimizado para performance)
+    - **Cache**: Sistema de cache do Streamlit (@st.cache_data)
     
-    4. **🔄 Cache Inteligente**
-       - Cálculos otimizados
-       - Atualização sob demanda
-       - Performance melhorada
+    ### Estrutura de Arquivos:
+    
+    ```
+    C:\GIT\TC\
+    ├── app.py                          # Aplicação principal (página inicial)
+    ├── pages\
+    │   ├── 1 - TC_Ext.py              # Dashboard de visualização
+    │   ├── 2 - Simulador Forecast.py  # Simulador de forecast
+    │   ├── 3 - Forecast.py            # Sistema de forecast
+    │   ├── 4 - Waterfall_Analysis.py  # Análise waterfall
+    │   └── 5 - Documentacao.py        # Documentação
+    ├── dados\
+    │   ├── historico_consolidado\
+    │   │   ├── df_final_historico.parquet
+    │   │   ├── df_vol_historico.parquet
+    │   │   └── BUD\
+    │   │       ├── df_final_historico_BUD.parquet
+    │   │       └── df_vol_historico_BUD.parquet
+    │   ├── 2024\
+    │   └── 2025\
+    └── dados.ipynb                     # Notebook para processar dados
+    ```
+    
+    ### Principais Funcionalidades por Página:
+    
+    **Página 1 - TC Ext:**
+    - Visualização de dados históricos
+    - Gráficos de barras por período
+    - Gráficos de volume
+    - Linha tracejada de budget
+    - Filtros interativos (Oficina, Veículo, Período)
+    - Modos: Custo Total e CPU
+    - Tabelas detalhadas com download
+    
+    **Página 2 - Simulador Forecast:**
+    - Simulação interativa de cenários
+    - Ajuste de sensibilidade em tempo real
+    - Visualização de impactos
+    
+    **Página 3 - Forecast:**
+    - Cálculo de forecast baseado em média histórica
+    - Aplicação de sensibilidade ao volume
+    - Aplicação de inflação
+    - Gráficos de premissas
+    - Tabelas detalhadas
+    
+    **Página 4 - Waterfall Analysis:**
+    - Comparação entre períodos
+    - Análise de variações
+    - Cálculo de FLEX (Volume + Inflação)
+    - Gráficos waterfall
+    
+    ### Dependências Principais:
+    
+    ```python
+    streamlit>=1.28.0
+    pandas>=2.0.0
+    altair>=5.0.0
+    numpy>=1.24.0
+    openpyxl>=3.1.0  # Para exportação Excel
+    pyarrow>=12.0.0  # Para arquivos Parquet
+    ```
     """)
     
     st.info("""
-    💡 **Dica:** Navegue pelas seções no menu lateral para entender melhor cada funcionalidade.
+    💡 **Importante:** Esta documentação contém detalhes técnicos completos para permitir
+    a reconstrução completa do sistema. Navegue pelas seções específicas de cada página
+    para entender todos os detalhes de implementação.
+    """)
+
+# ===== PÁGINA 1 - TC EXT =====
+elif secao == "📄 Página 1 - TC Ext":
+    st.header("📄 Página 1 - TC Ext - Dashboard de Visualização")
+    
+    st.markdown("""
+    ## Visão Geral
+    
+    A página **TC Ext** é um dashboard completo para visualização de dados históricos de custos,
+    com gráficos interativos, filtros avançados e comparação com dados de budget.
+    
+    ### Localização do Arquivo
+    - **Caminho**: `pages/1 - TC_Ext.py`
+    - **Título da Página**: "Dashboard TC Ext - df_final"
+    - **Ícone**: 📊
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("🔧 Estrutura Técnica Completa")
+    
+    st.markdown("""
+    ### 1. Configuração Inicial
+    
+    ```python
+    import streamlit as st
+    import pandas as pd
+    import altair as alt
+    import os
+    import numpy as np
+    
+    st.set_page_config(
+        page_title="Dashboard TC Ext - df_final",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    ```
+    
+    **CSS Customizado:**
+    - Redução de 20% no tamanho dos títulos (h1, h2, h3)
+    - Aplicado via `st.markdown` com `unsafe_allow_html=True`
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📂 Funções de Carregamento de Dados")
+    
+    st.markdown("""
+    ### 2.1. Função `load_data(ano_selecionado_param)`
+    
+    **Propósito**: Carrega dados históricos de custos do arquivo consolidado.
+    
+    **Localização do Arquivo:**
+    ```
+    dados/historico_consolidado/df_final_historico.parquet
+    ```
+    
+    **Características:**
+    - Cache: `@st.cache_data(ttl=3600, max_entries=10)`
+    - TTL: 3600 segundos (1 hora)
+    - Filtro de ano opcional após carregar
+    - Otimização automática de tipos de dados
+    
+    **Processamento:**
+    1. Carrega arquivo parquet do histórico consolidado
+    2. Se ano específico selecionado, filtra por `Ano == int(ano_selecionado_param)`
+    3. Converte colunas numéricas: `['Valor', 'Total', 'Volume', 'CPU']`
+    4. Otimiza tipos: objetos com < 50% valores únicos → category
+    5. Downcast de floats e ints para tipos menores
+    
+    **Colunas Esperadas:**
+    - `Oficina` (texto/category)
+    - `Veículo` (texto/category)
+    - `Período` (texto/category)
+    - `Ano` (int)
+    - `Total` (float)
+    - `Valor` (float, opcional)
+    - `Volume` (float, opcional)
+    - `CPU` (float, opcional)
+    - `Type 05`, `Type 06`, `Account` (texto/category)
+    
+    ### 2.2. Função `load_volume_data(ano_selecionado_param)`
+    
+    **Propósito**: Carrega dados de volume histórico.
+    
+    **Localização do Arquivo:**
+    ```
+    dados/historico_consolidado/df_vol_historico.parquet
+    ```
+    
+    **Características:**
+    - Mesma estrutura de cache e otimização que `load_data`
+    - Retorna `None` se arquivo não existir (não gera erro)
+    
+    **Colunas Esperadas:**
+    - `Oficina`, `Veículo`, `Período`, `Ano`, `Volume`
+    
+    ### 2.3. Função `load_budget_data(ano_selecionado_param)`
+    
+    **Propósito**: Carrega dados de budget (custos) para comparação.
+    
+    **Localização do Arquivo:**
+    ```
+    dados/historico_consolidado/BUD/df_final_historico_BUD.parquet
+    ```
+    
+    **Características:**
+    - Mesma estrutura de cache e otimização
+    - Usado para linha tracejada no gráfico
+    
+    ### 2.4. Função `load_budget_volume_data(ano_selecionado_param)`
+    
+    **Propósito**: Carrega dados de volume de budget.
+    
+    **Localização do Arquivo:**
+    ```
+    dados/historico_consolidado/BUD/df_vol_historico_BUD.parquet
+    ```
+    
+    **Uso**: Necessário para cálculo de CPU no modo budget
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("🎛️ Sistema de Filtros")
+    
+    st.markdown("""
+    ### 3. Filtros na Sidebar
+    
+    **Ordem de Aplicação:**
+    1. **Seleção de Ano** (radio button)
+       - Opções: "Todos" + lista de anos disponíveis
+       - Função: `listar_anos_disponiveis()` busca pastas numéricas em `dados/`
+    
+    2. **Tipo de Visualização** (radio button)
+       - Opções: "Custo Total" ou "CPU (Custo por Unidade)"
+       - Afeta qual coluna será usada nos gráficos
+    
+    3. **Filtro de Oficina** (multiselect)
+       - Função: `get_filter_options(df, 'Oficina')` com cache
+       - Opções: "Todos" + valores únicos ordenados
+       - Aplicado via: `df['Oficina'].isin(oficina_selecionadas)`
+    
+    4. **Filtro de Veículo** (multiselect)
+       - Mesma lógica do filtro de Oficina
+       - Aplicado após filtro de Oficina
+    
+    5. **Filtro de USI** (multiselect, se coluna existir)
+       - Opcional, só aparece se coluna 'USI' existir
+    
+    6. **Filtro de Período** (multiselect)
+       - Ordenação cronológica usando `ORDEM_MESES`
+       - Função `ordenar_por_mes()` garante ordem correta
+    
+    **Função `get_filter_options(df, column_name)`:**
+    ```python
+    @st.cache_data(ttl=1800, max_entries=5)
+    def get_filter_options(df, column_name):
+        if column_name in df.columns:
+            opcoes = sorted(df[column_name].dropna().astype(str).unique().tolist())
+            return ["Todos"] + opcoes
+        return ["Todos"]
+    ```
+    
+    **Função `ordenar_por_mes(df, coluna_periodo)`:**
+    - Cria coluna temporária `_ordem_mes` mapeando meses para índices
+    - Se houver coluna `Ano`, ordena por `['_ordem_ano', '_ordem_mes']`
+    - Remove colunas temporárias após ordenação
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📊 Sistema de Gráficos")
+    
+    st.markdown("""
+    ### 4. Gráfico Principal: `create_period_chart()`
+    
+    **Assinatura:**
+    ```python
+    @st.cache_data(ttl=900, max_entries=2)
+    def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol=None):
+    ```
+    
+    **Parâmetros:**
+    - `df_data`: DataFrame com dados principais
+    - `coluna`: Nome da coluna a visualizar ('Total' ou 'CPU')
+    - `tipo_viz`: "Custo Total" ou "CPU (Custo por Unidade)"
+    - `df_budget`: DataFrame de budget (opcional)
+    - `df_budget_vol`: DataFrame de volume de budget (opcional)
+    
+    **Lógica de Agrupamento:**
+    
+    **Se houver coluna 'Ano':**
+    - Agrupa por `['Ano', 'Período']`
+    - Para CPU: Agrupa Total e Volume separadamente, depois calcula CPU
+    - Para Custo Total: Soma diretamente a coluna
+    - Cria coluna `'Período_Completo' = Período + ' ' + Ano`
+    
+    **Se NÃO houver coluna 'Ano':**
+    - Agrupa apenas por `'Período'`
+    - Mesma lógica de CPU vs Custo Total
+    
+    **Criação do Gráfico de Barras:**
+    ```python
+    grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+        x=alt.X(f'{coluna_periodo_grafico}:N', title='Período', sort=ordem_periodos),
+        y=alt.Y(f'{coluna}:Q', title=titulo_y),
+        color=alt.Color(f'{coluna}:Q', title=coluna, scale=alt.Scale(scheme='blues')),
+        tooltip=[...]
+    ).properties(title=titulo_grafico, height=400)
+    ```
+    
+    **Rótulos nas Barras:**
+    ```python
+    rotulos = grafico_barras.mark_text(
+        align='center', baseline='middle', dy=-10,
+        color='black', fontSize=12
+    ).encode(text=alt.Text(f'{coluna}:Q', format=formato_rotulo))
+    ```
+    
+    **Linha Tracejada de Budget:**
+    
+    Se `df_budget` fornecido:
+    1. Processa budget seguindo MESMA lógica dos dados principais
+    2. Para CPU: Agrupa Total e Volume, calcula CPU
+    3. Para Custo Total: Agrupa por Ano+Período ou apenas Período
+    4. Filtra apenas períodos que existem em `ordem_periodos`
+    5. Cria linha tracejada:
+       ```python
+       linha_budget = alt.Chart(budget_data).mark_line(
+           strokeDash=[10, 5],  # Traço longo, espaço curto
+           strokeWidth=2.5,
+           color='#FF6B35',  # Laranja
+           opacity=0.8
+       ).encode(...)
+       ```
+    6. Adiciona bolinhas nos pontos:
+       ```python
+       pontos_budget = alt.Chart(budget_data).mark_circle(
+           size=80,
+           color='#FF6B35',
+           opacity=0.9
+       ).encode(...)
+       ```
+    7. Combina: `linha_budget = linha_budget + pontos_budget`
+    
+    **Combinação Final:**
+    ```python
+    if linha_budget is not None:
+        return alt.layer(
+            grafico_barras,
+            rotulos,
+            linha_budget
+        ).resolve_scale(x='shared', y='shared')
+    else:
+        return grafico_barras + rotulos
+    ```
+    
+    **IMPORTANTE**: `alt.layer()` com `resolve_scale()` garante que todos compartilhem o mesmo eixo X e Y.
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📈 Gráfico de Volume")
+    
+    st.markdown("""
+    ### 5. Função `create_volume_chart()`
+    
+    **Assinatura:**
+    ```python
+    @st.cache_data(ttl=900, max_entries=2)
+    def create_volume_chart(df_data):
+    ```
+    
+    **Lógica:**
+    - Mesma lógica de agrupamento que `create_period_chart`
+    - Agrupa por Ano+Período (se houver Ano) ou apenas Período
+    - Soma coluna 'Volume'
+    - Cria gráfico de barras azuis
+    - Adiciona rótulos com valores formatados
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("🔗 Integração Budget com Filtros")
+    
+    st.markdown("""
+    ### 6. Aplicação de Filtros ao Budget
+    
+    **Antes de chamar `create_period_chart()`:**
+    
+    ```python
+    # Carregar dados de budget
+    df_budget = load_budget_data(ano_selecionado)
+    df_budget_vol = load_budget_volume_data(ano_selecionado)
+    
+    # Aplicar mesmos filtros de Oficina
+    if 'Oficina' in df_budget_filtrado.columns:
+        if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
+            df_budget_filtrado = df_budget_filtrado[
+                df_budget_filtrado['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
+            ].copy()
+    
+    # Aplicar mesmos filtros de Veículo
+    if 'Veículo' in df_budget_filtrado.columns:
+        if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
+            df_budget_filtrado = df_budget_filtrado[
+                df_budget_filtrado['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
+            ].copy()
+    
+    # Passar para função do gráfico
+    grafico_periodo = create_period_chart(
+        df_grafico_periodo, 
+        coluna_visualizacao_grafico, 
+        tipo_visualizacao,
+        df_budget_filtrado, 
+        df_budget_vol_filtrado
+    )
+    ```
+    
+    **IMPORTANTE**: Os filtros de Oficina e Veículo do gráfico são aplicados TAMBÉM aos dados de budget,
+    garantindo que a comparação seja feita com os mesmos dados filtrados.
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📊 Cálculo de Flex Bud (FLEX de Volume)")
+    
+    st.markdown("""
+    ### 7. Regra de Cálculo do Flex Bud
+    
+    O **Flex Bud** é calculado comparando os dados reais com os dados de budget, aplicando a sensibilidade
+    de volume de forma fixa conforme a natureza do custo.
+    
+    #### 7.1. Regra de Sensibilidade Fixa
+    
+    A sensibilidade é aplicada de forma **fixa e automática** baseada no tipo de custo:
+    
+    - **Custo Fixo**: Sensibilidade = **0** (não varia com volume)
+    - **Custo Variável**: Sensibilidade = **1** (varia 100% com volume)
+    
+    **IMPORTANTE**: Esta regra é fixa e não pode ser alterada pelo usuário. É aplicada automaticamente
+    em todos os cálculos de Flex Bud.
+    
+    #### 7.2. Fórmula de Cálculo
+    
+    Para cada período e categoria, o Flex Bud é calculado da seguinte forma:
+    
+    **Passo 1: Calcular Proporção de Volume**
+    ```
+    Proporção_Volume = Volume_Budget / Volume_Real
+    Variação_% = Proporção_Volume - 1.0
+    ```
+    
+    **Passo 2: Aplicar Sensibilidade por Tipo de Custo**
+    ```
+    Para Custo Fixo:
+    - Variação_Ajustada_Fixo = Variação_% × 0 = 0
+    - FLEX_Fixo = Custo_Fixo_Real × 0 = 0
+    
+    Para Custo Variável:
+    - Variação_Ajustada_Variável = Variação_% × 1 = Variação_%
+    - FLEX_Variável = Custo_Variável_Real × Variação_%
+    ```
+    
+    **Passo 3: Calcular Flex Bud Total**
+    ```
+    Flex_Bud_Total = FLEX_Fixo + FLEX_Variável
+    ```
+    
+    **Passo 4: Para Modo CPU**
+    ```
+    Flex_Bud_CPU = Flex_Bud_Total / Volume_Real
+    ```
+    
+    #### 7.3. Função `calcular_flex_budget()`
+    
+    **Assinatura:**
+    ```python
+    def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_viz, tem_ano):
+    ```
+    
+    **Parâmetros:**
+    - `df_real`: DataFrame com dados reais (deve ter coluna 'Custo' com valores 'Fixo'/'Variável')
+    - `df_real_vol`: DataFrame com volumes reais
+    - `df_budget`: DataFrame com dados de budget
+    - `df_budget_vol`: DataFrame com volumes de budget
+    - `tipo_viz`: "Custo Total" ou "CPU (Custo por Unidade)"
+    - `tem_ano`: Boolean indicando se há coluna 'Ano'
+    
+    **Retorno:**
+    - DataFrame com colunas: `Ano` (se tem_ano), `Período`, `FLEX`, `Budget_Total`
+    
+    **Lógica de Agrupamento:**
+    
+    **Se tem_ano:**
+    - Agrupa volumes reais por `['Ano', 'Período']`
+    - Agrupa volumes budget por `['Ano', 'Período']`
+    - Agrupa custos reais por `['Ano', 'Período', 'Custo']`
+    - Agrupa custos budget por `['Ano', 'Período', 'Custo']`
+    
+    **Se não tem_ano:**
+    - Agrupa volumes reais por `['Período']`
+    - Agrupa volumes budget por `['Período']`
+    - Agrupa custos reais por `['Período', 'Custo']`
+    - Agrupa custos budget por `['Período', 'Custo']`
+    
+    **Processamento:**
+    1. Faz merge de volumes reais e budget por período
+    2. Para cada período:
+       - Calcula proporção de volume
+       - Obtém custos reais separados por Fixo e Variável
+       - Calcula FLEX aplicando sensibilidade fixa
+       - Calcula Flex Bud Total
+       - Se modo CPU: divide por Volume_Real
+    3. Retorna DataFrame com FLEX calculado
+    
+    #### 7.4. Integração no Gráfico
+    
+    **Modificação da Função `create_period_chart()`:**
+    
+    A função agora recebe um parâmetro adicional:
+    ```python
+    def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol=None, df_real_vol=None):
+    ```
+    
+    **Processamento:**
+    1. Se `df_budget` e `df_real_vol` fornecidos:
+       - Chama `calcular_flex_budget()` para calcular FLEX
+       - Usa valores de FLEX ao invés de budget direto
+       - Mantém valores originais de budget em `Budget_Total` para uso futuro
+    2. Cria linha tracejada verde mostrando Flex Bud
+    3. Tooltips mostram "Flex Bud" ao invés de "Budget"
+    4. Legenda do gráfico identifica linha como "Flex Bud"
+    
+    **Visualização:**
+    - Linha tracejada verde (`#2E7D32`)
+    - Espessura: 1.5
+    - Bolinhas nos pontos (tamanho 80)
+    - Rótulos de texto acima da linha
+    - Legenda compartilhada com barras (Real vs Flex Bud)
+    
+    #### 7.5. Tabela de Análise Flex Bud
+    
+    **Localização:** Abaixo do gráfico "📊 Soma do Valor por Período" (apenas modo "Custo Total")
+    
+    **Colunas da Tabela:**
+    1. **BUD**: Valores originais do budget
+    2. **Flex Bud - BUD**: Diferença entre Flex Bud e BUD (Flex_Bud - BUD)
+    3. **Flex BUD**: Valores calculados de Flex Bud
+    4. **Total - Flex Bud**: Diferença entre Total (real) e Flex Bud (Total - Flex_Bud)
+    5. **Total**: Valores reais
+    6. **Total / Flex Bud**: Razão entre Total e Flex Bud (Total / Flex_Bud)
+    
+    **Agrupamento Hierárquico:**
+    - **Nível 1**: Custo (Fixo/Variável) - Expander com resumo
+    - **Nível 2**: Type 05 - Expander com resumo
+    - **Nível 3**: Type 06 - Tabela detalhada
+    
+    **Funcionalidade:**
+    - Cada nível pode ser expandido/colapsado clicando no expander
+    - Métricas de resumo em cada nível
+    - Tabela detalhada apenas no nível mais baixo
+    - Valores formatados como "R$ X,XXX.XX"
+    
+    **Função `calcular_tabela_flex_bud()`:**
+    ```python
+    def calcular_tabela_flex_bud(df_real, df_real_vol, df_budget, df_budget_vol, filtros_aplicados):
+    ```
+    
+    **Processamento:**
+    1. Agrupa dados reais por Custo, Type 05, Type 06
+    2. Agrupa dados budget por Custo, Type 05, Type 06
+    3. Agrupa volumes reais e budget por categoria
+    4. Para cada categoria:
+       - Calcula proporção de volume
+       - Calcula Flex Bud aplicando sensibilidade fixa
+       - Calcula todas as diferenças e razões
+    5. Retorna DataFrame com todas as colunas calculadas
+    
+    #### 7.6. Exemplo Prático
+    
+    **Cenário:**
+    - Volume Real: 10.000 unidades
+    - Volume Budget: 12.000 unidades
+    - Custo Fixo Real: R$ 50.000
+    - Custo Variável Real: R$ 100.000
+    - BUD Total: R$ 160.000
+    
+    **Cálculo:**
+    ```
+    Proporção_Volume = 12.000 / 10.000 = 1.2
+    Variação_% = 1.2 - 1.0 = 0.2 (20% de aumento)
+    
+    FLEX_Fixo = 50.000 × 0.2 × 0 = R$ 0
+    FLEX_Variável = 100.000 × 0.2 × 1 = R$ 20.000
+    
+    Flex_Bud_Total = 0 + 20.000 = R$ 20.000
+    ```
+    
+    **Resultado na Tabela:**
+    - BUD: R$ 160.000
+    - Flex Bud - BUD: R$ 20.000 - R$ 160.000 = -R$ 140.000
+    - Flex BUD: R$ 20.000
+    - Total - Flex Bud: R$ 150.000 - R$ 20.000 = R$ 130.000
+    - Total: R$ 150.000
+    - Total / Flex Bud: R$ 150.000 / R$ 20.000 = 7.50
+    
+    #### 7.7. Pontos Importantes
+    
+    1. **Sensibilidade Fixa:**
+       - Não pode ser alterada pelo usuário
+       - Fixo sempre = 0, Variável sempre = 1
+       - Aplicada automaticamente em todos os cálculos
+    
+    2. **Agrupamento por Categoria:**
+       - Flex Bud é calculado por categoria (Custo, Type 05, Type 06)
+       - Cada categoria tem seu próprio volume e proporção
+       - Permite análise detalhada por tipo de custo
+    
+    3. **Valores Originais Preservados:**
+       - Valores originais de BUD são mantidos na coluna `Budget_Total`
+       - Permite uso futuro dos valores originais se necessário
+    
+    4. **Apenas Modo Custo Total:**
+       - Tabela de análise aparece apenas no modo "Custo Total"
+       - No modo CPU, apenas a linha tracejada é exibida
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📋 Sistema de Tabelas")
+    
+    st.markdown("""
+    ### 7. Tabelas de Dados
+    
+    **Tabela Principal:**
+    - Agrupa por Oficina, Veículo, Período (e Ano se existir)
+    - Calcula CPU quando necessário (Total/Volume)
+    - Ordena por período cronologicamente
+    - Mostra valores formatados
+    
+    **Tabela Filtrada:**
+    - Expander colapsável
+    - Mostra TODAS as linhas (sem limite)
+    - Remove colunas desnecessárias: `['mes', 'Mes', 'QTD', 'soma_percentuais', 'Soma_Percentuais']`
+    - Botão de download Excel
+    
+    **Download Excel:**
+    ```python
+    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+    file_name = "TC_Ext_tabela_filtrada.xlsx"
+    file_path = os.path.join(downloads_path, file_name)
+    
+    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+        df_visualizacao.to_excel(writer, index=False, sheet_name='Dados_Filtrados')
+    ```
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("💾 Resumo na Sidebar")
+    
+    st.markdown("""
+    ### 8. Informações Exibidas
+    
+    A sidebar mostra:
+    - **Linhas**: Total de registros após filtros
+    - **Total Valor**: Soma da coluna 'Valor' (se existir)
+    - **Total**: Soma da coluna 'Total'
+    - **Total Volume**: Soma da coluna 'Volume' (se existir)
+    - **CPU Médio**: Média dos valores de CPU > 0
+    - **Visualizando**: Tipo de visualização selecionado
+    
+    **NOTA**: Mensagens de debug foram removidas para manter a sidebar limpa.
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("🎯 Pontos Críticos de Implementação")
+    
+    st.markdown("""
+    ### 9. Detalhes Importantes
+    
+    1. **Agrupamento Consistente:**
+       - Sempre agrupar por Ano+Período quando coluna Ano existir
+       - Para CPU: SEMPRE somar Total e Volume separadamente, depois calcular
+       - NUNCA somar CPUs já calculados
+    
+    2. **Eixo X Compartilhado:**
+       - Usar `alt.layer()` com `resolve_scale(x='shared', y='shared')`
+       - Garante que barras e linha de budget usem mesmo eixo X
+       - Mantém proporção correta
+    
+    3. **Filtros de Budget:**
+       - Aplicar EXATAMENTE os mesmos filtros de Oficina e Veículo
+       - Garantir que comparação seja justa
+    
+    4. **Ordenação de Períodos:**
+       - Usar função `ordenar_por_mes()` sempre
+       - Considerar Ano se existir
+       - Manter ordem cronológica correta
+    
+    5. **Cache:**
+       - Funções de carregamento: TTL 3600s
+       - Funções de gráficos: TTL 900s
+       - Cache ajuda performance mas pode precisar limpeza manual
+    """)
+
+# ===== PÁGINA 2 - SIMULADOR FORECAST =====
+elif secao == "📄 Página 2 - Simulador Forecast":
+    st.header("📄 Página 2 - Simulador Forecast")
+    
+    st.markdown("""
+    ## Visão Geral
+    
+    A página **Simulador Forecast** permite testar cenários de forecast de forma interativa,
+    ajustando sensibilidade e visualizando impactos em tempo real.
+    
+    ### Localização do Arquivo
+    - **Caminho**: `pages/2 - Simulador Forecast.py`
+    - **Título da Página**: "Simulador Forecast"
+    - **Ícone**: 📈
+    
+    ### Funcionalidades Principais
+    
+    1. **Simulação Interativa**
+       - Ajuste de sensibilidade em tempo real
+       - Visualização imediata de resultados
+       - Comparação de cenários
+    
+    2. **Cálculos em Tempo Real**
+       - Baseado em dados históricos
+       - Aplica sensibilidade configurável
+       - Mostra variações percentuais
+    
+    **NOTA**: Esta página está em desenvolvimento. Detalhes completos serão adicionados conforme
+    a implementação for finalizada.
+    """)
+
+# ===== PÁGINA 3 - FORECAST =====
+elif secao == "📄 Página 3 - Forecast":
+    st.header("📄 Página 3 - Forecast - Sistema de Previsão")
+    
+    st.markdown("""
+    ## Visão Geral
+    
+    A página **Forecast** é o sistema completo de previsão de custos, calculando forecast baseado
+    em média histórica, aplicando sensibilidade ao volume e inflação.
+    
+    ### Localização do Arquivo
+    - **Caminho**: `pages/3 - Forecast.py`
+    - **Título da Página**: "Forecast"
+    - **Ícone**: 📉
+    
+    ### Funcionalidades Principais
+    
+    1. **Cálculo de Forecast**
+       - Média histórica padronizada
+       - Aplicação de sensibilidade ao volume
+       - Aplicação de inflação
+       - Cálculo linha a linha
+    
+    2. **Visualizações**
+       - Gráficos de premissas (custo e volume)
+       - Tabelas detalhadas
+       - Download de resultados
+    
+    3. **Configurações**
+       - Sensibilidade global ou detalhada
+       - Inflação global ou por Type 06
+       - Seleção de períodos para cálculo
+    
+    **DETALHES COMPLETOS**: Veja a seção "📊 Como Funciona o Forecast" para entender
+    toda a metodologia de cálculo implementada.
+    """)
+
+# ===== PÁGINA 4 - WATERFALL ANALYSIS =====
+elif secao == "📄 Página 4 - Waterfall Analysis":
+    st.header("📄 Página 4 - Waterfall Analysis")
+    
+    st.markdown("""
+    ## Visão Geral
+    
+    A página **Waterfall Analysis** permite comparar custos entre dois períodos e identificar
+    as causas das variações, separando os efeitos de volume, sensibilidade e inflação.
+    
+    ### Localização do Arquivo
+    - **Caminho**: `pages/4 - Waterfall_Analysis.py`
+    - **Título da Página**: "Waterfall Analysis"
+    - **Ícone**: 🌊
+    
+    ### Funcionalidades Principais
+    
+    1. **Modos de Comparação**
+       - **Mês a Mês**: Compara dois meses específicos
+       - **Ano a Ano**: Compara dois anos completos (usa volumes totais)
+       - **Múltiplos Meses**: Mostra série temporal completa
+    
+    2. **Cálculo FLEX**
+       - **FLEX Volume**: Efeito da variação de volume + sensibilidade
+       - **FLEX Inflação**: Efeito da inflação aplicada
+       - Separação clara dos efeitos
+    
+    3. **Gráficos Waterfall**
+       - Visualização de variações
+       - Barras coloridas (verde=aumento, vermelho=redução)
+       - Tooltips informativos
+    
+    ### Correção Implementada: Ano a Ano
+    
+    **Problema Original:**
+    - Usava primeiro mês do ano inicial vs último mês do ano final
+    - Não considerava volumes totais anuais
+    
+    **Solução:**
+    - Agora usa volume TOTAL do ano inicial
+    - Agora usa volume TOTAL do ano final
+    - Comparação matematicamente correta
+    
+    **DETALHES COMPLETOS**: Veja a seção "🌊 Waterfall Analysis" para entender
+    toda a metodologia de cálculo FLEX implementada.
     """)
 
 # ===== COMO FUNCIONA O FORECAST =====

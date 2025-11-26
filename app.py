@@ -98,11 +98,20 @@ st.sidebar.markdown("**📅 Seleção de Ano**")
 anos_disponiveis = listar_anos_disponiveis()
 opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
 
+# Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
+from datetime import datetime
+ano_atual = datetime.now().year
+ano_atual_str = str(ano_atual)
+if ano_atual_str in opcoes_ano:
+    index_padrao = opcoes_ano.index(ano_atual_str)
+else:
+    index_padrao = 0  # "Todos" se ano atual não estiver disponível
+
 # Seletor de ano
 ano_selecionado = st.sidebar.selectbox(
     "Selecione o ano:",
     options=opcoes_ano,
-    index=0,  # "Todos" por padrão
+    index=index_padrao,  # Ano atual por padrão, ou "Todos" se não disponível
     help="Selecione 'Todos' para ver dados consolidados ou um ano específico"
 )
 
