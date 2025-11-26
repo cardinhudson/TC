@@ -2541,17 +2541,55 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                     # 🔧 CORREÇÃO: Filtrar apenas oficinas com dados (Total > 0)
                     # Calcular totais por oficina usando dados numéricos
                     # Verificar se coluna Total existe antes de usar
-                    if 'Total' in df_tabela.columns:
+                    # 🔧 CORREÇÃO CRÍTICA: Para CPU, não somar valores de CPU diretamente!
+                    # Sempre calcular a partir de Total e Volume quando disponível
+                    if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                        # Para CPU, calcular Total/Volume por oficina ao invés de somar valores de CPU
+                        df_totais_oficinas = df_visualizacao.groupby('Oficina').agg({
+                            'Total': 'sum',
+                            'Volume': 'sum'
+                        }).reset_index()
+                        df_totais_oficinas['CPU'] = df_totais_oficinas.apply(
+                            lambda row: (
+                                row['Total'] / row['Volume']
+                                if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                else 0
+                            ),
+                            axis=1
+                        )
+                        df_totais_oficinas = df_totais_oficinas[df_totais_oficinas['CPU'] > 0]
+                        oficinas_com_dados = df_totais_oficinas['Oficina'].unique()
+                    elif 'Total' in df_tabela.columns:
+                        # Para Custo Total, somar normalmente
                         df_totais_oficinas = df_tabela.groupby('Oficina')['Total'].sum().reset_index()
                         df_totais_oficinas = df_totais_oficinas[df_totais_oficinas['Total'] > 0]
                         oficinas_com_dados = df_totais_oficinas['Oficina'].unique()
                     else:
                         # Se não tem Total, calcular a partir das colunas de período
                         if colunas_periodos:
-                            df_totais_oficinas = df_tabela.groupby('Oficina')[colunas_periodos].sum().sum(axis=1).reset_index()
-                            df_totais_oficinas.columns = ['Oficina', 'Total']
-                            df_totais_oficinas = df_totais_oficinas[df_totais_oficinas['Total'] > 0]
-                            oficinas_com_dados = df_totais_oficinas['Oficina'].unique()
+                            # Para CPU, não somar valores de CPU diretamente!
+                            if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                                # Calcular Total/Volume por oficina
+                                df_totais_oficinas = df_visualizacao.groupby('Oficina').agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                                df_totais_oficinas['CPU'] = df_totais_oficinas.apply(
+                                    lambda row: (
+                                        row['Total'] / row['Volume']
+                                        if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                        else 0
+                                    ),
+                                    axis=1
+                                )
+                                df_totais_oficinas = df_totais_oficinas[df_totais_oficinas['CPU'] > 0]
+                                oficinas_com_dados = df_totais_oficinas['Oficina'].unique()
+                            else:
+                                # Para Custo Total, somar normalmente
+                                df_totais_oficinas = df_tabela.groupby('Oficina')[colunas_periodos].sum().sum(axis=1).reset_index()
+                                df_totais_oficinas.columns = ['Oficina', 'Total']
+                                df_totais_oficinas = df_totais_oficinas[df_totais_oficinas['Total'] > 0]
+                                oficinas_com_dados = df_totais_oficinas['Oficina'].unique()
                         else:
                             # Se não tem períodos, usar todas as oficinas
                             oficinas_com_dados = df_tabela['Oficina'].unique() if 'Oficina' in df_tabela.columns else []
@@ -2578,10 +2616,57 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                         df_oficina = df_tabela_formatado[df_tabela_formatado['Oficina'] == oficina].copy()
                         
                         # Calcular total da oficina
-                        if 'Total' in df_oficina.columns:
-                            # Converter Total de string formatada para número para calcular
+                        # 🔧 CORREÇÃO CRÍTICA: Para CPU, sempre calcular Total/Volume, nunca somar valores de CPU
+                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                            # Para CPU, sempre calcular a partir de Total e Volume originais
+                            # Usar df_tabela_pivot que está no escopo e tem Total e Volume preservados
+                            if df_tabela_pivot is not None and 'Total' in df_tabela_pivot.columns and 'Volume' in df_tabela_pivot.columns:
+                                # Filtrar dados da oficina do df_tabela_pivot
+                                df_oficina_filtrado = df_tabela_pivot[df_tabela_pivot['Oficina'] == oficina].copy()
+                                total_geral = df_oficina_filtrado['Total'].sum()
+                                volume_geral = df_oficina_filtrado['Volume'].sum()
+                                if pd.notnull(volume_geral) and volume_geral != 0:
+                                    cpu_geral = total_geral / volume_geral
+                                else:
+                                    cpu_geral = 0
+                                total_formatado = formatar_valor(cpu_geral, tipo_visualizacao)
+                            # Se não tiver df_tabela_pivot, usar df_tabela_fonte
+                            elif df_tabela_fonte is not None and 'Total' in df_tabela_fonte.columns and 'Volume' in df_tabela_fonte.columns:
+                                # Filtrar dados da oficina do df_tabela_fonte
+                                df_oficina_filtrado = df_tabela_fonte[df_tabela_fonte['Oficina'] == oficina].copy()
+                                total_geral = df_oficina_filtrado['Total'].sum()
+                                volume_geral = df_oficina_filtrado['Volume'].sum()
+                                if pd.notnull(volume_geral) and volume_geral != 0:
+                                    cpu_geral = total_geral / volume_geral
+                                else:
+                                    cpu_geral = 0
+                                total_formatado = formatar_valor(cpu_geral, tipo_visualizacao)
+                            # Se não tiver df_tabela_fonte, tentar usar df_visualizacao
+                            elif df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                                # Filtrar dados da oficina
+                                df_oficina_filtrado = df_visualizacao[df_visualizacao['Oficina'] == oficina].copy()
+                                total_geral = df_oficina_filtrado['Total'].sum()
+                                volume_geral = df_oficina_filtrado['Volume'].sum()
+                                if pd.notnull(volume_geral) and volume_geral != 0:
+                                    cpu_geral = total_geral / volume_geral
+                                else:
+                                    cpu_geral = 0
+                                total_formatado = formatar_valor(cpu_geral, tipo_visualizacao)
+                            else:
+                                # Se não tiver dados com Total e Volume, não pode calcular CPU
+                                total_formatado = "N/A"
+                        elif 'Total' in df_oficina.columns:
+                            # Para Custo Total, calcular a partir dos dados originais para garantir consistência
+                            # Somar diretamente as colunas de período da tabela numérica (antes da formatação)
                             df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                            total_oficina = df_oficina_numerico['Total'].sum()
+                            # Somar todas as colunas de período (não apenas a coluna Total que pode ter sido calculada incorretamente)
+                            colunas_periodo_numericas = [col for col in colunas_periodos if col in df_oficina_numerico.columns]
+                            if colunas_periodo_numericas:
+                                # Somar todas as colunas de período para cada linha, depois somar todas as linhas
+                                total_oficina = df_oficina_numerico[colunas_periodo_numericas].sum().sum()
+                            else:
+                                # Se não houver colunas de período, usar a coluna Total
+                                total_oficina = df_oficina_numerico['Total'].sum() if 'Total' in df_oficina_numerico.columns else 0
                             total_formatado = formatar_valor(total_oficina, tipo_visualizacao)
                         else:
                             total_formatado = "N/A"
@@ -2647,33 +2732,220 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                                 if col not in ['Veículo'] + colunas_adicionais_na_tabela:
                                     if col in colunas_periodos_com_dados:
                                         # Para colunas de período, se for CPU, calcular Total/Volume do período
-                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
-                                            # Filtrar dados da oficina e do período específico
-                                            df_oficina_filtrado = df_visualizacao[df_visualizacao['Oficina'] == oficina].copy()
+                                        # 🔧 CORREÇÃO: Usar df_tabela_pivot ou df_tabela_fonte que têm Total e Volume preservados
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                            # 🔧 CORREÇÃO CRÍTICA: Usar os mesmos dados agrupados que foram usados para criar a tabela
+                                            # A tabela foi criada a partir de df_agrupado que agrupa por Oficina, Veículo e Período
+                                            # Precisamos usar exatamente os mesmos dados para garantir consistência
                                             
-                                            # Verificar se há múltiplos anos
-                                            tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
+                                            # Obter lista de veículos que estão na tabela para esta oficina
+                                            veiculos_na_tabela = df_oficina['Veículo'].unique() if 'Veículo' in df_oficina.columns else []
                                             
-                                            if tem_multiplos_anos:
-                                                # Filtrar pelo período específico (formato: "mês ano")
-                                                df_temp = df_oficina_filtrado.copy()
-                                                df_temp['Período_Ano_temp'] = df_temp['Período'].astype(str) + ' ' + df_temp['Ano'].astype(str)
-                                                df_periodo_filtrado = df_temp[df_temp['Período_Ano_temp'] == col].copy()
+                                            # Tentar usar df_tabela_pivot e recriar o mesmo agrupamento usado na tabela
+                                            if df_tabela_pivot is not None and 'Total' in df_tabela_pivot.columns and 'Volume' in df_tabela_pivot.columns:
+                                                # Filtrar por oficina e veículos da tabela
+                                                df_oficina_temp = df_tabela_pivot[
+                                                    (df_tabela_pivot['Oficina'] == oficina) & 
+                                                    (df_tabela_pivot['Veículo'].isin(veiculos_na_tabela) if len(veiculos_na_tabela) > 0 else True)
+                                                ].copy()
+                                                
+                                                # Recriar o mesmo agrupamento usado para criar a tabela (linha 2341)
+                                                if len(df_oficina_temp) > 0:
+                                                    # Usar a mesma coluna_periodo_pivot que foi usada na tabela
+                                                    if tem_multiplos_anos and 'Período_Ano' in df_oficina_temp.columns:
+                                                        coluna_periodo_agrupamento = 'Período_Ano'
+                                                    elif 'Período_Ano' in df_oficina_temp.columns:
+                                                        coluna_periodo_agrupamento = 'Período_Ano'
+                                                    else:
+                                                        coluna_periodo_agrupamento = 'Período'
+                                                    
+                                                    # Agrupar exatamente como foi feito na linha 2341
+                                                    df_oficina_filtrado = df_oficina_temp.groupby(['Oficina', 'Veículo', coluna_periodo_agrupamento]).agg({
+                                                        'Total': 'sum',
+                                                        'Volume': 'sum'
+                                                    }).reset_index()
+                                                else:
+                                                    df_oficina_filtrado = pd.DataFrame()
+                                            # Se não tiver df_tabela_pivot, usar df_tabela_fonte
+                                            elif df_tabela_fonte is not None and 'Total' in df_tabela_fonte.columns and 'Volume' in df_tabela_fonte.columns:
+                                                df_oficina_temp = df_tabela_fonte[
+                                                    (df_tabela_fonte['Oficina'] == oficina) & 
+                                                    (df_tabela_fonte['Veículo'].isin(veiculos_na_tabela) if len(veiculos_na_tabela) > 0 else True)
+                                                ].copy()
+                                                
+                                                if len(df_oficina_temp) > 0:
+                                                    if tem_multiplos_anos and 'Ano' in df_oficina_temp.columns:
+                                                        df_oficina_temp['Período_Ano'] = df_oficina_temp['Período'].astype(str) + ' ' + df_oficina_temp['Ano'].astype(str)
+                                                        coluna_periodo_agrupamento = 'Período_Ano'
+                                                    else:
+                                                        coluna_periodo_agrupamento = 'Período'
+                                                    
+                                                    df_oficina_filtrado = df_oficina_temp.groupby(['Oficina', 'Veículo', coluna_periodo_agrupamento]).agg({
+                                                        'Total': 'sum',
+                                                        'Volume': 'sum'
+                                                    }).reset_index()
+                                                else:
+                                                    df_oficina_filtrado = pd.DataFrame()
+                                            # Se não tiver, usar df_visualizacao
+                                            elif df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                                                df_oficina_temp = df_visualizacao[
+                                                    (df_visualizacao['Oficina'] == oficina) & 
+                                                    (df_visualizacao['Veículo'].isin(veiculos_na_tabela) if len(veiculos_na_tabela) > 0 else True)
+                                                ].copy()
+                                                
+                                                if len(df_oficina_temp) > 0:
+                                                    if tem_multiplos_anos and 'Ano' in df_oficina_temp.columns:
+                                                        df_oficina_temp['Período_Ano'] = df_oficina_temp['Período'].astype(str) + ' ' + df_oficina_temp['Ano'].astype(str)
+                                                        coluna_periodo_agrupamento = 'Período_Ano'
+                                                    else:
+                                                        coluna_periodo_agrupamento = 'Período'
+                                                    
+                                                    df_oficina_filtrado = df_oficina_temp.groupby(['Oficina', 'Veículo', coluna_periodo_agrupamento]).agg({
+                                                        'Total': 'sum',
+                                                        'Volume': 'sum'
+                                                    }).reset_index()
+                                                else:
+                                                    df_oficina_filtrado = pd.DataFrame()
                                             else:
-                                                # Filtrar apenas por Período
-                                                df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado['Período'] == col].copy()
+                                                df_oficina_filtrado = pd.DataFrame()
+                                            
+                                            if len(df_oficina_filtrado) > 0:
+                                                # df_oficina_filtrado já está agrupado por Oficina, Veículo e Período
+                                                # Agora precisamos filtrar por período específico e somar Total/Volume
+                                                # Verificar se há múltiplos anos (verificar na coluna de período)
+                                                tem_multiplos_anos_local = False
+                                                if 'Período_Ano' in df_oficina_filtrado.columns:
+                                                    tem_multiplos_anos_local = True
+                                                    coluna_periodo_match = 'Período_Ano'
+                                                elif 'Ano' in df_oficina_filtrado.columns:
+                                                    tem_multiplos_anos_local = df_oficina_filtrado['Ano'].nunique() > 1
+                                                    if tem_multiplos_anos_local:
+                                                        # Criar coluna Período_Ano se não existir
+                                                        df_oficina_filtrado['Período_Ano'] = df_oficina_filtrado['Período'].astype(str) + ' ' + df_oficina_filtrado['Ano'].astype(str)
+                                                        coluna_periodo_match = 'Período_Ano'
+                                                    else:
+                                                        coluna_periodo_match = 'Período'
+                                                else:
+                                                    coluna_periodo_match = 'Período'
+                                                
+                                                # Filtrar pelo período específico usando a coluna correta
+                                                # df_oficina_filtrado já está agrupado, então só precisa filtrar pela coluna de período
+                                                if coluna_periodo_match in df_oficina_filtrado.columns:
+                                                    # Match direto usando a coluna de período agrupada
+                                                    df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado[coluna_periodo_match] == col].copy()
+                                                    
+                                                    # Se não encontrou, tentar variações
+                                                    if len(df_periodo_filtrado) == 0:
+                                                        # Tentar match case-insensitive
+                                                        df_temp = df_oficina_filtrado.copy()
+                                                        df_temp[coluna_periodo_match + '_lower'] = df_temp[coluna_periodo_match].astype(str).str.lower()
+                                                        col_lower = str(col).lower()
+                                                        df_periodo_filtrado = df_temp[df_temp[coluna_periodo_match + '_lower'] == col_lower].copy()
+                                                    
+                                                    # Se ainda não encontrou e tem múltiplos anos, tentar extrair mês e ano
+                                                    if len(df_periodo_filtrado) == 0 and tem_multiplos_anos_local and ' ' in str(col):
+                                                        partes_col = str(col).split(' ', 1)
+                                                        mes_col = partes_col[0].strip().capitalize()
+                                                        if len(partes_col) > 1 and partes_col[1].strip().isdigit():
+                                                            ano_col = int(partes_col[1].strip())
+                                                            if 'Período' in df_oficina_filtrado.columns and 'Ano' in df_oficina_filtrado.columns:
+                                                                df_periodo_filtrado = df_oficina_filtrado[
+                                                                    (df_oficina_filtrado['Período'].astype(str).str.strip().str.capitalize() == mes_col) & 
+                                                                    (df_oficina_filtrado['Ano'] == ano_col)
+                                                                ].copy()
+                                                else:
+                                                    # Se não tem a coluna, tentar match por Período
+                                                    if 'Período' in df_oficina_filtrado.columns:
+                                                        df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado['Período'] == col].copy()
+                                                    else:
+                                                        df_periodo_filtrado = pd.DataFrame()
                                             
                                             if len(df_periodo_filtrado) > 0:
-                                                # Agrupar e calcular Total e Volume do período
+                                                # 🔧 CORREÇÃO: df_periodo_filtrado já está agrupado por Veículo e Período
+                                                # Então só precisamos somar Total e Volume de todos os veículos
                                                 total_periodo = df_periodo_filtrado['Total'].sum()
                                                 volume_periodo = df_periodo_filtrado['Volume'].sum()
+                                                
                                                 if pd.notnull(volume_periodo) and volume_periodo != 0:
                                                     cpu_periodo = total_periodo / volume_periodo
                                                 else:
                                                     cpu_periodo = 0
                                                 linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
                                             else:
-                                                linha_total[col] = formatar_valor(0, tipo_visualizacao)
+                                                # Se não encontrou, tentar fallback usando a coluna de período diretamente
+                                                if coluna_periodo_match in df_oficina_filtrado.columns:
+                                                    df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado[coluna_periodo_match] == col].copy()
+                                                elif 'Período' in df_oficina_filtrado.columns:
+                                                    df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado['Período'] == col].copy()
+                                                else:
+                                                    df_periodo_filtrado = pd.DataFrame()
+                                                
+                                                if len(df_periodo_filtrado) > 0:
+                                                    # df_periodo_filtrado já está agrupado, só somar Total e Volume
+                                                    total_periodo = df_periodo_filtrado['Total'].sum()
+                                                    volume_periodo = df_periodo_filtrado['Volume'].sum()
+                                                    
+                                                    if pd.notnull(volume_periodo) and volume_periodo != 0:
+                                                        cpu_periodo = total_periodo / volume_periodo
+                                                    else:
+                                                        cpu_periodo = 0
+                                                    linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
+                                                else:
+                                                    # 🔧 ÚLTIMA TENTATIVA: Se ainda não encontrou o período no df_visualizacao,
+                                                    # verificar se todos os veículos têm o mesmo CPU na tabela
+                                                    # Se sim, usar esse valor diretamente (não somar!)
+                                                    if len(df_oficina_numerico) > 0 and col in df_oficina_numerico.columns:
+                                                        # Verificar se todos os veículos têm o mesmo valor para este período
+                                                        valores_periodo = pd.to_numeric(df_oficina_numerico[col], errors='coerce')
+                                                        valores_validos = valores_periodo.dropna()
+                                                        if len(valores_validos) > 0:
+                                                            # Se todos os valores são iguais (ou muito próximos), usar esse valor
+                                                            # Pois se todos têm o mesmo CPU, o total também deve ter o mesmo CPU
+                                                            if valores_validos.nunique() == 1 or (valores_validos.max() - valores_validos.min()) < 0.0001:
+                                                                cpu_periodo_fallback = valores_validos.iloc[0]
+                                                                linha_total[col] = formatar_valor(cpu_periodo_fallback, tipo_visualizacao)
+                                                            else:
+                                                                # Se os valores são diferentes, tentar calcular a partir de TODOS os dados da oficina
+                                                                # (sem filtro de período, o que não é ideal mas é melhor que zero)
+                                                                # Mas primeiro, vamos tentar encontrar o período de outra forma
+                                                                # Tentar extrair o mês da coluna e fazer match mais flexível
+                                                                col_lower = str(col).lower()
+                                                                # Tentar encontrar período usando a coluna de período agrupada
+                                                                # Verificar se coluna_periodo_match está definida e existe no dataframe
+                                                                if 'coluna_periodo_match' in locals() and coluna_periodo_match in df_oficina_filtrado.columns:
+                                                                    for periodo_val in df_oficina_filtrado[coluna_periodo_match].unique():
+                                                                        periodo_val_str = str(periodo_val).lower()
+                                                                        if periodo_val_str in col_lower or col_lower in periodo_val_str:
+                                                                            df_periodo_tentativa = df_oficina_filtrado[df_oficina_filtrado[coluna_periodo_match] == periodo_val].copy()
+                                                                            if len(df_periodo_tentativa) > 0:
+                                                                                # df_periodo_tentativa já está agrupado, só somar Total e Volume
+                                                                                total_periodo = df_periodo_tentativa['Total'].sum()
+                                                                                volume_periodo = df_periodo_tentativa['Volume'].sum()
+                                                                                if pd.notnull(volume_periodo) and volume_periodo != 0:
+                                                                                    cpu_periodo = total_periodo / volume_periodo
+                                                                                    linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
+                                                                                    break
+                                                                else:
+                                                                    # Fallback: tentar por Período
+                                                                    for periodo_val in df_oficina_filtrado['Período'].unique() if 'Período' in df_oficina_filtrado.columns else []:
+                                                                        periodo_val_str = str(periodo_val).lower()
+                                                                        if periodo_val_str in col_lower or col_lower in periodo_val_str:
+                                                                            df_periodo_tentativa = df_oficina_filtrado[df_oficina_filtrado['Período'] == periodo_val].copy()
+                                                                            if len(df_periodo_tentativa) > 0:
+                                                                                # df_periodo_tentativa já está agrupado, só somar Total e Volume
+                                                                                total_periodo = df_periodo_tentativa['Total'].sum()
+                                                                                volume_periodo = df_periodo_tentativa['Volume'].sum()
+                                                                                if pd.notnull(volume_periodo) and volume_periodo != 0:
+                                                                                    cpu_periodo = total_periodo / volume_periodo
+                                                                                    linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
+                                                                                    break
+                                                                else:
+                                                                    # Se não encontrou de nenhuma forma, usar zero
+                                                                    linha_total[col] = formatar_valor(0, tipo_visualizacao)
+                                                        else:
+                                                            linha_total[col] = formatar_valor(0, tipo_visualizacao)
+                                                    else:
+                                                        linha_total[col] = formatar_valor(0, tipo_visualizacao)
                                         else:
                                             # Para Custo Total, somar normalmente
                                             if df_oficina_numerico[col].dtype in ['float64', 'float32', 'int64', 'int32']:
@@ -2681,7 +2953,7 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                                                 linha_total[col] = formatar_valor(total_col, tipo_visualizacao)
                                     elif col == 'Total':
                                         # Para a coluna Total, se for CPU, calcular Total/Volume geral da oficina
-                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
                                             # Filtrar dados da oficina
                                             df_oficina_filtrado = df_visualizacao[df_visualizacao['Oficina'] == oficina].copy()
                                             total_geral = df_oficina_filtrado['Total'].sum()
@@ -2732,28 +3004,152 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                         # Agrupar por Veículo e somar todos os períodos de todas as oficinas
                         df_total_geral = df_tabela[df_tabela['Oficina'].isin(oficinas_com_dados)].copy()
                         
-                        # Agrupar por Veículo e somar todos os períodos
-                        colunas_para_somar = [col for col in colunas_com_dados if col in df_total_geral.columns and col != 'Total']
-                        if 'Total' in df_total_geral.columns:
-                            colunas_para_somar.append('Total')
-                        
-                        # Agrupar por Veículo
-                        df_total_geral_agrupado = df_total_geral.groupby('Veículo')[colunas_para_somar].sum().reset_index()
+                        # 🔧 CORREÇÃO: Para CPU, recalcular a partir de Total e Volume ao invés de somar valores de CPU
+                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                            # Agrupar por Veículo e Período, somar Total e Volume, calcular CPU
+                            tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
+                            
+                            # Filtrar dados das oficinas selecionadas
+                            df_visualizacao_filtrado = df_visualizacao[df_visualizacao['Oficina'].isin(oficinas_com_dados)].copy()
+                            
+                            if tem_multiplos_anos:
+                                # Agrupar por Veículo, Período e Ano
+                                df_agrupado_veiculo_periodo = df_visualizacao_filtrado.groupby(['Veículo', 'Período', 'Ano']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                                # Criar coluna Período_Ano para fazer match com colunas da tabela
+                                df_agrupado_veiculo_periodo['Período_Ano'] = (
+                                    df_agrupado_veiculo_periodo['Período'].astype(str) + ' ' + 
+                                    df_agrupado_veiculo_periodo['Ano'].astype(str)
+                                )
+                            else:
+                                # Agrupar por Veículo e Período
+                                df_agrupado_veiculo_periodo = df_visualizacao_filtrado.groupby(['Veículo', 'Período']).agg({
+                                    'Total': 'sum',
+                                    'Volume': 'sum'
+                                }).reset_index()
+                                df_agrupado_veiculo_periodo['Período_Ano'] = df_agrupado_veiculo_periodo['Período']
+                            
+                            # Calcular CPU por período
+                            df_agrupado_veiculo_periodo['CPU'] = df_agrupado_veiculo_periodo.apply(
+                                lambda row: (
+                                    row['Total'] / row['Volume']
+                                    if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                    else 0
+                                ),
+                                axis=1
+                            )
+                            
+                            # Criar pivot com CPU por Veículo e Período
+                            df_total_geral_agrupado = df_agrupado_veiculo_periodo.pivot_table(
+                                index='Veículo',
+                                columns='Período_Ano',
+                                values='CPU',
+                                aggfunc='first',
+                                fill_value=0
+                            ).reset_index()
+                            
+                            # Garantir que tenha as mesmas colunas da tabela original
+                            colunas_periodos_para_total = [col for col in colunas_com_dados if col in df_total_geral_agrupado.columns or col in df_agrupado_veiculo_periodo['Período_Ano'].values]
+                            for col in colunas_periodos_para_total:
+                                if col not in df_total_geral_agrupado.columns:
+                                    df_total_geral_agrupado[col] = 0
+                            
+                            # Reordenar colunas
+                            colunas_ordenadas_total = ['Veículo'] + [col for col in colunas_com_dados if col in df_total_geral_agrupado.columns and col != 'Total']
+                            if 'Total' in df_total_geral_agrupado.columns:
+                                colunas_ordenadas_total.append('Total')
+                            df_total_geral_agrupado = df_total_geral_agrupado[[col for col in colunas_ordenadas_total if col in df_total_geral_agrupado.columns]]
+                            
+                            # Calcular Total (CPU total) por Veículo: Total Geral / Volume Geral
+                            df_total_veiculo_geral = df_visualizacao_filtrado.groupby('Veículo').agg({
+                                'Total': 'sum',
+                                'Volume': 'sum'
+                            }).reset_index()
+                            df_total_veiculo_geral['CPU'] = df_total_veiculo_geral.apply(
+                                lambda row: (
+                                    row['Total'] / row['Volume']
+                                    if pd.notnull(row['Volume']) and row['Volume'] != 0
+                                    else 0
+                                ),
+                                axis=1
+                            )
+                            
+                            # Adicionar coluna Total ao df_total_geral_agrupado
+                            df_total_geral_agrupado = pd.merge(
+                                df_total_geral_agrupado,
+                                df_total_veiculo_geral[['Veículo', 'CPU']],
+                                on='Veículo',
+                                how='left'
+                            )
+                            df_total_geral_agrupado.rename(columns={'CPU': 'Total'}, inplace=True)
+                            df_total_geral_agrupado['Total'] = df_total_geral_agrupado['Total'].fillna(0)
+                        else:
+                            # Para Custo Total, somar normalmente
+                            colunas_para_somar = [col for col in colunas_com_dados if col in df_total_geral.columns and col != 'Total']
+                            if 'Total' in df_total_geral.columns:
+                                colunas_para_somar.append('Total')
+                            
+                            # Agrupar por Veículo
+                            df_total_geral_agrupado = df_total_geral.groupby('Veículo')[colunas_para_somar].sum().reset_index()
                         
                         # Formatar valores antes de adicionar linha de total
                         df_total_geral_formatado = df_total_geral_agrupado.copy()
-                        for col in colunas_para_somar:
-                            if col != 'Veículo' and col in df_total_geral_formatado.columns:
+                        colunas_para_formatar = [col for col in df_total_geral_formatado.columns if col != 'Veículo']
+                        for col in colunas_para_formatar:
+                            if col in df_total_geral_formatado.columns:
                                 df_total_geral_formatado[col] = df_total_geral_formatado[col].apply(
                                     lambda x: formatar_valor(x, tipo_visualizacao) if isinstance(x, (int, float)) else x
                                 )
                         
                         # Adicionar linha de TOTAL GERAL
                         linha_total_geral = {'Veículo': '**TOTAL GERAL**'}
-                        for col in colunas_para_somar:
-                            if col in df_total_geral_agrupado.columns:
-                                total_col = df_total_geral_agrupado[col].sum()
-                                linha_total_geral[col] = formatar_valor(total_col, tipo_visualizacao)
+                        colunas_para_total_geral = [col for col in df_total_geral_agrupado.columns if col != 'Veículo']
+                        
+                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                            # Para CPU, calcular Total Geral / Volume Geral de todos os períodos e veículos
+                            df_visualizacao_filtrado = df_visualizacao[df_visualizacao['Oficina'].isin(oficinas_com_dados)].copy()
+                            
+                            for col in colunas_para_total_geral:
+                                if col in colunas_com_dados and col != 'Total':
+                                    # Para cada período, calcular CPU total (Total Geral / Volume Geral do período)
+                                    tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
+                                    
+                                    if tem_multiplos_anos:
+                                        # Filtrar pelo período específico (formato: "mês ano")
+                                        df_temp = df_visualizacao_filtrado.copy()
+                                        df_temp['Período_Ano_temp'] = df_temp['Período'].astype(str) + ' ' + df_temp['Ano'].astype(str)
+                                        df_periodo_filtrado = df_temp[df_temp['Período_Ano_temp'] == col].copy()
+                                    else:
+                                        # Filtrar apenas por Período
+                                        df_periodo_filtrado = df_visualizacao_filtrado[df_visualizacao_filtrado['Período'] == col].copy()
+                                    
+                                    if len(df_periodo_filtrado) > 0:
+                                        total_periodo = df_periodo_filtrado['Total'].sum()
+                                        volume_periodo = df_periodo_filtrado['Volume'].sum()
+                                        if pd.notnull(volume_periodo) and volume_periodo != 0:
+                                            cpu_periodo = total_periodo / volume_periodo
+                                        else:
+                                            cpu_periodo = 0
+                                        linha_total_geral[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
+                                    else:
+                                        linha_total_geral[col] = formatar_valor(0, tipo_visualizacao)
+                                elif col == 'Total':
+                                    # Para a coluna Total, calcular Total Geral / Volume Geral de todos os períodos
+                                    total_geral = df_visualizacao_filtrado['Total'].sum()
+                                    volume_geral = df_visualizacao_filtrado['Volume'].sum()
+                                    if pd.notnull(volume_geral) and volume_geral != 0:
+                                        cpu_geral = total_geral / volume_geral
+                                    else:
+                                        cpu_geral = 0
+                                    linha_total_geral[col] = formatar_valor(cpu_geral, tipo_visualizacao)
+                        else:
+                            # Para Custo Total, somar normalmente
+                            for col in colunas_para_total_geral:
+                                if col in df_total_geral_agrupado.columns:
+                                    total_col = df_total_geral_agrupado[col].sum()
+                                    linha_total_geral[col] = formatar_valor(total_col, tipo_visualizacao)
                         
                         # Adicionar linha de total ao DataFrame
                         # 🔧 CORREÇÃO: Garantir que não há colunas duplicadas antes do concat
@@ -2800,10 +3196,55 @@ if df_visualizacao is not None and not df_visualizacao.empty:
                                 df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
                                 df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
                                 
-                                for col in df_oficina_numerico.columns:
-                                    if col != 'Veículo':
-                                        total_col = df_oficina_numerico[col].sum()
-                                        linha_total_download[col] = total_col
+                                # 🔧 CORREÇÃO: Para CPU, calcular Total/Volume ao invés de somar valores de CPU
+                                if tipo_visualizacao == "CPU (Custo por Unidade)" and df_visualizacao is not None and 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+                                    # Filtrar dados da oficina
+                                    df_oficina_filtrado = df_visualizacao[df_visualizacao['Oficina'] == oficina].copy()
+                                    
+                                    # Para cada coluna (período ou Total)
+                                    for col in df_oficina_numerico.columns:
+                                        if col != 'Veículo':
+                                            if col in colunas_periodos:
+                                                # Para colunas de período, calcular Total/Volume do período
+                                                tem_multiplos_anos = 'Ano' in df_visualizacao.columns and df_visualizacao['Ano'].nunique() > 1
+                                                
+                                                if tem_multiplos_anos:
+                                                    # Filtrar pelo período específico
+                                                    df_temp = df_oficina_filtrado.copy()
+                                                    df_temp['Período_Ano_temp'] = df_temp['Período'].astype(str) + ' ' + df_temp['Ano'].astype(str)
+                                                    df_periodo_filtrado = df_temp[df_temp['Período_Ano_temp'] == col].copy()
+                                                else:
+                                                    df_periodo_filtrado = df_oficina_filtrado[df_oficina_filtrado['Período'] == col].copy()
+                                                
+                                                if len(df_periodo_filtrado) > 0:
+                                                    total_periodo = df_periodo_filtrado['Total'].sum()
+                                                    volume_periodo = df_periodo_filtrado['Volume'].sum()
+                                                    if pd.notnull(volume_periodo) and volume_periodo != 0:
+                                                        cpu_periodo = total_periodo / volume_periodo
+                                                    else:
+                                                        cpu_periodo = 0
+                                                    linha_total_download[col] = cpu_periodo
+                                                else:
+                                                    linha_total_download[col] = 0
+                                            elif col == 'Total':
+                                                # Para coluna Total, calcular Total/Volume geral da oficina
+                                                total_geral = df_oficina_filtrado['Total'].sum()
+                                                volume_geral = df_oficina_filtrado['Volume'].sum()
+                                                if pd.notnull(volume_geral) and volume_geral != 0:
+                                                    cpu_geral = total_geral / volume_geral
+                                                else:
+                                                    cpu_geral = 0
+                                                linha_total_download[col] = cpu_geral
+                                            else:
+                                                # Para outras colunas, usar soma normal (colunas adicionais)
+                                                total_col = df_oficina_numerico[col].sum()
+                                                linha_total_download[col] = total_col
+                                else:
+                                    # Para Custo Total, somar normalmente
+                                    for col in df_oficina_numerico.columns:
+                                        if col != 'Veículo':
+                                            total_col = df_oficina_numerico[col].sum()
+                                            linha_total_download[col] = total_col
                                 
                                 # Adicionar dados da oficina
                                 df_download_list.append(df_oficina_download)
