@@ -1098,7 +1098,7 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         values_2 = [total_m1_all_2] + values_cats_2 + [total_m2_all_2]
         measures_2 = ["absolute"] + ["relative"] * len(values_cats_2) + ["total"]
 
-    # Tema do Streamlit para cores
+    # Tema do Streamlit para cores (igual ao arquivo de referência)
     theme_base = st.get_option("theme.base") or "light"
     text_color = st.get_option("theme.textColor") or ("#FAFAFA" if theme_base == "dark" else "#000000")
     grid_color = "rgba(255,255,255,0.12)" if theme_base == "dark" else "rgba(0,0,0,0.12)"
@@ -1113,14 +1113,14 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         y=values_2,
         textposition="outside",
         text=[f"R$ {v:,.0f}" for v in values_2],
-        connector={"line": {"color": "rgb(63, 63, 63)"}},
-        increasing={"marker": {"color": "#e74c3c"}},
-        decreasing={"marker": {"color": "#27ae60"}},
-        totals={"marker": {"color": "#3498db"}},
-        hovertemplate="<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>"
+        connector={"line": {"color": connector_color}},
+        increasing={"marker": {"color": "#e74c3c"}},  # Vermelho para aumentos
+        decreasing={"marker": {"color": "#27ae60"}},  # Verde para diminuições
+        totals={"marker": {"color": "#3498db"}}       # Azul para totais
     ))
 
-    fig_2.update_traces(textfont=dict(color=text_color, size=10))
+    # Rótulos de dados: branco no dark, preto no light (igual ao arquivo de referência)
+    fig_2.update_traces(textfont=dict(color=text_color))
 
     # Adicionar overlay para colorir FLEX VOLUME, FLEX INFLAÇÃO e Outros
     # Para FLEX VOLUME (roxo) - para Mês a Mês, Ano a Ano, Semestre e Quarter
@@ -1130,14 +1130,11 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             x=['Flex Volume'],
             y=[abs(flex_volume_2)],
             base=[flex_pos_volume if flex_volume_2 >= 0 else flex_pos_volume + flex_volume_2],
-            marker_color='#9b59b6',  # Roxo
+            marker_color='#9b59b6',  # Roxo (igual ao arquivo de referência - sem marker=dict)
             opacity=1.0,
             hovertemplate="<b>Flex Volume</b><br>Valor: R$ %{y:,.2f}<br>Efeito de Volume + Sensibilidade<extra></extra>",
             showlegend=False,
-            name='Flex Volume',
-            text=f"R$ {flex_volume_2:,.0f}",
-            textposition="outside",
-            textfont=dict(color=text_color, size=10)
+            name='Flex Volume'
         ))
     
     # Para FLEX INFLAÇÃO (laranja claro) - para Mês a Mês, Ano a Ano, Semestre e Quarter
@@ -1147,14 +1144,11 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             x=['Flex Inflação'],
             y=[abs(flex_inflacao_2)],
             base=[flex_pos_inflacao if flex_inflacao_2 >= 0 else flex_pos_inflacao + flex_inflacao_2],
-            marker_color='#f39c12',  # Laranja claro
+            marker_color='#f39c12',  # Laranja claro (igual ao arquivo de referência - sem marker=dict)
             opacity=1.0,
             hovertemplate="<b>Flex Inflação</b><br>Valor: R$ %{y:,.2f}<br>Efeito da Inflação<extra></extra>",
             showlegend=False,
-            name='Flex Inflação',
-            text=f"R$ {flex_inflacao_2:,.0f}",
-            textposition="outside",
-            textfont=dict(color=text_color, size=10)
+            name='Flex Inflação'
         ))
     
     # Para Outros (laranja escuro)
@@ -1167,14 +1161,11 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             x=['Outros'], 
             y=[height_2], 
             base=[base_val_2], 
-            marker_color='#e67e22',  # Laranja escuro
+            marker_color='#e67e22',  # Laranja escuro (igual ao arquivo de referência - sem marker=dict)
             opacity=1.0,
             hovertemplate="<b>Outros</b><br>Valor: R$ %{y:,.2f}<extra></extra>",
             showlegend=False,
-            name='Outros',
-            text=f"R$ {remainder_2:,.0f}",
-            textposition="outside",
-            textfont=dict(color=text_color, size=10)
+            name='Outros'
         ))
     
     # Definir barmode como overlay para sobrepor as barras customizadas
@@ -1211,6 +1202,37 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
     )
 
     fig_2.update_yaxes(tickformat=",.0f", tickprefix="R$ ")
+    
+    # Atualização final: garantir que textos e bordas estejam corretos (igual ao arquivo de referência)
+    # Aplicar DEPOIS de todos os layouts e templates serem definidos
+    # Atualizar TODOS os traces para garantir cor de texto correta (incluindo barras customizadas)
+    fig_2.update_traces(textfont=dict(color=text_color))
+    
+    # Remover bordas das barras customizadas (Flex Volume, Flex Inflação, Outros)
+    for i in range(len(fig_2.data)):
+        trace = fig_2.data[i]
+        if i > 0 and hasattr(trace, 'type') and trace.type == 'bar':
+            if hasattr(trace, 'name') and trace.name in ['Flex Volume', 'Flex Inflação', 'Outros']:
+                # Obter cor atual da barra
+                if hasattr(trace, 'marker'):
+                    if isinstance(trace.marker, dict):
+                        bar_color = trace.marker.get('color', None)
+                    else:
+                        bar_color = getattr(trace.marker, 'color', None)
+                    
+                    if bar_color is None:
+                        # Se não tiver cor, usar cores padrão baseadas no nome
+                        if 'Flex Volume' in str(trace.name):
+                            bar_color = '#9b59b6'
+                        elif 'Flex Inflação' in str(trace.name):
+                            bar_color = '#f39c12'
+                        elif 'Outros' in str(trace.name):
+                            bar_color = '#e67e22'
+                        else:
+                            bar_color = '#9b59b6'
+                    
+                    # Atualizar marker removendo borda completamente
+                    trace.update(marker=dict(color=bar_color, line=dict(width=0)))
 
     st.plotly_chart(fig_2, use_container_width=True)
 
