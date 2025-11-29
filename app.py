@@ -11,12 +11,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS para reduzir títulos em 20%
+# CSS para reduzir títulos em 20% e evitar quebra de linha
 st.markdown("""
     <style>
         h1 {
             /* Reduzido de 3rem para 2.4rem (20%) */
             font-size: 2.4rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         h2 {
             /* Reduzido de 2rem para 1.6rem (20%) */
@@ -30,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título
-st.title("📊 Dashboard - Visualização de Dados TC - KE5Z Group")
+st.title("📊 Dashboard TC - KE5Z Group")
 st.subheader("Análise de dados agrupados por Oficina e Período")
 
 st.markdown("---")
@@ -509,6 +512,11 @@ def create_period_chart(df_data, coluna, tipo_viz):
         if coluna not in df_data.columns:
             return None
 
+        # Detectar tema do Streamlit
+        theme_base = st.get_option("theme.base") or "light"
+        text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+        axis_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+
         # Verificar se há múltiplos anos
         tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
         
@@ -544,9 +552,14 @@ def create_period_chart(df_data, coluna, tipo_viz):
             x=alt.X(
                 f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_periodos
+                sort=ordem_periodos,
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
             ),
-            y=alt.Y(f'{coluna}:Q', title=titulo_y),
+            y=alt.Y(
+                f'{coluna}:Q',
+                title=titulo_y,
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+            ),
             color=alt.Color(
                 f'{coluna}:Q',
                 title=coluna,
@@ -574,7 +587,7 @@ def create_period_chart(df_data, coluna, tipo_viz):
             align='center',
             baseline='middle',
             dy=-10,
-            color='black',
+            color=text_color,
             fontSize=12
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -652,6 +665,11 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
                 'Oficina' not in df_data.columns):
             return None
 
+        # Detectar tema do Streamlit
+        theme_base = st.get_option("theme.base") or "light"
+        text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+        axis_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+
         chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
         chart_data = chart_data.sort_values(coluna, ascending=False)
 
@@ -664,8 +682,17 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
             titulo_grafico = "Soma do Valor por Oficina"
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
-            x=alt.X('Oficina:N', title='Oficina', sort='-y'),
-            y=alt.Y(f'{coluna}:Q', title=titulo_y),
+            x=alt.X(
+                'Oficina:N',
+                title='Oficina',
+                sort='-y',
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+            ),
+            y=alt.Y(
+                f'{coluna}:Q',
+                title=titulo_y,
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+            ),
             color=alt.Color(
                 f'{coluna}:Q',
                 title=coluna,
@@ -693,7 +720,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
             align='center',
             baseline='middle',
             dy=-10,
-            color='black',
+            color=text_color,
             fontSize=12
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -727,6 +754,11 @@ def create_volume_chart(df_data):
         if 'Volume' not in df_data.columns or 'Período' not in df_data.columns:
             return None
 
+        # Detectar tema do Streamlit
+        theme_base = st.get_option("theme.base") or "light"
+        text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+        axis_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+
         # Verificar se há múltiplos anos
         tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
         
@@ -754,9 +786,14 @@ def create_volume_chart(df_data):
             x=alt.X(
                 f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_periodos
+                sort=ordem_periodos,
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
             ),
-            y=alt.Y('Volume:Q', title='Volume Total'),
+            y=alt.Y(
+                'Volume:Q',
+                title='Volume Total',
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+            ),
             color=alt.Color(
                 'Volume:Q',
                 title='Volume',
@@ -776,7 +813,7 @@ def create_volume_chart(df_data):
             align='center',
             baseline='middle',
             dy=-10,
-            color='black',
+            color=text_color,
             fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.2f')
@@ -847,6 +884,11 @@ def create_total_chart(df_data):
         if 'Total' not in df_data.columns:
             return None
 
+        # Detectar tema do Streamlit
+        theme_base = st.get_option("theme.base") or "light"
+        text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+        axis_color = "#FAFAFA" if theme_base == "dark" else "#000000"
+
         # Verificar se há múltiplos anos
         tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
         
@@ -874,9 +916,14 @@ def create_total_chart(df_data):
             x=alt.X(
                 f'{coluna_periodo_grafico}:N',
                 title='Período',
-                sort=ordem_periodos
+                sort=ordem_periodos,
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
             ),
-            y=alt.Y('Total:Q', title='Total (R$)'),
+            y=alt.Y(
+                'Total:Q',
+                title='Total (R$)',
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+            ),
             color=alt.Color(
                 'Total:Q',
                 title='Total',
@@ -896,7 +943,7 @@ def create_total_chart(df_data):
             align='center',
             baseline='middle',
             dy=-10,
-            color='black',
+            color=text_color,
             fontSize=12
         ).encode(
             text=alt.Text('Total:Q', format=',.2f')

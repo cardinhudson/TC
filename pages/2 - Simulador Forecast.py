@@ -18,10 +18,13 @@ st.set_page_config(
 # CSS para customização
 st.markdown("""
     <style>
-        /* Reduzir títulos em 20% */
+        /* Reduzir títulos em 20% e evitar quebra de linha */
         h1 {
             /* Reduzido de 3rem para 2.4rem (20%) */
             font-size: 2.4rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         h2 {
             /* Reduzido de 2rem para 1.6rem (20%) */

@@ -10,6 +10,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# CSS para evitar quebra de linha nos títulos
+st.markdown("""
+    <style>
+        h1 {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("🌊 Análise Waterfall - TC")
 st.markdown("---")
 
@@ -1098,13 +1109,20 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         values_2 = [total_m1_all_2] + values_cats_2 + [total_m2_all_2]
         measures_2 = ["absolute"] + ["relative"] * len(values_cats_2) + ["total"]
 
-    # Tema do Streamlit para cores (igual ao arquivo de referência)
+    # Tema do Streamlit para cores
     theme_base = st.get_option("theme.base") or "light"
-    text_color = st.get_option("theme.textColor") or ("#FAFAFA" if theme_base == "dark" else "#000000")
+    # Garantir que text_color seja sempre definido corretamente baseado no tema
+    if theme_base == "dark":
+        text_color = "#FAFAFA"  # Branco para dark mode
+    else:
+        text_color = "#000000"  # Preto para light mode
     grid_color = "rgba(255,255,255,0.12)" if theme_base == "dark" else "rgba(0,0,0,0.12)"
     connector_color = "rgba(255,255,255,0.35)" if theme_base == "dark" else "rgba(0,0,0,0.35)"
     
     # Criar gráfico waterfall 2
+    # Usar cor de texto que contraste com as barras (branco para barras coloridas)
+    text_color_bars = "#FFFFFF"  # Branco para contrastar com barras coloridas
+    
     fig_2 = go.Figure(go.Waterfall(
         name="Waterfall",
         orientation="v",
@@ -1112,15 +1130,12 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         x=labels_2,
         y=values_2,
         textposition="outside",
-        text=[f"R$ {v:,.0f}" for v in values_2],
-        connector={"line": {"color": connector_color}},
+        textfont=dict(color=text_color_bars),  # Cor branca para contrastar com barras
+        connector={"line": {"color": "rgb(63, 63, 63)"}},
         increasing={"marker": {"color": "#e74c3c"}},  # Vermelho para aumentos
         decreasing={"marker": {"color": "#27ae60"}},  # Verde para diminuições
         totals={"marker": {"color": "#3498db"}}       # Azul para totais
     ))
-
-    # Rótulos de dados: branco no dark, preto no light (igual ao arquivo de referência)
-    fig_2.update_traces(textfont=dict(color=text_color))
 
     # Adicionar overlay para colorir FLEX VOLUME, FLEX INFLAÇÃO e Outros
     # Para FLEX VOLUME (roxo) - para Mês a Mês, Ano a Ano, Semestre e Quarter
@@ -1151,7 +1166,7 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             name='Flex Inflação'
         ))
     
-    # Para Outros (laranja escuro)
+    # Para Outros (laranja)
     if show_outros_2:
         prev_sum_2 = sum(v for lab, v in zip(labels_cats_2, values_cats_2) if lab != "Outros")
         cum_before_2 = total_m1_all_2 + flex_volume_2 + flex_inflacao_2 + prev_sum_2
@@ -1161,20 +1176,15 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             x=['Outros'], 
             y=[height_2], 
             base=[base_val_2], 
-            marker_color='#e67e22',  # Laranja escuro (igual ao arquivo de referência - sem marker=dict)
+            marker_color='#ff9800',
             opacity=1.0,
-            hovertemplate="<b>Outros</b><br>Valor: R$ %{y:,.2f}<extra></extra>",
-            showlegend=False,
-            name='Outros'
+            hoverinfo='skip',
+            showlegend=False
         ))
     
     # Definir barmode como overlay para sobrepor as barras customizadas
-    fig_2.update_layout(barmode='overlay')
-
-    if theme_base == "dark":
-        fig_2.update_layout(template="plotly_dark")
-    else:
-        fig_2.update_layout(template="plotly_white")
+    if show_outros_2 or (modo_comparacao in ["Mês a Mês", "Ano a Ano", "Semestre", "Quarter"] and (abs(flex_volume_2) > 0.01 or abs(flex_inflacao_2) > 0.01)):
+        fig_2.update_layout(barmode='overlay')
 
     # Título baseado no modo de comparação
     if modo_comparacao == "Ano a Ano":
@@ -1188,6 +1198,12 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
     else:
         titulo_grafico = f"Análise Waterfall - {mes_inicial_2} para {mes_final_2}"
     
+    # Template e fundos transparentes para herdar cor do app
+    if theme_base == "dark":
+        fig_2.update_layout(template="plotly_dark")
+    else:
+        fig_2.update_layout(template="plotly_white")
+
     fig_2.update_layout(
         title={"text": titulo_grafico, "x": 0.5},
         xaxis_title="Mês / Categoria",
@@ -1203,36 +1219,8 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
 
     fig_2.update_yaxes(tickformat=",.0f", tickprefix="R$ ")
     
-    # Atualização final: garantir que textos e bordas estejam corretos (igual ao arquivo de referência)
-    # Aplicar DEPOIS de todos os layouts e templates serem definidos
-    # Atualizar TODOS os traces para garantir cor de texto correta (incluindo barras customizadas)
-    fig_2.update_traces(textfont=dict(color=text_color))
-    
-    # Remover bordas das barras customizadas (Flex Volume, Flex Inflação, Outros)
-    for i in range(len(fig_2.data)):
-        trace = fig_2.data[i]
-        if i > 0 and hasattr(trace, 'type') and trace.type == 'bar':
-            if hasattr(trace, 'name') and trace.name in ['Flex Volume', 'Flex Inflação', 'Outros']:
-                # Obter cor atual da barra
-                if hasattr(trace, 'marker'):
-                    if isinstance(trace.marker, dict):
-                        bar_color = trace.marker.get('color', None)
-                    else:
-                        bar_color = getattr(trace.marker, 'color', None)
-                    
-                    if bar_color is None:
-                        # Se não tiver cor, usar cores padrão baseadas no nome
-                        if 'Flex Volume' in str(trace.name):
-                            bar_color = '#9b59b6'
-                        elif 'Flex Inflação' in str(trace.name):
-                            bar_color = '#f39c12'
-                        elif 'Outros' in str(trace.name):
-                            bar_color = '#e67e22'
-                        else:
-                            bar_color = '#9b59b6'
-                    
-                    # Atualizar marker removendo borda completamente
-                    trace.update(marker=dict(color=bar_color, line=dict(width=0)))
+    # Atualização FINAL dos rótulos: usar cor branca para contrastar com as barras coloridas
+    fig_2.update_traces(textfont=dict(color=text_color_bars))
 
     st.plotly_chart(fig_2, use_container_width=True)
 
