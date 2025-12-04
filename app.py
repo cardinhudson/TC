@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import os
+import sqlite3
+from datetime import datetime
+import sqlite3
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -28,6 +32,12 @@ st.markdown("""
         h3 {
             /* Reduzido de 1.6rem para 1.28rem (20%) */
             font-size: 1.28rem !important;
+        }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -110,13 +120,20 @@ if ano_atual_str in opcoes_ano:
 else:
     index_padrao = 0  # "Todos" se ano atual não estiver disponível
 
+# Inicializar session_state para manter valores dos filtros
+if 'filtro_ano' not in st.session_state:
+    st.session_state.filtro_ano = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
+
 # Seletor de ano
 ano_selecionado = st.sidebar.selectbox(
     "Selecione o ano:",
     options=opcoes_ano,
-    index=index_padrao,  # Ano atual por padrão, ou "Todos" se não disponível
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico"
+    index=opcoes_ano.index(st.session_state.filtro_ano) if st.session_state.filtro_ano in opcoes_ano else index_padrao,
+    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
+    key="filtro_ano_selectbox"
 )
+# Atualizar session_state
+st.session_state.filtro_ano = ano_selecionado
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔍 Filtros**")
@@ -249,21 +266,229 @@ ORDEM_MESES = [
 ]
 
 
+# Inicializar session_state para tipo de visualização e moeda
+if 'filtro_tipo_visualizacao' not in st.session_state:
+    st.session_state.filtro_tipo_visualizacao = "Custo Total"
+if 'filtro_moeda' not in st.session_state:
+    st.session_state.filtro_moeda = "🇧🇷 R$"
+
 # Seletor de tipo de visualização
 st.sidebar.markdown("**📊 Tipo de Visualização**")
 tipo_visualizacao = st.sidebar.radio(
     "Selecione o tipo:",
     ["Custo Total", "CPU (Custo por Unidade)"],
-    index=0
+    index=0 if st.session_state.filtro_tipo_visualizacao == "Custo Total" else 1,
+    key="filtro_tipo_visualizacao_radio"
 )
+# Atualizar session_state
+st.session_state.filtro_tipo_visualizacao = tipo_visualizacao
+
+# Seletor de moeda
+st.sidebar.markdown("**💱 Moeda**")
+moeda_selecionada = st.sidebar.radio(
+    "Selecione a moeda:",
+    ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"],
+    index=["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"].index(st.session_state.filtro_moeda) if st.session_state.filtro_moeda in ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"] else 0,
+    help="Selecione a moeda para exibição nos gráficos",
+    key="filtro_moeda_radio"
+)
+# Atualizar session_state
+st.session_state.filtro_moeda = moeda_selecionada
+
+# Extrair código e símbolo da moeda
+if moeda_selecionada == "🇧🇷 R$":
+    moeda_codigo = "BRL"
+    moeda_simbolo = "R$"
+elif moeda_selecionada == "🇺🇸 $":
+    moeda_codigo = "USD"
+    moeda_simbolo = "$"
+else:  # Euro
+    moeda_codigo = "EUR"
+    moeda_simbolo = "€"
+
+# ====================================================================
+# FUNÇÕES DE CONVERSÃO DE MOEDA
+# ====================================================================
+def inicializar_banco_taxas():
+    """Inicializa o banco de dados de taxas de câmbio"""
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS taxas_cambio (
+            moeda TEXT PRIMARY KEY,
+            taxa_para_brl REAL,
+            data_atualizacao TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def carregar_taxas_banco():
+    """Carrega as taxas de câmbio do banco de dados SQLite"""
+    inicializar_banco_taxas()
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT moeda, taxa_para_brl FROM taxas_cambio ORDER BY data_atualizacao DESC')
+    resultados = cursor.fetchall()
+    conn.close()
+    
+    taxas = {}
+    for moeda, taxa in resultados:
+        taxas[moeda] = taxa
+    
+    # Valores padrão se não houver dados
+    if 'USD' not in taxas:
+        taxas['USD'] = 5.00
+    if 'EUR' not in taxas:
+        taxas['EUR'] = 5.50
+    
+    return taxas
+
+def salvar_taxas_banco(taxas):
+    """Salva as taxas de câmbio no banco de dados SQLite"""
+    inicializar_banco_taxas()
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    
+    for moeda, taxa in taxas.items():
+        cursor.execute('''
+            INSERT OR REPLACE INTO taxas_cambio (moeda, taxa_para_brl, data_atualizacao)
+            VALUES (?, ?, ?)
+        ''', (moeda, float(taxa), datetime.now()))
+    
+    conn.commit()
+    conn.close()
+
+def converter_moeda(valor, moeda_destino, taxas):
+    """Converte valor de R$ (BRL) para a moeda de destino
+    
+    Exemplo: Se 1 USD = 5 BRL, então:
+    - taxa_usd_para_brl = 5.0
+    - taxa_brl_para_usd = 1/5 = 0.20
+    - Para converter 100 BRL para USD: 100 * 0.20 = 20 USD
+    - Ou seja: 100 / 5 = 20 USD (divisão)
+    """
+    if valor is None or pd.isna(valor):
+        return valor
+    if moeda_destino == "BRL":
+        return valor
+    taxa = taxas.get(moeda_destino, 1.0)
+    # A taxa já está calculada como 1 BRL = X moeda_destino
+    # Então multiplicamos: valor_brl * taxa = valor_moeda_destino
+    resultado = valor * taxa
+    return resultado
+
+def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
+    """Converte uma coluna inteira de R$ para outra moeda"""
+    if coluna not in df.columns:
+        return df
+    if moeda_destino == "BRL":
+        return df
+    df = df.copy()
+    df[coluna] = df[coluna].apply(lambda x: converter_moeda(x, moeda_destino, taxas))
+    return df
+
+# ====================================================================
+# CONFIGURAÇÃO DE TAXAS DE CÂMBIO
+# ====================================================================
 st.sidebar.markdown("---")
+st.sidebar.markdown("**💱 Taxas de Câmbio**")
+st.sidebar.markdown("*Configure as taxas de conversão*")
+
+# Carregar taxas do banco de dados
+try:
+    taxas_cambio_banco = carregar_taxas_banco()
+except Exception as e:
+    st.sidebar.warning(f"⚠️ Erro ao carregar taxas: {e}")
+    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
+
+# Taxas de conversão: entrada em "1 $ = R$ X" e "1 € = R$ X"
+taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
+taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
+
+taxa_usd_para_brl = st.sidebar.number_input(
+    "🇺🇸 1 $ (USD) = R$",
+    min_value=0.01,
+    max_value=100.0,
+    value=float(taxa_usd_para_brl_padrao),
+    step=0.01,
+    format="%.2f",
+    help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros",
+    key="taxa_usd_para_brl_input"
+)
+
+taxa_eur_para_brl = st.sidebar.number_input(
+    "🇪🇺 1 € (EUR) = R$",
+    min_value=0.01,
+    max_value=100.0,
+    value=float(taxa_eur_para_brl_padrao),
+    step=0.01,
+    format="%.2f",
+    help="Digite quanto vale 1 Euro em Reais Brasileiros",
+    key="taxa_eur_para_brl_input"
+)
+
+# Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
+# Exemplo: Se 1 USD = 5 BRL, então 1 BRL = 1/5 = 0.20 USD
+# Para converter 100 BRL para USD: 100 * 0.20 = 20 USD (ou seja, 100 / 5 = 20)
+taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
+taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
+
+# Debug: mostrar exemplo de conversão
+st.sidebar.caption(f"💡 Exemplo: R$ 100 = {100 * taxa_brl_para_usd:.2f} USD (taxa: {taxa_usd_para_brl:.2f})")
+
+# Salvar taxas quando alteradas
+if (taxa_usd_para_brl != taxa_usd_para_brl_padrao or 
+    taxa_eur_para_brl != taxa_eur_para_brl_padrao):
+    novas_taxas = {
+        "USD": float(taxa_usd_para_brl),
+        "EUR": float(taxa_eur_para_brl)
+    }
+    salvar_taxas_banco(novas_taxas)
+
+# Armazenar taxas em dicionário (para conversão: 1 R$ = X USD/EUR)
+# IMPORTANTE: Estas taxas são para MULTIPLICAR valores em BRL
+# Exemplo: Se taxa_brl_para_usd = 0.20, então 100 BRL * 0.20 = 20 USD
+# Isso é equivalente a: 100 BRL / 5 = 20 USD (onde 5 é taxa_usd_para_brl)
+taxas_cambio = {
+    "BRL": 1.0,  # Real é a moeda base
+    "USD": taxa_brl_para_usd,  # Ex: 0.20 (se 1 USD = 5 BRL, então 1 BRL = 0.20 USD)
+    "EUR": taxa_brl_para_eur   # Ex: 0.18 (se 1 EUR = 5.50 BRL, então 1 BRL = 0.18 EUR)
+}
+
+# Teste de validação da conversão
+if moeda_codigo != "BRL":
+    valor_teste = 100.0
+    valor_convertido = converter_moeda(valor_teste, moeda_codigo, taxas_cambio)
+    if moeda_codigo == "USD":
+        taxa_esperada = taxa_usd_para_brl
+        valor_esperado = valor_teste / taxa_esperada
+    else:  # EUR
+        taxa_esperada = taxa_eur_para_brl
+        valor_esperado = valor_teste / taxa_esperada
+    
+    # Mostrar teste de validação
+    st.sidebar.caption(f"✅ Teste: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: {taxa_esperada:.2f})")
+
+# Mostrar indicador da moeda selecionada
+st.sidebar.markdown(f"**💱 Moeda atual:** {moeda_selecionada} ({moeda_simbolo})")
+st.sidebar.markdown("---")
+
+# Inicializar session_state para filtros
+if 'filtro_oficina' not in st.session_state:
+    st.session_state.filtro_oficina = ["Todos"]
 
 # Filtro 1: Oficina (com cache otimizado)
 if 'Oficina' in df_total.columns:
     oficina_opcoes = get_filter_options(df_total, 'Oficina')
+    # Validar valores salvos
+    default_oficina = st.session_state.filtro_oficina if all(x in oficina_opcoes for x in st.session_state.filtro_oficina) else ["Todos"]
     oficina_selecionadas = st.sidebar.multiselect(
-        "Selecione a Oficina:", oficina_opcoes, default=["Todos"]
+        "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_oficina = oficina_selecionadas if oficina_selecionadas else ["Todos"]
 
     # Filtrar o DataFrame com base na Oficina
     if "Todos" in oficina_selecionadas or not oficina_selecionadas:
@@ -275,13 +500,24 @@ if 'Oficina' in df_total.columns:
 else:
     df_filtrado = df_total.copy()
 
+# Inicializar session_state para USI
+if 'filtro_usi' not in st.session_state:
+    if 'USI' in df_total.columns:
+        usi_opcoes_temp = get_filter_options(df_total, 'USI')
+        st.session_state.filtro_usi = ["TC Ext"] if "TC Ext" in usi_opcoes_temp else ["Todos"]
+    else:
+        st.session_state.filtro_usi = ["Todos"]
+
 # Filtro 2: USI (com cache otimizado)
 if 'USI' in df_filtrado.columns:
     usi_opcoes = get_filter_options(df_filtrado, 'USI')
-    default_usi = ["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"]
+    # Validar valores salvos
+    default_usi = st.session_state.filtro_usi if all(x in usi_opcoes for x in st.session_state.filtro_usi) else (["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"])
     usi_selecionada = st.sidebar.multiselect(
-        "Selecione a USI:", usi_opcoes, default=default_usi
+        "Selecione a USI:", usi_opcoes, default=default_usi, key="filtro_usi_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_usi = usi_selecionada if usi_selecionada else ["Todos"]
 
     # Filtrar o DataFrame com base na USI
     if "Todos" in usi_selecionada or not usi_selecionada:
@@ -316,31 +552,58 @@ if 'Período' in df_filtrado.columns:
     # Combinar: Todos + meses ordenados + outros períodos
     periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
 
+    # Inicializar session_state para Período
+    if 'filtro_periodo' not in st.session_state:
+        st.session_state.filtro_periodo = "Todos"
+    
+    # Validar valor salvo
+    periodo_default = st.session_state.filtro_periodo if st.session_state.filtro_periodo in periodo_opcoes else "Todos"
+    periodo_index = periodo_opcoes.index(periodo_default) if periodo_default in periodo_opcoes else 0
+    
     periodo_selecionado = st.sidebar.selectbox(
-        "Selecione o Período:", periodo_opcoes
+        "Selecione o Período:", periodo_opcoes, index=periodo_index, key="filtro_periodo_selectbox"
     )
+    # Atualizar session_state
+    st.session_state.filtro_periodo = periodo_selecionado
     if periodo_selecionado != "Todos":
         df_filtrado = df_filtrado[
             df_filtrado['Período'].astype(str) == str(periodo_selecionado)
         ].copy()
 
+# Inicializar session_state para Centro cst
+if 'filtro_centro_cst' not in st.session_state:
+    st.session_state.filtro_centro_cst = "Todos"
+
 # Filtro 4: Centro cst (com cache otimizado)
 if 'Centrocst' in df_filtrado.columns:
     centro_cst_opcoes = get_filter_options(df_filtrado, 'Centrocst')
+    # Validar valor salvo
+    centro_cst_default = st.session_state.filtro_centro_cst if st.session_state.filtro_centro_cst in centro_cst_opcoes else "Todos"
+    centro_cst_index = centro_cst_opcoes.index(centro_cst_default) if centro_cst_default in centro_cst_opcoes else 0
     centro_cst_selecionado = st.sidebar.selectbox(
-        "Selecione o Centro cst:", centro_cst_opcoes
+        "Selecione o Centro cst:", centro_cst_opcoes, index=centro_cst_index, key="filtro_centro_cst_selectbox"
     )
+    # Atualizar session_state
+    st.session_state.filtro_centro_cst = centro_cst_selecionado
     if centro_cst_selecionado != "Todos":
         df_filtrado = df_filtrado[
             df_filtrado['Centrocst'].astype(str) == str(centro_cst_selecionado)
         ].copy()
 
+# Inicializar session_state para Conta contábil
+if 'filtro_conta_contabil' not in st.session_state:
+    st.session_state.filtro_conta_contabil = []
+
 # Filtro 5: Conta contábil (com cache otimizado)
 if 'Nºconta' in df_filtrado.columns:
     conta_contabil_opcoes = get_filter_options(df_filtrado, 'Nºconta')[1:]
+    # Validar valores salvos
+    default_conta = [x for x in st.session_state.filtro_conta_contabil if x in conta_contabil_opcoes] if st.session_state.filtro_conta_contabil else []
     conta_contabil_selecionadas = st.sidebar.multiselect(
-        "Selecione a Conta contábil:", conta_contabil_opcoes
+        "Selecione a Conta contábil:", conta_contabil_opcoes, default=default_conta, key="filtro_conta_contabil_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_conta_contabil = conta_contabil_selecionadas
     if conta_contabil_selecionadas:
         df_filtrado = df_filtrado[
             df_filtrado['Nºconta'].astype(str).isin(
@@ -359,11 +622,20 @@ filtros_principais = [
 
 for col_name, label, widget_type in filtros_principais:
     if col_name in df_filtrado.columns:
+        # Inicializar session_state para cada filtro principal
+        filtro_key = f'filtro_{col_name}'
+        if filtro_key not in st.session_state:
+            st.session_state[filtro_key] = ["Todos"]
+        
         opcoes = get_filter_options(df_filtrado, col_name)
         if widget_type == "multiselect":
+            # Validar valores salvos
+            default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
             selecionadas = st.sidebar.multiselect(
-                f"Selecione o {label}:", opcoes, default=["Todos"]
+                f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
             )
+            # Atualizar session_state
+            st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
             if selecionadas and "Todos" not in selecionadas:
                 df_filtrado = df_filtrado[
                     df_filtrado[col_name].astype(str).isin(selecionadas)
@@ -390,9 +662,18 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
                 )
 
             if widget_type == "multiselect":
+                # Inicializar session_state para cada filtro avançado
+                filtro_key = f'filtro_avancado_{col_name}'
+                if filtro_key not in st.session_state:
+                    st.session_state[filtro_key] = ["Todos"]
+                
+                # Validar valores salvos
+                default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
                 selecionadas = st.multiselect(
-                    f"Selecione o {label}:", opcoes, default=["Todos"]
+                    f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
                 )
+                # Atualizar session_state
+                st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
                 if selecionadas and "Todos" not in selecionadas:
                     df_filtrado = df_filtrado[
                         df_filtrado[col_name].astype(str).isin(selecionadas)
@@ -407,8 +688,13 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
         # Agrupar df_filtrado por Oficina e Período para calcular Valor total
         if ('Oficina' in df_filtrado.columns and
                 'Período' in df_filtrado.columns):
+            # Aplicar conversão de moeda ANTES de agrupar (se necessário)
+            df_filtrado_para_cpu = df_filtrado.copy()
+            if moeda_codigo != "BRL" and 'Valor' in df_filtrado_para_cpu.columns:
+                df_filtrado_para_cpu = converter_coluna_moeda(df_filtrado_para_cpu, 'Valor', moeda_codigo, taxas_cambio)
+            
             # Agrupar Valor por Oficina e Período
-            df_valor_agrupado = df_filtrado.groupby(
+            df_valor_agrupado = df_filtrado_para_cpu.groupby(
                 ['Oficina', 'Período'], as_index=False
             )['Valor'].sum()
 
@@ -436,6 +722,7 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
             )
 
             # Criar DataFrame para visualização com CPU
+            # Nota: A conversão já foi aplicada no Valor antes do cálculo do CPU
             df_visualizacao = df_cpu.copy()
             df_visualizacao['Valor'] = df_visualizacao['CPU']
             coluna_visualizacao = 'CPU'
@@ -456,22 +743,57 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
         coluna_visualizacao = 'Valor'
         tipo_visualizacao = "Custo Total"
 else:
-    # Usar Valor diretamente
+    # Usar Valor ou Total diretamente
     df_visualizacao = df_filtrado.copy()
-    coluna_visualizacao = 'Valor'
+    # Verificar qual coluna existe e tem dados
+    if 'Total' in df_filtrado.columns and df_filtrado['Total'].notna().any():
+        coluna_visualizacao = 'Total'
+    elif 'Valor' in df_filtrado.columns and df_filtrado['Valor'].notna().any():
+        coluna_visualizacao = 'Valor'
+    elif 'Total' in df_filtrado.columns:
+        coluna_visualizacao = 'Total'
+    else:
+        coluna_visualizacao = 'Valor'
+    
+    # Aplicar conversão de moeda se necessário
+    if moeda_codigo != "BRL":
+        # Debug: mostrar valores antes da conversão
+        if coluna_visualizacao in df_visualizacao.columns:
+            valor_antes = df_visualizacao[coluna_visualizacao].sum()
+            df_visualizacao = converter_coluna_moeda(df_visualizacao, coluna_visualizacao, moeda_codigo, taxas_cambio)
+            valor_depois = df_visualizacao[coluna_visualizacao].sum()
+            # Mostrar exemplo de conversão na sidebar
+            if len(df_visualizacao) > 0:
+                exemplo_valor = df_visualizacao[coluna_visualizacao].iloc[0] if not df_visualizacao[coluna_visualizacao].isna().all() else 0
+                if exemplo_valor != 0:
+                    st.sidebar.caption(f"📊 Exemplo: {coluna_visualizacao} convertido de R$ para {moeda_simbolo}")
+        # Também converter outras colunas numéricas se existirem
+        if 'Total' in df_visualizacao.columns and coluna_visualizacao != 'Total':
+            df_visualizacao = converter_coluna_moeda(df_visualizacao, 'Total', moeda_codigo, taxas_cambio)
+        if 'Valor' in df_visualizacao.columns and coluna_visualizacao != 'Valor':
+            df_visualizacao = converter_coluna_moeda(df_visualizacao, 'Valor', moeda_codigo, taxas_cambio)
 
 # Resumo na sidebar
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Resumo**")
 st.sidebar.write(f"**Linhas:** {df_filtrado.shape[0]:,}")
 
-# Calcular totais se as colunas existirem
-if 'Valor' in df_filtrado.columns:
+# Calcular totais se as colunas existirem (usar df_visualizacao que já tem conversão aplicada)
+if coluna_visualizacao in df_visualizacao.columns:
+    valor_total = df_visualizacao[coluna_visualizacao].sum()
+    st.sidebar.write(f"**Total {coluna_visualizacao}:** {moeda_simbolo} {valor_total:,.2f}")
+elif 'Valor' in df_filtrado.columns:
     valor_total = df_filtrado['Valor'].sum()
-    st.sidebar.write(f"**Total Valor:** R$ {valor_total:,.2f}")
+    # Aplicar conversão se necessário
+    if moeda_codigo != "BRL":
+        valor_total = converter_moeda(valor_total, moeda_codigo, taxas_cambio)
+    st.sidebar.write(f"**Total Valor:** {moeda_simbolo} {valor_total:,.2f}")
 if 'Total' in df_filtrado.columns:
     total_sum = df_filtrado['Total'].sum()
-    st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
+    # Aplicar conversão se necessário
+    if moeda_codigo != "BRL":
+        total_sum = converter_moeda(total_sum, moeda_codigo, taxas_cambio)
+    st.sidebar.write(f"**Total:** {moeda_simbolo} {total_sum:,.2f}")
 if 'Volume' in df_filtrado.columns:
     volume_total = df_filtrado['Volume'].sum()
     st.sidebar.write(f"**Total Volume:** {volume_total:,.2f}")
@@ -505,11 +827,15 @@ def ordenar_por_mes(df, coluna_periodo='Período'):
 
 
 # Gráfico 1: Soma do Valor por Período
-@st.cache_data(ttl=900, max_entries=2)
-def create_period_chart(df_data, coluna, tipo_viz):
+def create_period_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$"):
     """Cria gráfico de barras por Período"""
     try:
+        if df_data is None or df_data.empty:
+            st.error(f"❌ Debug: df_data está vazio ou None. Moeda: {moeda_simbolo}")
+            return None
+            
         if coluna not in df_data.columns:
+            st.error(f"❌ Debug: Coluna '{coluna}' não encontrada. Colunas disponíveis: {list(df_data.columns)[:10]}. Moeda: {moeda_simbolo}")
             return None
 
         # Detectar tema do Streamlit
@@ -517,6 +843,10 @@ def create_period_chart(df_data, coluna, tipo_viz):
         text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
         axis_color = "#FAFAFA" if theme_base == "dark" else "#000000"
 
+        # Verificar se a coluna Período existe
+        if 'Período' not in df_data.columns:
+            return None
+        
         # Verificar se há múltiplos anos
         tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
         
@@ -539,14 +869,36 @@ def create_period_chart(df_data, coluna, tipo_viz):
             chart_data = ordenar_por_mes(chart_data, 'Período')
             ordem_periodos = chart_data['Período'].tolist()
             coluna_periodo_grafico = 'Período'
+        
+        # Verificar se há dados após agrupamento
+        if chart_data.empty:
+            return None
+        
+        # Garantir que os valores sejam numéricos
+        chart_data[coluna] = pd.to_numeric(chart_data[coluna], errors='coerce').fillna(0)
+        
+        # Verificar se há pelo menos um período com dados
+        if len(chart_data) == 0:
+            return None
+        
+        # Remover períodos com valores NaN ou infinitos
+        chart_data = chart_data[chart_data[coluna].notna() & chart_data[coluna].ne(float('inf')) & chart_data[coluna].ne(float('-inf'))]
+        
+        if chart_data.empty:
+            return None
 
-        # Definir título do eixo Y baseado no tipo
+        # Definir título do eixo Y baseado no tipo e moeda
         if tipo_viz == "CPU (Custo por Unidade)":
-            titulo_y = "CPU (R$/Unidade)"
+            titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
             titulo_grafico = "CPU por Período"
         else:
-            titulo_y = "Soma do Valor (R$)"
+            titulo_y = f"Soma do Valor ({moeda_simbolo})"
             titulo_grafico = "Soma do Valor por Período"
+        
+        # Debug: verificar dados antes de criar gráfico
+        if len(chart_data) == 0:
+            st.error(f"❌ Debug: chart_data está vazio após agrupamento. Moeda: {moeda_simbolo}, Coluna: {coluna}")
+            return None
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
@@ -558,7 +910,8 @@ def create_period_chart(df_data, coluna, tipo_viz):
             y=alt.Y(
                 f'{coluna}:Q',
                 title=titulo_y,
-                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
+                axis=alt.Axis(labelColor=axis_color, titleColor=axis_color),
+                scale=alt.Scale(zero=True)
             ),
             color=alt.Color(
                 f'{coluna}:Q',
@@ -600,7 +953,8 @@ def create_period_chart(df_data, coluna, tipo_viz):
 
 
 # Exibir gráfico por Período
-if coluna_visualizacao in df_visualizacao.columns:
+# Verificar se df_visualizacao existe e tem dados
+if df_visualizacao is not None and not df_visualizacao.empty and coluna_visualizacao in df_visualizacao.columns:
     if tipo_visualizacao == "CPU (Custo por Unidade)":
         st.subheader("📊 CPU por Período")
         
@@ -642,23 +996,80 @@ if coluna_visualizacao in df_visualizacao.columns:
                         df_grafico_periodo['Oficina'].astype(str) == str(oficina_selecionada_grafico)
                     ].copy()
         
-        # Criar gráfico com dados filtrados
-        grafico_periodo = create_period_chart(
-            df_grafico_periodo, coluna_visualizacao, tipo_visualizacao
-        )
+        # Verificar se há dados após filtros
+        if df_grafico_periodo.empty:
+            st.warning("⚠️ Nenhum dado encontrado após aplicar os filtros de Veículo e Oficina.")
+            grafico_periodo = None
+        else:
+            # Criar gráfico com dados filtrados
+            grafico_periodo = create_period_chart(
+                df_grafico_periodo, coluna_visualizacao, tipo_visualizacao, moeda_simbolo
+            )
     else:
         st.subheader("📊 Soma do Valor por Período")
-        grafico_periodo = create_period_chart(
-            df_visualizacao, coluna_visualizacao, tipo_visualizacao
-        )
+        # Verificar se há dados
+        if df_visualizacao.empty:
+            st.warning("⚠️ Nenhum dado disponível para exibir.")
+            grafico_periodo = None
+        else:
+            grafico_periodo = create_period_chart(
+                df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo
+            )
     
-    if grafico_periodo:
-        st.altair_chart(grafico_periodo, use_container_width=True)
+    # Sempre mostrar debug quando o gráfico não aparecer
+    if grafico_periodo is not None:
+        try:
+            st.altair_chart(grafico_periodo, use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ Erro ao exibir gráfico: {e}")
+            grafico_periodo = None
+    
+    # Mostrar debug se o gráfico não foi criado ou se não há dados suficientes
+    if grafico_periodo is None:
+        # Debug: mostrar informações sobre os dados
+        st.markdown("---")
+        st.markdown("### 🔍 Debug - Informações dos dados")
+        st.write(f"**Moeda selecionada:** {moeda_selecionada} ({moeda_simbolo})")
+        st.write(f"**Tipo de visualização:** {tipo_visualizacao}")
+        st.write(f"**Coluna de visualização:** {coluna_visualizacao}")
+        
+        if df_visualizacao is not None and not df_visualizacao.empty:
+            st.write(f"**Colunas disponíveis:** {', '.join(df_visualizacao.columns.tolist()[:20])}")
+            st.write(f"**Linhas no DataFrame:** {len(df_visualizacao):,}")
+            
+            if 'Período' in df_visualizacao.columns:
+                periodos_unicos = df_visualizacao['Período'].dropna().unique()
+                st.write(f"**Períodos únicos:** {len(periodos_unicos)}")
+                if len(periodos_unicos) > 0:
+                    st.write(f"**Períodos:** {', '.join(periodos_unicos.astype(str).tolist()[:15])}")
+            
+            if coluna_visualizacao in df_visualizacao.columns:
+                valores_nao_nulos = df_visualizacao[coluna_visualizacao].notna().sum()
+                soma_valores = df_visualizacao[coluna_visualizacao].sum()
+                st.write(f"**Valores não nulos na coluna '{coluna_visualizacao}':** {valores_nao_nulos:,}")
+                st.write(f"**Soma da coluna '{coluna_visualizacao}':** {moeda_simbolo} {soma_valores:,.2f}")
+                
+                # Mostrar amostra dos dados
+                if len(df_visualizacao) > 0:
+                    st.write("**Amostra dos dados (primeiras 5 linhas):**")
+                    colunas_mostrar = ['Período', coluna_visualizacao]
+                    if 'Ano' in df_visualizacao.columns:
+                        colunas_mostrar.insert(1, 'Ano')
+                    st.dataframe(df_visualizacao[colunas_mostrar].head(), use_container_width=True)
+            else:
+                st.error(f"❌ A coluna '{coluna_visualizacao}' não existe no DataFrame!")
+        else:
+            st.error("❌ O DataFrame está vazio ou não foi criado!")
+        
+        st.warning("⚠️ Não há dados para exibir no gráfico. Verifique os filtros selecionados.")
+else:
+    st.warning(f"⚠️ A coluna '{coluna_visualizacao}' não está disponível nos dados filtrados.")
+    if df_visualizacao is not None and not df_visualizacao.empty:
+        st.write(f"**Colunas disponíveis:** {', '.join(df_visualizacao.columns.tolist())}")
 
 
 # Gráfico 2: Soma do Valor por Oficina
-@st.cache_data(ttl=900, max_entries=2)
-def create_oficina_chart(df_data, coluna, tipo_viz):
+def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$"):
     """Cria gráfico de barras por Oficina"""
     try:
         if (coluna not in df_data.columns or
@@ -673,12 +1084,12 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
         chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
         chart_data = chart_data.sort_values(coluna, ascending=False)
 
-        # Definir título do eixo Y baseado no tipo
+        # Definir título do eixo Y baseado no tipo e moeda
         if tipo_viz == "CPU (Custo por Unidade)":
-            titulo_y = "CPU (R$/Unidade)"
+            titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
             titulo_grafico = "CPU por Oficina"
         else:
-            titulo_y = "Soma do Valor (R$)"
+            titulo_y = f"Soma do Valor ({moeda_simbolo})"
             titulo_grafico = "Soma do Valor por Oficina"
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
@@ -740,7 +1151,7 @@ if ('Oficina' in df_visualizacao.columns and
     else:
         st.subheader("📊 Soma do Valor por Oficina")
     grafico_oficina = create_oficina_chart(
-        df_visualizacao, coluna_visualizacao, tipo_visualizacao
+        df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo
     )
     if grafico_oficina:
         st.altair_chart(grafico_oficina, use_container_width=True)
@@ -877,8 +1288,7 @@ else:
 
 
 # Gráfico 4: Total por Período (se coluna Total existir)
-@st.cache_data(ttl=900, max_entries=2)
-def create_total_chart(df_data):
+def create_total_chart(df_data, moeda_simbolo="R$"):
     """Cria gráfico de barras de Total por Período"""
     try:
         if 'Total' not in df_data.columns:
@@ -921,7 +1331,7 @@ def create_total_chart(df_data):
             ),
             y=alt.Y(
                 'Total:Q',
-                title='Total (R$)',
+                title=f'Total ({moeda_simbolo})',
                 axis=alt.Axis(labelColor=axis_color, titleColor=axis_color)
             ),
             color=alt.Color(
@@ -958,7 +1368,7 @@ def create_total_chart(df_data):
 # Exibir gráfico de Total (apenas para Custo Total)
 if tipo_visualizacao == "Custo Total" and 'Total' in df_filtrado.columns:
     st.subheader("📊 Total por Período")
-    grafico_total = create_total_chart(df_filtrado)
+    grafico_total = create_total_chart(df_filtrado, moeda_simbolo)
     if grafico_total:
         st.altair_chart(grafico_total, use_container_width=True)
 
@@ -994,19 +1404,19 @@ if ('Oficina' in df_visualizacao.columns and
         df_pivot = df_pivot.sort_values('Total', ascending=False)
 
         # Formatar valores baseado no tipo de visualização
-        def formatar_valor(val, tipo):
+        def formatar_valor(val, tipo, simbolo_moeda="R$"):
             if isinstance(val, (int, float)):
                 if tipo == "CPU (Custo por Unidade)":
                     return f"{val:,.4f}"
                 else:
-                    return f"R$ {val:,.2f}"
+                    return f"{simbolo_moeda} {val:,.2f}"
             return val
 
         # Aplicar formatação
         df_pivot_formatado = df_pivot.copy()
         for col in df_pivot_formatado.columns:
             df_pivot_formatado[col] = df_pivot_formatado[col].apply(
-                lambda x: formatar_valor(x, tipo_visualizacao)
+                lambda x: formatar_valor(x, tipo_visualizacao, moeda_simbolo)
             )
 
         st.dataframe(df_pivot_formatado, use_container_width=True)

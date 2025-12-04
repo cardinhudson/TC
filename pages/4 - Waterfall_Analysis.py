@@ -18,6 +18,12 @@ st.markdown("""
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -441,10 +447,24 @@ else:
 
 st.sidebar.markdown("---")
 
+# Inicializar session_state para filtros
+if 'filtro_oficina_waterfall' not in st.session_state:
+    st.session_state.filtro_oficina_waterfall = ["Todos"]
+if 'filtro_periodo_waterfall' not in st.session_state:
+    st.session_state.filtro_periodo_waterfall = "Todos"
+if 'filtro_veiculo_waterfall' not in st.session_state:
+    st.session_state.filtro_veiculo_waterfall = ["Todos"]
+if 'filtro_custo_waterfall' not in st.session_state:
+    st.session_state.filtro_custo_waterfall = ["Todos"]
+if 'filtro_ano_waterfall' not in st.session_state:
+    st.session_state.filtro_ano_waterfall = ["Todos"]
+
 # Filtro 1: Oficina
 if 'Oficina' in df_base.columns:
     oficina_opcoes = ["Todos"] + sorted(df_base['Oficina'].dropna().astype(str).unique().tolist())
-    oficina_selecionada = st.sidebar.multiselect("Selecione a OFICINA:", oficina_opcoes, default=["Todos"])
+    default_oficina = st.session_state.filtro_oficina_waterfall if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_waterfall) else ["Todos"]
+    oficina_selecionada = st.sidebar.multiselect("Selecione a OFICINA:", oficina_opcoes, default=default_oficina, key="filtro_oficina_waterfall_multiselect")
+    st.session_state.filtro_oficina_waterfall = oficina_selecionada if oficina_selecionada else ["Todos"]
     
     if "Todos" in oficina_selecionada or not oficina_selecionada:
         df_filtrado = df_base.copy()
@@ -456,21 +476,28 @@ else:
 # Filtro 2: Período
 if 'Período' in df_filtrado.columns:
     periodo_opcoes = ["Todos"] + sorted(df_filtrado['Período'].dropna().astype(str).unique().tolist())
-    periodo_selecionado = st.sidebar.selectbox("Selecione o Período:", periodo_opcoes)
+    periodo_default = st.session_state.filtro_periodo_waterfall if st.session_state.filtro_periodo_waterfall in periodo_opcoes else "Todos"
+    periodo_index = periodo_opcoes.index(periodo_default) if periodo_default in periodo_opcoes else 0
+    periodo_selecionado = st.sidebar.selectbox("Selecione o Período:", periodo_opcoes, index=periodo_index, key="filtro_periodo_waterfall_selectbox")
+    st.session_state.filtro_periodo_waterfall = periodo_selecionado
     if periodo_selecionado != "Todos":
         df_filtrado = df_filtrado[df_filtrado['Período'].astype(str) == str(periodo_selecionado)]
 
 # Filtro 3: Veículo
 if 'Veículo' in df_filtrado.columns:
     veiculo_opcoes = ["Todos"] + sorted(df_filtrado['Veículo'].dropna().astype(str).unique().tolist())
-    veiculo_selecionado = st.sidebar.multiselect("Selecione o VEÍCULO:", veiculo_opcoes, default=["Todos"])
+    default_veiculo = st.session_state.filtro_veiculo_waterfall if all(x in veiculo_opcoes for x in st.session_state.filtro_veiculo_waterfall) else ["Todos"]
+    veiculo_selecionado = st.sidebar.multiselect("Selecione o VEÍCULO:", veiculo_opcoes, default=default_veiculo, key="filtro_veiculo_waterfall_multiselect")
+    st.session_state.filtro_veiculo_waterfall = veiculo_selecionado if veiculo_selecionado else ["Todos"]
     if veiculo_selecionado and "Todos" not in veiculo_selecionado:
         df_filtrado = df_filtrado[df_filtrado['Veículo'].astype(str).isin(veiculo_selecionado)]
 
 # Filtro 4: Tipo de Custo
 if 'Custo' in df_filtrado.columns:
     custo_opcoes = ["Todos"] + sorted(df_filtrado['Custo'].dropna().astype(str).unique().tolist())
-    custo_selecionado = st.sidebar.multiselect("Selecione o TIPO DE CUSTO:", custo_opcoes, default=["Todos"])
+    default_custo = st.session_state.filtro_custo_waterfall if all(x in custo_opcoes for x in st.session_state.filtro_custo_waterfall) else ["Todos"]
+    custo_selecionado = st.sidebar.multiselect("Selecione o TIPO DE CUSTO:", custo_opcoes, default=default_custo, key="filtro_custo_waterfall_multiselect")
+    st.session_state.filtro_custo_waterfall = custo_selecionado if custo_selecionado else ["Todos"]
     if custo_selecionado and "Todos" not in custo_selecionado:
         df_filtrado = df_filtrado[df_filtrado['Custo'].astype(str).isin(custo_selecionado)]
 
@@ -492,16 +519,27 @@ filtros_principais = [
 
 for col_name, label, widget_type in filtros_principais:
     if col_name in df_filtrado.columns:
+        # Inicializar session_state para cada filtro principal
+        filtro_key = f'filtro_{col_name}_waterfall'
+        if filtro_key not in st.session_state:
+            st.session_state[filtro_key] = ["Todos"]
+        
         opcoes = get_filter_options(df_filtrado, col_name)
         if widget_type == "multiselect":
-            selecionadas = st.sidebar.multiselect(f"Selecione o {label}:", opcoes, default=["Todos"])
+            # Validar valores salvos
+            default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
+            selecionadas = st.sidebar.multiselect(f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect")
+            # Atualizar session_state
+            st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
             if selecionadas and "Todos" not in selecionadas:
                 df_filtrado = df_filtrado[df_filtrado[col_name].astype(str).isin(selecionadas)]
 
 # Filtro 5: Ano (VISÍVEL na sidebar principal)
 if 'Ano' in df_filtrado.columns:
     ano_opcoes = ["Todos"] + sorted(df_filtrado['Ano'].dropna().astype(str).unique().tolist())
-    ano_selecionado = st.sidebar.multiselect("Selecione o ANO:", ano_opcoes, default=["Todos"])
+    default_ano = st.session_state.filtro_ano_waterfall if all(x in ano_opcoes for x in st.session_state.filtro_ano_waterfall) else ["Todos"]
+    ano_selecionado = st.sidebar.multiselect("Selecione o ANO:", ano_opcoes, default=default_ano, key="filtro_ano_waterfall_multiselect")
+    st.session_state.filtro_ano_waterfall = ano_selecionado if ano_selecionado else ["Todos"]
     if ano_selecionado and "Todos" not in ano_selecionado:
         df_filtrado = df_filtrado[df_filtrado['Ano'].astype(str).isin(ano_selecionado)]
 

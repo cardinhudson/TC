@@ -34,6 +34,12 @@ st.markdown("""
             /* Reduzido de 1.6rem para 1.28rem (20%) */
             font-size: 1.28rem !important;
         }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -127,13 +133,20 @@ if ano_atual_str in opcoes_ano:
 else:
     index_padrao = 0  # "Todos" se ano atual não estiver disponível
 
+# Inicializar session_state para manter valores dos filtros
+if 'filtro_ano_forecast' not in st.session_state:
+    st.session_state.filtro_ano_forecast = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
+
 # Seletor de ano
 ano_selecionado = st.sidebar.selectbox(
     "Selecione o ano:",
     options=opcoes_ano,
-    index=index_padrao,  # Ano atual por padrão, ou "Todos" se não disponível
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico"
+    index=opcoes_ano.index(st.session_state.filtro_ano_forecast) if st.session_state.filtro_ano_forecast in opcoes_ano else index_padrao,
+    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
+    key="filtro_ano_forecast_selectbox"
 )
+# Atualizar session_state
+st.session_state.filtro_ano_forecast = ano_selecionado
 
 st.sidebar.markdown("---")
 
@@ -405,31 +418,46 @@ def aplicar_filtros(df_total_cache, oficina_selecionadas_cache, veiculo_selecion
     
     return df_filtrado
 
+# Inicializar session_state para filtros
+if 'filtro_oficina_forecast' not in st.session_state:
+    st.session_state.filtro_oficina_forecast = ["Todos"]
+if 'filtro_veiculo_forecast' not in st.session_state:
+    st.session_state.filtro_veiculo_forecast = ["Todos"]
+if 'filtro_usi_forecast' not in st.session_state:
+    st.session_state.filtro_usi_forecast = ["TC Ext"]
+if 'filtro_periodo_forecast' not in st.session_state:
+    st.session_state.filtro_periodo_forecast = ["Todos"]
+
 # 🔧 OTIMIZAÇÃO: Carregar opções de filtro apenas quando necessário
 # Filtro 1: Oficina
 oficina_selecionadas = ["Todos"]
 if df_total is not None and 'Oficina' in df_total.columns:
     oficina_opcoes = get_filter_options(df_total, 'Oficina')
+    default_oficina = st.session_state.filtro_oficina_forecast if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_forecast) else ["Todos"]
     oficina_selecionadas = st.sidebar.multiselect(
-        "Selecione a Oficina:", oficina_opcoes, default=["Todos"]
+        "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_forecast_multiselect"
     )
+    st.session_state.filtro_oficina_forecast = oficina_selecionadas if oficina_selecionadas else ["Todos"]
 
 # Filtro 2: Veículo
 veiculo_selecionados = ["Todos"]
 if df_total is not None and 'Veículo' in df_total.columns:
     veiculo_opcoes = get_filter_options(df_total, 'Veículo')
+    default_veiculo = st.session_state.filtro_veiculo_forecast if all(x in veiculo_opcoes for x in st.session_state.filtro_veiculo_forecast) else ["Todos"]
     veiculo_selecionados = st.sidebar.multiselect(
-        "Selecione o Veículo:", veiculo_opcoes, default=["Todos"]
+        "Selecione o Veículo:", veiculo_opcoes, default=default_veiculo, key="filtro_veiculo_forecast_multiselect"
     )
+    st.session_state.filtro_veiculo_forecast = veiculo_selecionados if veiculo_selecionados else ["Todos"]
 
 # Filtro 3: USI
 usi_selecionada = ["TC Ext"]
 if df_total is not None and 'USI' in df_total.columns:
     usi_opcoes = get_filter_options(df_total, 'USI')
-    default_usi = ["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"]
+    default_usi = st.session_state.filtro_usi_forecast if all(x in usi_opcoes for x in st.session_state.filtro_usi_forecast) else (["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"])
     usi_selecionada = st.sidebar.multiselect(
-        "Selecione a USI:", usi_opcoes, default=default_usi
+        "Selecione a USI:", usi_opcoes, default=default_usi, key="filtro_usi_forecast_multiselect"
     )
+    st.session_state.filtro_usi_forecast = usi_selecionada if usi_selecionada else ["TC Ext"]
 
 # Filtro 4: Período (multiselect - igual aos outros filtros)
 periodo_selecionado = ["Todos"]
@@ -457,9 +485,11 @@ if df_total is not None and 'Período' in df_total.columns:
     # Combinar: Todos + meses ordenados + outros períodos
     periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
     
+    default_periodo = st.session_state.filtro_periodo_forecast if all(x in periodo_opcoes for x in st.session_state.filtro_periodo_forecast) else ["Todos"]
     periodo_selecionado = st.sidebar.multiselect(
-        "Selecione o Período:", periodo_opcoes, default=["Todos"]
+        "Selecione o Período:", periodo_opcoes, default=default_periodo, key="filtro_periodo_forecast_multiselect"
     )
+    st.session_state.filtro_periodo_forecast = periodo_selecionado if periodo_selecionado else ["Todos"]
 
 # 🔧 CORREÇÃO CRÍTICA: Criar cópia ANTES do filtro de período para usar no gráfico (mesma lógica do TC_Ext linha 374)
 # Isso garante que o gráfico mostre TODOS os períodos, mesmo quando um período específico está selecionado

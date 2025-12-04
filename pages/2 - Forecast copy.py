@@ -31,6 +31,12 @@ st.markdown("""
             /* Reduzido de 1.6rem para 1.28rem (20%) */
             font-size: 1.28rem !important;
         }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 

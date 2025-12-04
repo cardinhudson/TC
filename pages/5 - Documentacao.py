@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # CSS para melhorar visualização
-    st.markdown("""
+st.markdown("""
     <style>
         h1 {
             white-space: nowrap !important;
@@ -23,6 +23,12 @@ st.set_page_config(
         .stTabs [data-baseweb="tab"] {
             padding: 10px 20px;
             font-weight: 600;
+        }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -126,93 +132,93 @@ with tab_tecnica:
         
     st.markdown("---")
     
-        # Métricas principais
-        st.subheader("📊 Métricas do Projeto")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("💻 Linhas de Código", "18.000+", "Sistema completo")
-        
-        with col2:
-            st.metric("📊 Páginas", "5", "Funcionalidades completas")
-        
-        with col3:
-            st.metric("⚡ Otimização", "70%+", "Memória reduzida")
-        
-        with col4:
-            st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
+    # Métricas principais
+    st.subheader("📊 Métricas do Projeto")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("💻 Linhas de Código", "18.000+", "Sistema completo")
+    
+    with col2:
+        st.metric("📊 Páginas", "5", "Funcionalidades completas")
+    
+    with col3:
+        st.metric("⚡ Otimização", "70%+", "Memória reduzida")
+    
+    with col4:
+        st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
     
     st.markdown("---")
     
-        st.subheader("🎯 Objetivos do Projeto")
-        
-        st.markdown("""
-        **🎯 Objetivos Principais:**
-        - 📈 **Análise avançada de custos** com visualizações interativas
-        - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
-        - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
-        - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
-        - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
-        - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
-        - 📥 **Exportação Excel:** Downloads formatados e filtrados
-        - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
-        - 📦 **Formato Parquet:** Dados comprimidos e otimizados
-        - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
+    st.subheader("🎯 Objetivos do Projeto")
+    
+    st.markdown("""
+    **🎯 Objetivos Principais:**
+    - 📈 **Análise avançada de custos** com visualizações interativas
+    - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
+    - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
+    - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
+    - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
+    - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
+    - 📥 **Exportação Excel:** Downloads formatados e filtrados
+    - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
+    - 📦 **Formato Parquet:** Dados comprimidos e otimizados
+    - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
     """)
     
     st.markdown("---")
     
-        st.subheader("⚠️ Desafios Principais & Soluções")
+    st.subheader("⚠️ Desafios Principais & Soluções")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 10px; margin: 1rem 0; color: #888888;">
+            <h4 style="color: #888888; margin: 0; font-weight: 600;">
+                📊 DESAFIOS IDENTIFICADOS
+            </h4>
+        </div>
+        """, unsafe_allow_html=True)
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 10px; margin: 1rem 0; color: #888888;">
-                <h4 style="color: #888888; margin: 0; font-weight: 600;">
-                    📊 DESAFIOS IDENTIFICADOS
-                </h4>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("""
-            - **📁 Dados grandes:** Milhões de registros causando lentidão
-            - **💾 Uso de memória:** Excedia limites de processamento
-            - **❌ Instabilidade:** Sistema lento com muitos filtros
-            - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
-            - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
-            - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
-            """)
-        
-        with col2:
-    st.markdown("""
+        st.markdown("""
+        - **📁 Dados grandes:** Milhões de registros causando lentidão
+        - **💾 Uso de memória:** Excedia limites de processamento
+        - **❌ Instabilidade:** Sistema lento com muitos filtros
+        - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
+        - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
+        - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
+        """)
+    
+    with col2:
+        st.markdown("""
             <div style="padding: 1.5rem; background: linear-gradient(135deg, #00b894 0%, #00a085 100%); border-radius: 10px; margin: 1rem 0; color: #888888;">
                 <h4 style="color: #888888; margin: 0; font-weight: 600;">
                     ✅ SOLUÇÕES IMPLEMENTADAS
                 </h4>
             </div>
             """, unsafe_allow_html=True)
-            
-            st.markdown("""
-            - **📊 Otimização de dados:** Parquet com tipos categóricos
-            - **⚡ Cache estratégico:** TTL configurável por tipo de dado
-            - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
-            - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
-            - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
-            - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
-            """)
         
-        st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
-        
-        st.markdown("---")
-        
-        st.subheader("🚀 Funcionalidades Principais")
-        
+        st.markdown("""
+        - **📊 Otimização de dados:** Parquet com tipos categóricos
+        - **⚡ Cache estratégico:** TTL configurável por tipo de dado
+        - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
+        - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
+        - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
+        - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
+        """)
+    
+    st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
+    
+    st.markdown("---")
+    
+    st.subheader("🚀 Funcionalidades Principais")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-            with st.expander("📊 **DASHBOARDS INTERATIVOS**", expanded=True):
-        st.markdown("""
+        with st.expander("📊 **DASHBOARDS INTERATIVOS**", expanded=True):
+            st.markdown("""
                 ### 📊 TC Ext (1 - TC_Ext.py)
                 - **Análise histórica** de custos com comparação Budget
                 - **Cálculo Flex Bud** ajustado por volume e sensibilidade
@@ -256,8 +262,8 @@ with tab_tecnica:
         """)
     
     with col2:
-            with st.expander("⚡ **OTIMIZAÇÕES DE PERFORMANCE**", expanded=True):
-        st.markdown("""
+        with st.expander("⚡ **OTIMIZAÇÕES DE PERFORMANCE**", expanded=True):
+            st.markdown("""
                 ### 💾 Gestão de Memória
                 - **Cache inteligente** com TTL configurável
                 - **Otimização de tipos:** Category para strings repetidas
@@ -307,12 +313,12 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("📊 Estatísticas do Sistema")
+    st.subheader("📊 Estatísticas do Sistema")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-            with st.expander("💾 **DADOS E PERFORMANCE**", expanded=True):
+        with st.expander("💾 **DADOS E PERFORMANCE**", expanded=True):
                 st.markdown("""
                 **📁 Arquivos Principais:**
                 - `df_final_historico.parquet` (dados históricos)
@@ -327,7 +333,7 @@ with tab_tecnica:
                 """)
     
     with col2:
-            with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
+        with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
                 st.markdown("""
                 **📄 Páginas Disponíveis:**
                 - `app.py` - Página inicial (1.093 linhas)
@@ -341,7 +347,7 @@ with tab_tecnica:
                 """)
     
     with col3:
-            with st.expander("🔧 **TECNOLOGIAS**", expanded=True):
+        with st.expander("🔧 **TECNOLOGIAS**", expanded=True):
                 st.markdown("""
                 **✅ Stack Tecnológico:**
                 - 🐍 Python 3.8+
@@ -352,12 +358,12 @@ with tab_tecnica:
                 - 📋 OpenPyXL (Excel)
                 - 🔢 NumPy (Cálculos)
                 """)
-        
-        st.markdown("---")
-        
-        st.subheader("🏆 Complexidade e Valor Técnico")
-        
-        with st.expander("💻 **CÓDIGO E DESENVOLVIMENTO**", expanded=False):
+    
+    st.markdown("---")
+    
+    st.subheader("🏆 Complexidade e Valor Técnico")
+    
+    with st.expander("💻 **CÓDIGO E DESENVOLVIMENTO**", expanded=False):
             col1, col2 = st.columns(2)
     
     with col1:
@@ -421,16 +427,16 @@ with tab_tecnica:
                 )
                 ```
                 """)
-        
-        st.markdown("---")
-        
-        st.subheader("🏆 Valor e Impacto do Projeto")
-        
+    
+    st.markdown("---")
+    
+    st.subheader("🏆 Valor e Impacto do Projeto")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-            with st.expander("💼 **VALOR EMPRESARIAL**", expanded=True):
-        st.markdown("""
+        with st.expander("💼 **VALOR EMPRESARIAL**", expanded=True):
+            st.markdown("""
                 ### 📈 Benefícios Quantificáveis
                 
                 **⚡ Performance:**
@@ -453,8 +459,8 @@ with tab_tecnica:
         """)
     
     with col2:
-            with st.expander("🔬 **INOVAÇÃO TÉCNICA**", expanded=True):
-        st.markdown("""
+        with st.expander("🔬 **INOVAÇÃO TÉCNICA**", expanded=True):
+            st.markdown("""
                 ### 🚀 Soluções Inovadoras
                 
                 **🧠 Estratégia Híbrida:**
@@ -476,8 +482,8 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("📊 Página 1 - TC Ext: Estrutura Técnica")
-        
+    st.subheader("📊 Página 1 - TC Ext: Estrutura Técnica")
+    
     st.markdown("""
         ### Organização com Tabs
         
@@ -512,8 +518,8 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("🎨 Sistema de Estilização")
-        
+    st.subheader("🎨 Sistema de Estilização")
+    
     st.markdown("""
         ### CSS Customizado
         
@@ -608,8 +614,8 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("📊 Altair - Gráficos Interativos")
-        
+    st.subheader("📊 Altair - Gráficos Interativos")
+    
     st.markdown("""
         ### Estrutura de Gráficos Altair
         
@@ -663,10 +669,10 @@ with tab_tecnica:
         grafico_combinado = alt.vconcat(grafico_delta_com_rotulos, grafico_principal)
         ```
         """)
-        
-        st.markdown("---")
-        
-        st.subheader("🎨 Formatação HTML Customizada")
+    
+    st.markdown("---")
+    
+    st.subheader("🎨 Formatação HTML Customizada")
     
     st.markdown("""
         ### Função `formatar_ratio_com_barra()`
@@ -799,7 +805,7 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("🔍 Otimização de Tipos de Dados")
+    st.subheader("🔍 Otimização de Tipos de Dados")
     
     st.markdown("""
         ### Processo de Otimização
@@ -833,7 +839,7 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("📊 Ordenação de Períodos")
+    st.subheader("📊 Ordenação de Períodos")
     
     st.markdown("""
         ### Função `ordenar_por_mes()`
@@ -885,7 +891,7 @@ with tab_tecnica:
         
         # Página Inicial
         with page_tabs[0]:
-        st.markdown("""
+            st.markdown("""
             ### Página Inicial (app.py)
             
             **Arquivo**: `app.py` (1.093 linhas)
@@ -912,7 +918,7 @@ with tab_tecnica:
         
         # TC Ext
         with page_tabs[1]:
-        st.markdown("""
+            st.markdown("""
             ### Página 1 - TC Ext
             
             **Arquivo**: `pages/1 - TC_Ext.py` (5.216 linhas)
@@ -941,7 +947,7 @@ with tab_tecnica:
         
         # Simulador Forecast
         with page_tabs[1]:
-        st.markdown("""
+            st.markdown("""
             ### Página 2 - Simulador Forecast
             
             **Arquivo**: `pages/2 - Simulador Forecast.py` (3.973 linhas)
@@ -986,7 +992,7 @@ with tab_tecnica:
         
         # Waterfall
         with page_tabs[3]:
-    st.markdown("""
+            st.markdown("""
             ### Página 4 - Waterfall Analysis
             
             **Arquivo**: `pages/4 - Waterfall_Analysis.py` (1.345 linhas)
@@ -1004,10 +1010,10 @@ with tab_tecnica:
             - Gráficos waterfall com barras empilhadas
             - Correção para Ano a Ano (volumes totais)
             """)
-        
-        st.markdown("---")
-        
-        st.markdown("""
+    
+    st.markdown("---")
+    
+    st.markdown("""
         ### 1. Sistema de Filtros (TC Ext)
         
         **Função `get_filter_options()`:**
@@ -1132,7 +1138,7 @@ with tab_tecnica:
     
     st.markdown("---")
     
-        st.subheader("⚡ Otimizações de Performance")
+    st.subheader("⚡ Otimizações de Performance")
     
     st.markdown("""
         ### 1. Cache Estratégico
@@ -1309,9 +1315,9 @@ with tab_teorica:
     
     st.markdown("---")
     
-        st.subheader("🔢 Cálculo de Flex Bud")
-        
-        st.markdown("""
+    st.subheader("🔢 Cálculo de Flex Bud")
+    
+    st.markdown("""
         ### Conceito
         
         **Flex Bud** (Budget Flexível) é o budget ajustado pela variação de volume real vs budget,
@@ -1380,10 +1386,10 @@ with tab_teorica:
         - Total - Flex Bud: (depende do valor real)
         - Total / Flex Bud: (razão em percentual)
         """)
-        
-        st.markdown("---")
-        
-        st.subheader("📊 Gráfico Delta")
+    
+    st.markdown("---")
+    
+    st.subheader("📊 Gráfico Delta")
     
     st.markdown("""
         ### Conceito
@@ -1472,7 +1478,7 @@ with tab_teorica:
     
     st.markdown("---")
     
-        st.subheader("🔧 Configuração de Sensibilidade")
+    st.subheader("🔧 Configuração de Sensibilidade")
     
     st.markdown("""
         ### Modo Global
@@ -1502,9 +1508,9 @@ with tab_teorica:
     
     st.markdown("---")
     
-        st.subheader("📊 Gráficos de Premissas")
-        
-        st.markdown("""
+    st.subheader("📊 Gráficos de Premissas")
+    
+    st.markdown("""
         **Gráfico de Custo Médio Histórico:**
         - Mostra média histórica por período
         - Agrupado por Oficina, Veículo e Tipo de Custo
@@ -1580,9 +1586,9 @@ with tab_teorica:
     
     st.markdown("---")
     
-        st.subheader("📈 Metodologia de Cálculo")
-        
-        st.markdown("""
+    st.subheader("📈 Metodologia de Cálculo")
+    
+    st.markdown("""
         ### 1. Cálculo da Média Histórica
         
         **Lógica Padronizada:**
@@ -1841,7 +1847,7 @@ with tab_teorica:
         col1, col2 = st.columns(2)
         
         with col1:
-        st.markdown("""
+            st.markdown("""
             ### 📊 Página 1 - TC Ext
             
             **Objetivo:** Visualização e análise de dados históricos
@@ -1866,7 +1872,7 @@ with tab_teorica:
             """)
         
         with col2:
-        st.markdown("""
+            st.markdown("""
             ### 📈 Página 2 - Simulador Forecast
             
             **Objetivo:** Simulação interativa de cenários

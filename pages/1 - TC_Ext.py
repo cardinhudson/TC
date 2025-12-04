@@ -3,6 +3,9 @@ import pandas as pd
 import altair as alt
 import os
 import numpy as np
+import json
+import sqlite3
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -37,7 +40,313 @@ st.markdown("""
         .stDataFrame table th {
             vertical-align: middle !important;
         }
+        /* Estilos para botões: reduzir fonte e aproximar */
+        .stButton > button {
+            font-size: 0.85rem !important;
+            padding: 0.4rem 1rem !important;
+            margin-bottom: 0.3rem !important;
+        }
+        /* Ajustar tamanho da fonte dos radio buttons no topo (exceto moeda) */
+        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) label {
+            font-size: 0.8rem !important;
+            line-height: 1.1 !important;
+        }
+        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) label p {
+            font-size: 0.8rem !important;
+            margin-bottom: 0 !important;
+            line-height: 1.1 !important;
+            padding-bottom: 0 !important;
+        }
+        /* Reduzir espaçamento dos radio buttons horizontais (exceto moeda) */
+        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) > div {
+            gap: 0.25rem !important;
+        }
+        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) > div > label {
+            padding: 0.15rem 0.35rem !important;
+            margin-bottom: 0 !important;
+        }
+        /* Reduzir espaçamento entre colunas */
+        .stColumn {
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
+        }
+        /* Garantir que os radio buttons fiquem compactos */
+        div[data-testid="stRadio"] {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        /* Reduzir margem do label do radio */
+        div[data-testid="stRadio"] > label {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        /* Reduzir altura total do container do radio */
+        div[data-testid="stRadio"] > div {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        /* Forçar altura mínima do container do radio */
+        div[data-testid="stRadio"] {
+            min-height: auto !important;
+            height: auto !important;
+        }
+        /* Reduzir espaçamento do título do radio */
+        div[data-testid="stRadio"] > label > div {
+            margin-bottom: 0.15rem !important;
+            padding-bottom: 0 !important;
+        }
+        /* Compactar ainda mais os elementos das colunas */
+        [data-testid="stColumn"] {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+        }
+        [data-testid="stColumn"] > div {
+            flex: 0 0 auto !important;
+            width: 100% !important;
+        }
+        /* Garantir que os radio buttons não quebrem linha */
+        div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+        }
+        /* Evitar que palavras sejam cortadas */
+        div[data-testid="stRadio"] > div > label {
+            white-space: nowrap !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            word-break: keep-all !important;
+        }
+        div[data-testid="stRadio"] label p {
+            white-space: nowrap !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            word-break: keep-all !important;
+        }
+        /* Garantir que o container não corte o conteúdo */
+        div[data-testid="stRadio"] {
+            overflow: visible !important;
+        }
+        div[data-testid="stColumn"] {
+            overflow: visible !important;
+        }
+        /* Ocultar botões de moeda ocultos */
+        button[key="btn_brl_hidden"],
+        button[key="btn_usd_hidden"],
+        button[key="btn_eur_hidden"] {
+            display: none !important;
+            visibility: hidden !important;
+            position: absolute !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        /* Ocultar containers dos botões de moeda */
+        div:has(button[key="btn_brl_hidden"]),
+        div:has(button[key="btn_usd_hidden"]),
+        div:has(button[key="btn_eur_hidden"]) {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+        }
+        div[data-testid="stButton"]:has(button[key="btn_brl_hidden"]),
+        div[data-testid="stButton"]:has(button[key="btn_usd_hidden"]),
+        div[data-testid="stButton"]:has(button[key="btn_eur_hidden"]) {
+            display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
 """, unsafe_allow_html=True)
+
+# Seletores no topo da página (layout horizontal compacto - mesma linha)
+col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
+
+with col_tipo:
+    tipo_visualizacao = st.radio(
+        "📊 **Tipo:**",
+        ["Custo Total", "CPU (Custo por Unidade)"],
+        index=0,
+        horizontal=True,
+        key="tipo_visualizacao_top"
+    )
+
+with col_fator:
+    if tipo_visualizacao == "Custo Total":
+        fator_conversao = st.radio(
+            "🔢 **Fator:**",
+            ["Nenhum", "K (milhares)", "M (Milhões)"],
+            index=0,
+            horizontal=True,
+            help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
+            key="fator_conversao_top"
+        )
+    else:
+        fator_conversao = None
+
+# Seletor de moeda em linha separada
+st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
+
+# URLs das bandeiras do IBGE (Atlas Geográfico Escolar)
+# Usando URLs de serviços confiáveis de bandeiras baseadas nas especificações oficiais
+# Brasil: https://atlasescolar.ibge.gov.br/bandeiras-dos-paises.html -> Brasil
+# EUA: https://atlasescolar.ibge.gov.br/bandeiras-dos-paises.html -> Estados Unidos da América
+# Europa: Bandeira da União Europeia
+
+# URLs de bandeiras em SVG (mais leve e escalável)
+# Usando flagcdn.com que fornece bandeiras oficiais em SVG
+bandeira_brasil_url = "https://flagcdn.com/br.svg"
+bandeira_eua_url = "https://flagcdn.com/us.svg"
+bandeira_europa_url = "https://flagcdn.com/eu.svg"
+
+# Alternativa: URLs do IBGE se disponíveis (pode precisar ajustar)
+# bandeira_brasil_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/brasil.svg"
+# bandeira_eua_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/estados-unidos.svg"
+# bandeira_europa_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/uniao-europeia.svg"
+
+# Inicializar estado se não existir
+if 'moeda_selecionada' not in st.session_state:
+    st.session_state.moeda_selecionada = "BRL"
+
+# Criar seletor de moeda com bandeiras usando HTML customizado
+st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
+
+moeda_atual = st.session_state.get('moeda_selecionada', 'BRL')
+
+# HTML com bandeiras clicáveis que atualizam via botões ocultos do Streamlit
+currency_html = f"""
+<div style="margin-bottom: 1rem;">
+    <style>
+        .currency-wrapper {{
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }}
+        .currency-option {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }}
+        .currency-option:hover {{
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: scale(1.05);
+        }}
+        .currency-option.selected {{
+            border-color: #ff4b4b;
+            background-color: rgba(255, 75, 75, 0.1);
+        }}
+        .radio-dot {{
+            width: 18px;
+            height: 18px;
+            border: 2px solid #999;
+            border-radius: 50%;
+            position: relative;
+            flex-shrink: 0;
+        }}
+        .currency-option.selected .radio-dot {{
+            border-color: #ff4b4b;
+            background-color: #ff4b4b;
+        }}
+        .currency-option.selected .radio-dot::after {{
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }}
+        .flag-img {{
+            width: 45px;
+            height: 32px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }}
+        .currency-option.selected .flag-img {{
+            border-color: #ff4b4b;
+            box-shadow: 0 0 8px rgba(255, 75, 75, 0.4);
+        }}
+    </style>
+    <div class="currency-wrapper">
+        <div class="currency-option {'selected' if moeda_atual == 'BRL' else ''}" 
+             onclick="document.getElementById('btn_brl_hidden').click()" 
+             title="Real Brasileiro (R$)">
+            <div class="radio-dot"></div>
+            <img src="{bandeira_brasil_url}" class="flag-img" alt="Brasil">
+        </div>
+        <div class="currency-option {'selected' if moeda_atual == 'USD' else ''}" 
+             onclick="document.getElementById('btn_usd_hidden').click()" 
+             title="Dólar Americano ($)">
+            <div class="radio-dot"></div>
+            <img src="{bandeira_eua_url}" class="flag-img" alt="EUA">
+        </div>
+        <div class="currency-option {'selected' if moeda_atual == 'EUR' else ''}" 
+             onclick="document.getElementById('btn_eur_hidden').click()" 
+             title="Euro (€)">
+            <div class="radio-dot"></div>
+            <img src="{bandeira_europa_url}" class="flag-img" alt="Europa">
+        </div>
+    </div>
+</div>
+"""
+
+st.markdown(currency_html, unsafe_allow_html=True)
+
+# Criar botões ocultos em colunas que correspondem às posições das bandeiras
+# Usar colunas para alinhar cada botão abaixo de sua bandeira correspondente
+col_btn_brl, col_btn_usd, col_btn_eur = st.columns(3)
+
+with col_btn_brl:
+    if st.button("", key="btn_brl_hidden", help="", use_container_width=False):
+        st.session_state.moeda_selecionada = "BRL"
+        st.rerun()
+
+with col_btn_usd:
+    if st.button("", key="btn_usd_hidden", help="", use_container_width=False):
+        st.session_state.moeda_selecionada = "USD"
+        st.rerun()
+
+with col_btn_eur:
+    if st.button("", key="btn_eur_hidden", help="", use_container_width=False):
+        st.session_state.moeda_selecionada = "EUR"
+        st.rerun()
+
+
+# Obter a moeda selecionada do session state
+moeda_selecionada = st.session_state.get('moeda_selecionada', 'BRL')
+
+# Extrair código da moeda (agora vem direto do radio button como "BRL", "USD" ou "EUR")
+if moeda_selecionada == "BRL":
+    moeda_codigo = "BRL"
+    moeda_simbolo = "R$"
+elif moeda_selecionada == "USD":
+    moeda_codigo = "USD"
+    moeda_simbolo = "$"
+elif moeda_selecionada == "EUR":
+    moeda_codigo = "EUR"
+    moeda_simbolo = "€"
+else:
+    # Fallback
+    moeda_codigo = "BRL"
+    moeda_simbolo = "R$"
+
+st.markdown("---")
 
 # Título
 st.title("📊 Dashboard TC Ext - df_final")
@@ -117,13 +426,194 @@ if ano_atual_str in opcoes_ano:
 else:
     index_padrao = 0  # "Todos" se ano atual não estiver disponível
 
+# Inicializar session_state para manter valores dos filtros
+if 'filtro_ano_tc_ext' not in st.session_state:
+    st.session_state.filtro_ano_tc_ext = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
+
 # Seletor de ano
 ano_selecionado = st.sidebar.selectbox(
     "Selecione o ano:",
     options=opcoes_ano,
-    index=index_padrao,  # Ano atual por padrão, ou "Todos" se não disponível
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico"
+    index=opcoes_ano.index(st.session_state.filtro_ano_tc_ext) if st.session_state.filtro_ano_tc_ext in opcoes_ano else index_padrao,
+    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
+    key="filtro_ano_tc_ext_selectbox"
 )
+# Atualizar session_state
+st.session_state.filtro_ano_tc_ext = ano_selecionado
+
+# Função para inicializar banco de dados SQLite
+def inicializar_banco_taxas():
+    """Cria o banco de dados e tabela para taxas de câmbio se não existir"""
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS taxas_cambio (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            moeda TEXT NOT NULL,
+            taxa_para_brl REAL NOT NULL,
+            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(moeda)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Função para carregar taxas do banco de dados
+def carregar_taxas_banco():
+    """Carrega as taxas de câmbio do banco de dados SQLite"""
+    inicializar_banco_taxas()
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT moeda, taxa_para_brl FROM taxas_cambio ORDER BY data_atualizacao DESC')
+    resultados = cursor.fetchall()
+    conn.close()
+    
+    taxas = {}
+    for moeda, taxa in resultados:
+        taxas[moeda] = taxa
+    
+    # Valores padrão se não houver dados
+    if 'USD' not in taxas:
+        taxas['USD'] = 5.00
+    if 'EUR' not in taxas:
+        taxas['EUR'] = 5.50
+    
+    return taxas
+
+# Função para salvar taxas no banco de dados
+def salvar_taxas_banco(taxas):
+    """Salva as taxas de câmbio no banco de dados SQLite"""
+    inicializar_banco_taxas()
+    conn = sqlite3.connect('taxas_cambio.db')
+    cursor = conn.cursor()
+    
+    for moeda, taxa in taxas.items():
+        cursor.execute('''
+            INSERT OR REPLACE INTO taxas_cambio (moeda, taxa_para_brl, data_atualizacao)
+            VALUES (?, ?, ?)
+        ''', (moeda, float(taxa), datetime.now()))
+    
+    conn.commit()
+    conn.close()
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**💱 Taxas de Câmbio**")
+st.sidebar.markdown("*Configure as taxas de conversão*")
+st.sidebar.info("💾 Taxas salvas em: `taxas_cambio.db` (SQLite)")
+
+# Carregar taxas do banco de dados
+try:
+    taxas_cambio_banco = carregar_taxas_banco()
+except Exception as e:
+    st.sidebar.warning(f"⚠️ Erro ao carregar taxas: {e}")
+    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
+
+# Taxas de conversão: entrada em "1 $ = R$ X" e "1 € = R$ X"
+taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
+taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
+
+st.sidebar.markdown("**📝 Entrada de Taxas:**")
+
+taxa_usd_para_brl = st.sidebar.number_input(
+    "🇺🇸 1 $ (USD) = R$",
+    min_value=0.01,
+    max_value=100.0,
+    value=float(taxa_usd_para_brl_padrao),
+    step=0.01,
+    format="%.2f",
+    help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
+    key="taxa_usd_para_brl_input"
+)
+
+taxa_eur_para_brl = st.sidebar.number_input(
+    "🇪🇺 1 € (EUR) = R$",
+    min_value=0.01,
+    max_value=100.0,
+    value=float(taxa_eur_para_brl_padrao),
+    step=0.01,
+    format="%.2f",
+    help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
+    key="taxa_eur_para_brl_input"
+)
+
+# Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
+taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
+taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
+
+# Salvar taxas quando alteradas
+if (taxa_usd_para_brl != taxa_usd_para_brl_padrao or 
+    taxa_eur_para_brl != taxa_eur_para_brl_padrao):
+    novas_taxas = {
+        "USD": float(taxa_usd_para_brl),
+        "EUR": float(taxa_eur_para_brl)
+    }
+    salvar_taxas_banco(novas_taxas)
+    st.sidebar.success("✅ Taxas salvas no banco de dados!")
+
+# Armazenar taxas em dicionário (para conversão: 1 R$ = X USD/EUR)
+# IMPORTANTE: Estas taxas são para MULTIPLICAR valores em BRL
+# Exemplo: Se taxa_brl_para_usd = 0.20, então 100 BRL * 0.20 = 20 USD
+# Isso é equivalente a: 100 BRL / 5 = 20 USD (onde 5 é taxa_usd_para_brl)
+taxas_cambio = {
+    "BRL": 1.0,  # Real é a moeda base
+    "USD": taxa_brl_para_usd,  # Ex: 0.20 (se 1 USD = 5 BRL, então 1 BRL = 0.20 USD)
+    "EUR": taxa_brl_para_eur   # Ex: 0.18 (se 1 EUR = 5.50 BRL, então 1 BRL = 0.18 EUR)
+}
+
+# Função para converter valor de R$ para outra moeda
+def converter_moeda(valor, moeda_destino, taxas):
+    """Converte valor de R$ (BRL) para a moeda de destino"""
+    if valor is None or pd.isna(valor):
+        return valor
+    if moeda_destino == "BRL":
+        return valor
+    taxa = taxas.get(moeda_destino, 1.0)
+    return valor * taxa
+
+# Função para converter coluna inteira de DataFrame
+def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
+    """Converte uma coluna inteira de R$ para outra moeda"""
+    if coluna not in df.columns:
+        return df
+    if moeda_destino == "BRL":
+        return df
+    df = df.copy()
+    df[coluna] = df[coluna].apply(lambda x: converter_moeda(x, moeda_destino, taxas))
+    return df
+
+# Teste de validação da conversão (mostrar exemplo)
+if moeda_codigo != "BRL":
+    valor_teste = 100.0
+    valor_convertido = converter_moeda(valor_teste, moeda_codigo, taxas_cambio)
+    if moeda_codigo == "USD":
+        taxa_esperada = taxa_usd_para_brl
+        valor_esperado_divisao = valor_teste / taxa_esperada
+        st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+        st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
+    else:  # EUR
+        taxa_esperada = taxa_eur_para_brl
+        valor_esperado_divisao = valor_teste / taxa_esperada
+        st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+        st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
+
+# Mostrar valores de referência
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📊 Valores de Referência**")
+st.sidebar.markdown(f"**1 $ = R$ {taxa_usd_para_brl:.2f}**")
+st.sidebar.markdown(f"**1 € = R$ {taxa_eur_para_brl:.2f}**")
+st.sidebar.markdown(f"**1 R$ = ${taxa_brl_para_usd:.4f} USD**")
+st.sidebar.markdown(f"**1 R$ = €{taxa_brl_para_eur:.4f} EUR**")
+
+# Função para obter símbolo da moeda
+def obter_simbolo_moeda(moeda_codigo):
+    """Retorna o símbolo da moeda"""
+    simbolos = {
+        "BRL": "R$",
+        "USD": "$",
+        "EUR": "€"
+    }
+    return simbolos.get(moeda_codigo, "R$")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔍 Filtros**")
@@ -366,21 +856,37 @@ ORDEM_MESES = [
 ]
 
 
-# Seletor de tipo de visualização
-st.sidebar.markdown("**📊 Tipo de Visualização**")
-tipo_visualizacao = st.sidebar.radio(
-    "Selecione o tipo:",
-    ["Custo Total", "CPU (Custo por Unidade)"],
-    index=0
-)
-st.sidebar.markdown("---")
+# Aplicar fator de conversão nas colunas Total e BUD (antes de qualquer processamento)
+# Isso simplifica os cálculos pois o fator é aplicado uma única vez na origem
+# Mantém os dados na mesma unidade para comparações consistentes
+if fator_conversao and fator_conversao != "Nenhum":
+    if fator_conversao == "K (milhares)":
+        if 'Total' in df_total.columns:
+            df_total['Total'] = df_total['Total'] / 1000
+    elif fator_conversao == "M (Milhões)":
+        if 'Total' in df_total.columns:
+            df_total['Total'] = df_total['Total'] / 1000000
+
+# Aplicar conversão de moeda DEPOIS do fator de conversão (mesma lógica do fator)
+# Isso garante que todos os dados derivados já terão a conversão aplicada
+# IMPORTANTE: Aplicar na mesma ordem: primeiro fator, depois moeda
+if moeda_codigo != "BRL" and 'Total' in df_total.columns:
+    df_total = converter_coluna_moeda(df_total, 'Total', moeda_codigo, taxas_cambio)
+
+# Inicializar session_state para filtros
+if 'filtro_oficina_tc_ext' not in st.session_state:
+    st.session_state.filtro_oficina_tc_ext = ["Todos"]
 
 # Filtro 1: Oficina (com cache otimizado)
 if 'Oficina' in df_total.columns:
     oficina_opcoes = get_filter_options(df_total, 'Oficina')
+    # Validar valores salvos
+    default_oficina = st.session_state.filtro_oficina_tc_ext if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_tc_ext) else ["Todos"]
     oficina_selecionadas = st.sidebar.multiselect(
-        "Selecione a Oficina:", oficina_opcoes, default=["Todos"]
+        "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_tc_ext_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_oficina_tc_ext = oficina_selecionadas if oficina_selecionadas else ["Todos"]
 
     # Filtrar o DataFrame com base na Oficina
     if "Todos" in oficina_selecionadas or not oficina_selecionadas:
@@ -392,24 +898,43 @@ if 'Oficina' in df_total.columns:
 else:
     df_filtrado = df_total.copy()
 
+# Inicializar session_state para Veículo
+if 'filtro_veiculo_tc_ext' not in st.session_state:
+    st.session_state.filtro_veiculo_tc_ext = ["Todos"]
+
 # Filtro 2: Veículo (com cache otimizado)
 if 'Veículo' in df_filtrado.columns:
     veiculo_opcoes = get_filter_options(df_filtrado, 'Veículo')
+    # Validar valores salvos
+    default_veiculo = st.session_state.filtro_veiculo_tc_ext if all(x in veiculo_opcoes for x in st.session_state.filtro_veiculo_tc_ext) else ["Todos"]
     veiculo_selecionados = st.sidebar.multiselect(
-        "Selecione o Veículo:", veiculo_opcoes, default=["Todos"]
+        "Selecione o Veículo:", veiculo_opcoes, default=default_veiculo, key="filtro_veiculo_tc_ext_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_veiculo_tc_ext = veiculo_selecionados if veiculo_selecionados else ["Todos"]
     if veiculo_selecionados and "Todos" not in veiculo_selecionados:
         df_filtrado = df_filtrado[
             df_filtrado['Veículo'].astype(str).isin(veiculo_selecionados)
         ].copy()
 
+# Inicializar session_state para USI
+if 'filtro_usi_tc_ext' not in st.session_state:
+    if 'USI' in df_total.columns:
+        usi_opcoes_temp = get_filter_options(df_total, 'USI')
+        st.session_state.filtro_usi_tc_ext = ["TC Ext"] if "TC Ext" in usi_opcoes_temp else ["Todos"]
+    else:
+        st.session_state.filtro_usi_tc_ext = ["Todos"]
+
 # Filtro 3: USI (com cache otimizado)
 if 'USI' in df_filtrado.columns:
     usi_opcoes = get_filter_options(df_filtrado, 'USI')
-    default_usi = ["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"]
+    # Validar valores salvos
+    default_usi = st.session_state.filtro_usi_tc_ext if all(x in usi_opcoes for x in st.session_state.filtro_usi_tc_ext) else (["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"])
     usi_selecionada = st.sidebar.multiselect(
-        "Selecione a USI:", usi_opcoes, default=default_usi
+        "Selecione a USI:", usi_opcoes, default=default_usi, key="filtro_usi_tc_ext_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_usi_tc_ext = usi_selecionada if usi_selecionada else ["Todos"]
 
     # Filtrar o DataFrame com base na USI
     if "Todos" in usi_selecionada or not usi_selecionada:
@@ -447,31 +972,58 @@ if 'Período' in df_filtrado.columns:
     # Combinar: Todos + meses ordenados + outros períodos
     periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
 
+    # Inicializar session_state para Período
+    if 'filtro_periodo_tc_ext' not in st.session_state:
+        st.session_state.filtro_periodo_tc_ext = "Todos"
+    
+    # Validar valor salvo
+    periodo_default = st.session_state.filtro_periodo_tc_ext if st.session_state.filtro_periodo_tc_ext in periodo_opcoes else "Todos"
+    periodo_index = periodo_opcoes.index(periodo_default) if periodo_default in periodo_opcoes else 0
+    
     periodo_selecionado = st.sidebar.selectbox(
-        "Selecione o Período:", periodo_opcoes
+        "Selecione o Período:", periodo_opcoes, index=periodo_index, key="filtro_periodo_tc_ext_selectbox"
     )
+    # Atualizar session_state
+    st.session_state.filtro_periodo_tc_ext = periodo_selecionado
     if periodo_selecionado != "Todos":
         df_filtrado = df_filtrado[
             df_filtrado['Período'].astype(str) == str(periodo_selecionado)
         ].copy()
 
+# Inicializar session_state para Centro cst
+if 'filtro_centro_cst_tc_ext' not in st.session_state:
+    st.session_state.filtro_centro_cst_tc_ext = "Todos"
+
 # Filtro 5: Centro cst (com cache otimizado)
 if 'Centrocst' in df_filtrado.columns:
     centro_cst_opcoes = get_filter_options(df_filtrado, 'Centrocst')
+    # Validar valor salvo
+    centro_cst_default = st.session_state.filtro_centro_cst_tc_ext if st.session_state.filtro_centro_cst_tc_ext in centro_cst_opcoes else "Todos"
+    centro_cst_index = centro_cst_opcoes.index(centro_cst_default) if centro_cst_default in centro_cst_opcoes else 0
     centro_cst_selecionado = st.sidebar.selectbox(
-        "Selecione o Centro cst:", centro_cst_opcoes
+        "Selecione o Centro cst:", centro_cst_opcoes, index=centro_cst_index, key="filtro_centro_cst_tc_ext_selectbox"
     )
+    # Atualizar session_state
+    st.session_state.filtro_centro_cst_tc_ext = centro_cst_selecionado
     if centro_cst_selecionado != "Todos":
         df_filtrado = df_filtrado[
             df_filtrado['Centrocst'].astype(str) == str(centro_cst_selecionado)
         ].copy()
 
+# Inicializar session_state para Conta contábil
+if 'filtro_conta_contabil_tc_ext' not in st.session_state:
+    st.session_state.filtro_conta_contabil_tc_ext = []
+
 # Filtro 6: Conta contábil (com cache otimizado)
 if 'Nºconta' in df_filtrado.columns:
     conta_contabil_opcoes = get_filter_options(df_filtrado, 'Nºconta')[1:]
+    # Validar valores salvos
+    default_conta = [x for x in st.session_state.filtro_conta_contabil_tc_ext if x in conta_contabil_opcoes] if st.session_state.filtro_conta_contabil_tc_ext else []
     conta_contabil_selecionadas = st.sidebar.multiselect(
-        "Selecione a Conta contábil:", conta_contabil_opcoes
+        "Selecione a Conta contábil:", conta_contabil_opcoes, default=default_conta, key="filtro_conta_contabil_tc_ext_multiselect"
     )
+    # Atualizar session_state
+    st.session_state.filtro_conta_contabil_tc_ext = conta_contabil_selecionadas
     if conta_contabil_selecionadas:
         df_filtrado = df_filtrado[
             df_filtrado['Nºconta'].astype(str).isin(
@@ -490,11 +1042,20 @@ filtros_principais = [
 
 for col_name, label, widget_type in filtros_principais:
     if col_name in df_filtrado.columns:
+        # Inicializar session_state para cada filtro principal
+        filtro_key = f'filtro_{col_name}_tc_ext'
+        if filtro_key not in st.session_state:
+            st.session_state[filtro_key] = ["Todos"]
+        
         opcoes = get_filter_options(df_filtrado, col_name)
         if widget_type == "multiselect":
+            # Validar valores salvos
+            default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
             selecionadas = st.sidebar.multiselect(
-                f"Selecione o {label}:", opcoes, default=["Todos"]
+                f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
             )
+            # Atualizar session_state
+            st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
             if selecionadas and "Todos" not in selecionadas:
                 df_filtrado = df_filtrado[
                     df_filtrado[col_name].astype(str).isin(selecionadas)
@@ -521,9 +1082,18 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
                 )
 
             if widget_type == "multiselect":
+                # Inicializar session_state para cada filtro avançado
+                filtro_key = f'filtro_avancado_{col_name}_tc_ext'
+                if filtro_key not in st.session_state:
+                    st.session_state[filtro_key] = ["Todos"]
+                
+                # Validar valores salvos
+                default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
                 selecionadas = st.multiselect(
-                    f"Selecione o {label}:", opcoes, default=["Todos"]
+                    f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
                 )
+                # Atualizar session_state
+                st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
                 if selecionadas and "Todos" not in selecionadas:
                     df_filtrado = df_filtrado[
                         df_filtrado[col_name].astype(str).isin(selecionadas)
@@ -686,7 +1256,11 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                         # Usar o mesmo Volume para todos os veículos
                         df_cpu = df_cpu_expandido.copy()
 
+                # NOTA: A conversão de moeda já foi aplicada no df_total (linha ~707)
+                # Portanto, df_cpu['Total'] já está convertido, e o CPU será calculado automaticamente na moeda correta
+                
                 # Calcular CPU (evitando divisão por zero) - VETORIZADO
+                # CPU já será calculado na moeda convertida automaticamente (pois Total já está convertido)
                 df_cpu['CPU'] = np.where(
                     (df_cpu['Volume'].notna()) & (df_cpu['Volume'] != 0),
                     df_cpu['Total'] / df_cpu['Volume'],
@@ -805,6 +1379,25 @@ if 'Valor' in df_filtrado.columns:
 if 'Total' in df_filtrado.columns:
     total_sum = df_filtrado['Total'].sum()
     st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
+    
+    # DIAGNÓSTICO: Comparar com o valor esperado
+    total_esperado = 5849755.04
+    diferenca = total_sum - total_esperado
+    percentual_diff = (diferenca / total_esperado) * 100 if total_esperado != 0 else 0
+    
+    if abs(diferenca) > 0.01:  # Se a diferença for maior que 1 centavo
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**⚠️ Diagnóstico**")
+        st.sidebar.write(f"**Esperado:** R$ {total_esperado:,.2f}")
+        st.sidebar.write(f"**Diferença:** R$ {diferenca:,.2f} ({percentual_diff:+.2f}%)")
+        
+        # Verificar filtros aplicados
+        if 'Account' in df_filtrado.columns:
+            account_nan = df_filtrado['Account'].isna().sum()
+            account_zero = (df_filtrado['Account'] == 0).sum()
+            account_tc_ext = (df_filtrado['Account'] == 'TC Ext').sum()
+            if account_nan > 0 or account_zero > 0 or account_tc_ext > 0:
+                st.sidebar.write(f"**Account inválidos:** {account_nan + account_zero + account_tc_ext} linhas")
 if 'Volume' in df_filtrado.columns:
     volume_total = df_filtrado['Volume'].sum()
     st.sidebar.write(f"**Total Volume:** {volume_total:,.0f}")
@@ -850,12 +1443,19 @@ def formatar_ratio_com_barra(valor):
     
     cor = f"rgb({r}, {g}, {b})"
     
-    # Detectar tema para adaptar cor do texto
+    # Detectar tema para adaptar cor do texto (igual às outras colunas)
     try:
         theme_base = st.get_option("theme.base") or "light"
-        texto_cor = "#FAFAFA" if theme_base == "dark" else "#000000"
+        # Usar a mesma cor que o Streamlit usa para texto em tabelas
+        # Dark mode: rgb(250, 250, 250) ou #FAFAFA
+        # Light mode: rgb(49, 51, 63) ou #31333F (cor padrão do Streamlit para texto)
+        if theme_base == "dark":
+            texto_cor = "#FAFAFA"  # Branco claro para dark mode
+        else:
+            texto_cor = "#31333F"  # Cinza escuro para light mode (cor padrão do Streamlit)
     except:
-        texto_cor = "#888888"  # Fallback para cinza claro
+        # Fallback: tentar detectar via CSS do Streamlit
+        texto_cor = "var(--text-color, #31333F)"  # Usar variável CSS se disponível, senão usar cor padrão
     
     html = f"""
     <div style="display: flex; align-items: center; gap: 6px; width: 100%; justify-content: flex-start; margin: 0; padding: 0; vertical-align: middle;">
@@ -1044,6 +1644,9 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                 custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
                 custo_variavel_budget = custos_budget[custos_budget['Custo'] == 'Variável']['Total'].sum()
                 
+                # NOTA: A conversão de moeda já foi aplicada no df_budget (linha ~2563)
+                # Portanto, budget_total, custo_fixo_budget e custo_variavel_budget já estão convertidos
+                
                 if tipo_viz == "CPU (Custo por Unidade)":
                     # IMPORTANTE: MESMA LÓGICA DA TABELA
                     # 1) Calcular Flex Bud em "Custo Total" primeiro
@@ -1139,6 +1742,9 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                 custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
                 custo_variavel_budget = custos_budget[custos_budget['Custo'] == 'Variável']['Total'].sum()
                 
+                # NOTA: A conversão de moeda já foi aplicada no df_budget (linha ~2550)
+                # Portanto, budget_total, custo_fixo_budget e custo_variavel_budget já estão convertidos
+                
                 if tipo_viz == "CPU (Custo por Unidade)":
                     # IMPORTANTE: MESMA LÓGICA DA TABELA
                     # 1) Calcular Flex Bud em "Custo Total" primeiro
@@ -1185,16 +1791,22 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
 
 
 # Gráfico 1: Soma do Valor por Período
-# Cache removido temporariamente para garantir que mudanças sejam aplicadas
-def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None):
+# Cache removido: DataFrames grandes podem causar problemas de hash
+def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None, moeda_simbolo="R$"):
     """Cria gráfico de barras por Período com linha pontilhada de FLEX (budget) opcional"""
     try:
         # Detectar tema para adaptar cores (dark/light mode)
         theme_base = st.get_option("theme.base") or "light"
         text_color = "#FAFAFA" if theme_base == "dark" else "#000000"
         
+        # Validações iniciais
+        if df_data is None or df_data.empty:
+            st.warning("⚠️ Dados vazios ou None passados para o gráfico")
+            return None
+        
         if coluna not in df_data.columns or 'Período' not in df_data.columns:
             st.warning(f"⚠️ Colunas necessárias não encontradas. Coluna: {coluna}, Período: {'Período' in df_data.columns}")
+            st.warning(f"⚠️ Colunas disponíveis: {list(df_data.columns)[:10]}")
             return None
 
         # Verificar se há coluna Ano - sempre mostrar ano junto com período quando existir
@@ -1209,7 +1821,9 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 # Verificar se temos Total e Volume, ou se precisamos usar CPU existente
                 if 'Total' in df_data.columns and 'Volume' in df_data.columns:
                     # MESMA LÓGICA DA TABELA: Agrupar por Ano e Período, somar Total e Volume, calcular CPU
-                    chart_data = df_data.groupby(['Ano', 'Período']).agg({
+                    # Otimizar: usar apenas as colunas necessárias para o agrupamento
+                    colunas_agrupamento = ['Ano', 'Período']
+                    chart_data = df_data[colunas_agrupamento + ['Total', 'Volume']].groupby(colunas_agrupamento).agg({
                         'Total': 'sum',
                         'Volume': 'sum'
                     }).reset_index()
@@ -1221,7 +1835,8 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     )
                 elif 'CPU' in df_data.columns and 'Total' in df_data.columns and 'Volume' in df_data.columns:
                     # Se CPU já existe mas temos Total e Volume, recalcular
-                    chart_data = df_data.groupby(['Ano', 'Período']).agg({
+                    colunas_agrupamento = ['Ano', 'Período']
+                    chart_data = df_data[colunas_agrupamento + ['Total', 'Volume']].groupby(colunas_agrupamento).agg({
                         'Total': 'sum',
                         'Volume': 'sum'
                     }).reset_index()
@@ -1235,8 +1850,8 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     chart_data = df_data.groupby(['Ano', 'Período'])[coluna].sum().reset_index()
             else:
                 # Para Custo Total, também agrupar por Ano e Período para garantir consistência
-                # Isso garante que o mesmo ano e mês sempre tenha o mesmo valor
-                chart_data = df_data.groupby(['Ano', 'Período'])[coluna].sum().reset_index()
+                # Otimizar: usar apenas as colunas necessárias
+                chart_data = df_data[['Ano', 'Período', coluna]].groupby(['Ano', 'Período'])[coluna].sum().reset_index()
             
             # Criar coluna combinada para o rótulo do gráfico
             chart_data['Período_Completo'] = chart_data['Período'].astype(str) + ' ' + chart_data['Ano'].astype(str)
@@ -1254,7 +1869,8 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 # IMPORTANTE: Sempre recalcular CPU a partir de Total e Volume agregados
                 if 'Total' in df_data.columns and 'Volume' in df_data.columns:
                     # MESMA LÓGICA DA TABELA: Agrupar por Período, somar Total e Volume, calcular CPU
-                    chart_data = df_data.groupby('Período').agg({
+                    # Otimizar: usar apenas as colunas necessárias
+                    chart_data = df_data[['Período', 'Total', 'Volume']].groupby('Período').agg({
                         'Total': 'sum',
                         'Volume': 'sum'
                     }).reset_index()
@@ -1266,7 +1882,8 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     )
                 elif 'CPU' in df_data.columns and 'Total' in df_data.columns and 'Volume' in df_data.columns:
                     # Se CPU já existe mas temos Total e Volume, recalcular
-                    chart_data = df_data.groupby('Período').agg({
+                    # Otimizar: usar apenas as colunas necessárias
+                    chart_data = df_data[['Período', 'Total', 'Volume']].groupby('Período').agg({
                         'Total': 'sum',
                         'Volume': 'sum'
                     }).reset_index()
@@ -1277,16 +1894,17 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     )
                 else:
                     # Fallback: agrupar apenas por Período
-                    chart_data = df_data.groupby('Período')[coluna].sum().reset_index()
+                    chart_data = df_data[['Período', coluna]].groupby('Período')[coluna].sum().reset_index()
             else:
-                chart_data = df_data.groupby('Período')[coluna].sum().reset_index()
+                # Otimizar: usar apenas as colunas necessárias
+                chart_data = df_data[['Período', coluna]].groupby('Período')[coluna].sum().reset_index()
             chart_data = ordenar_por_mes(chart_data, 'Período')
             ordem_periodos = chart_data['Período'].tolist()
             coluna_periodo_grafico = 'Período'
 
-        # Definir título do eixo Y baseado no tipo
+        # Definir título do eixo Y baseado no tipo e moeda
         if tipo_viz == "CPU (Custo por Unidade)":
-            titulo_y = "CPU (R$/Unidade)"
+            titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
             titulo_grafico = "CPU por Período"
             # Remover valores nulos e zero do gráfico no modo CPU
             chart_data = chart_data[
@@ -1302,8 +1920,32 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 chart_data = ordenar_por_mes(chart_data, 'Período')
                 ordem_periodos = chart_data['Período'].tolist()
         else:
-            titulo_y = "Soma do Valor (R$)"
+            titulo_y = f"Soma do Valor ({moeda_simbolo})"
             titulo_grafico = "Soma do Valor por Período"
+
+        # Validar se chart_data tem dados após agrupamento e filtros
+        if chart_data is None or chart_data.empty:
+            st.warning("⚠️ Nenhum dado após agrupamento. Verifique os filtros aplicados.")
+            return None
+            
+        # Verificar se a coluna tem valores válidos
+        if coluna not in chart_data.columns:
+            st.warning(f"⚠️ Coluna '{coluna}' não encontrada após agrupamento. Colunas disponíveis: {list(chart_data.columns)}")
+            return None
+            
+        # Garantir que os valores sejam numéricos
+        chart_data[coluna] = pd.to_numeric(chart_data[coluna], errors='coerce').fillna(0)
+            
+        # Verificar se há valores não-nulos (apenas para Custo Total, CPU já filtra zeros)
+        if tipo_viz != "CPU (Custo por Unidade)":
+            valores_validos = chart_data[coluna].notna() & (chart_data[coluna] != 0)
+            if not valores_validos.any():
+                # Não bloquear, apenas avisar - pode haver valores muito pequenos após conversão
+                st.info(f"ℹ️ Todos os valores na coluna '{coluna}' são zero após agrupamento. Mostrando gráfico mesmo assim.")
+        
+        # Verificar se chart_data está vazio
+        if len(chart_data) == 0:
+            return None
 
         # Usar gradiente baseado no valor da coluna (como na figura 1)
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
@@ -1418,7 +2060,15 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                                         'Tipo:N',
                                         title='Legenda',
                                         scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#4A90E2', '#FF6B35']),
-                                        legend=alt.Legend(title='Legenda', orient='right', titleFontSize=10, labelFontSize=9)
+                                        legend=alt.Legend(
+                                            title='Legenda', 
+                                            orient='bottom', 
+                                            titleFontSize=10, 
+                                            labelFontSize=9,
+                                            titleAnchor='middle',
+                                            direction='horizontal',
+                                            symbolType='square'
+                                        )
                                     ),
                                     strokeDash=alt.StrokeDash(
                                         'Tipo:N',
@@ -1531,8 +2181,15 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 delta_data['Delta'] = delta_data[coluna_real].fillna(0) - delta_data[coluna_flex].fillna(0)
                 
                 # Calcular min e max do delta para a escala de cores
-                delta_min = delta_data['Delta'].min()
-                delta_max = delta_data['Delta'].max()
+                # Usar valores absolutos simétricos para garantir que zero sempre seja o centro
+                delta_min_abs = abs(delta_data['Delta'].min())
+                delta_max_abs = abs(delta_data['Delta'].max())
+                delta_abs_max = max(delta_min_abs, delta_max_abs)
+                
+                # Criar domínio simétrico baseado no maior valor absoluto
+                # Isso garante que zero sempre fique no centro, independente dos filtros
+                delta_min = -delta_abs_max if delta_abs_max > 0 else -1
+                delta_max = delta_abs_max if delta_abs_max > 0 else 1
                 
                 # Criar gráfico de barras para delta (mais baixo)
                 grafico_delta = alt.Chart(delta_data).mark_bar(
@@ -1554,7 +2211,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                         title='Delta',
                         scale=alt.Scale(
                             domain=[delta_min, 0, delta_max],
-                            range=['#00AA00', '#FFFFFF', '#FF0000'],  # Verde escuro (muito negativo) -> Branco (zero) -> Vermelho intenso (muito positivo)
+                            range=['#00AA00', '#FFFFFF', '#FF0000'],  # Verde (negativo) -> Branco (zero) -> Vermelho (positivo)
                             type='linear',
                             nice=False
                         ),
@@ -1646,18 +2303,22 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             if grafico_delta is not None:
                 # Combinar gráficos verticalmente compartilhando eixo X
                 # Delta fica em cima (primeiro), gráfico principal embaixo
-                return alt.vconcat(
+                grafico_final = alt.vconcat(
                     grafico_delta,
                     grafico_principal
                 ).resolve_scale(
                     x='shared'  # Compartilhar eixo X entre os gráficos
                 )
             else:
-                return grafico_principal
+                grafico_final = grafico_principal
         else:
-            return grafico_barras + rotulos
+            grafico_final = grafico_barras + rotulos
+        
+        return grafico_final
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {e}")
+        import traceback
+        st.code(traceback.format_exc())
         return None
 
 
@@ -1962,8 +2623,243 @@ def create_volume_veiculo_chart(df_data):
         return None
 
 
+# Inicializar session_state para manter a tab selecionada
+if 'tab_selecionada_tc_ext' not in st.session_state:
+    st.session_state.tab_selecionada_tc_ext = 0
+
+# Verificar se há parâmetro de tab na URL e atualizar session_state
+# Isso garante que a tab seja mantida mesmo após recarregamento por filtros
+tab_from_url = st.query_params.get('tab', None)
+if tab_from_url is not None:
+    try:
+        tab_index = int(tab_from_url)
+        if 0 <= tab_index <= 3:  # Validar índice (0-3 para 4 tabs)
+            st.session_state.tab_selecionada_tc_ext = tab_index
+    except ValueError:
+        pass
+
+# JavaScript ANTES das tabs para interceptar a criação
+# Este script será executado antes que o Streamlit defina a primeira tab como padrão
+st.markdown(f"""
+<script>
+(function() {{
+    // Obter índice da tab da URL
+    function obterTabIndex() {{
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabIndexUrl = urlParams.get('tab');
+        if (tabIndexUrl !== null) {{
+            const index = parseInt(tabIndexUrl);
+            if (index >= 0 && index <= 3) {{
+                return index;
+            }}
+        }}
+        return {st.session_state.tab_selecionada_tc_ext};
+    }}
+    
+    const tabIndexDesejado = obterTabIndex();
+    
+    // Interceptar a criação das tabs ANTES que sejam renderizadas
+    // Usar MutationObserver para detectar quando as tabs são criadas
+    const observerPrecoce = new MutationObserver(function(mutations) {{
+        const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length >= 4) {{
+            // Tabs foram criadas, verificar se a primeira está selecionada
+            const primeiraTab = tabs[0];
+            if (primeiraTab && primeiraTab.getAttribute('aria-selected') === 'true' && tabIndexDesejado !== 0) {{
+                // Primeira tab está selecionada mas não deveria estar
+                // Clicar na tab correta IMEDIATAMENTE
+                if (tabs[tabIndexDesejado]) {{
+                    // Usar requestAnimationFrame para garantir execução no próximo frame
+                    requestAnimationFrame(function() {{
+                        tabs[tabIndexDesejado].click();
+                    }});
+                }}
+            }}
+        }}
+    }});
+    
+    // Começar a observar imediatamente
+    observerPrecoce.observe(document.body, {{
+        childList: true,
+        subtree: true
+    }});
+    
+    // Também tentar executar quando o DOM estiver pronto
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', function() {{
+            const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+            if (tabs.length >= 4 && tabIndexDesejado !== 0) {{
+                const primeiraTab = tabs[0];
+                if (primeiraTab && primeiraTab.getAttribute('aria-selected') === 'true') {{
+                    requestAnimationFrame(function() {{
+                        if (tabs[tabIndexDesejado]) {{
+                            tabs[tabIndexDesejado].click();
+                        }}
+                    }});
+                }}
+            }}
+        }});
+    }}
+}})();
+</script>
+""", unsafe_allow_html=True)
+
 # Criar estrutura de tabs para organização
 tab1, tab2, tab3, tab4 = st.tabs(["📊 TC Ext", "📈 Volume", "🚗 TC Ext por Veíc", "📋 Detalhe Real"])
+
+# JavaScript DEPOIS das tabs para manter a seleção
+st.markdown(f"""
+<script>
+(function() {{
+    // Obter índice da tab da URL
+    function obterTabIndex() {{
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabIndexUrl = urlParams.get('tab');
+        if (tabIndexUrl !== null) {{
+            const index = parseInt(tabIndexUrl);
+            if (index >= 0 && index <= 3) {{
+                return index;
+            }}
+        }}
+        return {st.session_state.tab_selecionada_tc_ext};
+    }}
+    
+    let tabIndexSalvo = obterTabIndex();
+    let restauracaoEmAndamento = false;
+    
+    // Função para forçar a seleção da tab correta
+    function forcarSelecaoTab(index) {{
+        if (restauracaoEmAndamento) return;
+        
+        const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length === 0 || index < 0 || index >= tabs.length) return;
+        
+        const tabAlvo = tabs[index];
+        if (!tabAlvo) return;
+        
+        // Verificar se já está selecionada
+        if (tabAlvo.getAttribute('aria-selected') === 'true') {{
+            return; // Já está selecionada
+        }}
+        
+        restauracaoEmAndamento = true;
+        
+        // Múltiplas tentativas de clicar
+        function tentarClicar() {{
+            tabAlvo.click();
+            
+            // Verificar se funcionou
+            setTimeout(function() {{
+                if (tabAlvo.getAttribute('aria-selected') === 'true') {{
+                    restauracaoEmAndamento = false;
+                }} else {{
+                    // Tentar novamente
+                    requestAnimationFrame(tentarClicar);
+                }}
+            }}, 50);
+        }}
+        
+        requestAnimationFrame(tentarClicar);
+    }}
+    
+    // Função para verificar e restaurar
+    function verificarERestaurar() {{
+        const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length === 0) return;
+        
+        // Atualizar da URL
+        tabIndexSalvo = obterTabIndex();
+        
+        // Verificar qual tab está selecionada
+        let tabAtual = -1;
+        tabs.forEach((tab, index) => {{
+            if (tab.getAttribute('aria-selected') === 'true') {{
+                tabAtual = index;
+            }}
+        }});
+        
+        // Se não está na tab correta, restaurar
+        if (tabAtual !== tabIndexSalvo) {{
+            forcarSelecaoTab(tabIndexSalvo);
+        }}
+    }}
+    
+    // Configurar listeners para salvar na URL quando clicar
+    function configurarListeners() {{
+        const tabs = document.querySelectorAll('[data-baseweb="tab"]');
+        tabs.forEach((tab, index) => {{
+            // Remover listeners antigos
+            const novoTab = tab.cloneNode(true);
+            tab.parentNode.replaceChild(novoTab, tab);
+            
+            // Adicionar novo listener
+            novoTab.addEventListener('click', function() {{
+                tabIndexSalvo = index;
+                const url = new URL(window.location);
+                url.searchParams.set('tab', index);
+                window.history.replaceState({{}}, '', url);
+            }}, true);
+        }});
+    }}
+    
+    // Executar imediatamente usando requestAnimationFrame
+    requestAnimationFrame(function() {{
+        verificarERestaurar();
+        configurarListeners();
+    }});
+    
+    // Executar quando o DOM estiver pronto
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', function() {{
+            verificarERestaurar();
+            configurarListeners();
+        }});
+    }}
+    
+    // Executar periodicamente (muito frequente)
+    setInterval(function() {{
+        verificarERestaurar();
+    }}, 100);
+    
+    // Observar mudanças no DOM
+    const observer = new MutationObserver(function() {{
+        verificarERestaurar();
+        configurarListeners();
+    }});
+    
+    // Observar o container principal
+    setTimeout(function() {{
+        const mainContainer = document.querySelector('main') || document.body;
+        if (mainContainer) {{
+            observer.observe(mainContainer, {{
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['aria-selected']
+            }});
+        }}
+        
+        const tabsContainer = document.querySelector('[data-baseweb="tabs"]');
+        if (tabsContainer) {{
+            observer.observe(tabsContainer, {{
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['aria-selected']
+            }});
+        }}
+    }}, 50);
+    
+    // Executar em múltiplos momentos para garantir
+    [100, 200, 300, 500, 1000].forEach(function(delay) {{
+        setTimeout(function() {{
+            verificarERestaurar();
+            configurarListeners();
+        }}, delay);
+    }});
+}})();
+</script>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # TAB 1: TC Ext
@@ -2111,6 +3007,19 @@ with tab1:
             df_budget_vol = load_budget_volume_data(ano_selecionado)
             
             if df_budget is not None:
+                # Aplicar fator de conversão na coluna Total do budget (mesma unidade que Total real)
+                # Isso mantém os dados na mesma unidade para comparações consistentes
+                if fator_conversao and fator_conversao != "Nenhum" and 'Total' in df_budget.columns:
+                    if fator_conversao == "K (milhares)":
+                        df_budget['Total'] = df_budget['Total'] / 1000
+                    elif fator_conversao == "M (Milhões)":
+                        df_budget['Total'] = df_budget['Total'] / 1000000
+                
+                # Aplicar conversão de moeda DEPOIS do fator de conversão (mesma lógica do fator)
+                # IMPORTANTE: Aplicar na mesma ordem: primeiro fator, depois moeda
+                if moeda_codigo != "BRL" and 'Total' in df_budget.columns:
+                    df_budget = converter_coluna_moeda(df_budget, 'Total', moeda_codigo, taxas_cambio)
+                
                 # Aplicar mesmos filtros de Oficina e Veículo aos dados de budget
                 df_budget_filtrado = df_budget.copy()
                 
@@ -2175,6 +3084,8 @@ with tab1:
         if tipo_visualizacao == "CPU (Custo por Unidade)":
             # Usar df_para_grafico_periodo que contém a coluna 'Custo'
             df_real_original_grafico = df_para_grafico_periodo.copy()
+            # NOTA: A conversão de moeda já foi aplicada no df_total (linha ~702)
+            # Portanto, df_real_original_grafico['Total'] já está convertido
             # Aplicar mesmos filtros de Oficina e Veículo
             if 'Oficina' in df_real_original_grafico.columns:
                 if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
@@ -2194,13 +3105,31 @@ with tab1:
         else:
             st.subheader("📊 Soma do Valor por Período")
         
-        grafico_periodo = create_period_chart(
-            df_grafico_periodo, coluna_visualizacao_grafico, tipo_visualizacao,
-            df_budget_filtrado, df_budget_vol_filtrado, df_volume_real_filtrado,
-            df_real_original_grafico  # Dados originais com 'Custo' para calcular FLEX
-        )
-        if grafico_periodo:
-            st.altair_chart(grafico_periodo, use_container_width=True)
+        # Validar dados antes de criar gráfico
+        if df_grafico_periodo is None or df_grafico_periodo.empty:
+            st.warning("⚠️ Dados do gráfico estão vazios. Verifique os filtros aplicados.")
+        elif coluna_visualizacao_grafico not in df_grafico_periodo.columns:
+            st.warning(f"⚠️ Coluna '{coluna_visualizacao_grafico}' não encontrada nos dados do gráfico.")
+            st.warning(f"⚠️ Colunas disponíveis: {list(df_grafico_periodo.columns)[:10]}")
+        else:
+            # Criar placeholder para o gráfico (força renderização imediata)
+            chart_placeholder = st.empty()
+            
+            # Criar gráfico (sem spinner para evitar bloqueio de renderização)
+            try:
+                grafico_periodo = create_period_chart(
+                    df_grafico_periodo, coluna_visualizacao_grafico, tipo_visualizacao,
+                    df_budget_filtrado, df_budget_vol_filtrado, df_volume_real_filtrado,
+                    df_real_original_grafico,  # Dados originais com 'Custo' para calcular FLEX
+                    moeda_simbolo  # Passar símbolo da moeda para o gráfico
+                )
+                if grafico_periodo:
+                    # Exibir gráfico no placeholder (renderização imediata)
+                    chart_placeholder.altair_chart(grafico_periodo, use_container_width=True)
+                else:
+                    chart_placeholder.warning("⚠️ O gráfico não pôde ser criado. Verifique os dados e filtros aplicados.")
+            except Exception as e:
+                chart_placeholder.error(f"❌ Erro ao criar gráfico: {str(e)}")
         
         # Tabela de análise Flex Bud (para modos "Custo Total" e "CPU")
         if tipo_visualizacao in ["Custo Total", "CPU (Custo por Unidade)"]:
@@ -2593,6 +3522,9 @@ with tab1:
                 colunas_agrupamento_periodo = colunas_vol_agrupamento + ['Custo'] + colunas_agrupamento[1:]  # Adicionar Type 05, Type 06, Account
                 colunas_agrupamento_periodo = [c for c in colunas_agrupamento_periodo if c in df_real_filtrado_clean.columns]
                 
+                # NOTA: A conversão de moeda já foi aplicada no df_total (linha ~702)
+                # Portanto, df_real_filtrado_clean['Total'] já está convertido
+                
                 # SEMPRE usar 'Total' para calcular FLEX (não CPU)
                 df_real_por_periodo = df_real_filtrado_clean.groupby(colunas_agrupamento_periodo)['Total'].sum().reset_index()
                 
@@ -2631,6 +3563,9 @@ with tab1:
                     (df_real_com_volumes['Volume_Real'].notna())
                 ].copy()
                 
+                # IMPORTANTE: O Total (Real) já foi convertido antes de agrupar (linha ~3016)
+                # Não converter novamente aqui!
+                
                 if len(df_real_com_volumes) == 0:
                     return pd.DataFrame()
                 
@@ -2648,6 +3583,9 @@ with tab1:
                 )
                 
                 # Agrupar budget por período para calcular totais do período
+                # NOTA: A conversão de moeda já foi aplicada no df_budget (linha ~2563)
+                # Portanto, df_budget_por_periodo_merge['Total'] já está convertido
+                
                 budget_por_periodo_agg = df_budget_por_periodo_merge.groupby(colunas_vol_agrupamento).agg({
                     'Total': 'sum'
                 }).reset_index()
@@ -2684,6 +3622,8 @@ with tab1:
                 df_volumes_com_budget['budget_total_periodo'] = df_volumes_com_budget['budget_total_periodo'].fillna(0.0)
                 
                 # Calcular Flex Bud total por período (vetorizado)
+                # IMPORTANTE: Os valores de budget já foram convertidos ANTES de agrupar (linha 3079)
+                # Portanto, flex_bud_total_periodo já estará na moeda correta
                 if tipo_viz == "Custo Total":
                     df_volumes_com_budget['flex_bud_fixo_periodo'] = df_volumes_com_budget['custo_fixo_budget_periodo']
                     df_volumes_com_budget['proporcao_volume_real_bud'] = np.where(
@@ -2752,6 +3692,12 @@ with tab1:
                 )
                 df_real_com_budget['Total_budget'] = df_real_com_budget['Total_budget'].fillna(0.0)
                 
+                # NOTA: A conversão de moeda já foi aplicada:
+                # - df_real_filtrado_clean['Total'] foi convertido ANTES de agrupar (linha ~3016)
+                # - df_budget_por_periodo_merge['Total'] foi convertido ANTES de agrupar (linha 3072)
+                # - Portanto, Total_budget e flex_bud_total_periodo já estão na moeda correta
+                # NÃO converter novamente aqui para evitar conversão dupla!
+                
                 # Calcular valores finais (vetorizado)
                 if tipo_viz == "Custo Total":
                     # Calcular proporção desta categoria no total do período
@@ -2776,6 +3722,8 @@ with tab1:
                         df_real_com_budget['Total'] * df_real_com_budget['variacao_percentual'],
                         0.0
                     )
+                    # NOTA: Total e Total_budget já estão convertidos (aplicados no início)
+                    # Portanto, flex_ajuste e Flex_BUD já estarão na moeda correta
                     df_real_com_budget['Flex_BUD'] = df_real_com_budget['Total_budget'] + df_real_com_budget['flex_ajuste']
                     df_real_com_budget['BUD'] = df_real_com_budget['Total_budget']
                     df_real_com_budget['Total'] = df_real_com_budget['Total']
@@ -3354,7 +4302,14 @@ with tab1:
                                                         
                                                         for col in df_display_total.columns:
                                                             if col not in ['Account', 'Total / Flex Bud']:
-                                                                df_display_total[col] = df_display_total[col].apply(lambda x: f"R$ {x:,.2f}")
+                                                                # Adicionar sufixo baseado no fator de conversão
+                                                                sufixo = ""
+                                                                if fator_conversao:
+                                                                    if fator_conversao == "K (milhares)":
+                                                                        sufixo = " K"
+                                                                    elif fator_conversao == "M (Milhões)":
+                                                                        sufixo = " M"
+                                                                df_display_total[col] = df_display_total[col].apply(lambda x: f"{x:,.2f}{sufixo}")
                                                         
                                                         # Configurar coluna "Total / Flex Bud" com HTML
                                                         column_config = {}
@@ -3389,7 +4344,14 @@ with tab1:
                                                         
                                                         for col in df_display_total.columns:
                                                             if col != 'Total / Flex Bud':
-                                                                df_display_total[col] = df_display_total[col].apply(lambda x: f"R$ {x:,.2f}")
+                                                                # Adicionar sufixo baseado no fator de conversão
+                                                                sufixo = ""
+                                                                if fator_conversao:
+                                                                    if fator_conversao == "K (milhares)":
+                                                                        sufixo = " K"
+                                                                    elif fator_conversao == "M (Milhões)":
+                                                                        sufixo = " M"
+                                                                df_display_total[col] = df_display_total[col].apply(lambda x: f"{x:,.2f}{sufixo}")
                                                         
                                                         # Configurar coluna "Total / Flex Bud" com HTML
                                                         column_config = {}
@@ -3482,27 +4444,90 @@ with tab2:
     if df_vol is not None:
         # Verificar se tem as colunas necessárias
         if 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
-            # Aplicar TODOS os filtros da sidebar ao df_vol (mesma lógica para ambos os modos)
-            # Identificar colunas comuns entre df_filtrado e df_vol
-            colunas_comuns = set(df_filtrado.columns) & set(df_vol.columns)
-            # Remover colunas que não devem ser usadas para filtro
-            # Excluir Período para não filtrar por mês (mostrar todos os períodos)
-            colunas_filtro = [
-                col for col in colunas_comuns
-                if col not in ['Volume', 'Total', 'Valor', 'CPU', 'Período']
-            ]
-            
-            # Aplicar filtros do df_filtrado ao df_vol usando colunas comuns
+            # Aplicar TODOS os filtros da sidebar diretamente ao df_vol
+            # Usar as mesmas variáveis de session_state usadas nos filtros da sidebar
             df_vol_filtrado = df_vol.copy()
             
-            for col in colunas_filtro:
-                if col in df_filtrado.columns:
-                    # Obter valores únicos da coluna no df_filtrado
-                    valores_filtrados = df_filtrado[col].dropna().unique()
-                    if len(valores_filtrados) > 0:
-                        # Filtrar df_vol com os mesmos valores
+            # Filtro 1: Oficina
+            # CORREÇÃO: Garantir que apenas oficinas presentes nas opções do filtro sejam consideradas
+            if 'Oficina' in df_vol_filtrado.columns:
+                # Obter as opções de oficina disponíveis no df_total (mesmas opções do filtro principal)
+                # Usar get_filter_options que já foi usado para criar o filtro na sidebar
+                oficina_opcoes_disponiveis = get_filter_options(df_total, 'Oficina')
+                # Remover "Todos" da lista de opções
+                oficina_opcoes_disponiveis = [o for o in oficina_opcoes_disponiveis if o != "Todos"]
+                
+                # Obter oficinas selecionadas no filtro
+                oficina_selecionadas_sidebar = st.session_state.get('filtro_oficina_tc_ext', ["Todos"])
+                
+                # Se "Todos" estiver selecionado, usar todas as opções disponíveis no filtro
+                if "Todos" in oficina_selecionadas_sidebar or not oficina_selecionadas_sidebar:
+                    # Filtrar apenas pelas oficinas que estão nas opções do filtro (não incluir oficinas que não estão no filtro)
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Oficina'].astype(str).isin(oficina_opcoes_disponiveis)
+                    ].copy()
+                else:
+                    # Filtrar apenas pelas oficinas selecionadas (que já estão nas opções do filtro)
+                    # Garantir que apenas oficinas que estão nas opções sejam consideradas
+                    oficinas_validas = [o for o in oficina_selecionadas_sidebar if o in oficina_opcoes_disponiveis]
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Oficina'].astype(str).isin(oficinas_validas)
+                    ].copy()
+            
+            # Filtro 2: Veículo
+            if 'Veículo' in df_vol_filtrado.columns:
+                veiculo_selecionados_sidebar = st.session_state.get('filtro_veiculo_tc_ext', ["Todos"])
+                if veiculo_selecionados_sidebar and "Todos" not in veiculo_selecionados_sidebar:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Veículo'].astype(str).isin(veiculo_selecionados_sidebar)
+                    ].copy()
+            
+            # Filtro 3: USI
+            if 'USI' in df_vol_filtrado.columns:
+                usi_selecionada_sidebar = st.session_state.get('filtro_usi_tc_ext', ["Todos"])
+                if usi_selecionada_sidebar and "Todos" not in usi_selecionada_sidebar:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['USI'].astype(str).isin(usi_selecionada_sidebar)
+                    ].copy()
+            
+            # Filtro 4: Período - NÃO aplicar aqui, mostrar todos os períodos no gráfico
+            
+            # Filtro 5: Centro cst
+            if 'Centrocst' in df_vol_filtrado.columns:
+                centro_cst_selecionado_sidebar = st.session_state.get('filtro_centro_cst_tc_ext', "Todos")
+                if centro_cst_selecionado_sidebar and centro_cst_selecionado_sidebar != "Todos":
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Centrocst'].astype(str) == str(centro_cst_selecionado_sidebar)
+                    ].copy()
+            
+            # Filtro 6: Conta contábil
+            if 'Nºconta' in df_vol_filtrado.columns:
+                conta_contabil_selecionadas_sidebar = st.session_state.get('filtro_conta_contabil_tc_ext', [])
+                if conta_contabil_selecionadas_sidebar:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Nºconta'].astype(str).isin(conta_contabil_selecionadas_sidebar)
+                    ].copy()
+            
+            # Filtros principais
+            filtros_principais_nomes = ["Type 05", "Type 06", "Fornecedor", "Fornec.", "Tipo"]
+            for col_name in filtros_principais_nomes:
+                if col_name in df_vol_filtrado.columns:
+                    filtro_key = f'filtro_{col_name}_tc_ext'
+                    selecionadas_sidebar = st.session_state.get(filtro_key, ["Todos"])
+                    if selecionadas_sidebar and "Todos" not in selecionadas_sidebar:
                         df_vol_filtrado = df_vol_filtrado[
-                            df_vol_filtrado[col].isin(valores_filtrados)
+                            df_vol_filtrado[col_name].astype(str).isin(selecionadas_sidebar)
+                        ].copy()
+            
+            # Filtros avançados
+            filtros_avancados_nomes = ["Usuário", "Material", "Dt.lçto.", "Texto breve", "Account"]
+            for col_name in filtros_avancados_nomes:
+                if col_name in df_vol_filtrado.columns:
+                    filtro_key = f'filtro_avancado_{col_name}_tc_ext'
+                    selecionadas_sidebar = st.session_state.get(filtro_key, ["Todos"])
+                    if selecionadas_sidebar and "Todos" not in selecionadas_sidebar:
+                        df_vol_filtrado = df_vol_filtrado[
+                            df_vol_filtrado[col_name].astype(str).isin(selecionadas_sidebar)
                         ].copy()
             
             # Aplicar também os filtros específicos do gráfico (Oficina e Veículo) se foram selecionados
@@ -3525,29 +4550,96 @@ with tab2:
             if df_budget_vol_grafico is not None:
                 df_budget_vol_filtrado_grafico = df_budget_vol_grafico.copy()
                 
-                # Aplicar TODOS os filtros da sidebar ao df_budget_vol (mesma lógica do volume real)
-                colunas_comuns_bud_vol = set(df_filtrado.columns) & set(df_budget_vol_filtrado_grafico.columns)
-                colunas_filtro_bud_vol = [
-                    col for col in colunas_comuns_bud_vol
-                    if col not in ['Volume', 'Total', 'Valor', 'CPU', 'Período']
-                ]
+                # Aplicar TODOS os filtros da sidebar diretamente ao df_budget_vol (mesma lógica do volume real)
+                # Filtro 1: Oficina
+                # CORREÇÃO: Garantir que apenas oficinas presentes nas opções do filtro sejam consideradas
+                if 'Oficina' in df_budget_vol_filtrado_grafico.columns:
+                    # Obter as opções de oficina disponíveis no df_total (mesmas opções do filtro principal)
+                    oficina_opcoes_disponiveis = get_filter_options(df_total, 'Oficina')
+                    # Remover "Todos" da lista de opções
+                    oficina_opcoes_disponiveis = [o for o in oficina_opcoes_disponiveis if o != "Todos"]
+                    
+                    # Obter oficinas selecionadas no filtro
+                    oficina_selecionadas_sidebar = st.session_state.get('filtro_oficina_tc_ext', ["Todos"])
+                    
+                    # Se "Todos" estiver selecionado, usar todas as opções disponíveis no filtro
+                    if "Todos" in oficina_selecionadas_sidebar or not oficina_selecionadas_sidebar:
+                        # Filtrar apenas pelas oficinas que estão nas opções do filtro (não incluir oficinas que não estão no filtro)
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['Oficina'].astype(str).isin(oficina_opcoes_disponiveis)
+                        ].copy()
+                    else:
+                        # Filtrar apenas pelas oficinas selecionadas (que já estão nas opções do filtro)
+                        # Garantir que apenas oficinas que estão nas opções sejam consideradas
+                        oficinas_validas = [o for o in oficina_selecionadas_sidebar if o in oficina_opcoes_disponiveis]
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['Oficina'].astype(str).isin(oficinas_validas)
+                        ].copy()
                 
-                for col in colunas_filtro_bud_vol:
-                    if col in df_filtrado.columns:
-                        valores_filtrados = df_filtrado[col].dropna().unique()
-                        if len(valores_filtrados) > 0:
+                # Filtro 2: Veículo
+                if 'Veículo' in df_budget_vol_filtrado_grafico.columns:
+                    veiculo_selecionados_sidebar = st.session_state.get('filtro_veiculo_tc_ext', ["Todos"])
+                    if veiculo_selecionados_sidebar and "Todos" not in veiculo_selecionados_sidebar:
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['Veículo'].astype(str).isin(veiculo_selecionados_sidebar)
+                        ].copy()
+                
+                # Filtro 3: USI
+                if 'USI' in df_budget_vol_filtrado_grafico.columns:
+                    usi_selecionada_sidebar = st.session_state.get('filtro_usi_tc_ext', ["Todos"])
+                    if usi_selecionada_sidebar and "Todos" not in usi_selecionada_sidebar:
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['USI'].astype(str).isin(usi_selecionada_sidebar)
+                        ].copy()
+                
+                # Filtro 4: Período - NÃO aplicar aqui, mostrar todos os períodos no gráfico
+                
+                # Filtro 5: Centro cst
+                if 'Centrocst' in df_budget_vol_filtrado_grafico.columns:
+                    centro_cst_selecionado_sidebar = st.session_state.get('filtro_centro_cst_tc_ext', "Todos")
+                    if centro_cst_selecionado_sidebar and centro_cst_selecionado_sidebar != "Todos":
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['Centrocst'].astype(str) == str(centro_cst_selecionado_sidebar)
+                        ].copy()
+                
+                # Filtro 6: Conta contábil
+                if 'Nºconta' in df_budget_vol_filtrado_grafico.columns:
+                    conta_contabil_selecionadas_sidebar = st.session_state.get('filtro_conta_contabil_tc_ext', [])
+                    if conta_contabil_selecionadas_sidebar:
+                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico['Nºconta'].astype(str).isin(conta_contabil_selecionadas_sidebar)
+                        ].copy()
+                
+                # Filtros principais
+                filtros_principais_nomes = ["Type 05", "Type 06", "Fornecedor", "Fornec.", "Tipo"]
+                for col_name in filtros_principais_nomes:
+                    if col_name in df_budget_vol_filtrado_grafico.columns:
+                        filtro_key = f'filtro_{col_name}_tc_ext'
+                        selecionadas_sidebar = st.session_state.get(filtro_key, ["Todos"])
+                        if selecionadas_sidebar and "Todos" not in selecionadas_sidebar:
                             df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
-                                df_budget_vol_filtrado_grafico[col].isin(valores_filtrados)
+                                df_budget_vol_filtrado_grafico[col_name].astype(str).isin(selecionadas_sidebar)
                             ].copy()
                 
-                # Aplicar filtro de Oficina
+                # Filtros avançados
+                filtros_avancados_nomes = ["Usuário", "Material", "Dt.lçto.", "Texto breve", "Account"]
+                for col_name in filtros_avancados_nomes:
+                    if col_name in df_budget_vol_filtrado_grafico.columns:
+                        filtro_key = f'filtro_avancado_{col_name}_tc_ext'
+                        selecionadas_sidebar = st.session_state.get(filtro_key, ["Todos"])
+                        if selecionadas_sidebar and "Todos" not in selecionadas_sidebar:
+                            df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                                df_budget_vol_filtrado_grafico[col_name].astype(str).isin(selecionadas_sidebar)
+                            ].copy()
+                
+                # Aplicar filtro de Oficina do gráfico
                 if 'Oficina' in df_budget_vol_filtrado_grafico.columns:
                     if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
                         df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
                             df_budget_vol_filtrado_grafico['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
                         ].copy()
                 
-                # Aplicar filtro de Veículo
+                # Aplicar filtro de Veículo do gráfico
                 if 'Veículo' in df_budget_vol_filtrado_grafico.columns:
                     if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
                         df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
@@ -3579,8 +4671,8 @@ with tab2:
 
 # Gráfico 2: Soma do Valor por Oficina
 @st.cache_data(ttl=900, max_entries=2)
-def create_oficina_chart(df_data, coluna, tipo_viz):
-    """Cria gráfico de barras por Oficina"""
+def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None):
+    """Cria gráfico de barras por Oficina com linha de Flex Bud opcional"""
     try:
         if (coluna not in df_data.columns or
                 'Oficina' not in df_data.columns):
@@ -3662,7 +4754,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
                 ['Oficina', coluna], ascending=[True, False]
             )
 
-            titulo_y = "CPU (R$/Unidade)"
+            titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
             titulo_grafico = "CPU por Oficina e Veículo"
 
             # Criar gráfico de barras agrupadas
@@ -3767,14 +4859,194 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
             else:
                 chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
             chart_data = chart_data.sort_values(coluna, ascending=False)
+            
+            # Determinar ordem das oficinas (usar a mesma ordem para barras e linha)
+            ordem_oficinas_barras = chart_data['Oficina'].tolist()
 
-            # Definir título do eixo Y baseado no tipo
+            # Definir título do eixo Y baseado no tipo e moeda
             if tipo_viz == "CPU (Custo por Unidade)":
-                titulo_y = "CPU (R$/Unidade)"
+                titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
                 titulo_grafico = "CPU por Oficina"
             else:
-                titulo_y = "Soma do Valor (R$)"
+                titulo_y = f"Soma do Valor ({moeda_simbolo})"
                 titulo_grafico = "Soma do Valor por Oficina"
+
+            # Processar dados de budget e calcular FLEX se fornecidos
+            linha_budget = None
+            budget_data = None
+            df_real_para_flex = df_real_original if df_real_original is not None else df_data
+            
+            # Debug: verificar condições
+            st.sidebar.info(f"🔍 Debug Oficina: df_budget is None: {df_budget is None}")
+            if df_budget is not None:
+                st.sidebar.info(f"🔍 Debug Oficina: 'Oficina' em df_budget: {'Oficina' in df_budget.columns}")
+                st.sidebar.info(f"🔍 Debug Oficina: df_real_vol is None: {df_real_vol is None}")
+                if df_real_para_flex is not None:
+                    st.sidebar.info(f"🔍 Debug Oficina: 'Custo' em df_real_para_flex: {'Custo' in df_real_para_flex.columns}")
+                    st.sidebar.info(f"🔍 Debug Oficina: Colunas df_real_para_flex: {list(df_real_para_flex.columns)[:15]}")
+                else:
+                    st.sidebar.warning("⚠️ df_real_para_flex é None")
+            
+            if df_budget is not None and 'Oficina' in df_budget.columns and df_real_vol is not None:
+                # A função calcular_flex_budget precisa da coluna 'Custo'
+                # Se não tiver, tentar usar df_real_original ou df_total que deve ter
+                if 'Custo' not in df_real_para_flex.columns:
+                    st.sidebar.warning("⚠️ Coluna 'Custo' não encontrada em df_real_para_flex. Tentando usar df_total...")
+                    # Tentar usar df_total global que deve ter a coluna 'Custo'
+                    if 'df_total' in globals() and 'Custo' in globals()['df_total'].columns:
+                        df_real_para_flex = globals()['df_total'].copy()
+                        st.sidebar.success("✅ Usando df_total com coluna 'Custo'")
+                    else:
+                        st.sidebar.error("❌ Não foi possível encontrar dados com coluna 'Custo'")
+                        df_real_para_flex = None
+                
+                if df_real_para_flex is not None and 'Custo' in df_real_para_flex.columns:
+                    try:
+                        # Calcular FLEX agrupado por Oficina (não por período)
+                        # Primeiro calcular FLEX por período, depois agrupar por Oficina
+                        tem_ano = 'Ano' in df_real_para_flex.columns
+                        flex_data = calcular_flex_budget(
+                            df_real_para_flex,
+                            df_real_vol,
+                            df_budget,
+                            df_budget_vol,
+                            tipo_viz,
+                            tem_ano
+                        )
+                        
+                        if flex_data is not None and len(flex_data) > 0:
+                            # Agrupar Flex Bud por Oficina (somar todos os períodos)
+                            if 'Oficina' in flex_data.columns:
+                                flex_data.rename(columns={'FLEX': coluna}, inplace=True)
+                                budget_data = flex_data.groupby('Oficina')[coluna].sum().reset_index()
+                                
+                                # Filtrar apenas oficinas que existem no chart_data
+                                budget_data = budget_data[budget_data['Oficina'].isin(chart_data['Oficina'])].copy()
+                                
+                                if len(budget_data) > 0:
+                                    # Criar linha tracejada de Flex Bud
+                                    budget_data_legenda = budget_data.copy()
+                                    budget_data_legenda['Tipo'] = 'Flex Bud'
+                                    
+                                    # Ordenar por valor para manter ordem consistente (usar mesma ordem das barras)
+                                    budget_data_legenda = budget_data_legenda.sort_values(coluna, ascending=False)
+                                    # Garantir que a ordem seja a mesma das barras
+                                    ordem_oficinas = [o for o in ordem_oficinas_barras if o in budget_data_legenda['Oficina'].tolist()]
+                                    
+                                    # Criar linha tracejada de Flex Bud (igual ao gráfico por Período)
+                                    linha_budget = alt.Chart(budget_data_legenda).mark_line(
+                                        strokeDash=[10, 5],
+                                        strokeWidth=1.5,
+                                        opacity=0.8
+                                    ).encode(
+                                        x=alt.X(
+                                            'Oficina:N',
+                                            title='Oficina',
+                                            sort=ordem_oficinas,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        y=alt.Y(
+                                            f'{coluna}:Q',
+                                            title=titulo_y,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        color=alt.Color(
+                                            'Tipo:N',
+                                            title='Legenda',
+                                            scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#4A90E2', '#FF6B35']),
+                                            legend=alt.Legend(
+                                                title='Legenda',
+                                                orient='bottom',
+                                                titleFontSize=10,
+                                                labelFontSize=9,
+                                                titleAnchor='middle',
+                                                direction='horizontal',
+                                                symbolType='square'
+                                            )
+                                        ),
+                                        strokeDash=alt.StrokeDash(
+                                            'Tipo:N',
+                                            scale=alt.Scale(domain=['Real', 'Flex Bud'], range=[[0], [10, 5]]),
+                                            legend=None
+                                        ),
+                                        tooltip=[
+                                            alt.Tooltip('Oficina:N', title='Oficina'),
+                                            alt.Tooltip('Tipo:N', title='Tipo'),
+                                            alt.Tooltip(
+                                                f'{coluna}:Q',
+                                                title='Flex Bud',
+                                                format=',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
+                                            )
+                                        ]
+                                    )
+                                    
+                                    # Adicionar bolinhas nos pontos da linha
+                                    pontos_budget = alt.Chart(budget_data_legenda).mark_circle(
+                                        size=80,
+                                        opacity=0.9
+                                    ).encode(
+                                        x=alt.X(
+                                            'Oficina:N',
+                                            title='Oficina',
+                                            sort=ordem_oficinas,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        y=alt.Y(
+                                            f'{coluna}:Q',
+                                            title=titulo_y,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        color=alt.Color(
+                                            'Tipo:N',
+                                            title='Legenda',
+                                            scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#4A90E2', '#FF6B35']),
+                                            legend=None
+                                        ),
+                                        tooltip=[
+                                            alt.Tooltip('Oficina:N', title='Oficina'),
+                                            alt.Tooltip('Tipo:N', title='Tipo'),
+                                            alt.Tooltip(
+                                                f'{coluna}:Q',
+                                                title='Flex Bud',
+                                                format=',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
+                                            )
+                                        ]
+                                    )
+                                    
+                                    # Adicionar rótulos
+                                    formato_rotulo_budget = ',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
+                                    rotulos_budget = alt.Chart(budget_data_legenda).mark_text(
+                                        align='center',
+                                        baseline='bottom',
+                                        dy=-20,
+                                        color='#FF6B35',
+                                        fontSize=9,
+                                        fontWeight='bold'
+                                    ).encode(
+                                        x=alt.X('Oficina:N', sort=ordem_oficinas),
+                                        y=alt.Y(f'{coluna}:Q'),
+                                        text=alt.Text(f'{coluna}:Q', format=formato_rotulo_budget)
+                                    )
+                                    
+                                    # Combinar linha, pontos e rótulos
+                                    linha_budget = linha_budget + pontos_budget + rotulos_budget
+                    except Exception as e:
+                        # Log do erro para debug
+                        import traceback
+                        st.sidebar.warning(f"⚠️ Erro ao calcular Flex Bud para gráfico de Oficina: {str(e)}")
+                        st.sidebar.code(traceback.format_exc())
+                else:
+                    # Debug: verificar por que não tem coluna Custo
+                    if df_real_para_flex is not None:
+                        st.sidebar.info(f"ℹ️ Colunas disponíveis em df_real_para_flex: {list(df_real_para_flex.columns)[:10]}")
+                        st.sidebar.info(f"ℹ️ 'Custo' presente: {'Custo' in df_real_para_flex.columns}")
+                    else:
+                        st.sidebar.warning("⚠️ df_real_para_flex é None")
+            else:
+                # Debug: verificar por que não tem dados de budget
+                st.sidebar.info(f"ℹ️ df_budget é None: {df_budget is None}")
+                st.sidebar.info(f"ℹ️ 'Oficina' em df_budget: {df_budget is not None and 'Oficina' in df_budget.columns if df_budget is not None else False}")
+                st.sidebar.info(f"ℹ️ df_real_vol é None: {df_real_vol is None}")
 
             grafico_barras = alt.Chart(chart_data).mark_bar().encode(
                 x=alt.X('Oficina:N', title='Oficina', sort='-y', axis=alt.Axis(grid=False)),
@@ -3812,7 +5084,130 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
                 text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
             )
 
-            return grafico_barras + rotulos
+            # Criar gráfico de delta (Real - Flex Bud) se linha_budget estiver disponível
+            grafico_delta = None
+            if linha_budget is not None and budget_data is not None and len(budget_data) > 0:
+                try:
+                    # Calcular delta: Real - Flex Bud
+                    delta_data = chart_data.copy()
+                    budget_data_merge = budget_data.copy()
+                    budget_data_merge = budget_data_merge.rename(columns={coluna: f'{coluna}_FlexBud'})
+                    
+                    delta_data = delta_data.merge(
+                        budget_data_merge[['Oficina', f'{coluna}_FlexBud']],
+                        on='Oficina',
+                        how='left'
+                    )
+                    
+                    # Calcular delta: Real - Flex Bud
+                    delta_data['Delta'] = delta_data[coluna].fillna(0) - delta_data[f'{coluna}_FlexBud'].fillna(0)
+                    
+                    # Calcular min e max do delta para a escala de cores
+                    # Usar valores absolutos simétricos para garantir que zero sempre seja o centro
+                    delta_min_abs = abs(delta_data['Delta'].min())
+                    delta_max_abs = abs(delta_data['Delta'].max())
+                    delta_abs_max = max(delta_min_abs, delta_max_abs)
+                    
+                    # Criar domínio simétrico baseado no maior valor absoluto
+                    # Isso garante que zero sempre fique no centro, independente dos filtros
+                    delta_min = -delta_abs_max if delta_abs_max > 0 else -1
+                    delta_max = delta_abs_max if delta_abs_max > 0 else 1
+                    
+                    # Ordenar por valor para manter ordem consistente
+                    delta_data = delta_data.sort_values(coluna, ascending=False)
+                    ordem_oficinas_delta = delta_data['Oficina'].tolist()
+                    
+                    # Criar gráfico de barras para delta
+                    grafico_delta = alt.Chart(delta_data).mark_bar(
+                        size=20
+                    ).encode(
+                        x=alt.X(
+                            'Oficina:N',
+                            title='',
+                            sort=ordem_oficinas_delta,
+                            axis=alt.Axis(grid=False, domain=False, ticks=False, labels=False)
+                        ),
+                        y=alt.Y(
+                            'Delta:Q',
+                            title='Delta (Real - Flex Bud)',
+                            axis=alt.Axis(grid=False, domain=True, ticks=True, labels=True)
+                        ),
+                        color=alt.Color(
+                            'Delta:Q',
+                            scale=alt.Scale(
+                                domain=[delta_min, 0, delta_max],
+                                range=['#00AA00', '#FFFFFF', '#FF0000'],  # Verde (negativo) -> Branco (zero) -> Vermelho (positivo)
+                                type='linear',
+                                nice=False
+                            ),
+                            legend=None
+                        ),
+                        tooltip=[
+                            alt.Tooltip('Oficina:N', title='Oficina'),
+                            alt.Tooltip('Delta:Q', title='Delta (Real - Flex Bud)', format=',.2f'),
+                            alt.Tooltip(f'{coluna}:Q', title='Real', format=',.2f'),
+                            alt.Tooltip(f'{coluna}_FlexBud:Q', title='Flex Bud', format=',.2f')
+                        ]
+                    ).properties(
+                        height=60
+                    )
+                    
+                    # Adicionar rótulos de dados no gráfico de delta
+                    rotulos_delta_positivos = alt.Chart(delta_data[delta_data['Delta'] >= 0]).mark_text(
+                        align='center',
+                        baseline='bottom',
+                        dy=-12,
+                        fontSize=9,
+                        fontWeight='bold'
+                    ).encode(
+                        x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
+                        y=alt.Y('Delta:Q'),
+                        text=alt.Text('Delta:Q', format=',.2f'),
+                        color=alt.value('#FF0000')
+                    )
+                    
+                    rotulos_delta_negativos = alt.Chart(delta_data[delta_data['Delta'] < 0]).mark_text(
+                        align='center',
+                        baseline='top',
+                        dy=12,
+                        fontSize=9,
+                        fontWeight='bold'
+                    ).encode(
+                        x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
+                        y=alt.Y('Delta:Q'),
+                        text=alt.Text('Delta:Q', format=',.2f'),
+                        color=alt.value('#00AA00')
+                    )
+                    
+                    grafico_delta = grafico_delta + rotulos_delta_positivos + rotulos_delta_negativos
+                except Exception as e:
+                    pass  # Silenciar erro, apenas não mostrar delta
+            
+            # Combinar gráfico de barras com linha de budget se disponível
+            if linha_budget is not None:
+                grafico_principal = alt.layer(
+                    grafico_barras,
+                    rotulos,
+                    linha_budget
+                ).resolve_scale(
+                    x='shared',
+                    y='shared'
+                )
+                
+                # Se temos gráfico de delta, combinar verticalmente (delta em cima)
+                if grafico_delta is not None:
+                    grafico_final = alt.vconcat(
+                        grafico_delta,
+                        grafico_principal
+                    ).resolve_scale(
+                        x='shared'
+                    )
+                else:
+                    grafico_final = grafico_principal
+            else:
+                grafico_final = grafico_barras + rotulos
+            
+            return grafico_final
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {e}")
         return None
@@ -3820,22 +5215,22 @@ def create_oficina_chart(df_data, coluna, tipo_viz):
 
 # Gráfico 4: Total/CPU por Veículo
 @st.cache_data(ttl=900, max_entries=2)
-def create_total_chart(df_data, coluna, tipo_viz):
-    """Cria gráfico de barras de Total/CPU por Veículo"""
+def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None):
+    """Cria gráfico de barras de Total/CPU por Veículo com linha de Flex Bud opcional"""
     try:
         if coluna not in df_data.columns:
             return None
 
-        # Definir título e formato baseado no tipo
+        # Definir título e formato baseado no tipo e moeda
         if tipo_viz == "CPU (Custo por Unidade)":
-            titulo_y = "CPU (R$/Unidade)"
+            titulo_y = f"CPU ({moeda_simbolo}/Unidade)"
             formato = ',.2f'
             if 'Veículo' in df_data.columns:
                 titulo_grafico = "CPU por Veículo"
             else:
                 titulo_grafico = "CPU por Período"
         else:
-            titulo_y = "Total (R$)"
+            titulo_y = f"Total ({moeda_simbolo})"
             formato = ',.2f'
             if 'Veículo' in df_data.columns:
                 titulo_grafico = "Total por Veículo"
@@ -3915,6 +5310,106 @@ def create_total_chart(df_data, coluna, tipo_viz):
                     df_data.groupby('Veículo')[coluna].sum().reset_index()
                 )
             chart_data = chart_data.sort_values(coluna, ascending=False)
+
+            # Processar dados de budget e calcular FLEX se fornecidos
+            linha_budget = None
+            budget_data = None
+            df_real_para_flex = df_real_original if df_real_original is not None else df_data
+            
+            if df_budget is not None and 'Veículo' in df_budget.columns and df_real_vol is not None:
+                if 'Custo' in df_real_para_flex.columns:
+                    try:
+                        # Calcular FLEX agrupado por Veículo (não por período)
+                        tem_ano = 'Ano' in df_real_para_flex.columns
+                        flex_data = calcular_flex_budget(
+                            df_real_para_flex,
+                            df_real_vol,
+                            df_budget,
+                            df_budget_vol,
+                            tipo_viz,
+                            tem_ano
+                        )
+                        
+                        if flex_data is not None and len(flex_data) > 0:
+                            # Agrupar Flex Bud por Veículo (somar todos os períodos)
+                            if 'Veículo' in flex_data.columns:
+                                flex_data.rename(columns={'FLEX': coluna}, inplace=True)
+                                budget_data = flex_data.groupby('Veículo')[coluna].sum().reset_index()
+                                
+                                # Filtrar apenas veículos que existem no chart_data
+                                budget_data = budget_data[budget_data['Veículo'].isin(chart_data['Veículo'])].copy()
+                                
+                                if len(budget_data) > 0:
+                                    # Criar linha tracejada de Flex Bud
+                                    budget_data_legenda = budget_data.copy()
+                                    budget_data_legenda['Tipo'] = 'Flex Bud'
+                                    
+                                    # Ordenar por valor para manter ordem consistente
+                                    budget_data_legenda = budget_data_legenda.sort_values(coluna, ascending=False)
+                                    ordem_veiculos = budget_data_legenda['Veículo'].tolist()
+                                    
+                                    linha_budget = alt.Chart(budget_data_legenda).mark_line(
+                                        strokeDash=[10, 5],
+                                        strokeWidth=1.5,
+                                        opacity=0.8,
+                                        color='#FF6B35'
+                                    ).encode(
+                                        x=alt.X(
+                                            'Veículo:N',
+                                            title='Veículo',
+                                            sort=ordem_veiculos,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        y=alt.Y(
+                                            f'{coluna}:Q',
+                                            title=titulo_y,
+                                            axis=alt.Axis(grid=False, domain=True, ticks=True)
+                                        ),
+                                        tooltip=[
+                                            alt.Tooltip('Veículo:N', title='Veículo'),
+                                            alt.Tooltip(
+                                                f'{coluna}:Q',
+                                                title='Flex Bud',
+                                                format=formato
+                                            )
+                                        ]
+                                    )
+                                    
+                                    # Adicionar pontos na linha
+                                    pontos_budget = alt.Chart(budget_data_legenda).mark_circle(
+                                        size=80,
+                                        opacity=0.9,
+                                        color='#FF6B35'
+                                    ).encode(
+                                        x=alt.X('Veículo:N', sort=ordem_veiculos),
+                                        y=alt.Y(f'{coluna}:Q'),
+                                        tooltip=[
+                                            alt.Tooltip('Veículo:N', title='Veículo'),
+                                            alt.Tooltip(
+                                                f'{coluna}:Q',
+                                                title='Flex Bud',
+                                                format=formato
+                                            )
+                                        ]
+                                    )
+                                    
+                                    # Adicionar rótulos
+                                    rotulos_budget = alt.Chart(budget_data_legenda).mark_text(
+                                        align='center',
+                                        baseline='bottom',
+                                        dy=-15,
+                                        color='#FF6B35',
+                                        fontSize=9,
+                                        fontWeight='bold'
+                                    ).encode(
+                                        x=alt.X('Veículo:N', sort=ordem_veiculos),
+                                        y=alt.Y(f'{coluna}:Q'),
+                                        text=alt.Text(f'{coluna}:Q', format=formato)
+                                    )
+                                    
+                                    linha_budget = linha_budget + pontos_budget + rotulos_budget
+                    except Exception as e:
+                        pass  # Silenciar erro, apenas não mostrar Flex Bud
 
             grafico_barras = alt.Chart(chart_data).mark_bar().encode(
                 x=alt.X(
@@ -4044,7 +5539,130 @@ def create_total_chart(df_data, coluna, tipo_viz):
             text=alt.Text(f'{coluna}:Q', format=formato)
         )
 
-        return grafico_barras + rotulos
+        # Criar gráfico de delta (Real - Flex Bud) se linha_budget estiver disponível
+        grafico_delta = None
+        if linha_budget is not None and budget_data is not None and len(budget_data) > 0:
+            try:
+                # Calcular delta: Real - Flex Bud
+                delta_data = chart_data.copy()
+                budget_data_merge = budget_data.copy()
+                budget_data_merge = budget_data_merge.rename(columns={coluna: f'{coluna}_FlexBud'})
+                
+                delta_data = delta_data.merge(
+                    budget_data_merge[['Veículo', f'{coluna}_FlexBud']],
+                    on='Veículo',
+                    how='left'
+                )
+                
+                # Calcular delta: Real - Flex Bud
+                delta_data['Delta'] = delta_data[coluna].fillna(0) - delta_data[f'{coluna}_FlexBud'].fillna(0)
+                
+                # Calcular min e max do delta para a escala de cores
+                # Usar valores absolutos simétricos para garantir que zero sempre seja o centro
+                delta_min_abs = abs(delta_data['Delta'].min())
+                delta_max_abs = abs(delta_data['Delta'].max())
+                delta_abs_max = max(delta_min_abs, delta_max_abs)
+                
+                # Criar domínio simétrico baseado no maior valor absoluto
+                # Isso garante que zero sempre fique no centro, independente dos filtros
+                delta_min = -delta_abs_max if delta_abs_max > 0 else -1
+                delta_max = delta_abs_max if delta_abs_max > 0 else 1
+                
+                # Ordenar por valor para manter ordem consistente
+                delta_data = delta_data.sort_values(coluna, ascending=False)
+                ordem_veiculos_delta = delta_data['Veículo'].tolist()
+                
+                # Criar gráfico de barras para delta
+                grafico_delta = alt.Chart(delta_data).mark_bar(
+                    size=20
+                ).encode(
+                    x=alt.X(
+                        'Veículo:N',
+                        title='',
+                        sort=ordem_veiculos_delta,
+                        axis=alt.Axis(grid=False, domain=False, ticks=False, labels=False)
+                    ),
+                    y=alt.Y(
+                        'Delta:Q',
+                        title='Delta (Real - Flex Bud)',
+                        axis=alt.Axis(grid=False, domain=True, ticks=True, labels=True)
+                    ),
+                    color=alt.Color(
+                        'Delta:Q',
+                        scale=alt.Scale(
+                            domain=[delta_min, 0, delta_max],
+                            range=['#00AA00', '#FFFFFF', '#FF0000'],  # Verde (negativo) -> Branco (zero) -> Vermelho (positivo)
+                            type='linear',
+                            nice=False
+                        ),
+                        legend=None
+                    ),
+                    tooltip=[
+                        alt.Tooltip('Veículo:N', title='Veículo'),
+                        alt.Tooltip('Delta:Q', title='Delta (Real - Flex Bud)', format=',.2f'),
+                        alt.Tooltip(f'{coluna}:Q', title='Real', format=',.2f'),
+                        alt.Tooltip(f'{coluna}_FlexBud:Q', title='Flex Bud', format=',.2f')
+                    ]
+                ).properties(
+                    height=60
+                )
+                
+                # Adicionar rótulos de dados no gráfico de delta
+                rotulos_delta_positivos = alt.Chart(delta_data[delta_data['Delta'] >= 0]).mark_text(
+                    align='center',
+                    baseline='bottom',
+                    dy=-12,
+                    fontSize=9,
+                    fontWeight='bold'
+                ).encode(
+                    x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
+                    y=alt.Y('Delta:Q'),
+                    text=alt.Text('Delta:Q', format=',.2f'),
+                    color=alt.value('#FF0000')
+                )
+                
+                rotulos_delta_negativos = alt.Chart(delta_data[delta_data['Delta'] < 0]).mark_text(
+                    align='center',
+                    baseline='top',
+                    dy=12,
+                    fontSize=9,
+                    fontWeight='bold'
+                ).encode(
+                    x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
+                    y=alt.Y('Delta:Q'),
+                    text=alt.Text('Delta:Q', format=',.2f'),
+                    color=alt.value('#00AA00')
+                )
+                
+                grafico_delta = grafico_delta + rotulos_delta_positivos + rotulos_delta_negativos
+            except Exception as e:
+                pass  # Silenciar erro, apenas não mostrar delta
+        
+        # Combinar gráfico de barras com linha de budget se disponível
+        if linha_budget is not None:
+            grafico_principal = alt.layer(
+                grafico_barras,
+                rotulos,
+                linha_budget
+            ).resolve_scale(
+                x='shared',
+                y='shared'
+            )
+            
+            # Se temos gráfico de delta, combinar verticalmente (delta em cima)
+            if grafico_delta is not None:
+                grafico_final = alt.vconcat(
+                    grafico_delta,
+                    grafico_principal
+                ).resolve_scale(
+                    x='shared'
+                )
+            else:
+                grafico_final = grafico_principal
+        else:
+            grafico_final = grafico_barras + rotulos
+
+        return grafico_final
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {e}")
         return None
@@ -4054,6 +5672,51 @@ def create_total_chart(df_data, coluna, tipo_viz):
 # TAB 3: TC Ext por Veíc
 # ==========================================
 with tab3:
+    # Carregar dados de budget e volume para esta aba também
+    df_budget_filtrado_tab3 = None
+    df_budget_vol_filtrado_tab3 = None
+    df_volume_real_filtrado_tab3 = None
+    df_real_original_grafico_tab3 = None
+    
+    try:
+        # Carregar dados de budget
+        df_budget_tab3 = load_budget_data(ano_selecionado)
+        df_budget_vol_tab3 = load_budget_volume_data(ano_selecionado)
+        
+        if df_budget_tab3 is not None:
+            # Aplicar fator de conversão na coluna Total do budget
+            if fator_conversao and fator_conversao != "Nenhum" and 'Total' in df_budget_tab3.columns:
+                if fator_conversao == "K (milhares)":
+                    df_budget_tab3['Total'] = df_budget_tab3['Total'] / 1000
+                elif fator_conversao == "M (Milhões)":
+                    df_budget_tab3['Total'] = df_budget_tab3['Total'] / 1000000
+            
+            # Aplicar conversão de moeda
+            if moeda_codigo != "BRL" and 'Total' in df_budget_tab3.columns:
+                df_budget_tab3 = converter_coluna_moeda(df_budget_tab3, 'Total', moeda_codigo, taxas_cambio)
+            
+            df_budget_filtrado_tab3 = df_budget_tab3.copy()
+        
+        if df_budget_vol_tab3 is not None:
+            df_budget_vol_filtrado_tab3 = df_budget_vol_tab3.copy()
+    except Exception as e:
+        pass  # Silenciar erro
+    
+    # Carregar dados de volume reais
+    try:
+        df_vol_calc_grafico_tab3 = load_volume_data(ano_selecionado)
+        if df_vol_calc_grafico_tab3 is not None and 'Volume' in df_vol_calc_grafico_tab3.columns:
+            df_volume_real_filtrado_tab3 = df_vol_calc_grafico_tab3.copy()
+    except Exception as e:
+        pass  # Silenciar erro
+    
+    # Preparar dados originais para cálculo de FLEX (modo CPU)
+    if tipo_visualizacao == "CPU (Custo por Unidade)":
+        df_real_original_grafico_tab3 = df_total.copy()
+        # Aplicar mesmos filtros básicos se necessário
+    else:
+        df_real_original_grafico_tab3 = df_total.copy()
+    
     # Usar df_visualizacao (já tem os dados calculados com filtros da sidebar)
     # Verificar se tem as colunas necessárias
     tem_veiculo = 'Veículo' in df_visualizacao.columns
@@ -4150,7 +5813,8 @@ with tab3:
         else:
             st.subheader("📊 Soma do Valor por Oficina")
         grafico_oficina = create_oficina_chart(
-            df_visualizacao, coluna_visualizacao, tipo_visualizacao
+            df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
+            df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
         )
         if grafico_oficina:
             st.altair_chart(grafico_oficina, use_container_width=True)
@@ -4161,7 +5825,8 @@ with tab3:
             if coluna_visualizacao in df_visualizacao.columns:
                 st.subheader("📊 CPU por Veículo")
                 grafico_total = create_total_chart(
-                    df_visualizacao, coluna_visualizacao, tipo_visualizacao
+                    df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
+                    df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
                 )
                 if grafico_total:
                     st.altair_chart(grafico_total, use_container_width=True)
@@ -4169,7 +5834,8 @@ with tab3:
             if 'Total' in df_filtrado.columns:
                 st.subheader("📊 Total por Veículo")
                 grafico_total = create_total_chart(
-                    df_filtrado, 'Total', tipo_visualizacao
+                    df_filtrado, 'Total', tipo_visualizacao, moeda_simbolo,
+                    df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
                 )
                 if grafico_total:
                     st.altair_chart(grafico_total, use_container_width=True)
@@ -4179,7 +5845,8 @@ with tab3:
             if coluna_visualizacao in df_visualizacao.columns:
                 st.subheader("📊 CPU por Período")
                 grafico_total = create_total_chart(
-                    df_visualizacao, coluna_visualizacao, tipo_visualizacao
+                    df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
+                    df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
                 )
                 if grafico_total:
                     st.altair_chart(grafico_total, use_container_width=True)
@@ -4187,7 +5854,8 @@ with tab3:
             if 'Total' in df_filtrado.columns:
                 st.subheader("📊 Total por Período")
                 grafico_total = create_total_chart(
-                    df_filtrado, 'Total', tipo_visualizacao
+                    df_filtrado, 'Total', tipo_visualizacao, moeda_simbolo,
+                    df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
                 )
                 if grafico_total:
                     st.altair_chart(grafico_total, use_container_width=True)
@@ -4404,16 +6072,32 @@ with tab4:
             for col in colunas_formatar:
                 df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
         else:
+            # Adicionar sufixo baseado no fator de conversão
+            sufixo = ""
+            if fator_conversao:
+                if fator_conversao == "K (milhares)":
+                    sufixo = " K"
+                elif fator_conversao == "M (Milhões)":
+                    sufixo = " M"
             for col in colunas_formatar:
-                df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"R$ {x:,.2f}" if isinstance(x, (int, float)) else x)
+                df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}{sufixo}" if isinstance(x, (int, float)) else x)
             
         # Função para formatar valores (definida antes de ser usada)
         def formatar_valor(val, tipo):
             if isinstance(val, (int, float)):
+                # NOTA: Os dados já estão convertidos na base, então apenas formatamos
+                simbolo = obter_simbolo_moeda(moeda_codigo)
                 if tipo == "CPU (Custo por Unidade)":
                     return f"{val:,.2f}"
                 else:
-                    return f"R$ {val:,.2f}"
+                    # Adicionar sufixo baseado no fator de conversão (apenas para Custo Total)
+                    sufixo = ""
+                    if tipo_visualizacao == "Custo Total" and fator_conversao:
+                        if fator_conversao == "K (milhares)":
+                            sufixo = " K"
+                        elif fator_conversao == "M (Milhões)":
+                            sufixo = " M"
+                    return f"{simbolo} {val:,.2f}{sufixo}"
             return val
         
         # Agrupar por Oficina e criar expanders (abertos por padrão)
