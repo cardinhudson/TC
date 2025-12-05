@@ -3006,8 +3006,8 @@ def create_volume_chart(df_data, df_budget_vol=None):
 
 # Gráfico 4.5: Volume por Veículo
 @st.cache_data(ttl=900, max_entries=2)
-def create_volume_veiculo_chart(df_data):
-    """Cria gráfico de barras de Volume por Veículo"""
+def create_volume_veiculo_chart(df_data, df_budget_vol=None):
+    """Cria gráfico de barras de Volume por Veículo com linha pontilhada de volume do Budget opcional"""
     try:
         if 'Volume' not in df_data.columns or 'Veículo' not in df_data.columns:
             return None
@@ -3058,11 +3058,15 @@ def create_volume_veiculo_chart(df_data):
         
         chart_data = chart_data.sort_values('Volume', ascending=False)
         
+        # Determinar ordem dos veículos (usar a mesma ordem para barras e linha)
+        ordem_veiculos = chart_data['Veículo'].tolist()
+        
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
                 'Veículo:N',
                 title='Veículo',
-                sort='-y',
+                sort=ordem_veiculos,
+                scale=alt.Scale(domain=ordem_veiculos),
                 axis=alt.Axis(grid=False, domain=True, ticks=True)
             ),
             y=alt.Y('Volume:Q', title='Volume (Unidades)', axis=alt.Axis(grid=False)),
@@ -3091,7 +3095,159 @@ def create_volume_veiculo_chart(df_data):
             text=alt.Text('Volume:Q', format=',.0f')
         )
         
-        return grafico_barras + rotulos
+        # Processar dados de volume do budget se fornecidos
+        linha_budget_vol = None
+        if df_budget_vol is not None and 'Veículo' in df_budget_vol.columns:
+            try:
+                # Filtrar linhas com Volume e Veículo não nulos
+                df_budget_vol_filtrado = df_budget_vol[df_budget_vol['Volume'].notna() & df_budget_vol['Veículo'].notna()].copy()
+                
+                if len(df_budget_vol_filtrado) > 0:
+                    # Agrupar por Veículo seguindo a mesma lógica dos dados principais
+                    tem_multiplos_anos_budget = 'Ano' in df_budget_vol_filtrado.columns and df_budget_vol_filtrado['Ano'].nunique() > 1
+                    
+                    if tem_multiplos_anos_budget and 'Período' in df_budget_vol_filtrado.columns:
+                        # Agrupar por Veículo, Período e Ano, somar Volume
+                        df_agrupado_periodo_budget = df_budget_vol_filtrado.groupby(['Veículo', 'Período', 'Ano']).agg({
+                            'Volume': 'sum'
+                        }).reset_index()
+                        # Agora agrupar por Veículo, somar Volume de todos os períodos
+                        budget_vol_data = df_agrupado_periodo_budget.groupby('Veículo').agg({
+                            'Volume': 'sum'
+                        }).reset_index()
+                    elif 'Período' in df_budget_vol_filtrado.columns:
+                        # Agrupar por Veículo e Período, somar Volume
+                        df_agrupado_periodo_budget = df_budget_vol_filtrado.groupby(['Veículo', 'Período']).agg({
+                            'Volume': 'sum'
+                        }).reset_index()
+                        # Agora agrupar por Veículo, somar Volume de todos os períodos
+                        budget_vol_data = df_agrupado_periodo_budget.groupby('Veículo').agg({
+                            'Volume': 'sum'
+                        }).reset_index()
+                    else:
+                        # Se não tiver Período, agrupar apenas por Veículo
+                        budget_vol_data = df_budget_vol_filtrado.groupby('Veículo').agg({
+                            'Volume': 'sum'
+                        }).reset_index()
+                    
+                    # IMPORTANTE: Garantir que todos os veículos do realizado estejam no budget
+                    # Criar DataFrame completo com todos os veículos do realizado
+                    budget_vol_data_completo = pd.DataFrame({'Veículo': ordem_veiculos})
+                    
+                    # Fazer merge com os dados de budget (left join para manter todos os veículos do realizado)
+                    budget_vol_data = budget_vol_data_completo.merge(
+                        budget_vol_data,
+                        on='Veículo',
+                        how='left'
+                    )
+                    
+                    # Preencher valores faltantes com 0
+                    budget_vol_data['Volume'] = budget_vol_data['Volume'].fillna(0)
+                    
+                    if len(budget_vol_data) > 0:
+                        # Adicionar coluna de legenda
+                        budget_vol_data_legenda = budget_vol_data.copy()
+                        budget_vol_data_legenda['Tipo'] = 'Volume Budget'
+                        
+                        # Garantir que está na ordem correta (já está na ordem correta por causa do merge)
+                        # Mas vamos garantir explicitamente
+                        ordem_dict = {veiculo: idx for idx, veiculo in enumerate(ordem_veiculos)}
+                        budget_vol_data_legenda['_ordem'] = budget_vol_data_legenda['Veículo'].map(ordem_dict)
+                        budget_vol_data_legenda = budget_vol_data_legenda.sort_values('_ordem')
+                        budget_vol_data_legenda = budget_vol_data_legenda.drop(columns=['_ordem'])
+                        
+                        # IMPORTANTE: Usar EXATAMENTE a mesma ordem das barras (ordem_veiculos)
+                        # Isso garante que a linha do budget apareça na mesma ordem do realizado
+                        ordem_veiculos_budget = ordem_veiculos
+                        
+                        # Criar linha tracejada de volume do budget
+                        linha_budget_vol = alt.Chart(budget_vol_data_legenda).mark_line(
+                            strokeDash=[10, 5],
+                            strokeWidth=1.5,
+                            opacity=0.8
+                        ).encode(
+                            x=alt.X(
+                                'Veículo:N',
+                                title='Veículo',
+                                sort=ordem_veiculos_budget,
+                                scale=alt.Scale(domain=ordem_veiculos_budget),
+                                axis=alt.Axis(grid=False, domain=True, ticks=True)
+                            ),
+                            y=alt.Y(
+                                'Volume:Q',
+                                title='Volume (Unidades)',
+                                axis=alt.Axis(grid=False, domain=True, ticks=True)
+                            ),
+                            color=alt.Color(
+                                'Tipo:N',
+                                title='Legenda',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=alt.Legend(
+                                    title='Legenda',
+                                    orient='right',
+                                    titleFontSize=10,
+                                    labelFontSize=9
+                                )
+                            ),
+                            strokeDash=alt.StrokeDash(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=[[10, 5]]),
+                                legend=None
+                            ),
+                            tooltip=[
+                                alt.Tooltip('Veículo:N', title='Veículo'),
+                                alt.Tooltip('Tipo:N', title='Tipo'),
+                                alt.Tooltip('Volume:Q', title='Volume Budget', format=',.0f')
+                            ]
+                        )
+                        
+                        # Adicionar bolinhas nos pontos da linha
+                        pontos_budget_vol = alt.Chart(budget_vol_data_legenda).mark_circle(
+                            size=80,
+                            opacity=0.9
+                        ).encode(
+                            x=alt.X('Veículo:N', sort=ordem_veiculos_budget, scale=alt.Scale(domain=ordem_veiculos_budget), title='Veículo'),
+                            y=alt.Y('Volume:Q', title='Volume (Unidades)'),
+                            color=alt.Color(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=None
+                            ),
+                            tooltip=[
+                                alt.Tooltip('Veículo:N', title='Veículo'),
+                                alt.Tooltip('Tipo:N', title='Tipo'),
+                                alt.Tooltip('Volume:Q', title='Volume Budget', format=',.0f')
+                            ]
+                        )
+                        
+                        # Adicionar rótulos nos pontos
+                        rotulos_budget_vol = alt.Chart(budget_vol_data_legenda).mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-15,
+                            fontSize=9,
+                            fontWeight='bold'
+                        ).encode(
+                            x=alt.X('Veículo:N', sort=ordem_veiculos_budget, scale=alt.Scale(domain=ordem_veiculos_budget), title='Veículo'),
+                            y=alt.Y('Volume:Q', title='Volume (Unidades)'),
+                            text=alt.Text('Volume:Q', format=',.0f'),
+                            color=alt.Color(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=None
+                            )
+                        )
+                        
+                        linha_budget_vol = linha_budget_vol + pontos_budget_vol + rotulos_budget_vol
+            except Exception as e:
+                # Silenciar erro, apenas não mostrar linha do budget
+                pass
+        
+        # Combinar gráfico de barras com linha do budget se existir
+        if linha_budget_vol is not None:
+            return grafico_barras + rotulos + linha_budget_vol
+        else:
+            return grafico_barras + rotulos
     except Exception as e:
         st.error(f"Erro ao criar gráfico de volume: {e}")
         return None
@@ -3882,7 +4038,9 @@ with tab2:
     # Gráfico de Volume por Veículo (dentro da aba Volume)
     if 'Volume' in df_visualizacao.columns and 'Veículo' in df_visualizacao.columns:
         st.subheader("📊 Volume por Veículo")
-        grafico_volume_veiculo = create_volume_veiculo_chart(df_visualizacao)
+        # Usar df_budget_vol_filtrado_grafico se disponível (mesma variável usada no gráfico de volume por período)
+        df_budget_vol_para_grafico = df_budget_vol_filtrado_grafico if 'df_budget_vol_filtrado_grafico' in locals() else None
+        grafico_volume_veiculo = create_volume_veiculo_chart(df_visualizacao, df_budget_vol_para_grafico)
         if grafico_volume_veiculo is not None:
             st.altair_chart(grafico_volume_veiculo, use_container_width=True)
 
@@ -3893,75 +4051,16 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
     try:
         if (coluna not in df_data.columns or
                 'Oficina' not in df_data.columns):
+            if tipo_viz == "CPU (Custo por Unidade)":
+                st.sidebar.warning(f"⚠️ [DEBUG Oficina] Coluna '{coluna}' ou 'Oficina' não encontrada")
+                st.sidebar.info(f"⚠️ [DEBUG Oficina] Colunas disponíveis: {list(df_data.columns)[:10]}")
             return None
 
-        # Se for CPU e tiver coluna Veículo, agrupar por Oficina e Veículo
-        # IMPORTANTE: Sempre agrupar por Período+Ano primeiro, depois por Oficina+Veículo
+        # 🔧 CORREÇÃO: No modo CPU, sempre agrupar apenas por Oficina (sem Veículo) para padronizar com Custo Total
+        # Removido o bloco que agrupava por Veículo - agora sempre usa a lógica do bloco "else" abaixo
         if (tipo_viz == "CPU (Custo por Unidade)" and
                 'Veículo' in df_data.columns and
-                'Total' in df_data.columns and 'Volume' in df_data.columns):
-            # Verificar se há múltiplos anos
-            tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
-            
-            if tem_multiplos_anos and 'Período' in df_data.columns:
-                # Agrupar por Oficina, Veículo, Período E Ano, somar Total e Volume, calcular CPU
-                df_agrupado_periodo = df_data.groupby(['Oficina', 'Veículo', 'Período', 'Ano']).agg({
-                    'Total': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-                # Recalcular CPU por Período+Ano
-                df_agrupado_periodo['CPU_temp'] = df_agrupado_periodo.apply(
-                    lambda row: (
-                        row['Total'] / row['Volume']
-                        if pd.notnull(row['Volume']) and row['Volume'] != 0
-                        else 0
-                    ),
-                    axis=1
-                )
-                # Agora agrupar por Oficina e Veículo, somar Total e Volume de todos os períodos
-                chart_data = df_agrupado_periodo.groupby(['Oficina', 'Veículo']).agg({
-                    'Total': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-            elif 'Período' in df_data.columns:
-                # Agrupar por Oficina, Veículo e Período, somar Total e Volume, calcular CPU
-                df_agrupado_periodo = df_data.groupby(['Oficina', 'Veículo', 'Período']).agg({
-                    'Total': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-                # Recalcular CPU por Período
-                df_agrupado_periodo['CPU_temp'] = df_agrupado_periodo.apply(
-                    lambda row: (
-                        row['Total'] / row['Volume']
-                        if pd.notnull(row['Volume']) and row['Volume'] != 0
-                        else 0
-                    ),
-                    axis=1
-                )
-                # Agora agrupar por Oficina e Veículo, somar Total e Volume de todos os períodos
-                chart_data = df_agrupado_periodo.groupby(['Oficina', 'Veículo']).agg({
-                    'Total': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-            else:
-                # Se não tiver Período, agrupar apenas por Oficina e Veículo
-                chart_data = df_data.groupby(['Oficina', 'Veículo']).agg({
-                    'Total': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-            
-            # Recalcular CPU final (Total agregado / Volume agregado)
-            chart_data[coluna] = chart_data.apply(
-                lambda row: (
-                    row['Total'] / row['Volume']
-                    if pd.notnull(row['Volume']) and row['Volume'] != 0
-                    else 0
-                ),
-                axis=1
-            )
-            chart_data = chart_data[['Oficina', 'Veículo', coluna]]
-        elif (tipo_viz == "CPU (Custo por Unidade)" and
-                'Veículo' in df_data.columns):
+                'Total' not in df_data.columns):
             chart_data = df_data.groupby(
                 ['Oficina', 'Veículo'], as_index=False
             )[coluna].sum()
@@ -4074,7 +4173,28 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 )
                 chart_data = chart_data[['Oficina', coluna]]
             else:
+                # Caminho quando não tem Total/Volume ou não tem Veículo
+                st.sidebar.info(f"🔍 [DEBUG Oficina] Entrou no caminho sem Total/Volume ou sem Veículo")
                 chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
+            
+            # Validar se chart_data tem dados
+            if chart_data is None or chart_data.empty:
+                if tipo_viz == "CPU (Custo por Unidade)":
+                    st.sidebar.error(f"❌ [DEBUG Oficina] chart_data está vazio após processamento")
+                return None
+            
+            # Validar se a coluna tem valores válidos
+            if coluna not in chart_data.columns:
+                if tipo_viz == "CPU (Custo por Unidade)":
+                    st.sidebar.error(f"❌ [DEBUG Oficina] Coluna '{coluna}' não está em chart_data")
+                    st.sidebar.error(f"❌ [DEBUG Oficina] Colunas em chart_data: {list(chart_data.columns)}")
+                return None
+            
+            if tipo_viz == "CPU (Custo por Unidade)":
+                st.sidebar.info(f"🔍 [DEBUG Oficina] chart_data criado com {len(chart_data)} linhas")
+                if len(chart_data) > 0:
+                    st.sidebar.info(f"🔍 [DEBUG Oficina] Oficinas: {chart_data['Oficina'].unique().tolist()[:5]}")
+            
             chart_data = chart_data.sort_values(coluna, ascending=False)
             
             # Determinar ordem das oficinas (usar a mesma ordem para barras e linha)
@@ -4620,8 +4740,19 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
             else:
                 grafico_final = grafico_barras + rotulos
             
+            # 🔧 DEBUG: Verificar se gráfico_final foi criado
+            if tipo_viz == "CPU (Custo por Unidade)":
+                if grafico_final is None:
+                    st.sidebar.error(f"❌ [DEBUG Oficina] grafico_final é None antes de retornar!")
+                else:
+                    st.sidebar.success(f"✅ [DEBUG Oficina] grafico_final criado com sucesso!")
+            
             return grafico_final
     except Exception as e:
+        if tipo_viz == "CPU (Custo por Unidade)":
+            st.sidebar.error(f"❌ [DEBUG Oficina] Exceção capturada: {e}")
+            import traceback
+            st.sidebar.error(traceback.format_exc())
         st.error(f"Erro ao criar gráfico: {e}")
         return None
 
@@ -5489,22 +5620,31 @@ with tab3:
     # Exibir gráfico por Oficina
     if ('Oficina' in df_visualizacao.columns and
             coluna_visualizacao in df_visualizacao.columns):
-        if tipo_visualizacao == "CPU (Custo por Unidade)":
-            st.subheader("📊 CPU por Oficina")
-        else:
+        # Título para ambos os modos
+        if tipo_visualizacao == "Custo Total":
             st.subheader("📊 Soma do Valor por Oficina")
-        grafico_oficina = create_oficina_chart(
-            df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
-            df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
-        )
-        if grafico_oficina:
-            st.altair_chart(grafico_oficina, use_container_width=True)
+        elif tipo_visualizacao == "CPU (Custo por Unidade)":
+            st.subheader("📊 CPU por Oficina")
+        try:
+            grafico_oficina = create_oficina_chart(
+                df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
+                df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
+            )
+            if grafico_oficina:
+                st.altair_chart(grafico_oficina, use_container_width=True)
+            else:
+                # Debug: verificar por que o gráfico não está sendo criado
+                st.warning(f"⚠️ O gráfico de Oficina não pôde ser criado. Verifique se há dados de Oficina disponíveis e se a coluna '{coluna_visualizacao}' contém valores válidos.")
+        except Exception as e:
+            import traceback
+            st.error(f"❌ Erro ao criar gráfico de Oficina: {e}")
+            st.error(traceback.format_exc())
     
     # Exibir gráfico de Total/CPU por Veículo
     if 'Veículo' in df_visualizacao.columns:
         if tipo_visualizacao == "CPU (Custo por Unidade)":
             if coluna_visualizacao in df_visualizacao.columns:
-                st.subheader("📊 CPU por Veículo")
+                st.subheader("📊 Total por Veículo")
                 grafico_total = create_total_chart(
                     df_visualizacao, coluna_visualizacao, tipo_visualizacao, moeda_simbolo,
                     df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3
