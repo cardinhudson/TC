@@ -70,6 +70,19 @@ st.markdown("""
             padding-left: 0.2rem !important;
             padding-right: 0.2rem !important;
         }
+        /* Eliminar espaçamento nas colunas de moeda - SEM interferir nos cliques */
+        div[data-testid="column"]:has(div[data-testid="stRadio"][key="moeda_selecionada_radio"]) {
+            padding-left: 0 !important;
+            padding-right: 0.05rem !important;
+            margin: 0 !important;
+            pointer-events: auto !important;
+        }
+        div[data-testid="column"]:has(#flag-brl):not(:has(#flag-usd)):not(:has(#flag-eur)) {
+            padding-left: 0.05rem !important;
+            padding-right: 0 !important;
+            margin: 0 !important;
+            pointer-events: auto !important;
+        }
         /* Garantir que os radio buttons fiquem compactos */
         div[data-testid="stRadio"] {
             margin-bottom: 0 !important;
@@ -130,6 +143,24 @@ st.markdown("""
         div[data-testid="stColumn"] {
             overflow: visible !important;
         }
+        /* REMOVER qualquer interferência nos radio buttons de moeda */
+        div[data-testid="stRadio"][key="moeda_selecionada_radio"] {
+            overflow: visible !important;
+            pointer-events: auto !important;
+        }
+        div[data-testid="stRadio"][key="moeda_selecionada_radio"] * {
+            pointer-events: auto !important;
+        }
+        div[data-testid="stRadio"][key="moeda_selecionada_radio"] input[type="radio"] {
+            pointer-events: auto !important;
+            cursor: pointer !important;
+            z-index: 999 !important;
+            position: relative !important;
+        }
+        div[data-testid="stRadio"][key="moeda_selecionada_radio"] label {
+            pointer-events: auto !important;
+            cursor: pointer !important;
+        }
         /* Ocultar botões de moeda ocultos */
         button[key="btn_brl_hidden"],
         button[key="btn_usd_hidden"],
@@ -165,7 +196,142 @@ st.markdown("""
             margin: 0 !important;
             padding: 0 !important;
         }
+        /* Container fixo para as bandeiras no topo direito */
+        #flags-container-top {{
+            position: fixed !important;
+            top: 1rem !important;
+            right: 1rem !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 0.5rem !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: rgba(14, 17, 23, 0.95) !important;
+            padding: 0.5rem !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            pointer-events: auto !important;
+        }}
+        /* Garantir que as bandeiras fiquem em linha horizontal */
+        #flags-container-top > div {{
+            display: inline-block !important;
+            flex-shrink: 0 !important;
+        }}
+        /* Ocultar qualquer texto que possa aparecer */
+        #flags-container-top p,
+        #flags-container-top span,
+        #flags-container-top::before,
+        #flags-container-top::after {{
+            display: none !important;
+        }}
+        /* Ocultar texto do Streamlit ao redor do container */
+        div:has(#flags-container-top) p,
+        div:has(#flags-container-top) > *:not(#flags-container-top) {{
+            display: none !important;
+        }}
+        /* Garantir que o container pai não adicione texto */
+        [data-testid="stMarkdownContainer"]:has(#flags-container-top) > *:not(#flags-container-top) {{
+            display: none !important;
+        }}
+        /* Ocultar qualquer código JavaScript que apareça como texto */
+        div:has(#flags-container-top) + *,
+        div:has(#flags-container-top) ~ * {{
+            display: none !important;
+        }}
+        /* Ocultar texto JavaScript específico */
+        *:not(script):not(style) {{
+            font-size: inherit !important;
+        }}
+        /* Ocultar elementos com texto JavaScript - REGRAS MAIS AGRESSIVAS */
+        p:contains('}}'),
+        span:contains('}}'),
+        div:contains('}}'),
+        *:not(script):not(style):not(#flags-container-top) {{
+            font-size: inherit !important;
+        }}
+        /* Ocultar qualquer elemento que contenha apenas texto JavaScript */
+        body *:not(script):not(style):not(#flags-container-top):not([data-testid]):not(input):not(button):not(select):not(textarea):not(img):not(svg) {{
+            font-size: inherit !important;
+        }}
+        /* Ocultar texto específico "})();" - mas NÃO interferir nos radio buttons */
+        body *:not(script):not(style):not(#flags-container-top):not([data-testid="stRadio"]):not([data-testid="stRadio"] *) {{
+            position: relative !important;
+        }}
+        body *:not(script):not(style):not(#flags-container-top)::before,
+        body *:not(script):not(style):not(#flags-container-top)::after {{
+            content: none !important;
+        }}
+        /* REMOVER qualquer interferência - deixar Streamlit gerenciar normalmente */
+        div[data-testid="stRadio"][key="moeda_selecionada_radio"] {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
 """, unsafe_allow_html=True)
+
+# Inicializar estado se não existir
+if 'moeda_selecionada' not in st.session_state:
+    st.session_state.moeda_selecionada = "🇧🇷 R$"
+
+# URLs das bandeiras
+bandeira_brasil_url = "https://flagcdn.com/br.svg"
+bandeira_eua_url = "https://flagcdn.com/us.svg"
+bandeira_europa_url = "https://flagcdn.com/eu.svg"
+
+# Seleção de moeda com bandeiras ao lado (sem botões, apenas visual)
+col_moeda1, col_moeda2 = st.columns([3, 1])
+
+with col_moeda1:
+    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
+    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
+    
+    # SEMPRE usar o valor mais atual do session_state para calcular o índice
+    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
+    
+    # Função callback para garantir sincronização imediata
+    def atualizar_moeda():
+        # O valor já está em st.session_state.moeda_selecionada_radio após o clique
+        st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
+    
+    moeda_selecionada = st.radio(
+        "",
+        opcoes_moeda,
+        index=index_moeda,
+        horizontal=True,
+        help="Selecione a moeda para exibição nos gráficos",
+        key="moeda_selecionada_radio",
+        label_visibility="visible",
+        on_change=atualizar_moeda
+    )
+    
+    # Garantir que o estado esteja sincronizado (backup caso on_change não funcione)
+    if st.session_state.moeda_selecionada != moeda_selecionada:
+        st.session_state.moeda_selecionada = moeda_selecionada
+
+# Obter moeda atual do session_state (sempre atualizado)
+moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
+flag_selecionada_usd = moeda_atual == '🇺🇸 $'
+flag_selecionada_eur = moeda_atual == '🇪🇺 €'
+
+with col_moeda2:
+    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
+    st.markdown(f"""
+    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
+            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
+        </div>
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
+            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
+        </div>
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
+            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Seletores no topo da página (layout horizontal compacto - mesma linha)
 col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
@@ -192,153 +358,17 @@ with col_fator:
     else:
         fator_conversao = None
 
-# Seletor de moeda em linha separada
-st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
+# Obter a moeda selecionada do session state (já está atualizado acima)
+moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
 
-# URLs das bandeiras do IBGE (Atlas Geográfico Escolar)
-# Usando URLs de serviços confiáveis de bandeiras baseadas nas especificações oficiais
-# Brasil: https://atlasescolar.ibge.gov.br/bandeiras-dos-paises.html -> Brasil
-# EUA: https://atlasescolar.ibge.gov.br/bandeiras-dos-paises.html -> Estados Unidos da América
-# Europa: Bandeira da União Europeia
-
-# URLs de bandeiras em SVG (mais leve e escalável)
-# Usando flagcdn.com que fornece bandeiras oficiais em SVG
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-# Alternativa: URLs do IBGE se disponíveis (pode precisar ajustar)
-# bandeira_brasil_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/brasil.svg"
-# bandeira_eua_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/estados-unidos.svg"
-# bandeira_europa_url = "https://atlasescolar.ibge.gov.br/images/bandeiras/uniao-europeia.svg"
-
-# Inicializar estado se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "BRL"
-
-# Criar seletor de moeda com bandeiras usando HTML customizado
-st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-
-moeda_atual = st.session_state.get('moeda_selecionada', 'BRL')
-
-# HTML com bandeiras clicáveis que atualizam via botões ocultos do Streamlit
-currency_html = f"""
-<div style="margin-bottom: 1rem;">
-    <style>
-        .currency-wrapper {{
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }}
-        .currency-option {{
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 8px;
-            border: 2px solid transparent;
-            transition: all 0.2s ease;
-        }}
-        .currency-option:hover {{
-            background-color: rgba(255, 255, 255, 0.05);
-            transform: scale(1.05);
-        }}
-        .currency-option.selected {{
-            border-color: #ff4b4b;
-            background-color: rgba(255, 75, 75, 0.1);
-        }}
-        .radio-dot {{
-            width: 18px;
-            height: 18px;
-            border: 2px solid #999;
-            border-radius: 50%;
-            position: relative;
-            flex-shrink: 0;
-        }}
-        .currency-option.selected .radio-dot {{
-            border-color: #ff4b4b;
-            background-color: #ff4b4b;
-        }}
-        .currency-option.selected .radio-dot::after {{
-            content: '';
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }}
-        .flag-img {{
-            width: 45px;
-            height: 32px;
-            object-fit: cover;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }}
-        .currency-option.selected .flag-img {{
-            border-color: #ff4b4b;
-            box-shadow: 0 0 8px rgba(255, 75, 75, 0.4);
-        }}
-    </style>
-    <div class="currency-wrapper">
-        <div class="currency-option {'selected' if moeda_atual == 'BRL' else ''}" 
-             onclick="document.getElementById('btn_brl_hidden').click()" 
-             title="Real Brasileiro (R$)">
-            <div class="radio-dot"></div>
-            <img src="{bandeira_brasil_url}" class="flag-img" alt="Brasil">
-        </div>
-        <div class="currency-option {'selected' if moeda_atual == 'USD' else ''}" 
-             onclick="document.getElementById('btn_usd_hidden').click()" 
-             title="Dólar Americano ($)">
-            <div class="radio-dot"></div>
-            <img src="{bandeira_eua_url}" class="flag-img" alt="EUA">
-        </div>
-        <div class="currency-option {'selected' if moeda_atual == 'EUR' else ''}" 
-             onclick="document.getElementById('btn_eur_hidden').click()" 
-             title="Euro (€)">
-            <div class="radio-dot"></div>
-            <img src="{bandeira_europa_url}" class="flag-img" alt="Europa">
-        </div>
-    </div>
-</div>
-"""
-
-st.markdown(currency_html, unsafe_allow_html=True)
-
-# Criar botões ocultos em colunas que correspondem às posições das bandeiras
-# Usar colunas para alinhar cada botão abaixo de sua bandeira correspondente
-col_btn_brl, col_btn_usd, col_btn_eur = st.columns(3)
-
-with col_btn_brl:
-    if st.button("", key="btn_brl_hidden", help="", use_container_width=False):
-        st.session_state.moeda_selecionada = "BRL"
-        st.rerun()
-
-with col_btn_usd:
-    if st.button("", key="btn_usd_hidden", help="", use_container_width=False):
-        st.session_state.moeda_selecionada = "USD"
-        st.rerun()
-
-with col_btn_eur:
-    if st.button("", key="btn_eur_hidden", help="", use_container_width=False):
-        st.session_state.moeda_selecionada = "EUR"
-        st.rerun()
-
-
-# Obter a moeda selecionada do session state
-moeda_selecionada = st.session_state.get('moeda_selecionada', 'BRL')
-
-# Extrair código da moeda (agora vem direto do radio button como "BRL", "USD" ou "EUR")
-if moeda_selecionada == "BRL":
+# Extrair código e símbolo da moeda
+if moeda_selecionada == "🇧🇷 R$":
     moeda_codigo = "BRL"
     moeda_simbolo = "R$"
-elif moeda_selecionada == "USD":
+elif moeda_selecionada == "🇺🇸 $":
     moeda_codigo = "USD"
     moeda_simbolo = "$"
-elif moeda_selecionada == "EUR":
+elif moeda_selecionada == "🇪🇺 €":
     moeda_codigo = "EUR"
     moeda_simbolo = "€"
 else:
@@ -4463,7 +4493,7 @@ with tab2:
                 # Se "Todos" estiver selecionado, usar todas as opções disponíveis no filtro
                 if "Todos" in oficina_selecionadas_sidebar or not oficina_selecionadas_sidebar:
                     # Filtrar apenas pelas oficinas que estão nas opções do filtro (não incluir oficinas que não estão no filtro)
-                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado = df_vol_filtrado[
                         df_vol_filtrado['Oficina'].astype(str).isin(oficina_opcoes_disponiveis)
                     ].copy()
                 else:
@@ -4565,7 +4595,7 @@ with tab2:
                     # Se "Todos" estiver selecionado, usar todas as opções disponíveis no filtro
                     if "Todos" in oficina_selecionadas_sidebar or not oficina_selecionadas_sidebar:
                         # Filtrar apenas pelas oficinas que estão nas opções do filtro (não incluir oficinas que não estão no filtro)
-                        df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
+                            df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
                             df_budget_vol_filtrado_grafico['Oficina'].astype(str).isin(oficina_opcoes_disponiveis)
                         ].copy()
                     else:
@@ -4574,7 +4604,7 @@ with tab2:
                         oficinas_validas = [o for o in oficina_selecionadas_sidebar if o in oficina_opcoes_disponiveis]
                         df_budget_vol_filtrado_grafico = df_budget_vol_filtrado_grafico[
                             df_budget_vol_filtrado_grafico['Oficina'].astype(str).isin(oficinas_validas)
-                        ].copy()
+                            ].copy()
                 
                 # Filtro 2: Veículo
                 if 'Veículo' in df_budget_vol_filtrado_grafico.columns:
