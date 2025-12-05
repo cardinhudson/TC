@@ -1,12 +1,12 @@
-Processamento de Dados BUD - Ano 2025
+Processamento de Dados BUD - Ano 2024
 ==================================================
-Data/Hora: 2025-12-05 11:39:39
+Data/Hora: 2025-12-05 11:40:19
 Arquivos processados:
   - KE5Z_veiculos.xlsx
   - Dados SAPIENS.xlsx
   - Reporting fluxo anexo.xlsx
 
-Processamento concluído: 2025-12-05 11:39:39
+Processamento concluído: 2025-12-05 11:40:19
 Arquivos gerados (BUD):
   - df_final_BUD.parquet (42,336 linhas)
   - df_vol_BUD.parquet (396 linhas)
