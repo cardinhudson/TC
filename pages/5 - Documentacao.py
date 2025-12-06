@@ -68,9 +68,8 @@ with tab_tecnica:
         
         ```
         C:\GIT\TC\
-        ├── app.py                                    # Aplicação principal (página inicial)
+        ├── app.py                                    # Aplicação principal - Dashboard TC Ext (7.590 linhas)
         ├── pages\
-        │   ├── 1 - TC_Ext.py                        # Dashboard TC Ext (5.216 linhas)
         │   ├── 2 - Simulador Forecast.py            # Simulador de forecast (3.973 linhas)
         │   ├── 3 - Forecast.py                      # Sistema de forecast (7.389 linhas)
         │   ├── 4 - Waterfall_Analysis.py             # Análise waterfall (1.345 linhas)
@@ -219,7 +218,7 @@ with tab_tecnica:
     with col1:
         with st.expander("📊 **DASHBOARDS INTERATIVOS**", expanded=True):
             st.markdown("""
-                ### 📊 TC Ext (1 - TC_Ext.py)
+                ### 📊 TC Ext (app.py)
                 - **Análise histórica** de custos com comparação Budget
                 - **Cálculo Flex Bud** ajustado por volume e sensibilidade
                 - **Gráfico Delta** mostrando diferença Real vs Flex Bud
@@ -229,7 +228,7 @@ with tab_tecnica:
                 - **Barra de progresso HTML** para Total / Flex Bud
                 - **Performance otimizada** com cache e vetorização
                 
-                ### 📈 Volume (1 - TC_Ext.py - Tab Volume)
+                ### 📈 Volume (app.py - Tab Volume)
                 - **Gráfico de volume** por período com gradiente verde
                 - **Comparação** Volume Real vs Volume Budget
                 - **Gráfico por veículo** com barras horizontais
@@ -336,8 +335,7 @@ with tab_tecnica:
         with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
                 st.markdown("""
                 **📄 Páginas Disponíveis:**
-                - `app.py` - Página inicial (1.093 linhas)
-                - `1 - TC_Ext.py` - Dashboard principal (5.216 linhas)
+                - `app.py` - Dashboard principal TC Ext (7.590 linhas)
                 - `2 - Simulador Forecast.py` - Simulação (3.973 linhas)
                 - `3 - Forecast.py` - Visualização (7.389 linhas)
                 - `4 - Waterfall_Analysis.py` - Análise (1.345 linhas)
@@ -371,11 +369,10 @@ with tab_tecnica:
                 ### 📝 Estatísticas de Código
                 
                 **🎯 Principais Arquivos:**
-                - **1 - TC_Ext.py:** 5.216 linhas (Dashboard principal)
+                - **app.py:** 7.590 linhas (Dashboard principal TC Ext)
                 - **3 - Forecast.py:** 7.389 linhas (Sistema forecast)
                 - **2 - Simulador Forecast.py:** 3.973 linhas (Simulação)
                 - **4 - Waterfall_Analysis.py:** 1.345 linhas (Análise)
-                - **app.py:** 1.093 linhas (Página inicial)
                 
                 **📊 Total Estimado:** ~18.000+ linhas de código
                 
@@ -482,7 +479,7 @@ with tab_tecnica:
     
     st.markdown("---")
     
-    st.subheader("📊 Página 1 - TC Ext: Estrutura Técnica")
+    st.subheader("📊 Dashboard TC Ext (app.py): Estrutura Técnica")
     
     st.markdown("""
         ### Organização com Tabs
@@ -882,8 +879,7 @@ with tab_tecnica:
         
         # Sub-seções para cada página
         page_tabs = st.tabs([
-            "🏠 Página Inicial",
-            "📊 TC Ext",
+            "🏠 Dashboard TC Ext (app.py)",
             "🔮 Simulador Forecast",
             "📉 Forecast",
             "🌊 Waterfall"
@@ -892,57 +888,32 @@ with tab_tecnica:
         # Página Inicial
         with page_tabs[0]:
             st.markdown("""
-            ### Página Inicial (app.py)
+            ### Página Inicial - Dashboard TC Ext (app.py)
             
-            **Arquivo**: `app.py` (1.093 linhas)
+            **Arquivo**: `app.py` (7.590 linhas)
             
             **Principais Funções:**
             - `listar_anos_disponiveis()`: Lista anos nas pastas de dados
             - `encontrar_arquivo_parquet()`: Busca arquivos na ordem de prioridade
             - `load_data()`: Carrega dados históricos com cache
             - `load_volume_data()`: Carrega volumes com cache
+            - `load_budget_data()`: Carrega dados de budget
             - `get_filter_options()`: Opções de filtro com cache
             
             **Características:**
             - Ponto de entrada do sistema
-            - Filtros na sidebar (Ano, Oficina, USI, Período)
-            - Visualização de dados agrupados
-            - Gráficos de visão geral
-            - Navegação para outras páginas
+            - Dashboard completo com análise detalhada
+            - Filtros avançados na sidebar (Ano, Oficina, USI, Período, Veículo, etc.)
+            - Visualização de dados agrupados por múltiplas dimensões
+            - Gráficos interativos (Período, Oficina, Veículo, Volume)
+            - Suporte a múltiplas moedas (BRL, USD, EUR)
+            - Cálculo de CPU (Custo por Unidade)
+            - Tabelas dinâmicas e exportação para Excel
             
             **Estrutura de Dados:**
-            - Prioridade 1: `dados/historico_consolidado/df_ke5z_historico.parquet`
-            - Prioridade 2: `dados/{ANO}/df_ke5z_group.parquet`
+            - Prioridade 1: `dados/historico_consolidado/df_final_historico.parquet`
+            - Prioridade 2: `dados/{ANO}/df_final.parquet`
             - Prioridade 3: Raiz do projeto (compatibilidade)
-            """)
-        
-        # TC Ext
-        with page_tabs[1]:
-            st.markdown("""
-            ### Página 1 - TC Ext
-            
-            **Arquivo**: `pages/1 - TC_Ext.py` (5.216 linhas)
-            
-            **Principais Funções:**
-            - `load_data()`: Carrega dados históricos
-            - `load_volume_data()`: Carrega volumes
-            - `load_budget_data()`: Carrega budget
-            - `create_period_chart()`: Gráfico principal com delta
-            - `create_volume_chart()`: Gráfico de volume
-            - `calcular_flex_budget()`: Calcula Flex Bud
-            - `calcular_tabela_flex_bud()`: Tabela hierárquica
-            - `formatar_ratio_com_barra()`: Barra de progresso HTML
-            - `criar_tabela_html_com_barra()`: Tabela HTML customizada
-            
-            **Estrutura com Tabs:**
-            ```python
-            tab1, tab2, tab3, tab4 = st.tabs([
-                "📊 TC Ext", 
-                "📈 Volume", 
-                "🚗 TC Ext por Veíc", 
-                "📋 Detalhe Real"
-            ])
-            ```
             """)
         
         # Simulador Forecast
@@ -1192,64 +1163,75 @@ with tab_teorica:
     
     # Sub-tabs para organização teórica
     sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6 = st.tabs([
-        "🏠 Página Inicial (app.py)",
-        "📊 Página 1 - TC Ext",
+        "🏠 Dashboard TC Ext (app.py)",
         "🔮 Página 2 - Simulador Forecast",
         "📉 Página 3 - Forecast",
         "🌊 Página 4 - Waterfall Analysis",
-        "📈 Cálculos e Fórmulas"
+        "📈 Cálculos e Fórmulas",
+        "📚 Estrutura do Sistema"
     ])
     
-    # SUB-TAB 1: Página Inicial
+    # SUB-TAB 1: Dashboard TC Ext
     with sub_tab1:
-        st.subheader("🏠 Página Inicial (app.py) - O que Mostra")
+        st.subheader("🏠 Dashboard TC Ext (app.py) - O que Mostra")
     
     st.markdown("""
         ### Visão Geral
         
-        A página inicial (`app.py`) é o ponto de entrada do sistema, fornecendo uma visão geral
-        e navegação para todas as funcionalidades disponíveis.
+        O Dashboard TC Ext (`app.py`) é o ponto de entrada do sistema, fornecendo uma análise completa
+        e detalhada dos dados de custos e volumes, com visualizações interativas e filtros avançados.
         
         ### Funcionalidades Principais
         
         **Título e Descrição:**
-        - Título: "📊 Dashboard TC - KE5Z Group"
+        - Título: "📊 Dashboard TC Ext - df_final"
         - Subtítulo: "Análise de dados agrupados por Oficina e Período"
         
-        **Navegação:**
-        - Links para todas as páginas do sistema
-        - Menu lateral com opções de navegação
-        - Acesso rápido às principais funcionalidades
+        **Filtros Avançados:**
+        - Seleção de ano (Todos ou específico)
+        - Filtros por Oficina, USI, Período, Centro CST
+        - Filtros por Conta Contábil, Type 05/06, Fornecedor
+        - Filtros avançados (Usuário, Material, Data Lançamento, etc.)
+        - Seleção de moeda (BRL, USD, EUR) com taxas configuráveis
         
-        **Visualizações Iniciais:**
-        - Resumo geral dos dados
-        - Gráficos de visão geral (se aplicável)
-        - Métricas principais
+        **Visualizações:**
+        - Gráficos por Período (com suporte a múltiplos anos)
+        - Gráficos por Oficina
+        - Gráficos por Veículo
+        - Gráficos de Volume
+        - Tabelas dinâmicas interativas
+        - Modo CPU (Custo por Unidade) ou Custo Total
+        
+        **Exportação:**
+        - Download de tabelas em Excel
+        - Exportação de dados filtrados
         
         ### Estrutura Técnica
         
-        - **Arquivo**: `app.py`
+        - **Arquivo**: `app.py` (7.590 linhas)
         - **Layout**: Wide
         - **Sidebar**: Expanded por padrão
-        - **CSS**: Títulos reduzidos em 20%
+        - **CSS**: Títulos reduzidos em 20%, estilos customizados
         
         ### Dados Utilizados
         
-        - Carrega dados do histórico consolidado
-        - Suporta filtros por ano
+        - Carrega dados do histórico consolidado (`df_final_historico.parquet`)
+        - Suporta dados por ano específico (`df_final.parquet`)
+        - Suporta dados de budget (`df_final_historico_BUD.parquet`)
+        - Carrega volumes separadamente para cálculo de CPU
         - Exibe resumo estatístico
     """)
     
     st.markdown("---")
     
-    # SUB-TAB 2: Página TC Ext
+    # SUB-TAB 2: Detalhes do Dashboard TC Ext
     with sub_tab2:
-        st.subheader("📊 Página 1 - TC Ext - O que Mostra")
+        st.subheader("📊 Dashboard TC Ext - Detalhes Funcionais")
         
         st.markdown("""
         ### Visão Geral
         
-        A página **TC Ext** é um dashboard completo para visualização e análise de dados históricos
+        O **Dashboard TC Ext** (app.py) é um dashboard completo para visualização e análise de dados históricos
         de custos, com comparação com budget e cálculo de Flex Bud (budget flexível ajustado por volume).
         
         ### Organização em Tabs
@@ -1848,7 +1830,7 @@ with tab_teorica:
         
         with col1:
             st.markdown("""
-            ### 📊 Página 1 - TC Ext
+            ### 📊 Dashboard TC Ext (app.py)
             
             **Objetivo:** Visualização e análise de dados históricos
             
