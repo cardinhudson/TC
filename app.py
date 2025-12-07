@@ -9,7 +9,7 @@ from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
-    page_title="Dashboard TC Ext - df_final",
+    page_title="Dashboard TC Extendido Porto Real",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -269,7 +269,99 @@ st.markdown("""
             padding-top: 0 !important;
             padding-bottom: 0 !important;
         }
+        /* Padronizar campos de entrada de taxas - reduzir tamanho e evitar quebra */
+        div[data-testid="stNumberInput"] label {
+            font-size: 0.7rem !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow: visible !important;
+            max-width: none !important;
+            width: auto !important;
+        }
+        div[data-testid="stNumberInput"] label p {
+            font-size: 0.7rem !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+            max-width: none !important;
+            width: auto !important;
+            overflow: visible !important;
+            display: inline-block !important;
+        }
+        /* Garantir que R$ não seja quebrado - forçar renderização completa */
+        div[data-testid="stNumberInput"] label p {
+            letter-spacing: 0 !important;
+            word-spacing: normal !important;
+        }
+        /* CSS específico para garantir que o $ não seja cortado */
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label,
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label {
+            font-size: 0.7rem !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow: visible !important;
+            width: auto !important;
+            max-width: none !important;
+        }
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label p,
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label p {
+            font-size: 0.7rem !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            width: auto !important;
+            min-width: fit-content !important;
+            max-width: none !important;
+        }
+        /* Garantir que o container não corte o texto */
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"],
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] {
+            overflow: visible !important;
+        }
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] > div,
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] > div {
+            overflow: visible !important;
+        }
+        /* Forçar que o label completo seja visível */
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] > div > label,
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] > div > label {
+            overflow: visible !important;
+            width: auto !important;
+            max-width: none !important;
+        }
+        /* Garantir que nenhum elemento corte o texto R$ */
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] *,
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] * {
+            overflow: visible !important;
+        }
+        /* Específico para garantir que o parágrafo com R$ seja completo */
+        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label p:contains("R$"),
+        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label p:contains("R$") {
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }
+        /* Padronizar tamanho de texto dos radio buttons de Tipo e Fator */
+        div[data-testid="stRadio"][key="tipo_visualizacao_top"] label,
+        div[data-testid="stRadio"][key="fator_conversao_top"] label {
+            font-size: 0.7rem !important;
+        }
+        div[data-testid="stRadio"][key="tipo_visualizacao_top"] label p,
+        div[data-testid="stRadio"][key="fator_conversao_top"] label p {
+            font-size: 0.7rem !important;
+            line-height: 1.2 !important;
+        }
 """, unsafe_allow_html=True)
+
+# Título - Movido para o topo da página
+st.title("🏭 Dashboard TC Extendido Porto Real")
+st.subheader("Análise de dados agrupados por Oficina e Período")
+
+st.markdown("---")
 
 # Inicializar estado se não existir
 if 'moeda_selecionada' not in st.session_state:
@@ -455,30 +547,37 @@ taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
 st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
 
 # Criar colunas para as taxas
-col_taxa1, col_taxa2 = st.columns(2, gap="small")
+# Criar colunas para as taxas (ajustar proporção para evitar corte de texto)
+col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
 
 with col_taxa1:
+    # Usar markdown para o label e campo sem label para evitar corte
+    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
     taxa_usd_para_brl = st.number_input(
-        "🇺🇸 1 $ (USD) = R$",
+        "",
         min_value=0.01,
         max_value=100.0,
         value=float(taxa_usd_para_brl_padrao),
         step=0.01,
         format="%.2f",
         help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
-        key="taxa_usd_para_brl_input"
+        key="taxa_usd_para_brl_input",
+        label_visibility="collapsed"
     )
 
 with col_taxa2:
+    # Usar markdown para o label e campo sem label para evitar corte
+    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
     taxa_eur_para_brl = st.number_input(
-        "🇪🇺 1 € (EUR) = R$",
+        "",
         min_value=0.01,
         max_value=100.0,
         value=float(taxa_eur_para_brl_padrao),
         step=0.01,
         format="%.2f",
         help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
-        key="taxa_eur_para_brl_input"
+        key="taxa_eur_para_brl_input",
+        label_visibility="collapsed"
     )
 
 # Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
@@ -535,7 +634,7 @@ with col_fator:
         fator_conversao = st.radio(
             "🔢 **Fator:**",
             ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=0,
+            index=1,
             horizontal=True,
             help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
             key="fator_conversao_top"
@@ -560,12 +659,6 @@ else:
     # Fallback
     moeda_codigo = "BRL"
     moeda_simbolo = "R$"
-
-st.markdown("---")
-
-# Título
-st.title("📊 Dashboard TC Ext - df_final")
-st.subheader("Análise de dados agrupados por Oficina e Período")
 
 st.markdown("---")
 
@@ -7583,4 +7676,4 @@ with tab4:
 
 # Footer
 st.markdown("---")
-st.info("💡 Dashboard TC Ext - df_final com visualizações interativas")
+st.info("💡 Dashboard TC Extendido Porto Real com visualizações interativas")

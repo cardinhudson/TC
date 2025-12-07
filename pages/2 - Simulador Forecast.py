@@ -49,6 +49,274 @@ st.subheader("Análise preditiva e previsões de custos e volumes")
 
 st.markdown("---")
 
+# ========== CABEÇALHO PADRONIZADO (Moeda, Bandeiras, Taxas, Tipo, Fator) ==========
+import sqlite3
+from datetime import datetime
+
+# Inicializar estado se não existir
+if 'moeda_selecionada' not in st.session_state:
+    st.session_state.moeda_selecionada = "🇧🇷 R$"
+if 'moeda_selecionada_radio' not in st.session_state:
+    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
+
+# URLs das bandeiras
+bandeira_brasil_url = "https://flagcdn.com/br.svg"
+bandeira_eua_url = "https://flagcdn.com/us.svg"
+bandeira_europa_url = "https://flagcdn.com/eu.svg"
+
+# Funções de banco de dados SQLite
+def inicializar_banco_taxas():
+    """Cria o banco de dados e tabela para taxas de câmbio se não existir"""
+    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
+    conn = sqlite3.connect(caminho_db)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS taxas_cambio (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            moeda TEXT NOT NULL,
+            taxa_para_brl REAL NOT NULL,
+            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(moeda)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def carregar_taxas_banco():
+    """Carrega as taxas de câmbio do banco de dados SQLite"""
+    inicializar_banco_taxas()
+    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
+    conn = sqlite3.connect(caminho_db)
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT moeda, taxa_para_brl FROM taxas_cambio ORDER BY data_atualizacao DESC')
+    resultados = cursor.fetchall()
+    conn.close()
+    
+    taxas = {}
+    for moeda, taxa in resultados:
+        taxas[moeda] = taxa
+    
+    # Valores padrão se não houver dados
+    if 'USD' not in taxas:
+        taxas['USD'] = 5.00
+    if 'EUR' not in taxas:
+        taxas['EUR'] = 5.50
+    
+    return taxas
+
+def salvar_taxas_banco(taxas):
+    """Salva as taxas de câmbio no banco de dados SQLite"""
+    inicializar_banco_taxas()
+    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
+    conn = sqlite3.connect(caminho_db)
+    cursor = conn.cursor()
+    
+    for moeda, taxa in taxas.items():
+        cursor.execute('''
+            INSERT OR REPLACE INTO taxas_cambio (moeda, taxa_para_brl, data_atualizacao)
+            VALUES (?, ?, ?)
+        ''', (moeda, float(taxa), datetime.now()))
+    
+    conn.commit()
+    conn.close()
+
+# Seleção de moeda com bandeiras ao lado
+col_moeda1, col_moeda2 = st.columns([3, 1])
+
+with col_moeda1:
+    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
+    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
+    
+    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
+    
+    def atualizar_moeda():
+        if 'moeda_selecionada_radio' in st.session_state:
+            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
+    
+    moeda_selecionada = st.radio(
+        "",
+        opcoes_moeda,
+        index=index_moeda,
+        horizontal=True,
+        help="Selecione a moeda para exibição nos gráficos",
+        key="moeda_selecionada_radio_forecast",
+        label_visibility="visible",
+        on_change=atualizar_moeda
+    )
+    
+    if st.session_state.moeda_selecionada != moeda_selecionada:
+        st.session_state.moeda_selecionada = moeda_selecionada
+
+# Obter moeda atual do session_state
+moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
+flag_selecionada_usd = moeda_atual == '🇺🇸 $'
+flag_selecionada_eur = moeda_atual == '🇪🇺 €'
+
+with col_moeda2:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
+            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
+        </div>
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
+            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
+        </div>
+        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
+            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Carregar taxas do banco de dados
+try:
+    taxas_cambio_banco = carregar_taxas_banco()
+except Exception as e:
+    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
+
+# Taxas de conversão
+taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
+taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
+
+# Seção de Taxas de Câmbio
+st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
+
+col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
+
+with col_taxa1:
+    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
+    taxa_usd_para_brl = st.number_input(
+        "",
+        min_value=0.01,
+        max_value=100.0,
+        value=float(taxa_usd_para_brl_padrao),
+        step=0.01,
+        format="%.2f",
+        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros",
+        key="taxa_usd_para_brl_input_forecast",
+        label_visibility="collapsed"
+    )
+
+with col_taxa2:
+    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
+    taxa_eur_para_brl = st.number_input(
+        "",
+        min_value=0.01,
+        max_value=100.0,
+        value=float(taxa_eur_para_brl_padrao),
+        step=0.01,
+        format="%.2f",
+        help="Digite quanto vale 1 Euro em Reais Brasileiros",
+        key="taxa_eur_para_brl_input_forecast",
+        label_visibility="collapsed"
+    )
+
+# Calcular taxas inversas
+taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
+taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
+
+# Salvar taxas quando alteradas
+taxa_usd_atual_key = "taxa_usd_atual_salva_forecast"
+taxa_eur_atual_key = "taxa_eur_atual_salva_forecast"
+
+taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
+                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
+taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
+                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
+
+if taxa_usd_mudou or taxa_eur_mudou:
+    novas_taxas = {
+        "USD": float(taxa_usd_para_brl),
+        "EUR": float(taxa_eur_para_brl)
+    }
+    try:
+        salvar_taxas_banco(novas_taxas)
+        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
+        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
+    except Exception as e:
+        st.error(f"❌ Erro ao salvar taxas: {e}")
+
+# Armazenar taxas em dicionário
+taxas_cambio = {
+    "BRL": 1.0,
+    "USD": taxa_brl_para_usd,
+    "EUR": taxa_brl_para_eur
+}
+
+# Seletores Tipo e Fator
+col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
+
+with col_tipo:
+    tipo_visualizacao = st.radio(
+        "📊 **Tipo:**",
+        ["Custo Total", "CPU (Custo por Unidade)"],
+        index=0,
+        horizontal=True,
+        key="tipo_visualizacao_top_forecast"
+    )
+
+with col_fator:
+    if tipo_visualizacao == "Custo Total":
+        fator_conversao = st.radio(
+            "🔢 **Fator:**",
+            ["Nenhum", "K (milhares)", "M (Milhões)"],
+            index=1,
+            horizontal=True,
+            help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
+            key="fator_conversao_top_forecast"
+        )
+    else:
+        fator_conversao = None
+
+# Obter código e símbolo da moeda
+moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+if moeda_selecionada == "🇧🇷 R$":
+    moeda_codigo = "BRL"
+    moeda_simbolo = "R$"
+elif moeda_selecionada == "🇺🇸 $":
+    moeda_codigo = "USD"
+    moeda_simbolo = "$"
+elif moeda_selecionada == "🇪🇺 €":
+    moeda_codigo = "EUR"
+    moeda_simbolo = "€"
+else:
+    moeda_codigo = "BRL"
+    moeda_simbolo = "R$"
+
+# Funções de conversão de moeda
+def converter_moeda(valor, moeda_destino, taxas):
+    """Converte valor de R$ (BRL) para a moeda de destino"""
+    if valor is None or pd.isna(valor):
+        return valor
+    if moeda_destino == "BRL":
+        return valor
+    taxa = taxas.get(moeda_destino, 1.0)
+    return valor * taxa
+
+def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
+    """Converte uma coluna inteira de R$ para outra moeda"""
+    if coluna not in df.columns:
+        return df
+    if moeda_destino == "BRL":
+        return df
+    df = df.copy()
+    df[coluna] = df[coluna].apply(lambda x: converter_moeda(x, moeda_destino, taxas))
+    return df
+
+def obter_simbolo_moeda(moeda_codigo):
+    """Retorna o símbolo da moeda"""
+    simbolos = {
+        "BRL": "R$",
+        "USD": "$",
+        "EUR": "€"
+    }
+    return simbolos.get(moeda_codigo, "R$")
+
+st.markdown("---")
+
 # Função auxiliar para listar anos disponíveis
 def listar_anos_disponiveis():
     """Lista todos os anos disponíveis nas pastas de dados"""
@@ -961,24 +1229,28 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
     if 'CPU' in df_visualizacao.columns:
         # Para CPU, mostrar média ponderada ou total
         cpu_medio = df_visualizacao['CPU'].mean()
-        st.sidebar.write(f"**CPU Médio:** R$ {cpu_medio:,.2f}")
+        cpu_medio_convertido = converter_moeda(cpu_medio, moeda_codigo, taxas_cambio)
+        st.sidebar.write(f"**CPU Médio:** {moeda_simbolo} {cpu_medio_convertido:,.2f}")
     if 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
         total_sum = df_visualizacao['Total'].sum()
         volume_sum = df_visualizacao['Volume'].sum()
         if volume_sum > 0:
             cpu_geral = total_sum / volume_sum
-            st.sidebar.write(f"**CPU Geral:** R$ {cpu_geral:,.2f}")
+            cpu_geral_convertido = converter_moeda(cpu_geral, moeda_codigo, taxas_cambio)
+            st.sidebar.write(f"**CPU Geral:** {moeda_simbolo} {cpu_geral_convertido:,.2f}")
 else:
     if 'Valor' in df_visualizacao.columns:
         # Converter para numérico caso seja categórico
         valor_series = pd.to_numeric(df_visualizacao['Valor'], errors='coerce')
         valor_total = valor_series.sum()
-        st.sidebar.write(f"**Total Valor:** R$ {valor_total:,.2f}")
+        valor_total_convertido = converter_moeda(valor_total, moeda_codigo, taxas_cambio)
+        st.sidebar.write(f"**Total Valor:** {moeda_simbolo} {valor_total_convertido:,.2f}")
     if 'Total' in df_visualizacao.columns:
         # Converter para numérico caso seja categórico
         total_series = pd.to_numeric(df_visualizacao['Total'], errors='coerce')
         total_sum = total_series.sum()
-        st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
+        total_sum_convertido = converter_moeda(total_sum, moeda_codigo, taxas_cambio)
+        st.sidebar.write(f"**Total:** {moeda_simbolo} {total_sum_convertido:,.2f}")
 
 # Área principal - Forecast
 st.markdown("## 📈 Forecast - Previsão de Custo Total")
