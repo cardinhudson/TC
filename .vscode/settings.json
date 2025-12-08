@@ -13,8 +13,13 @@
         "**/__pycache__": true,
         "**/*.pyc": true
     },
-    "python.languageServer": "None"
+    "python.languageServer": "None",
+    "editor.codeActions.triggerOnFocusChange": true,
+    "python.codeActions.enabled": false,
+    "python.notifications.codelens": false,
+    "python.analysis.disabled": true
 }
+
 
 
 
