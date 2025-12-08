@@ -644,8 +644,8 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
             #     st.write(f"DEBUG Volume - mes_inicial: {mes_inicial}, mes_final: {mes_final}, volume_inicial: {volume_inicial}, volume_final: {volume_final}")
             #     st.write(f"DEBUG Volume - col_mes_vol: {col_mes_vol}, valores disponíveis: {df_volume[col_mes_vol].astype(str).unique()[:10]}")
         else:
-            proporcao_volume = volume_final / volume_inicial
-            variacao_percentual = proporcao_volume - 1.0
+        proporcao_volume = volume_final / volume_inicial
+        variacao_percentual = proporcao_volume - 1.0
             tem_volume = True
         
         # ========== MODO GLOBAL ==========
@@ -663,15 +663,15 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
             
             if tem_volume:
                 # Aplicar sensibilidade (apenas se houver volume)
-                variacao_ajustada_fixo = variacao_percentual * sensibilidade_fixo
-                variacao_ajustada_variavel = variacao_percentual * sensibilidade_variavel
-                fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
-                fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
-                
-                # Calcular custo após volume + sensibilidade (SEM inflação)
-                custo_apos_volume = custo_fixo * fator_variacao_fixo + custo_variavel * fator_variacao_variavel
+            variacao_ajustada_fixo = variacao_percentual * sensibilidade_fixo
+            variacao_ajustada_variavel = variacao_percentual * sensibilidade_variavel
+            fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
+            fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
+            
+            # Calcular custo após volume + sensibilidade (SEM inflação)
+            custo_apos_volume = custo_fixo * fator_variacao_fixo + custo_variavel * fator_variacao_variavel
                 flex_volume_custo_total = custo_apos_volume - custo_total_inicial
-                
+            
                 # IMPORTANTE: Para CPU, converter FLEX Volume de Custo Total para CPU
                 # Seguindo a mesma lógica do app.py (linha 1937-1950)
                 if tipo_visualizacao == "CPU (Custo por Unidade)":
@@ -731,14 +731,14 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
                     
                     # Calcular flex volume para esta categoria (apenas se houver volume)
                     if tem_volume:
-                        variacao_ajustada_fixo = variacao_percentual * sens_fixo_cat
-                        variacao_ajustada_variavel = variacao_percentual * sens_var_cat
-                        fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
-                        fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
-                        
-                        custo_apos_volume_cat = (custo_fixo_cat * fator_variacao_fixo + 
-                                                custo_variavel_cat * fator_variacao_variavel)
-                        custo_inicial_cat = custo_fixo_cat + custo_variavel_cat
+                    variacao_ajustada_fixo = variacao_percentual * sens_fixo_cat
+                    variacao_ajustada_variavel = variacao_percentual * sens_var_cat
+                    fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
+                    fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
+                    
+                    custo_apos_volume_cat = (custo_fixo_cat * fator_variacao_fixo + 
+                                            custo_variavel_cat * fator_variacao_variavel)
+                    custo_inicial_cat = custo_fixo_cat + custo_variavel_cat
                         flex_volume_cat_custo_total = custo_apos_volume_cat - custo_inicial_cat
                         
                         # IMPORTANTE: Para CPU, converter FLEX Volume de Custo Total para CPU
@@ -1148,7 +1148,7 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                 st.warning(
                     "⚠️ Colunas 'Total' ou 'Valor' necessárias para calcular CPU"
                 )
-                df_segunda_analise = df_filtrado.copy()
+df_segunda_analise = df_filtrado.copy()
                 col_valor = 'Total' if 'Total' in df_filtrado.columns else 'Valor'
                 tipo_visualizacao = "Custo Total"
                 df_vol_calc = None
@@ -1688,8 +1688,8 @@ if modo_comparacao == "Ano a Ano":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-        total_m1_all_2 = float(df_ano_inicial[col_valor].sum())
-        total_m2_all_2 = float(df_ano_final[col_valor].sum())
+    total_m1_all_2 = float(df_ano_inicial[col_valor].sum())
+    total_m2_all_2 = float(df_ano_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada ano (mesma lógica de Mês a Mês)
     meses_ano_inicial = sorted(df_ano_inicial[col_mes].dropna().unique().tolist())
@@ -1731,8 +1731,8 @@ elif modo_comparacao == "Semestre":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-        total_m1_all_2 = float(df_sem_inicial[col_valor].sum())
-        total_m2_all_2 = float(df_sem_final[col_valor].sum())
+    total_m1_all_2 = float(df_sem_inicial[col_valor].sum())
+    total_m2_all_2 = float(df_sem_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada semestre
     meses_sem_inicial_list = sorted(df_sem_inicial[col_mes].dropna().unique().tolist())
@@ -1775,8 +1775,8 @@ elif modo_comparacao == "Quarter":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-        total_m1_all_2 = float(df_trim_inicial[col_valor].sum())
-        total_m2_all_2 = float(df_trim_final[col_valor].sum())
+    total_m1_all_2 = float(df_trim_inicial[col_valor].sum())
+    total_m2_all_2 = float(df_trim_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada quarter
     meses_trim_inicial_list = sorted(df_trim_inicial[col_mes].dropna().unique().tolist())
@@ -2020,12 +2020,12 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
     # IMPORTANTE: Para CPU, sempre recalcular a partir de Total e Volume agregados (mesma lógica do app.py)
     if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in dff_2.columns and 'Volume' in dff_2.columns:
         # Para CPU: agrupar por Total e Volume, depois recalcular CPU
-        if modo_comparacao == "Ano a Ano":
+    if modo_comparacao == "Ano a Ano":
             df_g1 = dff_2[dff_2['_ano_str'] == str(ano_inicial)].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
             df_g2 = dff_2[dff_2['_ano_str'] == str(ano_final)].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
-        elif modo_comparacao == "Semestre":
-            meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                             2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+    elif modo_comparacao == "Semestre":
+        meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
+                         2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
             meses_sem_inicial_set = set(m.lower() for m in meses_semestre.get(semestre_inicial, []))
             meses_sem_final_set = set(m.lower() for m in meses_semestre.get(semestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_sem_inicial_set))].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
@@ -2058,18 +2058,18 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             meses_sem_final_set = set(m.lower() for m in meses_semestre.get(semestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_sem_inicial_set))]
             df_g2 = dff_2[(dff_2['_ano_str'] == str(ano_final)) & (dff_2['_mes_lower'].isin(meses_sem_final_set))]
-            g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
-            g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
-        elif modo_comparacao == "Quarter":
+        g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
+        g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
+    elif modo_comparacao == "Quarter":
             meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'], 2: ['abril', 'maio', 'junho'],
                              3: ['julho', 'agosto', 'setembro'], 4: ['outubro', 'novembro', 'dezembro']}
             meses_trim_inicial_set = set(m.lower() for m in meses_trimestre.get(trimestre_inicial, []))
             meses_trim_final_set = set(m.lower() for m in meses_trimestre.get(trimestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_trim_inicial_set))]
             df_g2 = dff_2[(dff_2['_ano_str'] == str(ano_final)) & (dff_2['_mes_lower'].isin(meses_trim_final_set))]
-            g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
-            g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
-        else:
+        g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
+        g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
+    else:
             g1_2 = dff_2[dff_2['_mes_str'] == str(mes_inicial_2)].groupby(chosen_dim_2)[col_valor].sum()
             g2_2 = dff_2[dff_2['_mes_str'] == str(mes_final_2)].groupby(chosen_dim_2)[col_valor].sum()
 
@@ -2372,7 +2372,7 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         decreasing={"marker": {"color": cor_verde, "line": {"width": 0, "color": cor_verde}}},  # Sem borda visível
         totals={"marker": {"color": cor_azul, "line": {"width": 0, "color": cor_azul}}}  # Sem borda visível
     ))
-    
+
     # Adicionar overlay para colorir FLEX VOLUME, FLEX INFLAÇÃO e Outros
     # Para FLEX VOLUME e FLEX INFLAÇÃO - para Mês a Mês, Ano a Ano, Semestre e Quarter
     # Verificar se FLEX está nos labels (foi incluído no waterfall principal)
@@ -2593,7 +2593,7 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             num_barras_x += 1
         if tem_flex_inflacao:
             num_barras_x += 1
-    
+
     fig_2.update_layout(
         title={
             "text": titulo_grafico, 

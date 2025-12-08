@@ -1701,42 +1701,185 @@ def formatar_ratio_com_barra(valor):
     """
     return html
 
-def criar_tabela_html_com_barra(df_display):
-    """Cria uma tabela HTML customizada para renderizar HTML nas células"""
-    # Usar EXATAMENTE a mesma estrutura e classes CSS que o Streamlit usa para st.dataframe
-    # O Streamlit usa a classe 'stDataFrame' e aplica estilos automaticamente baseados no tema
-    # Usar a mesma cor do título do expander (que é a cor padrão do texto do Streamlit)
+def criar_tabela_html_com_barra(df_display, linha_resumo=None):
+    """Cria uma tabela HTML customizada no padrão Streamlit para renderizar HTML nas células
+    
+    Args:
+        df_display: DataFrame com os dados a serem exibidos
+        linha_resumo: Dicionário opcional com valores de resumo formatados para adicionar como primeira linha
+    """
+    # Usar o padrão de estilos do Streamlit para st.dataframe
     try:
         theme_base = st.get_option("theme.base") or "light"
         if theme_base == "dark":
-            # Cor do texto do expander no dark mode: rgb(250, 250, 250) com fundo transparente/cinza
-            # Usar um cinza escuro transparente que combine com o fundo do expander
-            header_bg = "rgba(38, 39, 48, 0.1)"  # 90% de transparência (10% opaco)
+            # Cores transparentes no padrão Streamlit dark mode
+            header_bg = "rgba(38, 39, 48, 0.6)"  # Padrão Streamlit para header
+            resumo_bg = "rgba(38, 39, 48, 0.4)"  # Linha de resumo mais destacada
+            row_bg = "transparent"  # Todas as linhas transparentes
+            border_color = "rgba(250, 250, 250, 0.1)"
         else:
-            # Cor do texto do expander no light mode: rgb(49, 51, 63) com fundo claro
-            header_bg = "rgba(240, 242, 246, 0.1)"  # 90% de transparência (10% opaco)
+            # Cores transparentes no padrão Streamlit light mode
+            header_bg = "rgba(240, 242, 246, 0.6)"  # Padrão Streamlit para header
+            resumo_bg = "rgba(240, 242, 246, 0.4)"  # Linha de resumo mais destacada
+            row_bg = "transparent"  # Todas as linhas transparentes
+            border_color = "rgba(49, 51, 63, 0.1)"
     except:
-        header_bg = "rgba(38, 39, 48, 0.1)"  # Padrão dark - 90% de transparência
+        header_bg = "rgba(38, 39, 48, 0.6)"
+        resumo_bg = "rgba(38, 39, 48, 0.4)"
+        row_bg = "transparent"
+        border_color = "rgba(250, 250, 250, 0.1)"
     
-    html_table = "<div class='stDataFrame' style='overflow-x: auto;'>"
-    html_table += "<table style='width: 100%; border-collapse: collapse;'>"
-    # Cabeçalho - com fundo cinza transparente
-    html_table += f"<thead><tr style='background-color: {header_bg};'>"
+    # Criar tabela no padrão Streamlit
+    html_table = """
+    <div class='stDataFrame' style='overflow-x: auto; margin: 1rem 0;'>
+        <style>
+            .flex-bud-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            }
+            .flex-bud-table thead tr {
+                background-color: """ + header_bg + """;
+                border-bottom: 1px solid """ + border_color + """;
+            }
+            .flex-bud-table th {
+                padding: 0.75rem 1rem;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.75rem;
+                color: inherit;
+            }
+            .flex-bud-table tbody tr {
+                border-bottom: 1px solid """ + border_color + """;
+            }
+            .flex-bud-table tbody tr:last-child {
+                border-bottom: none;
+            }
+            .flex-bud-table td {
+                padding: 0.75rem 1rem;
+                font-size: 0.75rem;
+                vertical-align: middle;
+            }
+            .flex-bud-table .resumo-row {
+                background-color: """ + resumo_bg + """;
+                font-weight: 600;
+            }
+            .flex-bud-table .number-cell {
+                text-align: right;
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-variant-numeric: tabular-nums;
+                font-size: 0.7rem;
+            }
+        </style>
+        <table class='flex-bud-table'>
+    """
+    
+    # Cabeçalho
+    html_table += "<thead><tr>"
     for col in df_display.columns:
-        html_table += f"<th style='padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.875rem; vertical-align: middle;'>{col}</th>"
+        html_table += f"<th>{col}</th>"
     html_table += "</tr></thead><tbody>"
-    # Linhas - Streamlit aplica estilos automaticamente via classe stDataFrame
+    
+    # Linha de resumo (se fornecida)
+    if linha_resumo is not None:
+        html_table += "<tr class='resumo-row'>"
+        for col in df_display.columns:
+            valor_resumo = linha_resumo.get(col, '')
+            if col == 'Total / Flex Bud' and isinstance(valor_resumo, (int, float)):
+                html_resumo = formatar_ratio_com_barra(valor_resumo)
+                html_table += f"<td>{html_resumo}</td>"
+            else:
+                valor_str = str(valor_resumo)
+                if any(char.isdigit() or char in ['$', '€', 'R$', ',', '.', 'K', 'M'] for char in valor_str):
+                    html_table += f"<td class='number-cell'>{valor_resumo}</td>"
+                else:
+                    html_table += f"<td>{valor_resumo}</td>"
+        html_table += "</tr>"
+    
+    # Linhas de dados - todas transparentes
     for idx, row in df_display.iterrows():
-        html_table += "<tr>"
+        html_table += f"<tr style='background-color: {row_bg};'>"
         for col in df_display.columns:
             if col == 'Total / Flex Bud':
-                # Renderizar HTML diretamente com alinhamento centralizado
-                html_table += f"<td style='padding: 0.5rem; vertical-align: middle; font-size: 0.875rem; text-align: left;'>{row[col]}</td>"
+                html_table += f"<td>{row[col]}</td>"
             else:
-                html_table += f"<td style='padding: 0.5rem; vertical-align: middle; font-size: 0.875rem; text-align: left;'>{row[col]}</td>"
+                valor_celula = str(row[col])
+                if any(char.isdigit() or char in ['$', '€', 'R$', ',', '.', 'K', 'M'] for char in valor_celula):
+                    html_table += f"<td class='number-cell'>{valor_celula}</td>"
+                else:
+                    html_table += f"<td>{valor_celula}</td>"
         html_table += "</tr>"
+    
     html_table += "</tbody></table></div>"
     return html_table
+
+def calcular_resumo_tabela_flex(df_original, tipo_visualizacao, moeda_simbolo, fator_conversao=None):
+    """Calcula linha de resumo (totais) para tabela Flex Bud
+    
+    Args:
+        df_original: DataFrame com valores numéricos originais (antes da formatação)
+        tipo_visualizacao: "CPU (Custo por Unidade)" ou "Custo Total"
+        moeda_simbolo: Símbolo da moeda (R$, $, €)
+        fator_conversao: Fator de conversão opcional (K, M)
+    
+    Returns:
+        Dicionário com valores de resumo formatados (valores numéricos e formatados)
+    """
+    linha_resumo = {}
+    linha_resumo_formatado = {}
+    
+    # Primeira coluna: "TOTAL"
+    primeira_col = df_original.columns[0]
+    linha_resumo[primeira_col] = "**TOTAL**"
+    linha_resumo_formatado[primeira_col] = "**TOTAL**"
+    
+    # Calcular totais das colunas numéricas
+    for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+        if col in df_original.columns:
+            soma = df_original[col].sum()
+            linha_resumo[col] = soma  # Valor numérico para cálculos
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                linha_resumo_formatado[col] = f"{soma:,.2f}"
+            else:
+                sufixo = ""
+                if fator_conversao:
+                    if fator_conversao == "K (milhares)":
+                        sufixo = " K"
+                    elif fator_conversao == "M (Milhões)":
+                        sufixo = " M"
+                linha_resumo_formatado[col] = f"{soma:,.2f}{sufixo}"
+    
+    # Recalcular Total / Flex Bud
+    if 'Total' in df_original.columns and 'Flex BUD' in df_original.columns:
+        total_soma = df_original['Total'].sum()
+        flex_bud_soma = df_original['Flex BUD'].sum()
+        ratio_resumo = total_soma / flex_bud_soma if flex_bud_soma != 0 and pd.notnull(flex_bud_soma) else 0
+        linha_resumo['Total / Flex Bud'] = ratio_resumo
+        linha_resumo_formatado['Total / Flex Bud'] = ratio_resumo
+    
+    return linha_resumo, linha_resumo_formatado
+
+def exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao):
+    """Exibe caixas de texto com os valores de resumo (BUD, Flex BUD, Total, etc.) com fonte menor"""
+    col1, col2, col3, col4, col5, col6 = st.columns(6, gap="small")
+    
+    with col1:
+        st.markdown(f"<div style='font-size: 0.75rem;'><strong>BUD</strong><br>{linha_resumo_formatado.get('BUD', '-')}</div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Flex Bud - BUD</strong><br>{linha_resumo_formatado.get('Flex Bud - BUD', '-')}</div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Flex BUD</strong><br>{linha_resumo_formatado.get('Flex BUD', '-')}</div>", unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Total - Flex Bud</strong><br>{linha_resumo_formatado.get('Total - Flex Bud', '-')}</div>", unsafe_allow_html=True)
+    with col5:
+        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Total</strong><br>{linha_resumo_formatado.get('Total', '-')}</div>", unsafe_allow_html=True)
+    with col6:
+        ratio_valor = linha_resumo.get('Total / Flex Bud', 0)
+        if isinstance(ratio_valor, (int, float)):
+            percentual = ratio_valor * 100
+            st.markdown(f"<div style='font-size: 0.75rem;'><strong>Total / Flex Bud</strong><br>{percentual:.1f}%</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div style='font-size: 0.75rem;'><strong>Total / Flex Bud</strong><br>-</div>", unsafe_allow_html=True)
 
 def formatar_ratio_para_tabela(valor):
     """Formata um valor de ratio (Total/Flex Bud) como percentual com indicador visual para tabelas"""
@@ -4177,7 +4320,634 @@ with tab1:
                 chart_placeholder.error(f"❌ Erro ao criar gráfico: {str(e)}")
                 chart_placeholder.code(traceback.format_exc())
         
-        # Tabela de análise Flex Bud removida conforme solicitado
+        # Tabela: Análise Flex Bud por Categoria
+        if df_budget_filtrado is not None and df_budget_vol_filtrado is not None and df_volume_real_filtrado is not None:
+            st.markdown("---")
+            st.subheader("📊 Análise Flex Bud por Categoria")
+            
+            # Verificar se temos coluna 'Custo' nos dados
+            tem_custo_real = False
+            if df_real_original_grafico is not None and 'Custo' in df_real_original_grafico.columns:
+                tem_custo_real = True
+            elif df_grafico_periodo is not None and 'Custo' in df_grafico_periodo.columns:
+                tem_custo_real = True
+            
+            if 'Custo' in df_budget_filtrado.columns and tem_custo_real:
+                # Preparar dados reais para a tabela (usar df_real_original_grafico se disponível, senão df_grafico_periodo, senão df_filtrado)
+                if df_real_original_grafico is not None and 'Custo' in df_real_original_grafico.columns:
+                    df_real_tabela = df_real_original_grafico.copy()
+                elif df_grafico_periodo is not None and 'Custo' in df_grafico_periodo.columns:
+                    df_real_tabela = df_grafico_periodo.copy()
+                elif 'df_filtrado' in locals() and df_filtrado is not None and 'Custo' in df_filtrado.columns:
+                    df_real_tabela = df_filtrado.copy()
+                else:
+                    df_real_tabela = None
+                
+                if df_real_tabela is None or len(df_real_tabela) == 0:
+                    st.info("ℹ️ Não há dados reais disponíveis para criar a tabela Flex Bud.")
+                else:
+                    # Agrupar dados reais por Custo, Type 05, Type 06, Account (se existir)
+                    colunas_agrupamento = ['Custo']
+                    if 'Type 05' in df_real_tabela.columns:
+                        colunas_agrupamento.append('Type 05')
+                    if 'Type 06' in df_real_tabela.columns:
+                        colunas_agrupamento.append('Type 06')
+                    if 'Account' in df_real_tabela.columns:
+                        colunas_agrupamento.append('Account')
+                    
+                    # Agrupar dados reais
+                    df_real_agrupado = df_real_tabela.groupby(colunas_agrupamento)['Total'].sum().reset_index()
+                    
+                    # Agrupar dados de budget
+                    df_budget_agrupado = df_budget_filtrado.groupby(colunas_agrupamento)['Total'].sum().reset_index()
+                    
+                    # Calcular volumes totais (real e budget) para cada categoria
+                    # Agrupar volumes reais
+                    if 'Volume' in df_volume_real_filtrado.columns:
+                        colunas_vol_real = [col for col in colunas_agrupamento if col in df_volume_real_filtrado.columns]
+                        if len(colunas_vol_real) > 0:
+                            df_vol_real_agrupado = df_volume_real_filtrado.groupby(colunas_vol_real)['Volume'].sum().reset_index()
+                        else:
+                            # Se não houver colunas para agrupar, somar tudo
+                            df_vol_real_agrupado = pd.DataFrame({'Volume': [df_volume_real_filtrado['Volume'].sum()]})
+                    else:
+                        df_vol_real_agrupado = pd.DataFrame()
+                    
+                    # Agrupar volumes de budget
+                    if 'Volume' in df_budget_vol_filtrado.columns:
+                        colunas_vol_budget = [col for col in colunas_agrupamento if col in df_budget_vol_filtrado.columns]
+                        if len(colunas_vol_budget) > 0:
+                            df_vol_budget_agrupado = df_budget_vol_filtrado.groupby(colunas_vol_budget)['Volume'].sum().reset_index()
+                        else:
+                            # Se não houver colunas para agrupar, somar tudo
+                            df_vol_budget_agrupado = pd.DataFrame({'Volume': [df_budget_vol_filtrado['Volume'].sum()]})
+                    else:
+                        df_vol_budget_agrupado = pd.DataFrame()
+                    
+                    # Adicionar Período ao df_real_agrupado antes do loop (otimização)
+                    if 'Período' in df_real_tabela.columns:
+                        # Fazer merge para adicionar período ao df_real_agrupado
+                        # Pegar o primeiro período de cada combinação de colunas de agrupamento
+                        df_periodo_agrupado = df_real_tabela.groupby(colunas_agrupamento)['Período'].first().reset_index()
+                        df_real_agrupado = df_real_agrupado.merge(df_periodo_agrupado, on=colunas_agrupamento, how='left')
+                    
+                    # Calcular Flex Bud para cada categoria
+                    tabela_flex_data = []
+                    
+                    for _, row_real in df_real_agrupado.iterrows():
+                        # Encontrar budget correspondente
+                        mask_budget = pd.Series([True] * len(df_budget_agrupado))
+                        for col in colunas_agrupamento:
+                            if col in df_budget_agrupado.columns:
+                                mask_budget = mask_budget & (df_budget_agrupado[col] == row_real[col])
+                        
+                        budget_row = df_budget_agrupado[mask_budget]
+                        budget_total = budget_row['Total'].sum() if len(budget_row) > 0 else 0
+                        
+                        # Encontrar volumes correspondentes
+                        volume_real = 0
+                        volume_budget = 0
+                        
+                        if len(df_vol_real_agrupado) > 0:
+                            # Verificar se há colunas para fazer match
+                            colunas_vol_real = [col for col in colunas_agrupamento if col in df_vol_real_agrupado.columns]
+                            if len(colunas_vol_real) > 0:
+                                mask_vol_real = pd.Series([True] * len(df_vol_real_agrupado))
+                                for col in colunas_vol_real:
+                                    mask_vol_real = mask_vol_real & (df_vol_real_agrupado[col] == row_real[col])
+                                vol_real_row = df_vol_real_agrupado[mask_vol_real]
+                                volume_real = vol_real_row['Volume'].sum() if len(vol_real_row) > 0 else 0
+                            else:
+                                # Se não houver colunas para match, usar volume total
+                                volume_real = df_vol_real_agrupado['Volume'].sum() if 'Volume' in df_vol_real_agrupado.columns else 0
+                        
+                        if len(df_vol_budget_agrupado) > 0:
+                            # Verificar se há colunas para fazer match
+                            colunas_vol_budget = [col for col in colunas_agrupamento if col in df_vol_budget_agrupado.columns]
+                            if len(colunas_vol_budget) > 0:
+                                mask_vol_budget = pd.Series([True] * len(df_vol_budget_agrupado))
+                                for col in colunas_vol_budget:
+                                    mask_vol_budget = mask_vol_budget & (df_vol_budget_agrupado[col] == row_real[col])
+                                vol_budget_row = df_vol_budget_agrupado[mask_vol_budget]
+                                volume_budget = vol_budget_row['Volume'].sum() if len(vol_budget_row) > 0 else 0
+                            else:
+                                # Se não houver colunas para match, usar volume total
+                                volume_budget = df_vol_budget_agrupado['Volume'].sum() if 'Volume' in df_vol_budget_agrupado.columns else 0
+                        
+                        # Separar budget por Custo (Fixo/Variável)
+                        if len(budget_row) > 0 and 'Custo' in budget_row.columns:
+                            custo_tipo = row_real['Custo']
+                            # Filtrar budget por tipo de custo
+                            budget_custo = df_budget_agrupado[
+                                (df_budget_agrupado['Custo'] == custo_tipo) & mask_budget
+                            ]
+                            budget_total_custo = budget_custo['Total'].sum() if len(budget_custo) > 0 else 0
+                        else:
+                            budget_total_custo = budget_total
+                        
+                        # Calcular Flex Bud
+                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                            # Calcular Flex Bud em Custo Total primeiro
+                            if row_real['Custo'] == 'Fixo':
+                                flex_bud_fixo = budget_total_custo
+                                flex_bud_variavel = 0
+                            else:  # Variável
+                                flex_bud_fixo = 0
+                                proporcao_volume = volume_real / volume_budget if volume_budget != 0 and pd.notnull(volume_budget) else 1.0
+                                flex_bud_variavel = budget_total_custo * proporcao_volume
+                            
+                            flex_bud_total_custo_total = flex_bud_fixo + flex_bud_variavel
+                            # Converter para CPU
+                            flex_bud_valor = flex_bud_total_custo_total / volume_real if volume_real != 0 and pd.notnull(volume_real) else 0
+                            budget_valor = budget_total_custo / volume_budget if volume_budget != 0 and pd.notnull(volume_budget) else 0
+                            total_valor = row_real['Total'] / volume_real if volume_real != 0 and pd.notnull(volume_real) else 0
+                        else:
+                            # Custo Total
+                            if row_real['Custo'] == 'Fixo':
+                                flex_bud_fixo = budget_total_custo
+                                flex_bud_variavel = 0
+                            else:  # Variável
+                                flex_bud_fixo = 0
+                                proporcao_volume = volume_real / volume_budget if volume_budget != 0 and pd.notnull(volume_budget) else 1.0
+                                flex_bud_variavel = budget_total_custo * proporcao_volume
+                            
+                            flex_bud_valor = flex_bud_fixo + flex_bud_variavel
+                            budget_valor = budget_total_custo
+                            total_valor = row_real['Total']
+                        
+                        # Calcular diferenças
+                        flex_bud_menos_bud = flex_bud_valor - budget_valor
+                        total_menos_flex_bud = total_valor - flex_bud_valor
+                        ratio_total_flex_bud = total_valor / flex_bud_valor if flex_bud_valor != 0 and pd.notnull(flex_bud_valor) else 0
+                        
+                        # Adicionar à lista
+                        row_data = row_real.to_dict()
+                        row_data['BUD'] = budget_valor
+                        row_data['Flex Bud - BUD'] = flex_bud_menos_bud
+                        row_data['Flex BUD'] = flex_bud_valor
+                        row_data['Total - Flex Bud'] = total_menos_flex_bud
+                        row_data['Total'] = total_valor
+                        row_data['Total / Flex Bud'] = ratio_total_flex_bud
+                        # Período já foi adicionado ao df_real_agrupado antes do loop
+                        if 'Período' in row_real.index:
+                            row_data['Período'] = row_real['Período']
+                        tabela_flex_data.append(row_data)
+                    
+                    if len(tabela_flex_data) > 0:
+                        df_tabela_flex = pd.DataFrame(tabela_flex_data)
+                        
+                        # Seletor de período (linha superior)
+                        if 'Período' in df_real_tabela.columns:
+                            periodos_disponiveis = sorted(df_real_tabela['Período'].dropna().unique().tolist())
+                            # Ordenar meses cronologicamente
+                            meses_ordenados = []
+                            outros_periodos = []
+                            for periodo in periodos_disponiveis:
+                                periodo_lower = str(periodo).lower()
+                                if periodo_lower in ORDEM_MESES:
+                                    meses_ordenados.append(periodo)
+                                else:
+                                    outros_periodos.append(periodo)
+                            
+                            meses_ordenados.sort(
+                                key=lambda x: ORDEM_MESES.index(str(x).lower())
+                                if str(x).lower() in ORDEM_MESES else 999
+                            )
+                            periodos_ordenados = meses_ordenados + outros_periodos
+                            
+                            periodo_tabela_key = "filtro_periodo_tabela_flex"
+                            
+                            # Adicionar opção "Todos" no início da lista (mesmo padrão dos outros seletores)
+                            opcoes_com_todos = ["Todos"] + periodos_ordenados
+                            
+                            if periodo_tabela_key not in st.session_state:
+                                st.session_state[periodo_tabela_key] = periodos_ordenados.copy()  # Todos selecionados por padrão
+                            
+                            # Validar valores salvos
+                            periodos_validos = [p for p in st.session_state[periodo_tabela_key] if p in periodos_ordenados]
+                            if not periodos_validos:
+                                periodos_validos = periodos_ordenados.copy()  # Se nenhum válido, selecionar todos
+                            
+                            # Verificar se "Todos" deve aparecer selecionado
+                            todos_selecionados = len(periodos_validos) == len(periodos_ordenados)
+                            
+                            # Preparar valores padrão para o multiselect
+                            if todos_selecionados:
+                                default_selecionados = ["Todos"] + periodos_validos
+                            else:
+                                default_selecionados = periodos_validos
+                            
+                            periodos_tabela_raw = st.multiselect(
+                                "📅 **Período(s):**",
+                                opcoes_com_todos,
+                                default=default_selecionados,
+                                key=periodo_tabela_key
+                            )
+                            
+                            # Processar seleção
+                            if "Todos" in periodos_tabela_raw:
+                                # Se "Todos" está selecionado, selecionar todos os períodos
+                                periodos_tabela = periodos_ordenados.copy()
+                                # Atualizar session_state para próxima execução (sem rerun para evitar loop)
+                                if set(st.session_state[periodo_tabela_key]) != set(periodos_ordenados):
+                                    st.session_state[periodo_tabela_key] = periodos_ordenados.copy()
+                            else:
+                                # Se "Todos" não está selecionado, usar apenas os períodos selecionados
+                                periodos_tabela = [p for p in periodos_tabela_raw if p != "Todos"]
+                                # Atualizar session_state
+                                if set(st.session_state[periodo_tabela_key]) != set(periodos_tabela):
+                                    st.session_state[periodo_tabela_key] = periodos_tabela.copy()
+                            
+                            # Se nenhum período foi selecionado, usar todos
+                            if not periodos_tabela:
+                                periodos_tabela = periodos_ordenados.copy()
+                        else:
+                            periodos_tabela = []
+                        
+                        # Filtrar df_tabela_flex por períodos selecionados
+                        if len(periodos_tabela) > 0 and 'Período' in df_tabela_flex.columns:
+                            df_tabela_flex = df_tabela_flex[df_tabela_flex['Período'].isin(periodos_tabela)].copy()
+                        
+                        # Selecionador de visualização (linha inferior)
+                        modo_tabela_flex = st.radio(
+                            "📊 **Visualização:**",
+                            ["Fixo/Variável", "Total"],
+                            index=0,
+                            horizontal=True,
+                            key="modo_tabela_flex_bud"
+                        )
+                        
+                        # Resumo geral (fora dos expanders)
+                        if len(df_tabela_flex) > 0:
+                            linha_resumo_geral, linha_resumo_geral_formatado = calcular_resumo_tabela_flex(df_tabela_flex, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                            st.markdown("---")
+                            st.markdown("### 📊 Resumo Geral")
+                            exibir_caixas_resumo(linha_resumo_geral, linha_resumo_geral_formatado, tipo_visualizacao)
+                            st.markdown("---")
+                        
+                        # Criar estrutura hierárquica com expanders
+                        if modo_tabela_flex == "Fixo/Variável":
+                            # Nível 1: Custo (Fixo/Variável) - separado
+                            for custo in ['Fixo', 'Variável']:
+                                df_custo = df_tabela_flex[df_tabela_flex['Custo'] == custo].copy()
+                                
+                                if len(df_custo) > 0:
+                                    total_custo = df_custo['Total'].sum()
+                                    total_custo_formatado = f"{total_custo:,.2f}"
+                                    
+                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                        # Nível 2: Type 05 (se existir)
+                                        if 'Type 05' in df_custo.columns:
+                                            for type05 in sorted(df_custo['Type 05'].dropna().unique()):
+                                                df_type05 = df_custo[df_custo['Type 05'] == type05].copy()
+                                                
+                                                if len(df_type05) > 0:
+                                                    total_type05 = df_type05['Total'].sum()
+                                                    total_type05_formatado = f"{total_type05:,.2f}"
+                                                    
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                        # Nível 3: Type 06 (se existir)
+                                                        if 'Type 06' in df_type05.columns:
+                                                            for type06 in sorted(df_type05['Type 06'].dropna().unique()):
+                                                                df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                                
+                                                                if len(df_type06) > 0:
+                                                                    total_type06 = df_type06['Total'].sum()
+                                                                    total_type06_formatado = f"{total_type06:,.2f}"
+                                                                    
+                                                                    # Nível 4: Account (se existir)
+                                                                    if 'Account' in df_type06.columns:
+                                                                        st.markdown(f"**Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                        
+                                                                        # Criar uma única tabela com todas as Accounts
+                                                                        df_display = df_type06[['Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                                        
+                                                                        # Formatar valores
+                                                                        for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                            if col in df_display.columns:
+                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                else:
+                                                                                    sufixo = ""
+                                                                                    if fator_conversao:
+                                                                                        if fator_conversao == "K (milhares)":
+                                                                                            sufixo = " K"
+                                                                                        elif fator_conversao == "M (Milhões)":
+                                                                                            sufixo = " M"
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                        
+                                                                        # Formatar Total / Flex Bud com barra HTML
+                                                                        if 'Total / Flex Bud' in df_display.columns:
+                                                                            df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                                        
+                                                                        # Calcular linha de resumo
+                                                                        linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                                        
+                                                                        # Exibir caixas de resumo
+                                                                        exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                        
+                                                                        # Exibir tabela com resumo (todas as Accounts em uma única tabela)
+                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                                                    else:
+                                                                        # Sem Account: exibir diretamente Type 06
+                                                                        st.markdown(f"**Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                        
+                                                                        # Criar tabela para este Type 06
+                                                                        df_display = df_type06[['Type 06', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                                        
+                                                                        # Formatar valores
+                                                                        for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                            if col in df_display.columns:
+                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                else:
+                                                                                    sufixo = ""
+                                                                                    if fator_conversao:
+                                                                                        if fator_conversao == "K (milhares)":
+                                                                                            sufixo = " K"
+                                                                                        elif fator_conversao == "M (Milhões)":
+                                                                                            sufixo = " M"
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                        
+                                                                        # Formatar Total / Flex Bud com barra HTML
+                                                                        if 'Total / Flex Bud' in df_display.columns:
+                                                                            df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                                        
+                                                                        # Calcular linha de resumo
+                                                                        linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                                        
+                                                                        # Exibir caixas de resumo
+                                                                        exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                        
+                                                                        # Exibir tabela com resumo
+                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                                        else:
+                                                            # Sem Type 06: exibir diretamente Type 05
+                                                            # Criar tabela para este Type 05
+                                                            df_display = df_type05[['Type 05', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                            
+                                                            # Formatar valores
+                                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                if col in df_display.columns:
+                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                    else:
+                                                                        sufixo = ""
+                                                                        if fator_conversao:
+                                                                            if fator_conversao == "K (milhares)":
+                                                                                sufixo = " K"
+                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                sufixo = " M"
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                            
+                                                            # Formatar Total / Flex Bud com barra HTML
+                                                            if 'Total / Flex Bud' in df_display.columns:
+                                                                df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                            
+                                                            # Calcular linha de resumo
+                                                            linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type05, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                            
+                                                            # Exibir caixas de resumo
+                                                            exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                            
+                                                            # Exibir tabela com resumo
+                                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                            st.markdown(html_table, unsafe_allow_html=True)
+                                        else:
+                                            # Sem Type 05: exibir diretamente Custo
+                                            # Criar tabela para este Custo
+                                            df_display = df_custo[['Custo', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                            
+                                            # Formatar valores
+                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                if col in df_display.columns:
+                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                    else:
+                                                        sufixo = ""
+                                                        if fator_conversao:
+                                                            if fator_conversao == "K (milhares)":
+                                                                sufixo = " K"
+                                                            elif fator_conversao == "M (Milhões)":
+                                                                sufixo = " M"
+                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                            
+                                            # Formatar Total / Flex Bud com barra HTML
+                                            if 'Total / Flex Bud' in df_display.columns:
+                                                df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                            
+                                            # Calcular linha de resumo
+                                            linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_custo, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                            
+                                            # Exibir caixas de resumo
+                                            exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                            
+                                            # Exibir tabela com resumo
+                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                            st.markdown(html_table, unsafe_allow_html=True)
+                        else:
+                            # Modo "Total": não separar por Fixo/Variável
+                            # Agrupar todos os dados sem separar por Custo
+                            # Remover coluna Custo do agrupamento para exibição
+                            df_tabela_total = df_tabela_flex.copy()
+                            
+                            # Agrupar por Type 05, Type 06, Account (se existirem) somando valores
+                            colunas_agrupamento_total = []
+                            if 'Type 05' in df_tabela_total.columns:
+                                colunas_agrupamento_total.append('Type 05')
+                            if 'Type 06' in df_tabela_total.columns:
+                                colunas_agrupamento_total.append('Type 06')
+                            if 'Account' in df_tabela_total.columns:
+                                colunas_agrupamento_total.append('Account')
+                            
+                            if len(colunas_agrupamento_total) > 0:
+                                # Agrupar somando os valores
+                                df_tabela_total_agrupado = df_tabela_total.groupby(colunas_agrupamento_total).agg({
+                                    'BUD': 'sum',
+                                    'Flex Bud - BUD': 'sum',
+                                    'Flex BUD': 'sum',
+                                    'Total - Flex Bud': 'sum',
+                                    'Total': 'sum'
+                                }).reset_index()
+                                
+                                # Recalcular Total / Flex Bud após agrupamento
+                                df_tabela_total_agrupado['Total / Flex Bud'] = df_tabela_total_agrupado.apply(
+                                    lambda row: row['Total'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
+                                    axis=1
+                                )
+                            else:
+                                # Se não houver colunas de agrupamento, somar tudo
+                                df_tabela_total_agrupado = pd.DataFrame([{
+                                    'BUD': df_tabela_total['BUD'].sum(),
+                                    'Flex Bud - BUD': df_tabela_total['Flex Bud - BUD'].sum(),
+                                    'Flex BUD': df_tabela_total['Flex BUD'].sum(),
+                                    'Total - Flex Bud': df_tabela_total['Total - Flex Bud'].sum(),
+                                    'Total': df_tabela_total['Total'].sum(),
+                                    'Total / Flex Bud': df_tabela_total['Total'].sum() / df_tabela_total['Flex BUD'].sum() if df_tabela_total['Flex BUD'].sum() != 0 and pd.notnull(df_tabela_total['Flex BUD'].sum()) else 0
+                                }])
+                            
+                            # Criar estrutura hierárquica sem separação por Custo
+                            # Nível 1: Type 05 (se existir)
+                            if 'Type 05' in df_tabela_total_agrupado.columns:
+                                for type05 in sorted(df_tabela_total_agrupado['Type 05'].dropna().unique()):
+                                    df_type05 = df_tabela_total_agrupado[df_tabela_total_agrupado['Type 05'] == type05].copy()
+                                    
+                                    if len(df_type05) > 0:
+                                        total_type05 = df_type05['Total'].sum()
+                                        total_type05_formatado = f"{total_type05:,.2f}"
+                                        
+                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                            # Nível 2: Type 06 (se existir)
+                                            if 'Type 06' in df_type05.columns:
+                                                for type06 in sorted(df_type05['Type 06'].dropna().unique()):
+                                                    df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                    
+                                                    if len(df_type06) > 0:
+                                                        total_type06 = df_type06['Total'].sum()
+                                                        total_type06_formatado = f"{total_type06:,.2f}"
+                                                        
+                                                        # Nível 3: Account (se existir)
+                                                        if 'Account' in df_type06.columns:
+                                                            st.markdown(f"**Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                            
+                                                            # Criar uma única tabela com todas as Accounts
+                                                            df_display = df_type06[['Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                            
+                                                            # Formatar valores
+                                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                if col in df_display.columns:
+                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                    else:
+                                                                        sufixo = ""
+                                                                        if fator_conversao:
+                                                                            if fator_conversao == "K (milhares)":
+                                                                                sufixo = " K"
+                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                sufixo = " M"
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                            
+                                                            # Formatar Total / Flex Bud com barra HTML
+                                                            if 'Total / Flex Bud' in df_display.columns:
+                                                                df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                            
+                                                            # Calcular linha de resumo
+                                                            linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                            
+                                                            # Exibir caixas de resumo
+                                                            exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                            
+                                                            # Exibir tabela com resumo (todas as Accounts em uma única tabela)
+                                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                            st.markdown(html_table, unsafe_allow_html=True)
+                                                        else:
+                                                            # Sem Account: exibir diretamente Type 06
+                                                            st.markdown(f"**Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                            
+                                                            # Criar tabela para este Type 06
+                                                            df_display = df_type06[['Type 06', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                            
+                                                            # Formatar valores
+                                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                if col in df_display.columns:
+                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                    else:
+                                                                        sufixo = ""
+                                                                        if fator_conversao:
+                                                                            if fator_conversao == "K (milhares)":
+                                                                                sufixo = " K"
+                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                sufixo = " M"
+                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                            
+                                                            # Formatar Total / Flex Bud com barra HTML
+                                                            if 'Total / Flex Bud' in df_display.columns:
+                                                                df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                            
+                                                            # Calcular linha de resumo
+                                                            linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                            
+                                                            # Exibir caixas de resumo
+                                                            exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                            
+                                                            # Exibir tabela com resumo
+                                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                            st.markdown(html_table, unsafe_allow_html=True)
+                                            else:
+                                                # Sem Type 06: exibir diretamente Type 05
+                                                # Criar tabela para este Type 05
+                                                df_display = df_type05[['Type 05', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                                
+                                                # Formatar valores
+                                                for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                    if col in df_display.columns:
+                                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                        else:
+                                                            sufixo = ""
+                                                            if fator_conversao:
+                                                                if fator_conversao == "K (milhares)":
+                                                                    sufixo = " K"
+                                                                elif fator_conversao == "M (Milhões)":
+                                                                    sufixo = " M"
+                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                
+                                                # Formatar Total / Flex Bud com barra HTML
+                                                if 'Total / Flex Bud' in df_display.columns:
+                                                    df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                
+                                                # Calcular linha de resumo
+                                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type05, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                
+                                                # Exibir caixas de resumo
+                                                exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                
+                                                # Exibir tabela com resumo
+                                                html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                                st.markdown(html_table, unsafe_allow_html=True)
+                            else:
+                                # Sem Type 05: exibir tabela total diretamente
+                                # Criar tabela única com todos os dados agregados
+                                total_geral = df_tabela_total_agrupado['Total'].sum()
+                                total_geral_formatado = f"{total_geral:,.2f}"
+                                
+                                st.markdown(f"**Total Geral: {total_geral_formatado}**")
+                                
+                                # Criar tabela
+                                df_display = df_tabela_total_agrupado[['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']].copy()
+                                
+                                # Formatar valores
+                                for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                    if col in df_display.columns:
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                        else:
+                                            sufixo = ""
+                                            if fator_conversao:
+                                                if fator_conversao == "K (milhares)":
+                                                    sufixo = " K"
+                                                elif fator_conversao == "M (Milhões)":
+                                                    sufixo = " M"
+                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                
+                                # Formatar Total / Flex Bud com barra HTML
+                                if 'Total / Flex Bud' in df_display.columns:
+                                    df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                
+                                # Calcular linha de resumo
+                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_tabela_total_agrupado, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                
+                                # Exibir caixas de resumo
+                                exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                
+                                # Exibir tabela com resumo
+                                html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
+                                st.markdown(html_table, unsafe_allow_html=True)
+            else:
+                st.info("ℹ️ Tabela Flex Bud disponível apenas quando há dados de budget e coluna 'Custo' nos dados.")
 
 # ==========================================
 # TAB 2: Volume
