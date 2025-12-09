@@ -644,8 +644,8 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
             #     st.write(f"DEBUG Volume - mes_inicial: {mes_inicial}, mes_final: {mes_final}, volume_inicial: {volume_inicial}, volume_final: {volume_final}")
             #     st.write(f"DEBUG Volume - col_mes_vol: {col_mes_vol}, valores disponíveis: {df_volume[col_mes_vol].astype(str).unique()[:10]}")
         else:
-        proporcao_volume = volume_final / volume_inicial
-        variacao_percentual = proporcao_volume - 1.0
+            proporcao_volume = volume_final / volume_inicial
+            variacao_percentual = proporcao_volume - 1.0
             tem_volume = True
         
         # ========== MODO GLOBAL ==========
@@ -663,13 +663,13 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
             
             if tem_volume:
                 # Aplicar sensibilidade (apenas se houver volume)
-            variacao_ajustada_fixo = variacao_percentual * sensibilidade_fixo
-            variacao_ajustada_variavel = variacao_percentual * sensibilidade_variavel
-            fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
-            fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
-            
-            # Calcular custo após volume + sensibilidade (SEM inflação)
-            custo_apos_volume = custo_fixo * fator_variacao_fixo + custo_variavel * fator_variacao_variavel
+                variacao_ajustada_fixo = variacao_percentual * sensibilidade_fixo
+                variacao_ajustada_variavel = variacao_percentual * sensibilidade_variavel
+                fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
+                fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
+                
+                # Calcular custo após volume + sensibilidade (SEM inflação)
+                custo_apos_volume = custo_fixo * fator_variacao_fixo + custo_variavel * fator_variacao_variavel
                 flex_volume_custo_total = custo_apos_volume - custo_total_inicial
             
                 # IMPORTANTE: Para CPU, converter FLEX Volume de Custo Total para CPU
@@ -731,14 +731,14 @@ def calcular_flex(df_dados, df_volume, mes_inicial, mes_final, col_mes, col_valo
                     
                     # Calcular flex volume para esta categoria (apenas se houver volume)
                     if tem_volume:
-                    variacao_ajustada_fixo = variacao_percentual * sens_fixo_cat
-                    variacao_ajustada_variavel = variacao_percentual * sens_var_cat
-                    fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
-                    fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
-                    
-                    custo_apos_volume_cat = (custo_fixo_cat * fator_variacao_fixo + 
-                                            custo_variavel_cat * fator_variacao_variavel)
-                    custo_inicial_cat = custo_fixo_cat + custo_variavel_cat
+                        variacao_ajustada_fixo = variacao_percentual * sens_fixo_cat
+                        variacao_ajustada_variavel = variacao_percentual * sens_var_cat
+                        fator_variacao_fixo = 1.0 + variacao_ajustada_fixo
+                        fator_variacao_variavel = 1.0 + variacao_ajustada_variavel
+                        
+                        custo_apos_volume_cat = (custo_fixo_cat * fator_variacao_fixo + 
+                                                custo_variavel_cat * fator_variacao_variavel)
+                        custo_inicial_cat = custo_fixo_cat + custo_variavel_cat
                         flex_volume_cat_custo_total = custo_apos_volume_cat - custo_inicial_cat
                         
                         # IMPORTANTE: Para CPU, converter FLEX Volume de Custo Total para CPU
@@ -1148,10 +1148,11 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                 st.warning(
                     "⚠️ Colunas 'Total' ou 'Valor' necessárias para calcular CPU"
                 )
-df_segunda_analise = df_filtrado.copy()
-                col_valor = 'Total' if 'Total' in df_filtrado.columns else 'Valor'
-                tipo_visualizacao = "Custo Total"
-                df_vol_calc = None
+            
+            df_segunda_analise = df_filtrado.copy()
+            col_valor = 'Total' if 'Total' in df_filtrado.columns else 'Valor'
+            tipo_visualizacao = "Custo Total"
+            df_vol_calc = None
             
             if df_vol_calc is not None:
                 # Verificar se df_filtrado tem Veículo e Ano
@@ -1688,8 +1689,8 @@ if modo_comparacao == "Ano a Ano":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-    total_m1_all_2 = float(df_ano_inicial[col_valor].sum())
-    total_m2_all_2 = float(df_ano_final[col_valor].sum())
+        total_m1_all_2 = float(df_ano_inicial[col_valor].sum())
+        total_m2_all_2 = float(df_ano_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada ano (mesma lógica de Mês a Mês)
     meses_ano_inicial = sorted(df_ano_inicial[col_mes].dropna().unique().tolist())
@@ -1731,8 +1732,8 @@ elif modo_comparacao == "Semestre":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-    total_m1_all_2 = float(df_sem_inicial[col_valor].sum())
-    total_m2_all_2 = float(df_sem_final[col_valor].sum())
+        total_m1_all_2 = float(df_sem_inicial[col_valor].sum())
+        total_m2_all_2 = float(df_sem_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada semestre
     meses_sem_inicial_list = sorted(df_sem_inicial[col_mes].dropna().unique().tolist())
@@ -1775,8 +1776,8 @@ elif modo_comparacao == "Quarter":
         total_m1_all_2 = float(total_agregado_1 / volume_agregado_1 if volume_agregado_1 != 0 and pd.notnull(volume_agregado_1) else 0)
         total_m2_all_2 = float(total_agregado_2 / volume_agregado_2 if volume_agregado_2 != 0 and pd.notnull(volume_agregado_2) else 0)
     else:
-    total_m1_all_2 = float(df_trim_inicial[col_valor].sum())
-    total_m2_all_2 = float(df_trim_final[col_valor].sum())
+        total_m1_all_2 = float(df_trim_inicial[col_valor].sum())
+        total_m2_all_2 = float(df_trim_final[col_valor].sum())
     change_all_2 = total_m2_all_2 - total_m1_all_2
     # Para FLEX, usar o primeiro e último mês de cada quarter
     meses_trim_inicial_list = sorted(df_trim_inicial[col_mes].dropna().unique().tolist())
@@ -2020,12 +2021,12 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
     # IMPORTANTE: Para CPU, sempre recalcular a partir de Total e Volume agregados (mesma lógica do app.py)
     if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in dff_2.columns and 'Volume' in dff_2.columns:
         # Para CPU: agrupar por Total e Volume, depois recalcular CPU
-    if modo_comparacao == "Ano a Ano":
+        if modo_comparacao == "Ano a Ano":
             df_g1 = dff_2[dff_2['_ano_str'] == str(ano_inicial)].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
             df_g2 = dff_2[dff_2['_ano_str'] == str(ano_final)].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
-    elif modo_comparacao == "Semestre":
-        meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                         2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+        elif modo_comparacao == "Semestre":
+            meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
+                             2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
             meses_sem_inicial_set = set(m.lower() for m in meses_semestre.get(semestre_inicial, []))
             meses_sem_final_set = set(m.lower() for m in meses_semestre.get(semestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_sem_inicial_set))].groupby(chosen_dim_2).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index()
@@ -2058,18 +2059,18 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             meses_sem_final_set = set(m.lower() for m in meses_semestre.get(semestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_sem_inicial_set))]
             df_g2 = dff_2[(dff_2['_ano_str'] == str(ano_final)) & (dff_2['_mes_lower'].isin(meses_sem_final_set))]
-        g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
-        g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
-    elif modo_comparacao == "Quarter":
+            g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
+            g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
+        elif modo_comparacao == "Quarter":
             meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'], 2: ['abril', 'maio', 'junho'],
                              3: ['julho', 'agosto', 'setembro'], 4: ['outubro', 'novembro', 'dezembro']}
             meses_trim_inicial_set = set(m.lower() for m in meses_trimestre.get(trimestre_inicial, []))
             meses_trim_final_set = set(m.lower() for m in meses_trimestre.get(trimestre_final, []))
             df_g1 = dff_2[(dff_2['_ano_str'] == str(ano_inicial)) & (dff_2['_mes_lower'].isin(meses_trim_inicial_set))]
             df_g2 = dff_2[(dff_2['_ano_str'] == str(ano_final)) & (dff_2['_mes_lower'].isin(meses_trim_final_set))]
-        g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
-        g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
-    else:
+            g1_2 = df_g1.groupby(chosen_dim_2)[col_valor].sum()
+            g2_2 = df_g2.groupby(chosen_dim_2)[col_valor].sum()
+        else:
             g1_2 = dff_2[dff_2['_mes_str'] == str(mes_inicial_2)].groupby(chosen_dim_2)[col_valor].sum()
             g2_2 = dff_2[dff_2['_mes_str'] == str(mes_final_2)].groupby(chosen_dim_2)[col_valor].sum()
 
@@ -2331,7 +2332,8 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
             yshift_val = 15  # Rótulo acima da barra
             annotations_custom.append(dict(
                 x=label, y=y_pos, text=text_fmt,
-                showarrow=False, font=dict(color=cor_azul, size=9), yshift=yshift_val
+                showarrow=False, font=dict(color=cor_azul, size=9), yshift=yshift_val,
+                xref="x", yref="y"
             ))
         elif measure == "relative":
             if value >= 0:
@@ -2344,16 +2346,25 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
                 yshift_val = -15  # Rótulo abaixo da barra
             annotations_custom.append(dict(
                 x=label, y=y_pos, text=text_fmt,
-                showarrow=False, font=dict(color=cor_texto, size=9), yshift=yshift_val
+                showarrow=False, font=dict(color=cor_texto, size=9), yshift=yshift_val,
+                xref="x", yref="y"
             ))
             cumulative += value
         elif measure == "total":
-            y_pos = value  # Topo da barra azul final
+            # Para a barra "total" no waterfall, o valor já é o valor acumulado final
+            # O topo da barra é sempre o próprio valor (se positivo) ou 0 (se negativo)
+            # Mas vamos usar o valor diretamente e garantir yshift positivo para ficar acima
+            y_pos = value  # Usar o valor diretamente (é o valor final acumulado)
             # Aumentar yshift para ficar acima da barra, não no meio
-            yshift_val = 15  # Rótulo acima da barra
+            # Se o valor for negativo, ainda queremos que apareça acima (no topo visual da barra)
+            yshift_val = 20  # Rótulo acima da barra (positivo = acima)
+            # Garantir que o label corresponda exatamente ao que está no eixo X
+            label_final = str(label).strip()  # Remover espaços extras
             annotations_custom.append(dict(
-                x=label, y=y_pos, text=text_fmt,
-                showarrow=False, font=dict(color=cor_azul, size=9), yshift=yshift_val
+                x=label_final, y=y_pos, text=text_fmt,
+                showarrow=False, font=dict(color=cor_azul, size=8), yshift=yshift_val,
+                xref="x", yref="y",
+                yanchor="bottom"  # Ancorar na parte inferior do texto (para que yshift funcione corretamente)
             ))
     
     # Criar figura do waterfall
@@ -2573,8 +2584,10 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
                 cumulative_annot += value
             elif measure == "total":
                 cumulative_annot = value
-                # Anotação acima da barra
-                max_with_annotations = max(max_with_annotations, value + abs(value) * 0.08)
+                # Anotação acima da barra - usar margem maior para garantir que apareça
+                # Considerar pelo menos 20% do valor para espaço da anotação
+                margin_annot = max(abs(value) * 0.20, abs(value) * 0.10 + 1000) if abs(value) > 0 else 1000
+                max_with_annotations = max(max_with_annotations, value + margin_annot)
         
         # Usar o maior valor entre max_with_overlay e max_with_annotations
         max_final = max(max_with_overlay, max_with_annotations)
@@ -2644,6 +2657,36 @@ if (modo_comparacao == "Ano a Ano" and ano_inicial != ano_final) or \
         ),
         annotations=annotations_custom if annotations_custom else []
     )
+    
+    # Garantir que a anotação da barra "total" (mês final) seja adicionada corretamente
+    # Verificar se a anotação da barra total existe e adicionar se necessário
+    tem_anotacao_total = False
+    for ann in annotations_custom:
+        # Verificar se é a anotação da barra total procurando pelo label do mês final
+        if ann.get('x') == str(mes_final_2).strip():
+            tem_anotacao_total = True
+            break
+    
+    # Se não encontrou a anotação, adicionar diretamente
+    if not tem_anotacao_total:
+        # Encontrar o valor da barra total
+        for measure, value, label in zip(measures_2, values_2, labels_2):
+            if measure == "total":
+                text_fmt = f"{abs(value):,.1f}"
+                # Usar o valor diretamente (é o valor final acumulado)
+                y_pos_total = value
+                fig_2.add_annotation(
+                    x=str(mes_final_2).strip(),
+                    y=y_pos_total,
+                    text=text_fmt,
+                    showarrow=False,
+                    font=dict(color=cor_azul, size=8),
+                    yshift=20,  # Positivo = acima da barra
+                    xref="x",
+                    yref="y",
+                    yanchor="bottom"  # Ancorar na parte inferior do texto
+                )
+                break
 
     st.plotly_chart(fig_2, use_container_width=True)
 

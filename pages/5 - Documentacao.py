@@ -67,7 +67,7 @@ with tab_tecnica:
         ### Estrutura de Arquivos
         
         ```
-        C:\GIT\TC\
+        C:\\GIT\\TC\\
         ├── app.py                                    # Aplicação principal - Dashboard TC Ext (7.590 linhas)
         ├── pages\
         │   ├── 2 - Simulador Forecast.py            # Simulador de forecast (3.973 linhas)
