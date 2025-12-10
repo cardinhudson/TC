@@ -1727,7 +1727,7 @@ else:
                                 tickcolor=grid_color,
                                 tickwidth=1,
                                 ticks="outside",
-                                titlefont=dict(size=10),
+                                title=dict(font=dict(size=10)),
                                 tickfont=dict(size=9)
                             ),
                             yaxis=dict(
@@ -1744,7 +1744,7 @@ else:
                                 ticks="outside",
                                 range=[y_min, y_max],
                                 tickformat=",.0f",
-                                titlefont=dict(size=10),
+                                title=dict(font=dict(size=10)),
                                 tickfont=dict(size=9)
                             ),
                             annotations=annotations_custom if annotations_custom else []
@@ -3333,7 +3333,7 @@ else:
                                                 tickcolor=grid_color,
                                                 tickwidth=1,
                                                 ticks="outside",
-                                                titlefont=dict(size=10),
+                                                title=dict(font=dict(size=10)),
                                                 tickfont=dict(size=9)
                                             ),
                                             yaxis=dict(
@@ -3343,7 +3343,7 @@ else:
                                                 linecolor=grid_color,
                                                 linewidth=1,
                                                 range=[y_min, y_max],
-                                                titlefont=dict(size=10),
+                                                title=dict(font=dict(size=10)),
                                                 tickfont=dict(size=9)
                                             )
                                         )
