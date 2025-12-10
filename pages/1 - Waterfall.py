@@ -2,8 +2,41 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.io as pio
 import os
 import sys
+
+# Configurar Plotly para usar o engine JSON padrão em vez de orjson (evita problemas de importação circular)
+# Isso força o Plotly a usar o json padrão do Python em vez de orjson
+try:
+    import json
+    # Forçar uso do engine json padrão
+    pio.json.config.default_engine = 'json'
+    # Desabilitar orjson se disponível
+    if hasattr(pio.json, 'config'):
+        pio.json.config.validate = False
+except Exception:
+    pass
+
+# Função helper para exibir gráficos Plotly com tratamento de erro para orjson
+def plotly_chart_safe(fig, use_container_width=True):
+    """
+    Exibe um gráfico Plotly com tratamento de erro para problemas com orjson.
+    """
+    try:
+        st.plotly_chart(fig, use_container_width=use_container_width)
+    except (AttributeError, TypeError) as e:
+        error_msg = str(e)
+        if 'orjson' in error_msg or 'OPT_NON_STR_KEYS' in error_msg:
+            st.error("⚠️ **Erro ao renderizar gráfico:** Problema com o módulo `orjson`")
+            st.markdown("**Solução:** Execute no terminal:")
+            st.code("pip install --upgrade --force-reinstall orjson", language="bash")
+            st.markdown("Ou alternativamente:")
+            st.code("pip uninstall orjson\npip install orjson", language="bash")
+            st.warning("Após reinstalar, recarregue a página (F5 ou Ctrl+R)")
+        else:
+            # Re-raise outros erros
+            raise
 
 # Adicionar o diretório raiz ao path para importar funções do app.py
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -305,6 +338,8 @@ if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Cus
             df_total['Total'] = df_total['Total'] / 1000000
 
 # Aplicar conversão de moeda DEPOIS do fator de conversão
+# IMPORTANTE: Aplicar conversão em AMBOS os modos (Custo Total e CPU)
+# No modo CPU, o Total convertido será usado para calcular CPU = Total convertido / Volume
 if moeda_codigo != "BRL" and 'Total' in df_total.columns:
     df_total = converter_coluna_moeda(df_total, 'Total', moeda_codigo, taxas_cambio)
 
@@ -550,18 +585,13 @@ if 'Total' in df_filtrado.columns:
     total_sum = df_filtrado['Total'].sum()
     st.sidebar.write(f"**Total:** {moeda_simbolo} {total_sum:,.2f}")
 
+# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 342)
+# NÃO aplicar conversão novamente aqui para evitar duplicação
+
 # Preparar dados para visualização
+# IMPORTANTE: df_visualizacao é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
+# NÃO aplicar conversão novamente aqui para evitar duplicação
 df_visualizacao = df_filtrado.copy()
-
-# Aplicar conversão de moeda em df_filtrado (o fator já foi aplicado em df_total)
-# NOTA: Não aplicar fator novamente aqui, pois df_filtrado é uma cópia de df_total que já teve o fator aplicado
-if moeda_codigo != "BRL" and 'Total' in df_filtrado.columns:
-    df_filtrado = converter_coluna_moeda(df_filtrado, 'Total', moeda_codigo, taxas_cambio)
-
-# Preparar df_visualizacao (o fator já foi aplicado em df_total)
-# NOTA: Não aplicar fator novamente aqui, pois df_visualizacao é uma cópia de df_filtrado que já teve o fator aplicado
-if moeda_codigo != "BRL" and 'Total' in df_visualizacao.columns:
-    df_visualizacao = converter_coluna_moeda(df_visualizacao, 'Total', moeda_codigo, taxas_cambio)
 
 # ========== CÓDIGO DO TAB5 (adaptado) ==========
 st.markdown("---")
@@ -1020,8 +1050,8 @@ else:
                                     df_vol_m1_graph = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_inicial)].copy()
                                     df_vol_m2_graph = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_final)].copy()
                                 elif modo_comparacao == "Semestre":
-                                    meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                                                      2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+                                    meses_semestre = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                      2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
                                     meses_sem_inicial = meses_semestre.get(semestre_inicial, [])
                                     meses_sem_final = meses_semestre.get(semestre_final, [])
                                     df_vol_m1_graph = df_vol_filtrado[
@@ -1033,10 +1063,10 @@ else:
                                         (df_vol_filtrado['Período'].isin(meses_sem_final))
                                     ].copy()
                                 elif modo_comparacao == "Quarter":
-                                    meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'],
-                                                       2: ['abril', 'maio', 'junho'],
-                                                       3: ['julho', 'agosto', 'setembro'],
-                                                       4: ['outubro', 'novembro', 'dezembro']}
+                                    meses_trimestre = {1: ['Janeiro', 'Fevereiro', 'Março'],
+                                                       2: ['Abril', 'Maio', 'Junho'],
+                                                       3: ['Julho', 'Agosto', 'Setembro'],
+                                                       4: ['Outubro', 'Novembro', 'Dezembro']}
                                     meses_trim_inicial = meses_trimestre.get(trimestre_inicial, [])
                                     meses_trim_final = meses_trimestre.get(trimestre_final, [])
                                     df_vol_m1_graph = df_vol_filtrado[
@@ -1134,8 +1164,8 @@ else:
                                 df_vol_m1_cat = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_inicial)].copy()
                                 df_vol_m2_cat = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_final)].copy()
                             elif modo_comparacao == "Semestre":
-                                meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                                                  2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+                                meses_semestre = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                  2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
                                 meses_sem_inicial = meses_semestre.get(semestre_inicial, [])
                                 meses_sem_final = meses_semestre.get(semestre_final, [])
                                 df_vol_m1_cat = df_vol_filtrado[
@@ -1147,10 +1177,10 @@ else:
                                     (df_vol_filtrado['Período'].isin(meses_sem_final))
                                 ].copy()
                             elif modo_comparacao == "Quarter":
-                                meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'],
-                                                   2: ['abril', 'maio', 'junho'],
-                                                   3: ['julho', 'agosto', 'setembro'],
-                                                   4: ['outubro', 'novembro', 'dezembro']}
+                                meses_trimestre = {1: ['Janeiro', 'Fevereiro', 'Março'],
+                                                   2: ['Abril', 'Maio', 'Junho'],
+                                                   3: ['Julho', 'Agosto', 'Setembro'],
+                                                   4: ['Outubro', 'Novembro', 'Dezembro']}
                                 meses_trim_inicial = meses_trimestre.get(trimestre_inicial, [])
                                 meses_trim_final = meses_trimestre.get(trimestre_final, [])
                                 df_vol_m1_cat = df_vol_filtrado[
@@ -1296,8 +1326,8 @@ else:
                                     df_vol_m1 = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_inicial)].copy()
                                     df_vol_m2 = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_final)].copy()
                                 elif modo_comparacao == "Semestre":
-                                    meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                                                      2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+                                    meses_semestre = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                      2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
                                     meses_sem_inicial = meses_semestre.get(semestre_inicial, [])
                                     meses_sem_final = meses_semestre.get(semestre_final, [])
                                     df_vol_m1 = df_vol_filtrado[
@@ -1309,10 +1339,10 @@ else:
                                         (df_vol_filtrado['Período'].isin(meses_sem_final))
                                     ].copy()
                                 elif modo_comparacao == "Quarter":
-                                    meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'],
-                                                       2: ['abril', 'maio', 'junho'],
-                                                       3: ['julho', 'agosto', 'setembro'],
-                                                       4: ['outubro', 'novembro', 'dezembro']}
+                                    meses_trimestre = {1: ['Janeiro', 'Fevereiro', 'Março'],
+                                                       2: ['Abril', 'Maio', 'Junho'],
+                                                       3: ['Julho', 'Agosto', 'Setembro'],
+                                                       4: ['Outubro', 'Novembro', 'Dezembro']}
                                     meses_trim_inicial = meses_trimestre.get(trimestre_inicial, [])
                                     meses_trim_final = meses_trimestre.get(trimestre_final, [])
                                     df_vol_m1 = df_vol_filtrado[
@@ -1491,7 +1521,11 @@ else:
                             if measure == "absolute":
                                 y_pos = value
                                 cumulative = value
-                                text_fmt_abs = f"{abs(value):,.1f}"
+                                # 🔧 Mostrar valor com sinal positivo ou negativo
+                                if value >= 0:
+                                    text_fmt_abs = f"+{value:,.1f}"
+                                else:
+                                    text_fmt_abs = f"{value:,.1f}"
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt_abs,
                                     showarrow=False, font=dict(color=cor_azul, size=8), yshift=15,
@@ -1520,7 +1554,11 @@ else:
                                 cumulative += value
                             elif measure == "total":
                                 y_pos = value
-                                text_fmt_total = f"{abs(value):,.1f}"
+                                # 🔧 Mostrar valor com sinal positivo ou negativo
+                                if value >= 0:
+                                    text_fmt_total = f"+{value:,.1f}"
+                                else:
+                                    text_fmt_total = f"{value:,.1f}"
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt_total,
                                     showarrow=False, font=dict(color=cor_azul, size=8), yshift=20,
@@ -1715,7 +1753,7 @@ else:
                         # Anotação removida - não exibir texto "Flex Mês 1 - Mês 1" no gráfico
                         
                         # Exibir gráfico
-                        st.plotly_chart(fig, use_container_width=True)
+                        plotly_chart_safe(fig, use_container_width=True)
                         
                         # Exibir informações resumidas
                         st.markdown("---")
@@ -1768,6 +1806,9 @@ else:
                                     # Preparar dados: usar df_m1 como base (equivalente a BUD) e df_m2 como Total
                                     df_real_base = df_m1.copy()
                                     df_real_final = df_m2.copy()
+                                    
+                                    # IMPORTANTE: df_m1 e df_m2 já vêm de df_filtrado_waterfall que tem a conversão de moeda aplicada
+                                    # NÃO aplicar conversão novamente aqui para evitar duplicação
                                     
                                     # Agrupar dados por categoria
                                     colunas_agrupamento = ['Custo']
@@ -1826,8 +1867,8 @@ else:
                                             df_vol_m2 = df_vol_filtrado[df_vol_filtrado['Ano'].astype(str) == str(ano_final)].copy()
                                             
                                         elif modo_comparacao == "Semestre":
-                                            meses_semestre = {1: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho'],
-                                                              2: ['julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']}
+                                            meses_semestre = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                              2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
                                             meses_sem_inicial = meses_semestre.get(semestre_inicial, [])
                                             meses_sem_final = meses_semestre.get(semestre_final, [])
                                             df_vol_m1 = df_vol_filtrado[
@@ -1840,10 +1881,10 @@ else:
                                             ].copy()
                                             
                                         elif modo_comparacao == "Quarter":
-                                            meses_trimestre = {1: ['janeiro', 'fevereiro', 'março'],
-                                                               2: ['abril', 'maio', 'junho'],
-                                                               3: ['julho', 'agosto', 'setembro'],
-                                                               4: ['outubro', 'novembro', 'dezembro']}
+                                            meses_trimestre = {1: ['Janeiro', 'Fevereiro', 'Março'],
+                                                               2: ['Abril', 'Maio', 'Junho'],
+                                                               3: ['Julho', 'Agosto', 'Setembro'],
+                                                               4: ['Outubro', 'Novembro', 'Dezembro']}
                                             meses_trim_inicial = meses_trimestre.get(trimestre_inicial, [])
                                             meses_trim_final = meses_trimestre.get(trimestre_final, [])
                                             df_vol_m1 = df_vol_filtrado[
@@ -1860,11 +1901,15 @@ else:
                                             volume_m1 = df_vol_m1.groupby('Período')['Volume'].sum().sum()
                                         elif not df_vol_m1.empty:
                                             volume_m1 = df_vol_m1['Volume'].sum()
+                                        else:
+                                            volume_m1 = 0
                                         
                                         if not df_vol_m2.empty and 'Período' in df_vol_m2.columns:
                                             volume_m2 = df_vol_m2.groupby('Período')['Volume'].sum().sum()
                                         elif not df_vol_m2.empty:
                                             volume_m2 = df_vol_m2['Volume'].sum()
+                                        else:
+                                            volume_m2 = 0
                                     
                                     # Calcular Flex Bud usando a mesma lógica do TC Ext
                                     # Fixo: Total Mês 1 (não varia) = Base_Total onde Custo == 'Fixo'
@@ -2627,8 +2672,17 @@ else:
                                         if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_temp_budget.columns:
                                             if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
                                                 # Filtrar volume pelos períodos
+                                                # Criar coluna Período_Ano se necessário (mesma lógica do df_filtrado_waterfall)
                                                 if col_mes_waterfall == 'Período_Ano':
-                                                    df_vol_temp = df_volume[df_volume['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                                    # Verificar se a coluna existe, se não, criar
+                                                    if 'Período_Ano' not in df_volume.columns:
+                                                        if 'Período' in df_volume.columns and 'Ano' in df_volume.columns:
+                                                            df_volume = df_volume.copy()
+                                                            df_volume['Período_Ano'] = df_volume['Período'].astype(str) + ' ' + df_volume['Ano'].astype(str)
+                                                    if 'Período_Ano' in df_volume.columns:
+                                                        df_vol_temp = df_volume[df_volume['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                                    else:
+                                                        df_vol_temp = df_volume.copy()
                                                 elif 'Período' in df_volume.columns:
                                                     df_vol_temp = df_volume[df_volume['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                                 else:
@@ -2835,6 +2889,9 @@ else:
                                             else:
                                                 colunas_agrupamento.insert(0, 'Type 06')
                                         
+                                        # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall
+                                        # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
+                                        
                                         df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Total'].sum().reset_index()
                                         
                                         # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
@@ -2849,6 +2906,8 @@ else:
                                         
                                         # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
                                         # IMPORTANTE: Sempre usar df_budget_periodo que já foi filtrado pelos períodos selecionados
+                                        # IMPORTANTE: df_budget_periodo já vem de df_budget_work que tem a conversão de moeda aplicada (linha 2743)
+                                        # NÃO aplicar conversão novamente aqui para evitar duplicação
                                         if df_budget_periodo is not None and len(df_budget_periodo) > 0:
                                             df_budget_agrupado = df_budget_periodo.groupby(colunas_agrupamento_budget)['Total'].sum().reset_index()
                                             df_budget_agrupado = df_budget_agrupado.rename(columns={'Total': 'Total_Budget'})
@@ -3293,7 +3352,7 @@ else:
                                         fig.update_layout(annotations=annotations_custom)
                                         
                                         # Exibir gráfico
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        plotly_chart_safe(fig, use_container_width=True)
                                         
                                         # Exibir resumo (mesmo formato da tab Real)
                                         st.markdown("---")

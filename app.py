@@ -1100,6 +1100,8 @@ if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Cus
 # Aplicar conversão de moeda DEPOIS do fator de conversão (mesma lógica do fator)
 # Isso garante que todos os dados derivados já terão a conversão aplicada
 # IMPORTANTE: Aplicar na mesma ordem: primeiro fator, depois moeda
+# IMPORTANTE: Aplicar conversão em AMBOS os modos (Custo Total e CPU)
+# No modo CPU, o Total convertido será usado para calcular CPU = Total convertido / Volume
 if moeda_codigo != "BRL" and 'Total' in df_total.columns:
     df_total = converter_coluna_moeda(df_total, 'Total', moeda_codigo, taxas_cambio)
 
@@ -1127,6 +1129,9 @@ if 'Oficina' in df_total.columns:
         ].copy()
 else:
     df_filtrado = df_total.copy()
+
+# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 1104)
+# NÃO aplicar conversão novamente aqui para evitar duplicação
 
 # Inicializar session_state para Veículo
 if 'filtro_veiculo_tc_ext' not in st.session_state:
@@ -1174,8 +1179,13 @@ if 'USI' in df_filtrado.columns:
             df_filtrado['USI'].astype(str).isin(usi_selecionada)
         ].copy()
 
+# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 1104)
+# NÃO aplicar conversão novamente aqui para evitar duplicação
+
 # Filtro 4: Período (com cache otimizado)
 # IMPORTANTE: Criar cópia ANTES do filtro de período para usar no gráfico
+# IMPORTANTE: df_para_grafico_periodo é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
+# NÃO aplicar conversão novamente aqui para evitar duplicação
 df_para_grafico_periodo = df_filtrado.copy()
 
 if 'Período' in df_filtrado.columns:
@@ -1355,6 +1365,8 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                     "⚠️ Colunas 'Total' ou 'Valor' necessárias para "
                     "calcular CPU"
                 )
+                # IMPORTANTE: df_visualizacao é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
+                # NÃO aplicar conversão novamente aqui para evitar duplicação
                 df_visualizacao = df_filtrado.copy()
                 coluna_visualizacao = (
                     'Total' if 'Total' in df_filtrado.columns else 'Valor'
@@ -1498,6 +1510,9 @@ if tipo_visualizacao == "CPU (Custo por Unidade)":
                 )
 
                 # Criar DataFrame para visualização com CPU
+                # IMPORTANTE: df_cpu['Total'] já está convertido (vem de df_filtrado que tem conversão aplicada)
+                # O CPU será calculado automaticamente na moeda correta (Total convertido / Volume)
+                # NÃO aplicar conversão novamente aqui para evitar duplicação
                 df_visualizacao = df_cpu.copy()
                 coluna_visualizacao = 'CPU'
         else:
@@ -4857,40 +4872,35 @@ with tab1:
         # porque df_para_grafico_periodo pode não ter 'Custo' se foi processado
         df_real_original_grafico = None
         if tipo_visualizacao == "CPU (Custo por Unidade)":
-            # IMPORTANTE: Usar df_total diretamente (que tem 'Custo') e aplicar TODOS os filtros
-            # Isso garante que temos a coluna 'Custo' necessária para calcular Flex Bud
-            if 'Custo' in df_total.columns:
-                df_real_original_grafico = df_total.copy()
+            # IMPORTANTE: No modo CPU, usar df_filtrado diretamente que já tem TODOS os filtros aplicados
+            # e tem a coluna 'Custo' necessária para calcular Flex Bud
+            # df_filtrado já tem a conversão de moeda aplicada e todos os filtros da sidebar
+            if 'Custo' in df_filtrado.columns and 'Total' in df_filtrado.columns:
+                df_real_original_grafico = df_filtrado.copy()
                 
-                # Aplicar TODOS os filtros da sidebar (mesmos que foram aplicados a df_filtrado)
-                # Filtro de Ano
-                if ano_selecionado != "Todos" and 'Ano' in df_real_original_grafico.columns:
-                    df_real_original_grafico = df_real_original_grafico[
-                        df_real_original_grafico['Ano'] == int(ano_selecionado)
-                    ].copy()
-                
-                # Filtro de Oficina
+                # Aplicar apenas os filtros do gráfico (Oficina e Veículo) se diferentes dos da sidebar
+                # Filtro de Oficina do gráfico
                 if 'Oficina' in df_real_original_grafico.columns:
                     if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
                         df_real_original_grafico = df_real_original_grafico[
                             df_real_original_grafico['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
                         ].copy()
                 
-                # Filtro de Veículo
+                # Filtro de Veículo do gráfico
                 if 'Veículo' in df_real_original_grafico.columns:
                     if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
                         df_real_original_grafico = df_real_original_grafico[
                             df_real_original_grafico['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                         ].copy()
                 
-                # NOTA: A conversão de moeda já foi aplicada no df_total (linha ~999)
+                # NOTA: A conversão de moeda já foi aplicada no df_total (linha 1104) e df_filtrado herda isso
                 # Portanto, df_real_original_grafico['Total'] já está convertido
                 
                 # 🔧 VERIFICAÇÃO: Garantir que df_real_original_grafico tem dados válidos após aplicar filtros
                 if len(df_real_original_grafico) == 0:
                     st.warning("⚠️ Aviso: df_real_original_grafico está vazio após aplicar filtros. Verifique os filtros selecionados.")
-                elif 'Total' in df_real_original_grafico.columns and df_real_original_grafico['Total'].sum() == 0:
-                    st.warning("⚠️ Aviso: df_real_original_grafico tem Total zerado. Verifique os dados e filtros.")
+                elif 'Total' in df_real_original_grafico.columns and abs(df_real_original_grafico['Total'].sum()) < 0.0001:
+                    st.warning("⚠️ Aviso: df_real_original_grafico tem Total muito próximo de zero. Verifique os dados e filtros.")
             else:
                 # Fallback: tentar usar df_para_grafico_periodo se df_total não tiver 'Custo'
                 df_real_original_grafico = df_para_grafico_periodo.copy()
@@ -5016,15 +5026,14 @@ with tab1:
                         colunas_agrupamento_com_periodo.append('Período')
                     
                     # 🔧 VERIFICAÇÃO: Garantir que df_real_tabela tem Total em Custo Total (não em CPU)
-                    # Se df_real_tabela tem coluna 'CPU' mas não 'Total', ou se 'Total' está zerado, há problema
+                    # Se df_real_tabela tem coluna 'CPU' mas não 'Total', há problema
                     if 'Total' not in df_real_tabela.columns:
                         st.error("❌ Erro: df_real_tabela não tem coluna 'Total'. Verifique a origem dos dados.")
                         df_real_agrupado = pd.DataFrame()
-                    elif df_real_tabela['Total'].sum() == 0:
-                        st.warning("⚠️ Aviso: df_real_tabela tem Total zerado. Verifique os filtros aplicados.")
-                        df_real_agrupado = pd.DataFrame()
                     else:
                         # Agrupar dados reais por categoria E período
+                        # IMPORTANTE: Não verificar se Total está zerado antes de agrupar, pois pode haver
+                        # valores positivos e negativos que se cancelam no total, mas são válidos por categoria
                         df_real_agrupado = df_real_tabela.groupby(colunas_agrupamento_com_periodo)['Total'].sum().reset_index()
                     
                     # Agrupar dados de budget por categoria E período
@@ -5259,6 +5268,10 @@ with tab1:
                             
                             df_tabela_flex = df_tabela_flex[df_tabela_flex['Período'].isin(periodos_tabela)].copy()
                             
+                            # 🔧 CRÍTICO: Salvar df_tabela_flex DEPOIS do filtro de período, mas ANTES de qualquer transformação
+                            # Esta versão tem as colunas BUD, Flex BUD, Total originais e já está filtrada pelos períodos selecionados
+                            df_tabela_flex_para_resumo = df_tabela_flex.copy()
+                            
                             # 🔧 NOVA LÓGICA: Se há múltiplos períodos, criar colunas separadas por período
                             # Manter a ordem de seleção dos períodos (periodos_tabela_raw mantém a ordem)
                             if len(periodos_tabela) > 1:
@@ -5460,14 +5473,14 @@ with tab1:
                                 df_agregado['Período'] = ", ".join(periodos_tabela) if len(periodos_tabela) <= 3 else f"{len(periodos_tabela)} períodos"
                                 
                                 df_tabela_flex = df_agregado
+                        else:
+                            # Se não houver filtro de período, usar df_tabela_flex diretamente
+                            df_tabela_flex_para_resumo = df_tabela_flex.copy()
                         
-                        # 🔧 CORREÇÃO: Remover colunas auxiliares ANTES do resumo (se ainda existirem)
-                        # Mas manter uma cópia com as colunas auxiliares para o resumo recalcular corretamente
+                        # 🔧 CORREÇÃO: Remover colunas auxiliares da tabela principal (para exibição)
+                        # df_tabela_flex_para_resumo já foi salvo DEPOIS do filtro de período, mas ANTES das transformações
                         colunas_auxiliares = ['_Flex_Bud_Total', '_Volume_Real', '_Total_Custo_Total', '_Budget_Total', '_Volume_Budget', '_Flex_Bud_Total_Custo', '_Proporcao_Volume', '_Flex_Bud_Fixo', '_Flex_Bud_Variavel', 'Volume_Real', 'Volume_Budget', 'Total_Budget']
                         colunas_para_remover = [col for col in colunas_auxiliares if col in df_tabela_flex.columns]
-                        
-                        # Guardar DataFrame com colunas auxiliares para o resumo
-                        df_tabela_flex_para_resumo = df_tabela_flex.copy()
                         
                         # Remover colunas auxiliares da tabela principal (para exibição)
                         if colunas_para_remover:
@@ -5619,9 +5632,15 @@ with tab1:
                             st.markdown("<br>", unsafe_allow_html=True)  # Pequeno espaço antes das tabelas
                         # Criar estrutura hierárquica com expanders
                         if modo_tabela_flex == "Fixo/Variável":
+                            # 🔧 CORREÇÃO: Usar df_tabela_flex_para_resumo para cálculos de resumo (tem colunas originais)
+                            # df_tabela_flex pode ter colunas por período (Jul, Ago, etc.) que não servem para resumo
+                            df_para_resumo_fixo_variavel = df_tabela_flex_para_resumo if 'df_tabela_flex_para_resumo' in locals() else df_tabela_flex
+                            
                             # Nível 1: Custo (Fixo/Variável) - separado
                             for custo in ['Fixo', 'Variável']:
                                 df_custo = df_tabela_flex[df_tabela_flex['Custo'] == custo].copy()
+                                # 🔧 CORREÇÃO: Criar versão para resumo com colunas originais
+                                df_custo_para_resumo = df_para_resumo_fixo_variavel[df_para_resumo_fixo_variavel['Custo'] == custo].copy() if 'Custo' in df_para_resumo_fixo_variavel.columns else df_custo.copy()
                                 
                                 if len(df_custo) > 0:
                                     # 🔧 FILTRAR: Verificar se Custo tem valores não zerados
@@ -5639,7 +5658,10 @@ with tab1:
                                                 continue  # Pular Custo completamente zerado
                                     
                                     # Verificar se a coluna 'Total' existe antes de acessá-la
-                                    if 'Total' in df_custo.columns:
+                                    # 🔧 CORREÇÃO: Tentar usar df_custo_para_resumo primeiro (tem colunas originais)
+                                    if 'Total' in df_custo_para_resumo.columns:
+                                        total_custo = df_custo_para_resumo['Total'].sum()
+                                    elif 'Total' in df_custo.columns:
                                         total_custo = df_custo['Total'].sum()
                                     else:
                                         # Se não houver coluna 'Total', usar 0 ou calcular a partir de outras colunas
@@ -5648,7 +5670,8 @@ with tab1:
                                     
                                     with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
                                         # Resumo do Custo (Fixo ou Variável)
-                                        linha_resumo_custo, linha_resumo_custo_formatado = calcular_resumo_tabela_flex(df_custo, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                        # 🔧 CORREÇÃO: Usar df_custo_para_resumo que tem as colunas originais (BUD, Flex BUD, Total)
+                                        linha_resumo_custo, linha_resumo_custo_formatado = calcular_resumo_tabela_flex(df_custo_para_resumo, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                         exibir_caixas_resumo(linha_resumo_custo, linha_resumo_custo_formatado, tipo_visualizacao)
                                         st.markdown("---")
                                         
@@ -5656,6 +5679,8 @@ with tab1:
                                         if 'Type 05' in df_custo.columns:
                                             for type05 in sorted(df_custo['Type 05'].dropna().unique()):
                                                 df_type05 = df_custo[df_custo['Type 05'] == type05].copy()
+                                                # 🔧 CORREÇÃO: Criar versão para resumo com colunas originais
+                                                df_type05_para_resumo = df_custo_para_resumo[df_custo_para_resumo['Type 05'] == type05].copy() if 'Type 05' in df_custo_para_resumo.columns else df_type05.copy()
                                                 
                                                 if len(df_type05) > 0:
                                                     # 🔧 FILTRAR: Verificar se Type 05 tem valores não zerados
@@ -5684,6 +5709,8 @@ with tab1:
                                                         if 'Type 06' in df_type05.columns:
                                                             for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                 df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                                # 🔧 CORREÇÃO: Criar versão para resumo com colunas originais
+                                                                df_type06_para_resumo = df_type05_para_resumo[df_type05_para_resumo['Type 06'] == type06].copy() if 'Type 06' in df_type05_para_resumo.columns else df_type06.copy()
                                                                 
                                                                 if len(df_type06) > 0:
                                                                     # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
@@ -5773,8 +5800,24 @@ with tab1:
                                                                                                         sufixo = " M"
                                                                                                 df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
                                                                                 
-                                                                                # Calcular linha de resumo (usar dados filtrados)
-                                                                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                                                # Calcular linha de resumo
+                                                                                # 🔧 CORREÇÃO: Usar versão para resumo com colunas originais, mas aplicar mesmo filtro de linhas zeradas
+                                                                                if 'Account' in df_type06_para_resumo.columns:
+                                                                                    # Aplicar mesmo filtro de linhas zeradas na versão para resumo
+                                                                                    colunas_numericas_resumo = [col for col in df_type06_para_resumo.columns 
+                                                                                                                if pd.api.types.is_numeric_dtype(df_type06_para_resumo[col]) 
+                                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                    if colunas_numericas_resumo:
+                                                                                        df_type06_para_resumo_temp = df_type06_para_resumo[colunas_numericas_resumo].fillna(0)
+                                                                                        df_type06_para_resumo_filtrado = df_type06_para_resumo[
+                                                                                            df_type06_para_resumo_temp.abs().sum(axis=1) > 0.0001
+                                                                                        ].copy()
+                                                                                    else:
+                                                                                        df_type06_para_resumo_filtrado = df_type06_para_resumo.copy()
+                                                                                else:
+                                                                                    df_type06_para_resumo_filtrado = df_type06_para_resumo.copy()
+                                                                                
+                                                                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_para_resumo_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                                 
                                                                                 # Exibir caixas de resumo
                                                                                 exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
@@ -5840,8 +5883,20 @@ with tab1:
                                                                                 if 'Total / Flex Bud' in df_display.columns:
                                                                                     df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
                                                                                 
-                                                                                # Calcular linha de resumo (usar dados filtrados)
-                                                                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                                                                # Calcular linha de resumo
+                                                                                # 🔧 CORREÇÃO: Usar versão para resumo com colunas originais, mas aplicar mesmo filtro de linhas zeradas
+                                                                                colunas_numericas_resumo = [col for col in df_type06_para_resumo.columns 
+                                                                                                            if pd.api.types.is_numeric_dtype(df_type06_para_resumo[col]) 
+                                                                                                            and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                if colunas_numericas_resumo:
+                                                                                    df_type06_para_resumo_temp = df_type06_para_resumo[colunas_numericas_resumo].fillna(0)
+                                                                                    df_type06_para_resumo_filtrado = df_type06_para_resumo[
+                                                                                        df_type06_para_resumo_temp.abs().sum(axis=1) > 0.0001
+                                                                                    ].copy()
+                                                                                else:
+                                                                                    df_type06_para_resumo_filtrado = df_type06_para_resumo.copy()
+                                                                                
+                                                                                linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_para_resumo_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                                 
                                                                                 # Exibir caixas de resumo
                                                                                 exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
@@ -5964,50 +6019,96 @@ with tab1:
                             # Remover coluna Custo do agrupamento para exibição
                             df_tabela_total = df_tabela_flex.copy()
                             
-                            # Agrupar por Type 05, Type 06, Account (se existirem) somando valores
-                            colunas_agrupamento_total = []
-                            if 'Type 05' in df_tabela_total.columns:
-                                colunas_agrupamento_total.append('Type 05')
-                            if 'Type 06' in df_tabela_total.columns:
-                                colunas_agrupamento_total.append('Type 06')
-                            if 'Account' in df_tabela_total.columns:
-                                colunas_agrupamento_total.append('Account')
-                            
-                            if len(colunas_agrupamento_total) > 0:
-                                # Agrupar somando os valores
-                                df_tabela_total_agrupado = df_tabela_total.groupby(colunas_agrupamento_total).agg({
-                                    'BUD': 'sum',
-                                    'Flex Bud - BUD': 'sum',
-                                    'Flex BUD': 'sum',
-                                    'Total - Flex Bud': 'sum',
-                                    'Total': 'sum'
-                                }).reset_index()
+                            # Verificar se df_tabela_total tem dados
+                            if len(df_tabela_total) == 0:
+                                st.warning("⚠️ Nenhum dado disponível para exibição no modo Total.")
+                                df_tabela_total_agrupado = pd.DataFrame()
+                            else:
+                                # Agrupar por Type 05, Type 06, Account (se existirem) somando valores
+                                colunas_agrupamento_total = []
+                                if 'Type 05' in df_tabela_total.columns:
+                                    colunas_agrupamento_total.append('Type 05')
+                                if 'Type 06' in df_tabela_total.columns:
+                                    colunas_agrupamento_total.append('Type 06')
+                                if 'Account' in df_tabela_total.columns:
+                                    colunas_agrupamento_total.append('Account')
                                 
-                                # Recalcular Total / Flex Bud após agrupamento
-                                df_tabela_total_agrupado['Total / Flex Bud'] = df_tabela_total_agrupado.apply(
-                                    lambda row: row['Total'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
-                                    axis=1
-                                )
+                                if len(colunas_agrupamento_total) > 0:
+                                    # Verificar quais colunas existem antes de agrupar
+                                    colunas_para_agregar = []
+                                    colunas_esperadas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']
+                                    for col in colunas_esperadas:
+                                        if col in df_tabela_total.columns:
+                                            colunas_para_agregar.append(col)
+                                    
+                                    if len(colunas_para_agregar) > 0:
+                                        # Agrupar somando os valores
+                                        df_tabela_total_agrupado = df_tabela_total.groupby(colunas_agrupamento_total).agg({
+                                            col: 'sum' for col in colunas_para_agregar
+                                        }).reset_index()
+                                    else:
+                                        # Se não há colunas para agregar, usar todas as colunas numéricas disponíveis
+                                        colunas_numericas = [col for col in df_tabela_total.columns 
+                                                           if pd.api.types.is_numeric_dtype(df_tabela_total[col]) 
+                                                           and col not in colunas_agrupamento_total 
+                                                           and col not in ['Custo', 'Período']]
+                                        if len(colunas_numericas) > 0:
+                                            df_tabela_total_agrupado = df_tabela_total.groupby(colunas_agrupamento_total).agg({
+                                                col: 'sum' for col in colunas_numericas
+                                            }).reset_index()
+                                        else:
+                                            st.warning("⚠️ Nenhuma coluna numérica encontrada em df_tabela_total. Colunas disponíveis: " + ", ".join(df_tabela_total.columns.tolist()))
+                                            df_tabela_total_agrupado = pd.DataFrame(columns=colunas_agrupamento_total)
+                                
+                                # Recalcular Total / Flex Bud após agrupamento (se as colunas necessárias existirem)
+                                if len(df_tabela_total_agrupado) > 0 and 'Total' in df_tabela_total_agrupado.columns and 'Flex BUD' in df_tabela_total_agrupado.columns:
+                                    df_tabela_total_agrupado['Total / Flex Bud'] = df_tabela_total_agrupado.apply(
+                                        lambda row: row['Total'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
+                                        axis=1
+                                    )
+                                elif len(df_tabela_total_agrupado) > 0:
+                                    df_tabela_total_agrupado['Total / Flex Bud'] = 0
                                 
                                 # 🔧 FILTRAR LINHAS ZERADAS E NULAS após agrupamento
-                                colunas_numericas_agrupado = [col for col in df_tabela_total_agrupado.columns 
-                                                              if pd.api.types.is_numeric_dtype(df_tabela_total_agrupado[col]) 
-                                                              and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                if colunas_numericas_agrupado:
-                                    df_tabela_total_agrupado_temp = df_tabela_total_agrupado[colunas_numericas_agrupado].fillna(0)
-                                    df_tabela_total_agrupado = df_tabela_total_agrupado[
-                                        df_tabela_total_agrupado_temp.abs().sum(axis=1) > 0.0001
-                                    ].copy()
-                            else:
-                                # Se não houver colunas de agrupamento, somar tudo
-                                df_tabela_total_agrupado = pd.DataFrame([{
-                                    'BUD': df_tabela_total['BUD'].sum(),
-                                    'Flex Bud - BUD': df_tabela_total['Flex Bud - BUD'].sum(),
-                                    'Flex BUD': df_tabela_total['Flex BUD'].sum(),
-                                    'Total - Flex Bud': df_tabela_total['Total - Flex Bud'].sum(),
-                                    'Total': df_tabela_total['Total'].sum(),
-                                    'Total / Flex Bud': df_tabela_total['Total'].sum() / df_tabela_total['Flex BUD'].sum() if df_tabela_total['Flex BUD'].sum() != 0 and pd.notnull(df_tabela_total['Flex BUD'].sum()) else 0
-                                }])
+                                if len(df_tabela_total_agrupado) > 0:
+                                    colunas_numericas_agrupado = [col for col in df_tabela_total_agrupado.columns 
+                                                                  if pd.api.types.is_numeric_dtype(df_tabela_total_agrupado[col]) 
+                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                    if colunas_numericas_agrupado:
+                                        df_tabela_total_agrupado_temp = df_tabela_total_agrupado[colunas_numericas_agrupado].fillna(0)
+                                        df_tabela_total_agrupado = df_tabela_total_agrupado[
+                                            df_tabela_total_agrupado_temp.abs().sum(axis=1) > 0.0001
+                                        ].copy()
+                                else:
+                                    # Se não houver colunas de agrupamento, somar tudo
+                                    # Verificar quais colunas existem antes de somar
+                                    valores_soma = {}
+                                    colunas_esperadas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']
+                                    for col in colunas_esperadas:
+                                        if col in df_tabela_total.columns:
+                                            valores_soma[col] = df_tabela_total[col].sum()
+                                    
+                                    # Se não encontrou as colunas esperadas, tentar usar todas as colunas numéricas
+                                    if len(valores_soma) == 0:
+                                        colunas_numericas = [col for col in df_tabela_total.columns 
+                                                           if pd.api.types.is_numeric_dtype(df_tabela_total[col]) 
+                                                           and col not in ['Custo', 'Período']]
+                                        for col in colunas_numericas:
+                                            valores_soma[col] = df_tabela_total[col].sum()
+                                    
+                                    # Calcular Total / Flex Bud se as colunas necessárias existirem
+                                    if 'Total' in valores_soma and 'Flex BUD' in valores_soma:
+                                        if valores_soma['Flex BUD'] != 0 and pd.notnull(valores_soma['Flex BUD']):
+                                            valores_soma['Total / Flex Bud'] = valores_soma['Total'] / valores_soma['Flex BUD']
+                                        else:
+                                            valores_soma['Total / Flex Bud'] = 0
+                                    
+                                    if len(valores_soma) > 0:
+                                        df_tabela_total_agrupado = pd.DataFrame([valores_soma])
+                                    else:
+                                        # Se não há colunas para somar, criar DataFrame vazio
+                                        st.warning("⚠️ Nenhuma coluna numérica encontrada em df_tabela_total. Colunas disponíveis: " + ", ".join(df_tabela_total.columns.tolist()))
+                                        df_tabela_total_agrupado = pd.DataFrame()
                                 
                                 # 🔧 FILTRAR: Se a linha única tiver todos os valores zerados, não exibir
                                 if len(df_tabela_total_agrupado) > 0:
@@ -6018,11 +6119,37 @@ with tab1:
                                         if soma_absoluta <= 0.0001:
                                             df_tabela_total_agrupado = pd.DataFrame()  # DataFrame vazio para não exibir
                             
+                            # 🔧 ADICIONAR: Exibir Resumo Geral no modo Total
+                            if len(df_tabela_total_agrupado) > 0:
+                                st.markdown("---")
+                                st.markdown("### 📊 Resumo Geral")
+                                
+                                # Usar df_tabela_flex_para_resumo (salvo ANTES da transformação em colunas por período)
+                                # Se não existir (caso de período único), usar df_tabela_flex
+                                df_para_resumo = df_tabela_flex_para_resumo if 'df_tabela_flex_para_resumo' in locals() else df_tabela_flex
+                                # Calcular resumo geral usando df_para_resumo
+                                # Isso garante que todos os dados sejam incluídos no resumo com as colunas corretas
+                                linha_resumo_geral, linha_resumo_geral_formatado = calcular_resumo_tabela_flex(
+                                    df_para_resumo, 
+                                    tipo_visualizacao, 
+                                    moeda_simbolo, 
+                                    fator_conversao
+                                )
+                                
+                                # Exibir caixas de resumo
+                                exibir_caixas_resumo(linha_resumo_geral, linha_resumo_geral_formatado, tipo_visualizacao, mostrar_volumes=False)
+                                st.markdown("---")
+                            
                             # Criar estrutura hierárquica sem separação por Custo
+                            # 🔧 CORREÇÃO: Usar df_tabela_flex_para_resumo para cálculos de resumo (tem colunas originais)
+                            df_para_resumo_total = df_tabela_flex_para_resumo if 'df_tabela_flex_para_resumo' in locals() else df_tabela_flex
+                            
                             # Nível 1: Type 05 (se existir)
                             if 'Type 05' in df_tabela_total_agrupado.columns:
                                 for type05 in sorted(df_tabela_total_agrupado['Type 05'].dropna().unique()):
                                     df_type05 = df_tabela_total_agrupado[df_tabela_total_agrupado['Type 05'] == type05].copy()
+                                    # 🔧 CORREÇÃO: Criar versão para resumo com colunas originais
+                                    df_type05_para_resumo = df_para_resumo_total[df_para_resumo_total['Type 05'] == type05].copy() if 'Type 05' in df_para_resumo_total.columns else df_type05.copy()
                                     
                                     if len(df_type05) > 0:
                                         # 🔧 FILTRAR: Verificar se Type 05 tem valores não zerados
@@ -6048,7 +6175,8 @@ with tab1:
                                         
                                         with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
                                             # Resumo do Type 05
-                                            linha_resumo_type05, linha_resumo_type05_formatado = calcular_resumo_tabela_flex(df_type05, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                            # 🔧 CORREÇÃO: Usar df_type05_para_resumo que tem as colunas originais (BUD, Flex BUD, Total)
+                                            linha_resumo_type05, linha_resumo_type05_formatado = calcular_resumo_tabela_flex(df_type05_para_resumo, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                             exibir_caixas_resumo(linha_resumo_type05, linha_resumo_type05_formatado, tipo_visualizacao)
                                             st.markdown("---")
                                             
