@@ -24,76 +24,1378 @@ st.markdown("""
             padding: 10px 20px;
             font-weight: 600;
         }
-        /* Estilos para botões: reduzir fonte e aproximar */
-        .stButton > button {
-            font-size: 0.85rem !important;
-            padding: 0.4rem 1rem !important;
-            margin-bottom: 0.3rem !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📚 Documentação Completa do Sistema")
+st.title("📚 Documentação Completa do Sistema TC")
 
-# Criar estrutura de tabs principais
-tab_tecnica, tab_teorica = st.tabs(["🔧 Documentação Técnica", "📖 Documentação Teórica"])
+# Sidebar com índices
+st.sidebar.markdown("## 📑 Índice")
+st.sidebar.markdown("---")
+
+# Criar dois índices no sidebar
+indice_selecionado = st.sidebar.radio(
+    "Selecione a seção:",
+    ["📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura"],
+    key="indice_documentacao"
+)
+
+st.markdown("---")
 
 # ==========================================
-# TAB 1: DOCUMENTAÇÃO TÉCNICA
+# SEÇÃO 1: REGRAS E CÁLCULO
 # ==========================================
-with tab_tecnica:
-    st.header("🔧 Documentação Técnica - Recursos e Programação")
+if indice_selecionado == "📐 Regras e Cálculo":
+    st.header("📐 Regras e Cálculo")
     
     st.markdown("""
-    Esta seção contém informações técnicas completas sobre a implementação do sistema,
-    recursos utilizados, estrutura de código e dados necessários para reconstrução.
+    Esta seção documenta todas as regras de cálculo, filtros e metodologias utilizadas no projeto.
+    **IMPORTANTE:** Esta documentação serve como referência para garantir que todos os cálculos sejam
+    reproduzidos de forma idêntica, permitindo que a IA consulte e refaça qualquer cálculo do sistema.
     """)
     
     st.markdown("---")
     
-    # Sub-tabs para organização técnica
-    sub_tab1, sub_tab2, sub_tab3, sub_tab4 = st.tabs([
-        "🏗️ Arquitetura e Estrutura",
-        "💻 Recursos e Bibliotecas",
-        "📁 Estrutura de Dados",
-        "🔨 Implementações Específicas"
+    # Sub-tabs para organização
+    tab_calculos, tab_filtros, tab_moeda, tab_volumes, tab_flex = st.tabs([
+        "🔢 Cálculos Principais",
+        "🔍 Filtros e Perímetros",
+        "💱 Moeda e Taxas",
+        "📊 Volumes",
+        "🔄 Flex Bud"
     ])
     
-    # SUB-TAB 1: Arquitetura
-    with sub_tab1:
-        st.subheader("🏗️ Arquitetura do Sistema")
+    # TAB 1: Cálculos Principais
+    with tab_calculos:
+        st.subheader("🔢 Cálculos Principais")
         
+        st.markdown("""
+        ### 1. CPU (Custo por Unidade)
+        
+        **REGRA CRÍTICA:** CPU deve ser calculado APÓS agrupamento, nunca antes.
+        
+        **Fórmula:**
+        ```
+        CPU = Total_Agregado / Volume_Agregado
+        ```
+        
+        **Implementação Correta:**
+        ```python
+        # ✅ CORRETO: Agrupar primeiro, depois calcular CPU
+        df_agrupado = df.groupby(['Período', 'Oficina']).agg({
+            'Total': 'sum',
+            'Volume': 'sum'
+        }).reset_index()
+        df_agrupado['CPU'] = df_agrupado['Total'] / df_agrupado['Volume'].replace(0, 1)
+        ```
+        
+        **Implementação Incorreta (NUNCA FAZER):**
+        ```python
+        # ❌ INCORRETO: Calcular CPU antes de agrupar
+        df['CPU'] = df['Total'] / df['Volume']
+        df_agrupado = df.groupby(['Período', 'Oficina'])['CPU'].mean()  # ❌ ERRADO!
+        ```
+        
+        **Motivo:** A média de CPUs individuais não é igual ao CPU do total agregado.
+        
+        **Exemplo:**
+        - Linha 1: Total = 100, Volume = 10 → CPU = 10
+        - Linha 2: Total = 200, Volume = 20 → CPU = 10
+        - Total Agregado: Total = 300, Volume = 30 → CPU = 10 ✅
+        - Média de CPUs: (10 + 10) / 2 = 10 ✅ (coincidência)
+        
+        Mas se:
+        - Linha 1: Total = 100, Volume = 10 → CPU = 10
+        - Linha 2: Total = 200, Volume = 40 → CPU = 5
+        - Total Agregado: Total = 300, Volume = 50 → CPU = 6 ✅
+        - Média de CPUs: (10 + 5) / 2 = 7.5 ❌ (ERRADO!)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### 2. Custo Total
+        
+        **Fórmula:**
+        ```
+        Custo_Total = Soma(Total_Individual)
+        ```
+        
+        **Implementação:**
+        ```python
+        # Agrupar e somar
+        df_agrupado = df.groupby(['Período', 'Oficina'])['Total'].sum().reset_index()
+        ```
+        
+        **Observações:**
+        - Sempre somar valores individuais
+        - Não calcular média de totais
+        - Aplicar filtros antes de agrupar
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### 3. Fator de Conversão (K/M)
+        
+        **REGRA CRÍTICA:** Fator de conversão NÃO deve ser aplicado no modo CPU.
+        
+        **Aplicação:**
+        ```python
+        # Aplicar fator APENAS em modo Custo Total
+        if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+            if fator_conversao == "K (milhares)":
+                df['Total'] = df['Total'] / 1000
+            elif fator_conversao == "M (Milhões)":
+                df['Total'] = df['Total'] / 1000000
+        ```
+        
+        **Motivo:** CPU já é uma razão (Total/Volume), aplicar fator resultaria em divisão dupla.
+        
+        **Ordem de Aplicação:**
+        1. Primeiro: Fator de conversão (K/M)
+        2. Depois: Conversão de moeda
+        3. Depois: Cálculos (CPU, Flex Bud, etc.)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### 4. Agrupamento por Período
+        
+        **Com Ano:**
+        ```python
+        # Criar coluna Período_Ano
+        if 'Ano' in df.columns and 'Período' in df.columns:
+            df['Período_Ano'] = df['Período'].astype(str) + ' ' + df['Ano'].astype(str)
+            colunas_agrupamento = ['Ano', 'Período']
+        ```
+        
+        **Sem Ano:**
+        ```python
+        colunas_agrupamento = ['Período']
+        ```
+        
+        **Agrupamento:**
+        ```python
+        df_agrupado = df.groupby(colunas_agrupamento).agg({
+            'Total': 'sum',
+            'Volume': 'sum'
+        }).reset_index()
+        ```
+        """)
+    
+        st.markdown("---")
+        
+        st.markdown("""
+        ### 5. Cálculo de Diferenças
+        
+        **Flex Bud - BUD:**
+        ```
+        Flex_Bud_Menos_BUD = Flex_BUD - BUD
+        ```
+        
+        **Total - Flex Bud:**
+        ```
+        Total_Menos_Flex_Bud = Total - Flex_BUD
+        ```
+        
+        **Total / Flex Bud (Ratio):**
+        ```
+        Ratio = Total / Flex_BUD
+        Percentual = Ratio × 100
+        ```
+        
+        **Interpretação do Ratio:**
+        - < 100%: Total < Flex Bud (melhor que esperado)
+        - = 100%: Total = Flex Bud (exatamente como esperado)
+        - > 100%: Total > Flex Bud (pior que esperado)
+        """)
+    
+    # TAB 2: Filtros e Perímetros
+    with tab_filtros:
+        st.subheader("🔍 Filtros e Perímetros")
+        
+        st.markdown("""
+        ### Filtros da Sidebar (Ordem de Aplicação)
+        
+        Os filtros são aplicados na seguinte ordem:
+        
+        1. **Ano** (Radio button)
+        2. **Oficina** (Multiselect)
+        3. **Veículo** (Multiselect)
+        4. **USI** (Multiselect)
+        5. **Período** (Selectbox)
+        6. **Centro cst** (Selectbox)
+        7. **Conta contábil** (Multiselect)
+        8. **Type 05** (Multiselect)
+        9. **Type 06** (Multiselect)
+        10. **Fornecedor** (Multiselect)
+        11. **Fornec.** (Multiselect)
+        12. **Tipo** (Multiselect)
+        13. **Filtros Avançados:**
+            - Usuário
+            - Material
+            - Dt.lçto.
+            - Texto breve
+            - Account
+        
+        **Implementação:**
+                ```python
+        # Aplicar filtros sequencialmente
+        df_filtrado = df_total.copy()
+        
+        # Filtro de Oficina
+        if oficinas_selecionadas and "Todos" not in oficinas_selecionadas:
+            df_filtrado = df_filtrado[
+                df_filtrado['Oficina'].astype(str).isin(oficinas_selecionadas)
+            ].copy()
+        
+        # Filtro de Veículo
+        if veiculos_selecionados and "Todos" not in veiculos_selecionados:
+            df_filtrado = df_filtrado[
+                df_filtrado['Veículo'].astype(str).isin(veiculos_selecionados)
+            ].copy()
+        
+        # ... (aplicar todos os outros filtros)
+                ```
+                """)
+    
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Perímetro de Filtros para Volumes
+        
+        **REGRA CRÍTICA:** Volumes devem usar EXATAMENTE os mesmos filtros dos dados principais.
+        
+        **Implementação:**
+        ```python
+        # Criar df_vol_filtrado aplicando TODOS os filtros
+        df_vol_filtrado = df_volume.copy()
+        
+        # Aplicar filtros usando valores únicos de df_filtrado_waterfall
+        if df_filtrado_waterfall is not None and len(df_filtrado_waterfall) > 0:
+            # Filtro de Veículo
+            if 'Veículo' in df_filtrado_waterfall.columns and 'Veículo' in df_vol_filtrado.columns:
+                veiculos_filtrados = df_filtrado_waterfall['Veículo'].dropna().unique()
+                if len(veiculos_filtrados) > 0:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Veículo'].isin(veiculos_filtrados)
+                    ].copy()
+            
+            # Filtro de Oficina
+            if 'Oficina' in df_filtrado_waterfall.columns and 'Oficina' in df_vol_filtrado.columns:
+                oficinas_filtradas = df_filtrado_waterfall['Oficina'].dropna().unique()
+                if len(oficinas_filtradas) > 0:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['Oficina'].isin(oficinas_filtradas)
+                    ].copy()
+            
+            # Filtro de USI
+            if 'USI' in df_filtrado_waterfall.columns and 'USI' in df_vol_filtrado.columns:
+                usi_filtradas = df_filtrado_waterfall['USI'].dropna().unique()
+                if len(usi_filtradas) > 0:
+                    df_vol_filtrado = df_vol_filtrado[
+                        df_vol_filtrado['USI'].isin(usi_filtradas)
+                    ].copy()
+            
+            # Outros filtros comuns
+            colunas_filtro_comuns = ['Centrocst', 'Nºconta', 'Type 05', 'Type 06', 
+                                     'Fornecedor', 'Fornec.', 'Tipo']
+            for col_filtro in colunas_filtro_comuns:
+                if col_filtro in df_filtrado_waterfall.columns and col_filtro in df_vol_filtrado.columns:
+                    valores_filtrados = df_filtrado_waterfall[col_filtro].dropna().unique()
+                    if len(valores_filtrados) > 0:
+                        df_vol_filtrado = df_vol_filtrado[
+                            df_vol_filtrado[col_filtro].isin(valores_filtrados)
+                        ].copy()
+            
+            # Filtros avançados
+            colunas_filtro_avancados = ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve', 'Account']
+            for col_filtro in colunas_filtro_avancados:
+                if col_filtro in df_filtrado_waterfall.columns and col_filtro in df_vol_filtrado.columns:
+                    valores_filtrados = df_filtrado_waterfall[col_filtro].dropna().unique()
+                    if len(valores_filtrados) > 0:
+                        df_vol_filtrado = df_vol_filtrado[
+                            df_vol_filtrado[col_filtro].isin(valores_filtrados)
+                        ].copy()
+        ```
+        
+        **IMPORTANTE:** Sempre usar valores únicos de `df_filtrado_waterfall` (ou `df_filtrado`) para aplicar filtros ao volume.
+        Isso garante que volumes e valores totais usem o mesmo perímetro de filtros.
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Filtros para Budget
+        
+        **REGRA:** Budget deve usar os mesmos filtros dos dados reais.
+        
+        **Implementação:**
+        ```python
+        # Aplicar TODOS os filtros que existem em df_para_grafico_periodo
+        if 'df_para_grafico_periodo' in locals() and df_para_grafico_periodo is not None:
+            # Aplicar filtro de Veículo
+            if 'Veículo' in df_para_grafico_periodo.columns and 'Veículo' in df_budget.columns:
+                veiculos_filtrados = df_para_grafico_periodo['Veículo'].dropna().unique()
+                if len(veiculos_filtrados) > 0:
+                    df_budget = df_budget[df_budget['Veículo'].isin(veiculos_filtrados)].copy()
+            
+            # Aplicar filtro de Oficina
+            if 'Oficina' in df_para_grafico_periodo.columns and 'Oficina' in df_budget.columns:
+                oficinas_filtradas = df_para_grafico_periodo['Oficina'].dropna().unique()
+                if len(oficinas_filtradas) > 0:
+                    df_budget = df_budget[df_budget['Oficina'].isin(oficinas_filtradas)].copy()
+            
+            # ... (aplicar todos os outros filtros)
+        ```
+        """)
+    
+    # TAB 3: Moeda e Taxas
+    with tab_moeda:
+        st.subheader("💱 Moeda e Taxas de Câmbio")
+        
+        st.markdown("""
+        ### Moedas Suportadas
+        
+        - **BRL (R$):** Real Brasileiro (moeda base)
+        - **USD ($):** Dólar Americano
+        - **EUR (€):** Euro
+        
+        ### Taxas de Câmbio
+        
+        **Definição:**
+        - Taxas são definidas como: `1 BRL = X USD` e `1 BRL = Y EUR`
+        - Exemplo: Se 1 BRL = 0.20 USD, então taxa_usd_para_brl = 0.20
+        
+        **Armazenamento:**
+        ```python
+        taxas_cambio = {
+            "BRL": 1.0,
+            "USD": taxa_brl_para_usd,  # Ex: 0.20
+            "EUR": taxa_brl_para_eur   # Ex: 0.18
+        }
+        ```
+        
+        **Conversão:**
+        ```python
+        def converter_moeda(valor, moeda_destino, taxas):
+            if valor is None or pd.isna(valor):
+                return valor
+            if moeda_destino == "BRL":
+                return valor
+            taxa = taxas.get(moeda_destino, 1.0)
+            return valor * taxa
+        ```
+        
+        **Aplicação em DataFrame:**
+        ```python
+        def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
+            if moeda_destino == "BRL":
+                return df
+            taxa = taxas.get(moeda_destino, 1.0)
+            df[coluna] = df[coluna] * taxa
+            return df
+        ```
+        
+        **Ordem de Aplicação:**
+        1. Primeiro: Fator de conversão (K/M) - se aplicável
+        2. Depois: Conversão de moeda
+        3. Depois: Cálculos (CPU, Flex Bud, etc.)
+        
+        **Exemplo:**
+        - Valor original: R$ 1.000.000
+        - Com fator K: R$ 1.000 K
+        - Com conversão USD (taxa 0.20): $ 200 K
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Persistência de Taxas
+        
+        **Armazenamento:**
+        - Taxas são salvas em banco de dados ou arquivo JSON
+        - Valores padrão se não houver taxas salvas
+        
+        **Atualização:**
+        ```python
+        # Salvar novas taxas
+        def salvar_taxas_banco(novas_taxas):
+            # Salvar em banco de dados ou arquivo
+            pass
+        ```
+        """)
+    
+    # TAB 4: Volumes
+    with tab_volumes:
+        st.subheader("📊 Cálculo de Volumes")
+        
+        st.markdown("""
+        ### Fonte de Dados de Volume
+        
+        **Arquivo:**
+        - `df_volume` ou `df_vol_historico.parquet`
+        - Colunas obrigatórias: `Volume`, `Período`, `Oficina`, `Veículo`
+        - Coluna opcional: `Ano`
+        
+        ### Filtragem de Volumes
+        
+        **REGRA CRÍTICA:** Volumes devem usar EXATAMENTE os mesmos filtros dos dados principais.
+        
+        **Processo:**
+        1. Criar `df_vol_filtrado` a partir de `df_volume`
+        2. Aplicar TODOS os filtros usando valores únicos de `df_filtrado`
+        3. Filtrar por período específico
+        4. Agrupar por Período e somar
+        
+        **Implementação:**
+        ```python
+        # 1. Criar df_vol_filtrado com todos os filtros
+        df_vol_filtrado = df_volume.copy()
+        # ... (aplicar todos os filtros como mostrado na seção de Filtros)
+        
+        # 2. Filtrar por período
+        if modo_comparacao == "Mês a Mês":
+            if col_mes_waterfall:
+                df_vol_m1 = df_vol_filtrado[
+                    df_vol_filtrado[col_mes_waterfall].astype(str) == str(mes_inicial)
+                ].copy()
+            else:
+                df_vol_m1 = df_vol_filtrado[
+                    df_vol_filtrado['Período'].astype(str) == str(mes_inicial)
+                ].copy()
+        
+        # 3. Calcular volume: agrupar por Período primeiro, depois somar
+        if not df_vol_m1.empty and 'Período' in df_vol_m1.columns:
+            volume_m1 = df_vol_m1.groupby('Período')['Volume'].sum().sum()
+        elif not df_vol_m1.empty:
+            volume_m1 = df_vol_m1['Volume'].sum()
+        else:
+            volume_m1 = 0
+        ```
+        
+        **IMPORTANTE:** Sempre agrupar por Período primeiro, depois somar, para garantir consistência.
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Volumes por Categoria
+        
+        **Para cálculo de CPU por categoria:**
+        ```python
+        # Agrupar volumes por categoria
+        if chosen_dim_waterfall in df_vol_m1_graph.columns:
+            vol_m1_por_cat = df_vol_m1_graph.groupby(chosen_dim_waterfall)['Volume'].sum()
+                    else:
+            # Se não tiver a coluna, usar volume total
+            vol_m1_por_cat = pd.Series()
+        
+        # Calcular CPU por categoria
+        if not vol_m1_por_cat.empty:
+            total_m1_por_cat = df_m1.groupby(chosen_dim_waterfall)['Total'].sum()
+            g1 = total_m1_por_cat / vol_m1_por_cat.replace(0, 1)
+        else:
+            # Fallback: usar volume total
+            total_m1_por_cat = df_m1.groupby(chosen_dim_waterfall)['Total'].sum()
+            g1 = total_m1_por_cat / volume_m1_graph if volume_m1_graph > 0 else total_m1_por_cat / 1
+        ```
+        """)
+    
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Volumes para Modos de Comparação
+        
+        **Mês a Mês:**
+        - Filtrar por `col_mes_waterfall` ou `Período`
+        - Agrupar por Período e somar
+        
+        **Ano a Ano:**
+        - Filtrar por `Ano`
+        - Agrupar por Ano e somar (volume total do ano)
+        
+        **Semestre:**
+        - Filtrar por `Ano` e `Período` (meses do semestre)
+        - Agrupar por Período e somar
+        
+        **Quarter:**
+        - Filtrar por `Ano` e `Período` (meses do trimestre)
+        - Agrupar por Período e somar
+        """)
+    
+    # TAB 5: Flex Bud
+    with tab_flex:
+        st.subheader("🔄 Cálculo de Flex Bud")
+        
+        st.markdown("""
+        ### Conceito
+        
+        **Flex Bud** (Budget Flexível) é um valor ajustado que considera a variação de volume,
+        aplicando regras diferentes para custos fixos e variáveis.
+        
+        **IMPORTANTE:** Existem dois contextos diferentes de cálculo:
+        1. **Real x Real** (Waterfall): Compara dois períodos reais (Mês 1 vs Mês 2)
+        2. **Real x Budget** (TC Ext): Compara período real vs budget planejado
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("## 📋 Regras Fundamentais: Fixo vs Variável")
+        
+        st.markdown("""
+        ### Regra Geral para Custos Fixos
+        
+        **Princípio:** Custos fixos NÃO variam com o volume de produção.
+        
+        **Fórmula Geral:**
+        ```
+        Flex_Fixo = Valor_Original_Fixo
+        ```
+        
+        **Explicação:**
+        - Independente da variação de volume, o custo fixo permanece constante
+        - Exemplos: Aluguel, salários fixos, depreciação
+        - Sensibilidade ao volume: **0%** (zero por cento)
+        
+        **Implementação:**
+        ```python
+        # Sempre manter o valor original
+        flex_fixo = custo_fixo_original
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Regra Geral para Custos Variáveis
+        
+        **Princípio:** Custos variáveis variam PROPORCIONALMENTE ao volume de produção.
+        
+        **Fórmula Geral:**
+        ```
+        Flex_Variável = Valor_Original_Variável × (Volume_Novo / Volume_Original)
+        ```
+        
+        **Explicação:**
+        - Se o volume dobra, o custo variável dobra
+        - Se o volume reduz pela metade, o custo variável reduz pela metade
+        - Exemplos: Matéria-prima, energia variável, comissões
+        - Sensibilidade ao volume: **100%** (cem por cento)
+        
+        **Implementação:**
+        ```python
+        # Calcular proporção de volume
+        proporcao = volume_novo / volume_original
+        
+        # Aplicar proporção ao custo variável
+        flex_variavel = custo_variavel_original * proporcao
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Identificação de Fixo vs Variável
+        
+        **Coluna 'Custo' no DataFrame:**
+        - Deve conter os valores: `'Fixo'` ou `'Variável'`
+        - Cada linha de dados deve ter esta classificação
+        
+        **Implementação:**
+        ```python
+        # Separar Fixo e Variável
+        if 'Custo' in df.columns:
+            custo_fixo = df[df['Custo'] == 'Fixo']['Total'].sum()
+            custo_variavel = df[df['Custo'] == 'Variável']['Total'].sum()
+        else:
+            # Se não tiver coluna Custo, assumir tudo como variável
+            custo_fixo = 0
+            custo_variavel = df['Total'].sum()
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        # Sub-seções para separar os dois casos
+        st.markdown("## 📊 CASO 1: Flex para Comparação Real x Real (Waterfall)")
+        
+        st.markdown("""
+        ### Contexto
+        
+        Usado na página **Waterfall Analysis** para comparar dois períodos reais:
+        - **Mês 1** (período inicial real)
+        - **Mês 2** (período final real)
+        
+        **Objetivo:** Calcular o que seria o custo do Mês 1 ajustado pelo volume do Mês 2.
+            """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Regras de Cálculo - Real x Real
+        
+        **Passo 1: Identificar Custos do Mês 1**
+        ```python
+        # Separar Fixo e Variável do Mês 1
+        C1_Fixo = df_m1[df_m1['Custo'] == 'Fixo']['Total'].sum()
+        C1_Variavel = df_m1[df_m1['Custo'] == 'Variável']['Total'].sum()
+        C1_Total = C1_Fixo + C1_Variavel
+        ```
+        
+        **Passo 2: Obter Volumes**
+        ```python
+        V1 = volume_real_mes1  # Volume do Mês 1
+        V2 = volume_real_mes2  # Volume do Mês 2
+        ```
+        
+        **Passo 3: Calcular Proporção de Volume**
+        ```python
+        rho = V2 / V1  # Proporção de volume
+        ```
+        
+        **Passo 4: Aplicar Regras de Fixo e Variável**
+        
+        **Para Custo Fixo:**
+        ```python
+        # REGRA: Fixo não varia com volume
+        Flex_Mes1_Fixo = C1_Fixo
+        # Explicação: Mantém o valor original, independente da variação de volume
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Mês1_Fixo = C₁_Fixo
+        ```
+        **Por que não multiplica pela proporção?**
+        - Custos fixos são independentes do volume de produção
+        - Exemplos: Aluguel, salários fixos, depreciação
+        - Mesmo que o volume dobre, o custo fixo permanece igual
+        
+        **Para Custo Variável:**
+        ```python
+        # REGRA: Variável varia proporcionalmente ao volume
+        Flex_Mes1_Variavel = C1_Variavel * rho
+                             = C1_Variavel * (V2 / V1)
+        # Explicação: Multiplica pelo fator de proporção de volume
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Mês1_Variável = C₁_Variável × ρ
+                              = C₁_Variável × (V₂ / V₁)
+        ```
+        **Por que multiplica pela proporção?**
+        - Custos variáveis variam proporcionalmente ao volume
+        - Se o volume dobra, o custo variável dobra
+        - Se o volume reduz pela metade, o custo variável reduz pela metade
+        - Exemplos: Matéria-prima, energia variável, comissões
+        
+        **Passo 5: Calcular Flex Mês 1 Total**
+        ```python
+        Flex_Mes1_Total = Flex_Mes1_Fixo + Flex_Mes1_Variavel
+                         = C1_Fixo + (C1_Variavel * rho)
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Mês1_Total = Flex_Mês1_Fixo + Flex_Mês1_Variável
+                        = C₁_Fixo + (C₁_Variável × ρ)
+                        = C₁_Fixo + C₁_Variável × (V₂ / V₁)
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Fórmulas Matemáticas Completas - Real x Real
+        
+        **Definições:**
+        - `V₁` = Volume Real do Mês 1
+        - `V₂` = Volume Real do Mês 2
+        - `C₁_Fixo` = Custo Total Fixo do Mês 1
+        - `C₁_Variável` = Custo Total Variável do Mês 1
+        - `C₁_Total` = Custo Total do Mês 1 = `C₁_Fixo + C₁_Variável`
+        
+        **Proporção de Volume:**
+        ```
+        ρ = V₂ / V₁
+        ```
+        Onde:
+        - `ρ > 1` significa que o volume aumentou
+        - `ρ < 1` significa que o volume diminuiu
+        - `ρ = 1` significa que o volume permaneceu igual
+        
+        **Cálculo de Flex Mês 1 (em Custo Total):**
+        
+        Para **Custo Fixo:**
+        ```
+        Flex_Mês1_Fixo = C₁_Fixo
+        ```
+        **Regra Aplicada:** Fixo não varia com volume
+        - Valor original mantido: `C₁_Fixo`
+        - Não multiplica pela proporção de volume
+        - Motivo: Custos fixos são independentes do volume de produção
+        
+        Para **Custo Variável:**
+        ```
+        Flex_Mês1_Variável = C₁_Variável × ρ
+                              = C₁_Variável × (V₂ / V₁)
+        ```
+        **Regra Aplicada:** Variável varia proporcionalmente ao volume
+        - Valor original: `C₁_Variável`
+        - Multiplica pela proporção: `ρ = V₂ / V₁`
+        - Motivo: Custos variáveis aumentam/diminuem na mesma proporção do volume
+        
+        **Flex Mês 1 Total (em Custo Total):**
+        ```
+        Flex_Mês1_Total = Flex_Mês1_Fixo + Flex_Mês1_Variável
+                        = C₁_Fixo + (C₁_Variável × ρ)
+                        = C₁_Fixo + C₁_Variável × (V₂ / V₁)
+        ```
+        **Regra Aplicada:** Soma do Fixo (inalterado) + Variável (ajustado)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Cálculo em CPU (Custo por Unidade) - Real x Real
+        
+        **IMPORTANTE:** No modo CPU, calcular em Custo Total primeiro, depois converter.
+        
+        **BUD (Mês 1) em CPU:**
+        ```
+        BUD_CPU = C₁_Total / V₁
+                 = (C₁_Fixo + C₁_Variável) / V₁
+        ```
+        
+        **Flex Mês 1 em CPU:**
+        ```
+        Flex_Mês1_CPU = Flex_Mês1_Total / V₂
+                       = [C₁_Fixo + C₁_Variável × (V₂ / V₁)] / V₂
+                       = (C₁_Fixo / V₂) + (C₁_Variável / V₁)
+        ```
+        
+        **Diferença (Flex Mês 1 - Mês 1):**
+        ```
+        Δ_Flex = Flex_Mês1_CPU - BUD_CPU
+               = [(C₁_Fixo / V₂) + (C₁_Variável / V₁)] - [(C₁_Fixo + C₁_Variável) / V₁]
+               = (C₁_Fixo / V₂) - (C₁_Fixo / V₁)
+               = C₁_Fixo × (1/V₂ - 1/V₁)
+               = C₁_Fixo × (V₁ - V₂) / (V₁ × V₂)
+        ```
+        
+        **Interpretação:**
+        - Se `V₂ > V₁`: `Δ_Flex < 0` (CPU diminui porque custo fixo é diluído em mais volume)
+        - Se `V₂ < V₁`: `Δ_Flex > 0` (CPU aumenta porque custo fixo é concentrado em menos volume)
+        - Se `V₂ = V₁`: `Δ_Flex = 0` (sem variação)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Implementação - Real x Real
+        
+        ```python
+        # 1. Obter dados do Mês 1
+        df_m1 = df_filtrado[df_filtrado['Período'] == mes_inicial]
+        
+        # 2. Separar Fixo e Variável
+        if 'Custo' in df_m1.columns:
+            C1_Fixo = df_m1[df_m1['Custo'] == 'Fixo']['Total'].sum()
+            C1_Variavel = df_m1[df_m1['Custo'] == 'Variável']['Total'].sum()
+        else:
+            C1_Fixo = 0
+            C1_Variavel = df_m1['Total'].sum()  # Tudo é variável
+        
+        C1_Total = C1_Fixo + C1_Variavel
+        
+        # 3. Obter volumes
+        volume_m1 = df_vol_m1['Volume'].sum()
+        volume_m2 = df_vol_m2['Volume'].sum()
+        
+        # 4. Calcular proporção
+        rho = volume_m2 / volume_m1 if volume_m1 != 0 else 1.0
+        
+        # 5. Calcular Flex Mês 1 (em Custo Total)
+        Flex_Mes1_Fixo = C1_Fixo  # Não varia
+        Flex_Mes1_Variavel = C1_Variavel * rho  # Varia proporcionalmente
+        Flex_Mes1_Total = Flex_Mes1_Fixo + Flex_Mes1_Variavel
+        
+        # 6. Converter para CPU (se necessário)
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            BUD_CPU = C1_Total / volume_m1 if volume_m1 != 0 else 0
+            Flex_Mes1_CPU = Flex_Mes1_Total / volume_m2 if volume_m2 != 0 else 0
+            Delta_Flex = Flex_Mes1_CPU - BUD_CPU
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Exemplo Prático - Real x Real
+        
+        **Dados:**
+        - Volume Real Mês 1 (`V₁`): 40,848 unidades
+        - Volume Real Mês 2 (`V₂`): 60,333 unidades
+        - Custo Total Fixo Mês 1 (`C₁_Fixo`): R$ 126.91
+        - Custo Total Variável Mês 1 (`C₁_Variável`): R$ 755.36
+        - Custo Total Mês 1 (`C₁_Total`): R$ 882.27
+        
+        **Cálculo:**
+        ```
+        ρ = V₂ / V₁ = 60,333 / 40,848 = 1.482373
+        
+        Flex_Mês1_Fixo = R$ 126.91
+        Flex_Mês1_Variável = R$ 755.36 × 1.482373 = R$ 1,119.72
+        Flex_Mês1_Total = R$ 126.91 + R$ 1,119.72 = R$ 1,246.63
+        ```
+        
+        **Em CPU:**
+        ```
+        BUD_CPU = R$ 882.27 / 40,848 = R$ 0.0216 por unidade
+        Flex_Mês1_CPU = R$ 1,246.63 / 60,333 = R$ 0.0207 por unidade
+        Δ_Flex = R$ 0.0207 - R$ 0.0216 = -R$ 0.0009 por unidade
+        ```
+        
+        **Interpretação:**
+        - O volume aumentou 48.24% (`ρ = 1.482373`)
+        - O custo variável aumentou proporcionalmente: R$ 755.36 → R$ 1,119.72
+        - O custo fixo permaneceu igual: R$ 126.91
+        - Em CPU, o custo por unidade diminuiu porque o custo fixo foi diluído em mais volume
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Modos de Comparação - Real x Real
+        
+        **Mês a Mês:**
+        - `V₁` = Volume do mês inicial
+        - `V₂` = Volume do mês final
+        
+        **Ano a Ano:**
+        - `V₁` = Volume total do ano inicial
+        - `V₂` = Volume total do ano final
+        
+        **Semestre:**
+        - `V₁` = Volume total do semestre inicial
+        - `V₂` = Volume total do semestre final
+        
+        **Quarter:**
+        - `V₁` = Volume total do trimestre inicial
+        - `V₂` = Volume total do trimestre final
+    """)
+    
+        st.markdown("---")
+        
+        st.markdown("## 💰 CASO 2: Flex para Comparação Real x Budget (TC Ext)")
+        
+        st.markdown("""
+        ### Contexto
+        
+        Usado na página **TC Ext** para comparar período real vs budget planejado:
+        - **Real** = Dados reais do período
+        - **Budget** = Dados planejados do período
+        
+        **Objetivo:** Calcular o que seria o budget ajustado pelo volume real.
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Regras de Cálculo - Real x Budget
+        
+        **Passo 1: Identificar Custos do Budget**
+        ```python
+        # Separar Fixo e Variável do Budget
+        B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
+        B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+        B_Total = B_Fixo + B_Variavel
+        ```
+        
+        **Passo 2: Obter Volumes**
+        ```python
+        V_Budget = volume_budget  # Volume planejado no Budget
+        V_Real = volume_real      # Volume real do período
+        ```
+        
+        **Passo 3: Calcular Proporção de Volume**
+        ```python
+        rho = V_Real / V_Budget  # Proporção de volume real vs planejado
+        ```
+        
+        **Passo 4: Aplicar Regras de Fixo e Variável**
+        
+        **Para Custo Fixo:**
+        ```python
+        # REGRA: Fixo não varia com volume
+        Flex_Bud_Fixo = B_Fixo
+        # Explicação: Mantém o valor do budget, independente da variação de volume
+        ```
+        
+        **Para Custo Variável:**
+        ```python
+        # REGRA: Variável varia proporcionalmente ao volume
+        Flex_Bud_Variavel = B_Variavel * rho
+                            = B_Variavel * (V_Real / V_Budget)
+        # Explicação: Ajusta o budget variável pela proporção de volume real vs planejado
+        ```
+        
+        **Passo 5: Calcular Flex Bud Total**
+        ```python
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variavel
+                        = B_Fixo + (B_Variavel * rho)
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Fórmulas Matemáticas Completas - Real x Budget
+        
+        **Definições:**
+        ```python
+        # Separar Fixo e Variável do Budget
+        B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
+        B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+        B_Total = B_Fixo + B_Variavel
+        ```
+        
+        **Passo 2: Obter Volumes**
+        ```python
+        V_Budget = volume_budget  # Volume planejado no Budget
+        V_Real = volume_real      # Volume real do período
+        ```
+        
+        **Passo 3: Calcular Proporção de Volume**
+        ```python
+        rho = V_Real / V_Budget  # Proporção de volume real vs planejado
+        ```
+        
+        **Passo 4: Aplicar Regras de Fixo e Variável**
+        
+        **Para Custo Fixo:**
+        ```python
+        # REGRA: Fixo não varia com volume
+        Flex_Bud_Fixo = B_Fixo
+        # Explicação: Mantém o valor do budget, independente da variação de volume
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Bud_Fixo = B_Fixo
+        ```
+        **Por que não multiplica pela proporção?**
+        - Custos fixos são independentes do volume de produção
+        - O budget fixo foi planejado e não deve ser ajustado
+        - Exemplos: Aluguel, salários fixos, depreciação
+        - Mesmo que o volume real seja diferente do planejado, o custo fixo permanece igual
+        
+        **Para Custo Variável:**
+        ```python
+        # REGRA: Variável varia proporcionalmente ao volume
+        Flex_Bud_Variavel = B_Variavel * rho
+                            = B_Variavel * (V_Real / V_Budget)
+        # Explicação: Ajusta o budget variável pela proporção de volume real vs planejado
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Bud_Variável = B_Variável × ρ
+                           = B_Variável × (V_Real / V_Budget)
+        ```
+        **Por que multiplica pela proporção?**
+        - Custos variáveis variam proporcionalmente ao volume
+        - Se o volume real for maior que o planejado, o custo variável deve aumentar
+        - Se o volume real for menor que o planejado, o custo variável deve diminuir
+        - Exemplos: Matéria-prima, energia variável, comissões
+        - O budget variável precisa ser ajustado para refletir o volume real
+        
+        **Passo 5: Calcular Flex Bud Total**
+        ```python
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variavel
+                        = B_Fixo + (B_Variavel * rho)
+        ```
+        **Fórmula Matemática:**
+        ```
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+                       = B_Fixo + (B_Variável × ρ)
+                       = B_Fixo + B_Variável × (V_Real / V_Budget)
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Fórmulas Matemáticas Completas - Real x Budget
+        
+        **Definições:**
+        - `V_Real` = Volume Real do período
+        - `V_Budget` = Volume Budget planejado do período
+        - `B_Fixo` = Custo Total Fixo do Budget
+        - `B_Variável` = Custo Total Variável do Budget
+        - `B_Total` = Custo Total do Budget = `B_Fixo + B_Variável`
+        - `R_Total` = Custo Total Real do período
+        
+        **Proporção de Volume:**
+        ```
+        ρ = V_Real / V_Budget
+        ```
+        Onde:
+        - `ρ > 1` significa que o volume real foi maior que o planejado
+        - `ρ < 1` significa que o volume real foi menor que o planejado
+        - `ρ = 1` significa que o volume real foi exatamente o planejado
+        
+        **Cálculo de Flex Bud (em Custo Total):**
+        
+        Para **Custo Fixo:**
+        ```
+        Flex_Bud_Fixo = B_Fixo
+        ```
+        **Regra Aplicada:** Fixo não varia com volume
+        - Valor do budget mantido: `B_Fixo`
+        - Não multiplica pela proporção de volume
+        - Motivo: Custos fixos são independentes do volume, então mantém o valor planejado
+        
+        Para **Custo Variável:**
+        ```
+        Flex_Bud_Variável = B_Variável × ρ
+                           = B_Variável × (V_Real / V_Budget)
+        ```
+        **Regra Aplicada:** Variável varia proporcionalmente ao volume
+        - Valor do budget: `B_Variável`
+        - Multiplica pela proporção: `ρ = V_Real / V_Budget`
+        - Motivo: Se o volume real for maior que o planejado, o custo variável deve aumentar proporcionalmente
+        
+        **Flex Bud Total (em Custo Total):**
+        ```
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+                       = B_Fixo + (B_Variável × ρ)
+                       = B_Fixo + B_Variável × (V_Real / V_Budget)
+        ```
+        **Regra Aplicada:** Soma do Fixo (inalterado) + Variável (ajustado)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Cálculo em CPU (Custo por Unidade) - Real x Budget
+        
+        **IMPORTANTE:** No modo CPU, calcular em Custo Total primeiro, depois converter.
+        
+        **BUD em CPU:**
+        ```
+        BUD_CPU = B_Total / V_Budget
+                 = (B_Fixo + B_Variável) / V_Budget
+        ```
+        
+        **Flex Bud em CPU:**
+        ```
+        Flex_Bud_CPU = Flex_Bud_Total / V_Real
+                     = [B_Fixo + B_Variável × (V_Real / V_Budget)] / V_Real
+                     = (B_Fixo / V_Real) + (B_Variável / V_Budget)
+        ```
+        
+        **Total Real em CPU:**
+        ```
+        Total_Real_CPU = R_Total / V_Real
+        ```
+        
+        **Diferenças:**
+        
+        **Flex Bud - BUD:**
+        ```
+        Δ_Flex_Bud = Flex_Bud_CPU - BUD_CPU
+                   = [(B_Fixo / V_Real) + (B_Variável / V_Budget)] - [(B_Fixo + B_Variável) / V_Budget]
+                   = (B_Fixo / V_Real) - (B_Fixo / V_Budget)
+                   = B_Fixo × (1/V_Real - 1/V_Budget)
+                   = B_Fixo × (V_Budget - V_Real) / (V_Real × V_Budget)
+        ```
+        
+        **Total - Flex Bud:**
+        ```
+        Δ_Total_Flex = Total_Real_CPU - Flex_Bud_CPU
+                     = (R_Total / V_Real) - [(B_Fixo / V_Real) + (B_Variável / V_Budget)]
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Implementação - Real x Budget
+        
+        ```python
+        # 1. Obter dados de Budget
+        df_budget = load_budget_data(ano_selecionado)
+        
+        # 2. Separar Fixo e Variável do Budget
+        if 'Custo' in df_budget.columns:
+            B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
+            B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+        else:
+            B_Fixo = 0
+            B_Variavel = df_budget['Total'].sum()  # Tudo é variável
+        
+        B_Total = B_Fixo + B_Variavel
+        
+        # 3. Obter volumes
+        volume_real = df_vol_real['Volume'].sum()
+        volume_budget = df_vol_budget['Volume'].sum()
+        
+        # 4. Calcular proporção
+        rho = volume_real / volume_budget if volume_budget != 0 else 1.0
+        
+        # 5. Calcular Flex Bud (em Custo Total)
+        Flex_Bud_Fixo = B_Fixo  # Não varia
+        Flex_Bud_Variavel = B_Variavel * rho  # Varia proporcionalmente
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variavel
+        
+        # 6. Converter para CPU (se necessário)
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            BUD_CPU = B_Total / volume_budget if volume_budget != 0 else 0
+            Flex_Bud_CPU = Flex_Bud_Total / volume_real if volume_real != 0 else 0
+            Total_Real_CPU = df_real['Total'].sum() / volume_real if volume_real != 0 else 0
+            
+            Delta_Flex_Bud = Flex_Bud_CPU - BUD_CPU
+            Delta_Total_Flex = Total_Real_CPU - Flex_Bud_CPU
+        ```
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Exemplo Prático - Real x Budget
+        
+        **Dados:**
+        - Volume Real (`V_Real`): 50,000 unidades
+        - Volume Budget (`V_Budget`): 60,000 unidades
+        - Custo Total Fixo Budget (`B_Fixo`): R$ 200,000
+        - Custo Total Variável Budget (`B_Variável`): R$ 400,000
+        - Custo Total Budget (`B_Total`): R$ 600,000
+        - Custo Total Real (`R_Total`): R$ 550,000
+        
+        **Cálculo Passo a Passo:**
+        
+        **1. Calcular Proporção de Volume:**
+        ```
+        ρ = V_Real / V_Budget = 50,000 / 60,000 = 0.833333
+        ```
+        *Interpretação: Volume real foi 16.67% menor que o planejado*
+        
+        **2. Aplicar Regra para Custo Fixo:**
+        ```
+        Flex_Bud_Fixo = B_Fixo
+                       = R$ 200,000
+        ```
+        *Regra: Fixo não varia → mantém valor do budget*
+        
+        **3. Aplicar Regra para Custo Variável:**
+        ```
+        Flex_Bud_Variável = B_Variável × ρ
+                           = R$ 400,000 × 0.833333
+                           = R$ 333,333.33
+        ```
+        *Regra: Variável varia proporcionalmente → ajusta pelo volume real*
+        
+        **4. Calcular Total:**
+        ```
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+                        = R$ 200,000 + R$ 333,333.33
+                        = R$ 533,333.33
+        ```
+        
+        **Em CPU:**
+        ```
+        BUD_CPU = R$ 600,000 / 60,000 = R$ 10.00 por unidade
+        Flex_Bud_CPU = R$ 533,333.33 / 50,000 = R$ 10.67 por unidade
+        Total_Real_CPU = R$ 550,000 / 50,000 = R$ 11.00 por unidade
+        
+        Δ_Flex_Bud = R$ 10.67 - R$ 10.00 = R$ 0.67 por unidade
+        Δ_Total_Flex = R$ 11.00 - R$ 10.67 = R$ 0.33 por unidade
+        ```
+        
+        **Interpretação:**
+        - O volume real foi 16.67% menor que o planejado (`ρ = 0.833333`)
+        - O budget variável foi ajustado proporcionalmente: R$ 400,000 → R$ 333,333.33
+        - O budget fixo permaneceu igual: R$ 200,000
+        - Em CPU, o Flex Bud aumentou porque o custo fixo foi concentrado em menos volume
+        - O Total Real está R$ 0.33 acima do Flex Bud, indicando ineficiência operacional
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Exemplo Prático 2 - Real x Budget (Volume Real > Volume Budget)
+        
+        **Dados:**
+        - Volume Real (`V_Real`): 62,208 unidades
+        - Volume Budget (`V_Budget`): 60,120 unidades
+        - Custo Total Fixo Budget (`B_Fixo`): R$ 200,000
+        - Custo Total Variável Budget (`B_Variável`): R$ 400,000
+        - Custo Total Budget (`B_Total`): R$ 600,000
+        
+        **Cálculo Passo a Passo:**
+        
+        **1. Calcular Proporção de Volume:**
+        ```
+        ρ = V_Real / V_Budget = 62,208 / 60,120 = 1.0347
+        ```
+        *Interpretação: Volume real foi 3.47% maior que o planejado*
+        
+        **2. Aplicar Regra para Custo Fixo:**
+        ```
+        Flex_Bud_Fixo = B_Fixo
+                       = R$ 200,000
+        ```
+        *Regra: Fixo não varia → mantém valor do budget*
+        
+        **3. Aplicar Regra para Custo Variável:**
+        ```
+        Flex_Bud_Variável = B_Variável × ρ
+                           = R$ 400,000 × 1.0347
+                           = R$ 413,880
+        ```
+        *Regra: Variável varia proporcionalmente → ajusta pelo volume real*
+        
+        **4. Calcular Total:**
+        ```
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+                        = R$ 200,000 + R$ 413,880
+                        = R$ 613,880
+        ```
+        *Resultado: Flex_Bud_Total (R$ 613,880) > BUD_Total (R$ 600,000) ✅*
+        
+        **Em CPU:**
+        ```
+        BUD_CPU = R$ 600,000 / 60,120 = R$ 9.98 por unidade
+        Flex_Bud_CPU = R$ 613,880 / 62,208 = R$ 9.87 por unidade
+        ```
+        
+        **Diferenças:**
+        ```
+        Δ_Flex_Bud (Custo Total) = R$ 613,880 - R$ 600,000 = R$ 13,880 (positivo) ✅
+        Δ_Flex_Bud (CPU) = R$ 9.87 - R$ 9.98 = -R$ 0.11 (negativo)
+        ```
+        
+        **Interpretação:**
+        - O volume real foi 3.47% maior que o planejado (`ρ = 1.0347`)
+        - O budget variável foi ajustado proporcionalmente: R$ 400,000 → R$ 413,880
+        - O budget fixo permaneceu igual: R$ 200,000
+        - **Em Custo Total:** Flex_Bud_Total > BUD_Total (porque o custo variável aumentou)
+        - **Em CPU:** Flex_Bud_CPU < BUD_CPU (porque o custo fixo foi diluído em mais volume)
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Comparação: Real x Real vs Real x Budget
+        
+        | Aspecto | Real x Real (Waterfall) | Real x Budget (TC Ext) |
+        |---------|------------------------|------------------------|
+        | **Base** | Custo Real Mês 1 | Custo Budget |
+        | **Volume Referência** | Volume Real Mês 1 | Volume Budget |
+        | **Volume Ajuste** | Volume Real Mês 2 | Volume Real |
+        | **Proporção** | `V₂ / V₁` | `V_Real / V_Budget` |
+        | **Objetivo** | Ajustar Mês 1 pelo volume do Mês 2 | Ajustar Budget pelo volume Real |
+        | **Uso** | Comparar dois períodos reais | Comparar Real vs Planejado |
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        ### Regras Gerais Aplicáveis a Ambos os Casos
+        
+        **1. Custo Fixo:**
+        - Sempre mantém o valor original (não varia com volume)
+        - `Flex_Fixo = Valor_Original`
+        
+        **2. Custo Variável:**
+        - Varia proporcionalmente ao volume
+        - `Flex_Variável = Valor_Original × (Volume_Novo / Volume_Original)`
+        
+        **3. Ordem de Cálculo:**
+        1. Calcular em **Custo Total** primeiro
+        2. Separar Fixo e Variável
+        3. Aplicar proporção de volume apenas ao Variável
+        4. Somar Fixo + Variável ajustado
+        5. Se necessário, converter para **CPU** dividindo pelo volume final
+        
+        **4. Tratamento de Divisão por Zero:**
+        - Se `Volume_Original = 0`: usar `ρ = 1.0` (sem ajuste)
+        - Se `Volume_Final = 0`: usar `Flex_CPU = 0`
+        """)
+
+# ==========================================
+# SEÇÃO 2: ARQUITETURA E ESTRUTURA
+# ==========================================
+else:
+    st.header("🏗️ Arquitetura e Estrutura do Projeto")
+    
     st.markdown("""
-        ### Estrutura de Arquivos
+    Esta seção documenta a arquitetura, estrutura de arquivos, tecnologias utilizadas
+    e informações sobre a equipe responsável pelo desenvolvimento do projeto.
+    """)
+    
+    st.markdown("---")
+    
+    # Métricas principais
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("💻 Linhas de Código", "20.000+", "Sistema completo")
+    
+    with col2:
+        st.metric("📊 Páginas", "5", "Funcionalidades completas")
+    
+    with col3:
+        st.metric("⚡ Otimização", "70%+", "Memória reduzida")
+    
+    with col4:
+        st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
+        
+        st.markdown("---")
+        
+    # Sub-tabs para organização
+    tab_estrutura, tab_tecnologias, tab_equipe = st.tabs([
+        "📁 Estrutura de Arquivos",
+        "💻 Tecnologias e Bibliotecas",
+        "👥 Equipe do Projeto"
+    ])
+    
+    # TAB 1: Estrutura de Arquivos
+    with tab_estrutura:
+        st.subheader("📁 Estrutura de Arquivos")
+        
+        st.markdown("""
+        ### Estrutura do Projeto
         
         ```
         C:\\GIT\\TC\\
-        ├── app.py                                    # Aplicação principal - Dashboard TC Ext (7.590 linhas)
-        ├── pages\
-        │   ├── 2 - Simulador Forecast.py            # Simulador de forecast (3.973 linhas)
-        │   ├── 3 - Forecast.py                      # Sistema de forecast (7.389 linhas)
-        │   ├── 4 - Waterfall_Analysis.py             # Análise waterfall (1.345 linhas)
-        │   └── 5 - Documentacao.py                  # Documentação (este arquivo)
-        ├── dados\
-        │   ├── historico_consolidado\
+        ├── app.py                                    # Aplicação principal - Dashboard TC Ext (~9.800 linhas)
+        ├── pages\\
+        │   ├── 2 - Simulador Forecast.py            # Simulador de forecast (~4.300 linhas)
+        │   ├── 3 - Forecast.py                      # Sistema de forecast (~7.400 linhas)
+        │   ├── 4 - Waterfall.py                     # Análise waterfall (~2.400 linhas)
+        │   ├── 4 - Waterfall_Analysis.py            # Análise waterfall (legado)
+        │   └── 5 - Documentacao.py                 # Documentação (este arquivo)
+        ├── dados\\
+        │   ├── historico_consolidado\\
         │   │   ├── df_final_historico.parquet
         │   │   ├── df_ke5z_historico.parquet
         │   │   ├── df_vol_historico.parquet
-        │   │   └── BUD\
+        │   │   └── BUD\\
         │   │       ├── df_final_historico_BUD.parquet
         │   │       ├── df_ke5z_historico_BUD.parquet
         │   │       └── df_vol_historico_BUD.parquet
-        │   ├── 2024\
+        │   ├── 2024\\
         │   │   ├── df_final.parquet
         │   │   ├── df_vol.parquet
         │   │   └── ... (outros arquivos)
-        │   ├── 2025\
+        │   ├── 2025\\
         │   │   ├── df_final.parquet
         │   │   ├── df_vol.parquet
-        │   │   └── BUD\
+        │   │   └── BUD\\
         │   │       ├── df_final_BUD.parquet
         │   │       └── df_vol_BUD.parquet
-        │   └── Forecast\
+        │   └── Forecast\\
         │       ├── df_final_historico_forecast.parquet
         │       ├── df_vol_historico.parquet
         │       ├── forecast_completo.parquet
@@ -109,215 +1411,216 @@ with tab_tecnica:
         - Formato: Parquet para performance otimizada
         """)
         
-    st.markdown("""
-        ### Framework e Tecnologias
+        st.markdown("---")
         
-        - **Framework Principal**: Streamlit 1.28.0+
-        - **Linguagem**: Python 3.8+
-        - **Visualizações**: Altair 5.0.0+
-        - **Processamento de Dados**: Pandas 2.0.0+
-        - **Formato de Dados**: Parquet (PyArrow 12.0.0+)
-        - **Exportação**: OpenPyXL 3.1.0+ (Excel)
-        - **Numérico**: NumPy 1.24.0+
+        st.subheader("📄 Arquivos Principais")
         
-        ### Configuração de Páginas
+        col1, col2 = st.columns(2)
         
-        Cada página usa `st.set_page_config()` com:
-        - `page_title`: Título da página
-        - `page_icon`: Emoji como ícone
-        - `layout`: "wide" para layout amplo
-        - `initial_sidebar_state`: "expanded" ou "collapsed"
+        with col1:
+            st.markdown("""
+            **app.py** (~9.800 linhas)
+            - Dashboard principal TC Ext
+            - Análise de custos com comparação Budget
+            - Cálculo Flex Bud
+            - Gráficos interativos
+            - Tabelas hierárquicas
+            - Exportação Excel
+            
+            **pages/2 - Simulador Forecast.py** (~4.300 linhas)
+            - Simulação interativa de forecast
+            - Ajuste de sensibilidade em tempo real
+            - Configuração de inflação
+            - Gráficos de premissas
+            """)
+        
+        with col2:
+            st.markdown("""
+            **pages/3 - Forecast.py** (~7.400 linhas)
+            - Sistema completo de forecast
+            - Cálculo baseado em média histórica
+            - Aplicação de sensibilidade e inflação
+            - Visualizações e tabelas detalhadas
+            
+            **pages/4 - Waterfall.py** (~2.400 linhas)
+            - Análise waterfall entre períodos
+            - Cálculo Flex Mês 1
+            - Gráficos waterfall interativos
+            - Tabelas com hierarquia
+            """)
+    
+    # TAB 2: Tecnologias
+    with tab_tecnologias:
+        st.subheader("💻 Tecnologias e Bibliotecas")
+        
+        st.markdown("""
+        ### Stack Tecnológico
+        
+        **Framework Principal:**
+        - **Streamlit** 1.28.0+ - Framework web para aplicações de dados
+        
+        **Linguagem:**
+        - **Python** 3.8+ - Linguagem de programação
+        
+        **Processamento de Dados:**
+        - **Pandas** 2.0.0+ - Manipulação e análise de dados
+        - **NumPy** 1.24.0+ - Operações numéricas
+        
+        **Visualizações:**
+        - **Altair** 5.0.0+ - Gráficos interativos
+        - **Plotly** - Gráficos waterfall avançados
+        
+        **Formato de Dados:**
+        - **PyArrow** 12.0.0+ - Suporte a Parquet
+        - **Parquet** - Formato de dados otimizado
+        
+        **Exportação:**
+        - **OpenPyXL** 3.1.0+ - Geração de arquivos Excel
         """)
         
-    st.markdown("---")
-    
-    # Métricas principais
-    st.subheader("📊 Métricas do Projeto")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("💻 Linhas de Código", "18.000+", "Sistema completo")
-    
-    with col2:
-        st.metric("📊 Páginas", "5", "Funcionalidades completas")
-    
-    with col3:
-        st.metric("⚡ Otimização", "70%+", "Memória reduzida")
-    
-    with col4:
-        st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
-    
-    st.markdown("---")
-    
-    st.subheader("🎯 Objetivos do Projeto")
-    
-    st.markdown("""
-    **🎯 Objetivos Principais:**
-    - 📈 **Análise avançada de custos** com visualizações interativas
-    - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
-    - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
-    - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
-    - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
-    - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
-    - 📥 **Exportação Excel:** Downloads formatados e filtrados
-    - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
-    - 📦 **Formato Parquet:** Dados comprimidos e otimizados
-    - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("⚠️ Desafios Principais & Soluções")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 10px; margin: 1rem 0; color: #888888;">
-            <h4 style="color: #888888; margin: 0; font-weight: 600;">
-                📊 DESAFIOS IDENTIFICADOS
-            </h4>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("---")
+        
+        st.subheader("🔧 Dependências Principais")
+        
+        st.code("""
+# requirements.txt
+streamlit>=1.28.0
+pandas>=2.0.0
+altair>=5.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+pyarrow>=12.0.0
+plotly>=5.0.0
+        """, language="text")
+        
+        st.markdown("---")
+        
+        st.subheader("⚡ Otimizações Implementadas")
         
         st.markdown("""
-        - **📁 Dados grandes:** Milhões de registros causando lentidão
-        - **💾 Uso de memória:** Excedia limites de processamento
-        - **❌ Instabilidade:** Sistema lento com muitos filtros
-        - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
-        - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
-        - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
+        **Gestão de Memória:**
+        - Cache inteligente com TTL configurável
+        - Otimização de tipos: Category para strings repetidas
+        - Downcast: Float64 → Float32, Int64 → Int32
+        - Redução de cópias: Apenas quando necessário
+        
+        **Operações Vetorizadas:**
+        - Substituição de `iterrows()` por merge e `np.where()`
+        - Substituição de `apply()` por operações vetorizadas
+        - Filtros booleanos ao invés de loops
+        - Agrupamento otimizado com `agg()` direto
+        
+        **Cálculos Otimizados:**
+        - CPU calculado após agrupamento (nunca antes)
+        - Flex Bud com merge ao invés de loops
+        - Volume sincronizado entre tabelas e gráficos
+        - Cache de filtros para opções repetidas
         """)
     
-    with col2:
+    # TAB 3: Equipe
+    with tab_equipe:
+        st.subheader("👥 Equipe do Projeto")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            ### 🔧 Hudson Cardin
+            
+            **Responsável pelo desenvolvimento do projeto**
+            
+            **Contribuições:**
+            - Arquitetura e estrutura do sistema
+            - Implementação de cálculos e regras de negócio
+            - Otimizações de performance
+            - Desenvolvimento de funcionalidades principais
+            - Documentação técnica
+            """)
+        
+        with col2:
+            st.markdown("""
+            ### 📊 Lauro Paiva
+            
+            **Responsável pelo desenvolvimento do projeto**
+            
+            **Contribuições:**
+            - Análise de requisitos e regras de negócio
+            - Validação de cálculos e resultados
+            - Testes e garantia de qualidade
+            - Documentação de processos
+            - Suporte e manutenção
+            """)
+        
+        st.markdown("---")
+        
+        st.subheader("🎯 Objetivos do Projeto")
+        
         st.markdown("""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #00b894 0%, #00a085 100%); border-radius: 10px; margin: 1rem 0; color: #888888;">
-                <h4 style="color: #888888; margin: 0; font-weight: 600;">
+        **🎯 Objetivos Principais:**
+        - 📈 **Análise avançada de custos** com visualizações interativas
+        - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
+        - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
+        - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
+        - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
+        - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
+        - 📥 **Exportação Excel:** Downloads formatados e filtrados
+        - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
+        - 📦 **Formato Parquet:** Dados comprimidos e otimizados
+        - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
+        """)
+        
+        st.markdown("---")
+        
+        st.subheader("⚠️ Desafios Principais & Soluções")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 10px; margin: 1rem 0; color: white;">
+                <h4 style="color: white; margin: 0; font-weight: 600;">
+                    📊 DESAFIOS IDENTIFICADOS
+                </h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            - **📁 Dados grandes:** Milhões de registros causando lentidão
+            - **💾 Uso de memória:** Excedia limites de processamento
+            - **❌ Instabilidade:** Sistema lento com muitos filtros
+            - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
+            - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
+            - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
+            """)
+        
+        with col2:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: linear-gradient(135deg, #00b894 0%, #00a085 100%); border-radius: 10px; margin: 1rem 0; color: white;">
+                <h4 style="color: white; margin: 0; font-weight: 600;">
                     ✅ SOLUÇÕES IMPLEMENTADAS
                 </h4>
             </div>
             """, unsafe_allow_html=True)
         
         st.markdown("""
-        - **📊 Otimização de dados:** Parquet com tipos categóricos
-        - **⚡ Cache estratégico:** TTL configurável por tipo de dado
-        - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
-        - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
-        - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
-        - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
-        """)
-    
-    st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
-    
-    st.markdown("---")
-    
-    st.subheader("🚀 Funcionalidades Principais")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        with st.expander("📊 **DASHBOARDS INTERATIVOS**", expanded=True):
-            st.markdown("""
-                ### 📊 TC Ext (app.py)
-                - **Análise histórica** de custos com comparação Budget
-                - **Cálculo Flex Bud** ajustado por volume e sensibilidade
-                - **Gráfico Delta** mostrando diferença Real vs Flex Bud
-                - **Tabela hierárquica** por Custo → Type 05 → Type 06 → Account
-                - **Gráficos com gradientes** azul (valores) e verde (volume)
-                - **4 tabs organizadas:** TC Ext, Volume, TC Ext por Veíc, Detalhe Real
-                - **Barra de progresso HTML** para Total / Flex Bud
-                - **Performance otimizada** com cache e vetorização
-                
-                ### 📈 Volume (app.py - Tab Volume)
-                - **Gráfico de volume** por período com gradiente verde
-                - **Comparação** Volume Real vs Volume Budget
-                - **Gráfico por veículo** com barras horizontais
-                - **Ordenação automática** por volume
-                
-                ### 🌊 Waterfall Analysis (4 - Waterfall_Analysis.py)
-                - **Análise de cascata** entre períodos
-                - **Cálculo FLEX:** Volume + Inflação separados
-                - **Modos:** Mês a Mês, Ano a Ano, Múltiplos Meses
-                - **Gráficos waterfall** com barras coloridas
-                """)
-            
-            with st.expander("🔮 **SISTEMA DE FORECAST**", expanded=False):
-                st.markdown("""
-                ### 🔮 Simulador Forecast (2 - Simulador Forecast.py)
-                - **Simulação interativa** em tempo real
-                - **Ajuste de sensibilidade** via sliders
-                - **Configuração de inflação** global ou detalhada
-                - **Seleção de períodos** para cálculo da média
-                - **Exclusão de meses** específicos
-                - **Gráficos de premissas** (custo e volume)
-                
-                ### 📉 Forecast (3 - Forecast.py)
-                - **Cálculo de forecast** baseado em média histórica
-                - **Aplicação de sensibilidade** ao volume
-                - **Aplicação de inflação** configurável
-                - **Visualizações** de forecast vs histórico
-                - **Tabelas detalhadas** com valores calculados
-                - **Download Excel** dos resultados
-        """)
-    
-    with col2:
-        with st.expander("⚡ **OTIMIZAÇÕES DE PERFORMANCE**", expanded=True):
-            st.markdown("""
-                ### 💾 Gestão de Memória
-                - **Cache inteligente** com TTL configurável
-                - **Otimização de tipos:** Category para strings repetidas
-                - **Downcast:** Float64 → Float32, Int64 → Int32
-                - **Redução de cópias:** Apenas quando necessário
-                
-                ### 🔄 Operações Vetorizadas
-                - **Substituição de iterrows()** por merge e np.where
-                - **Substituição de apply()** por operações vetorizadas
-                - **Filtros booleanos** ao invés de loops
-                - **Agrupamento otimizado** com agg() direto
-                
-                ### 📊 Cálculos Otimizados
-                - **CPU calculado após agrupamento** (nunca antes)
-                - **Flex Bud** com merge ao invés de loops
-                - **Volume sincronizado** entre tabelas e gráficos
-                - **Cache de filtros** para opções repetidas
-                
-                ### 🎨 Visualizações Otimizadas
-                - **Gráficos Altair** com encoding otimizado
-                - **Gradientes** baseados em valores
-                - **Delta charts** compactos (60px altura)
-                - **Tabelas HTML** para barras de progresso
-                """)
-            
-            with st.expander("📈 **ANÁLISES DISPONÍVEIS**", expanded=False):
-                st.markdown("""
-                ### 📊 Tipos de Gráficos
-                - **Gráficos de barras** com gradientes por valor
-                - **Gráficos de linha** para Budget e Flex Bud
-                - **Gráficos delta** mostrando diferenças
-                - **Gráficos horizontais** por veículo/oficina
-                - **Tabelas pivot** dinâmicas
-                
-                ### 🔍 Filtros e Dimensões
-                - **Filtros principais:** Ano, Oficina, Veículo, Período, USI
-                - **Tipo de visualização:** Custo Total / CPU
-                - **Filtros em cascata** com dependências
-                - **Cache de opções** para performance
-                
-                ### 📥 Exportações
-                - **Excel formatado** com múltiplas abas
-                - **Dados filtrados** ou completos
-                - **Nomes inteligentes** com timestamp
-                - **Salvamento em Downloads** automático
-        """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Estatísticas do Sistema")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        with st.expander("💾 **DADOS E PERFORMANCE**", expanded=True):
+            - **📊 Otimização de dados:** Parquet com tipos categóricos
+            - **⚡ Cache estratégico:** TTL configurável por tipo de dado
+            - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
+            - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
+            - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
+            - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
+            """)
+        
+        st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
+        
+        st.markdown("---")
+        
+        st.subheader("📊 Estatísticas do Sistema")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            with st.expander("💾 **DADOS E PERFORMANCE**", expanded=True):
                 st.markdown("""
                 **📁 Arquivos Principais:**
                 - `df_final_historico.parquet` (dados históricos)
@@ -330,22 +1633,22 @@ with tab_tecnica:
                 - Compressão Parquet
                 - Cache com TTL
                 """)
-    
-    with col2:
-        with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
+        
+        with col2:
+            with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
                 st.markdown("""
                 **📄 Páginas Disponíveis:**
-                - `app.py` - Dashboard principal TC Ext (7.590 linhas)
-                - `2 - Simulador Forecast.py` - Simulação (3.973 linhas)
-                - `3 - Forecast.py` - Visualização (7.389 linhas)
-                - `4 - Waterfall_Analysis.py` - Análise (1.345 linhas)
-                - `5 - Documentacao.py` - Documentação (este arquivo)
+                - `app.py` - Dashboard principal TC Ext (~9.800 linhas)
+                - `2 - Simulador Forecast.py` - Simulação (~4.300 linhas)
+                - `3 - Forecast.py` - Visualização (~7.400 linhas)
+                - `4 - Waterfall.py` - Análise (~2.400 linhas)
+                - `5 - Documentacao.py` - Documentação
                 
-                **📊 Total:** ~18.000+ linhas de código
+                **📊 Total:** ~20.000+ linhas de código
                 """)
-    
-    with col3:
-        with st.expander("🔧 **TECNOLOGIAS**", expanded=True):
+        
+        with col3:
+            with st.expander("🔧 **TECNOLOGIAS**", expanded=True):
                 st.markdown("""
                 **✅ Stack Tecnológico:**
                 - 🐍 Python 3.8+
@@ -355,1665 +1658,15 @@ with tab_tecnica:
                 - 💾 PyArrow (Parquet)
                 - 📋 OpenPyXL (Excel)
                 - 🔢 NumPy (Cálculos)
-                """)
-    
-    st.markdown("---")
-    
-    st.subheader("🏆 Complexidade e Valor Técnico")
-    
-    with st.expander("💻 **CÓDIGO E DESENVOLVIMENTO**", expanded=False):
-            col1, col2 = st.columns(2)
-    
-    with col1:
-                st.markdown("""
-                ### 📝 Estatísticas de Código
-                
-                **🎯 Principais Arquivos:**
-                - **app.py:** 7.590 linhas (Dashboard principal TC Ext)
-                - **3 - Forecast.py:** 7.389 linhas (Sistema forecast)
-                - **2 - Simulador Forecast.py:** 3.973 linhas (Simulação)
-                - **4 - Waterfall_Analysis.py:** 1.345 linhas (Análise)
-                
-                **📊 Total Estimado:** ~18.000+ linhas de código
-                
-                **🔧 Funcionalidades Implementadas:**
-                - Sistema de cache multi-nível
-                - Otimização automática de tipos de dados
-                - Cálculo Flex Bud otimizado
-                - Sistema de forecast completo
-                - Análise waterfall com FLEX
-                - Gráficos com gradientes e delta
-                - Tabelas HTML customizadas
-                - Exportação Excel avançada
-                """)
-    
-    with col2:
-                st.markdown("""
-                ### 🚀 Inovações Técnicas
-                
-                **⚡ Otimização de Performance:**
-                ```python
-                # Substituição de iterrows()
-                df_result = pd.merge(df1, df2, on='key')
-                df['CPU'] = np.where(condition, value1, value2)
-                
-                # Cache estratégico
-                @st.cache_data(ttl=3600, max_entries=10)
-                def load_data():
-                    # Carregamento otimizado
-                ```
-                
-                **🔄 Cálculo Flex Bud:**
-                ```python
-                # Merge ao invés de loops
-                df_flex = pd.merge(df_bud, df_vol, on='Período')
-                df_flex['Flex'] = np.where(
-                    df_flex['Custo'] == 'Fixo',
-                    df_flex['BUD'],
-                    df_flex['BUD'] * proporcao_volume
-                )
-                ```
-                
-                **📊 Gráfico Delta:**
-                ```python
-                # Delta compacto com gradiente
-                delta_data['Delta'] = Real - Flex_Bud
-                scale = alt.Scale(
-                    domain=[min, 0, max],
-                    range=['#00AA00', '#888888', '#FF0000']  # Verde, Cinza, Vermelho
-                )
-                ```
-                """)
-    
-    st.markdown("---")
-    
-    st.subheader("🏆 Valor e Impacto do Projeto")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        with st.expander("💼 **VALOR EMPRESARIAL**", expanded=True):
-            st.markdown("""
-                ### 📈 Benefícios Quantificáveis
-                
-                **⚡ Performance:**
-                - **70%+ redução** no uso de memória
-                - **3-5x mais rápido** para carregar dados
-                - **Operações vetorizadas** eliminam loops lentos
-                - **Cache inteligente** reduz recálculos
-                
-                **💰 Economia de Recursos:**
-                - Redução de custos de processamento
-                - Menor uso de memória e CPU
-                - Performance otimizada em qualquer ambiente
-                - Manutenção simplificada
-                
-                **👥 Produtividade:**
-                - Interface intuitiva para análise de custos
-                - Cálculos complexos automatizados
-                - Visualizações profissionais
-                - Exportações automáticas
-        """)
-    
-    with col2:
-        with st.expander("🔬 **INOVAÇÃO TÉCNICA**", expanded=True):
-            st.markdown("""
-                ### 🚀 Soluções Inovadoras
-                
-                **🧠 Estratégia Híbrida:**
-                - Gráficos com dados otimizados
-                - Tabelas com dados completos
-                - Sincronização garantida
-                
-                **🔄 Cache Multi-Nível:**
-                - Cache de dados (TTL 3600s)
-                - Cache de gráficos (TTL 900s)
-                - Cache de filtros (TTL 1800s)
-                
-                **🎯 Cálculos Otimizados:**
-                - CPU após agrupamento
-                - Flex Bud com merge
-                - Forecast linha a linha
-                - FLEX separado (Volume + Inflação)
-        """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Dashboard TC Ext (app.py): Estrutura Técnica")
-    
-    st.markdown("""
-        ### Organização com Tabs
-        
-        A página TC Ext utiliza `st.tabs()` para organizar o conteúdo em 4 seções:
-        
-        ```python
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📊 TC Ext", 
-            "📈 Volume", 
-            "🚗 TC Ext por Veíc", 
-            "📋 Detalhe Real"
-        ])
-        ```
-        
-        **Tab 1 - TC Ext:**
-        - Gráfico "Soma do Valor por Período" com gráfico Delta
-        - Tabela "Análise Flex Bud por Categoria"
-        
-        **Tab 2 - Volume:**
-        - Gráfico "Volume Total por Período"
-        - Gráfico "Volume por Veículo"
-        
-        **Tab 3 - TC Ext por Veíc:**
-        - Gráfico "Soma do Valor por Oficina"
-        - Gráfico "Total por Veículo"
-        
-        **Tab 4 - Detalhe Real:**
-        - Tabelas detalhadas
-        - Tabela dinâmica (pivot)
-        - Tabela filtrada completa
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("🎨 Sistema de Estilização")
-    
-    st.markdown("""
-        ### CSS Customizado
-        
-        ```python
-        css_customizado = '''
-        <style>
-            h1 {
-                font-size: 2.4rem !important;
-                white-space: nowrap !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-            }
-            h2 {
-                font-size: 1.6rem !important;
-            }
-            h3 {
-                font-size: 1.28rem !important;
-            }
-            .stDataFrame table td {
-                vertical-align: middle !important;
-            }
-        </style>
-        '''
-        st.markdown(css_customizado, unsafe_allow_html=True)
-        ```
-        
-        ### Radio Buttons Estilizados
-        
-        Radio buttons para "Fixo/Variável" e "Total" usam CSS customizado:
-        
-        ```python
-        css_radio = '''
-        <style>
-            div[data-testid="stRadio"] > div {
-                background-color: #1e1e1e;
-                border-radius: 8px;
-                padding: 10px;
-            }
-        </style>
-        '''
-        st.markdown(css_radio, unsafe_allow_html=True)
-        ```
-        """)
-    
-    # SUB-TAB 2: Recursos e Bibliotecas
-    with sub_tab2:
-        st.subheader("💻 Recursos e Bibliotecas Utilizadas")
-    
-    st.markdown("""
-        ### Dependências Principais
-        
-        ```python
-        # requirements.txt
-        streamlit>=1.28.0
-        pandas>=2.0.0
-        altair>=5.0.0
-        numpy>=1.24.0
-        openpyxl>=3.1.0
-        pyarrow>=12.0.0
-        ```
-        
-        ### Imports Principais
-        
-        ```python
-        import streamlit as st
-        import pandas as pd
-        import altair as alt
-        import numpy as np
-        import os
-        from datetime import datetime
-        ```
-        
-        ### Funções de Cache
-        
-        O sistema utiliza extensivamente `@st.cache_data` para otimização:
-        
-        - **Carregamento de Dados**: TTL 3600s (1 hora)
-        - **Gráficos**: TTL 900s (15 minutos)
-        - **Filtros**: TTL 1800s (30 minutos)
-        
-        Exemplo:
-        ```python
-        @st.cache_data(ttl=3600, max_entries=10, show_spinner=True)
-        def load_data(ano_selecionado_param):
-            # Carrega dados do histórico consolidado
-            caminho = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
-            df = pd.read_parquet(caminho)
-            # Otimizações de tipos...
-            return df
-        ```
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Altair - Gráficos Interativos")
-    
-    st.markdown("""
-        ### Estrutura de Gráficos Altair
-        
-        **Gráfico de Barras com Gradiente:**
-        ```python
-        grafico_barras = alt.Chart(df).mark_bar().encode(
-            x=alt.X('Período:N', title='Período', sort=ordem),
-            y=alt.Y('Total:Q', title='Valor (R$)'),
-            color=alt.Color(
-                'Total:Q',
-                title='Total',
-                scale=alt.Scale(scheme='blues'),
-                legend=alt.Legend(title='Total', orient='right')
-            ),
-            tooltip=[...]
-        ).properties(height=250)
-        ```
-        
-        **Gráfico Delta (Diferença Real - Flex Bud):**
-        ```python
-        # Calcular delta
-        delta_data['Delta'] = delta_data['Real'] - delta_data['Flex_Bud']
-        
-        # Gráfico de barras com gradiente vermelho-verde
-        grafico_delta = alt.Chart(delta_data).mark_bar().encode(
-            x=alt.X('Período:N', sort=ordem),
-            y=alt.Y('Delta:Q', title='Delta (Real - Flex Bud)'),
-            color=alt.Color(
-                'Delta:Q',
-                scale=alt.Scale(
-                    domain=[delta_min, 0, delta_max],
-                    range=['#00AA00', '#888888', '#FF0000'],  # Verde, Cinza, Vermelho
-                    type='linear'
-                ),
-                legend=None
-            )
-        ).properties(height=60)
-        
-        # Rótulos condicionais (acima para positivo, abaixo para negativo)
-        rotulos = alt.Chart(delta_data).mark_text(
-            align='center',
-            baseline='middle',
-            dy=alt.condition(
-                alt.datum.Delta >= 0,
-                alt.value(-8),  # Acima
-                alt.value(12)   # Abaixo
-            )
-        ).encode(...)
-        
-        # Combinar gráficos verticalmente
-        grafico_combinado = alt.vconcat(grafico_delta_com_rotulos, grafico_principal)
-        ```
-        """)
-    
-    st.markdown("---")
-    
-    st.subheader("🎨 Formatação HTML Customizada")
-    
-    st.markdown("""
-        ### Função `formatar_ratio_com_barra()`
-        
-        Cria barra de progresso HTML com gradiente verde→vermelho:
-        
-        ```python
-        def formatar_ratio_com_barra(valor):
-            percentual = valor * 100
-            
-            # Largura: 100% = barra cheia
-            largura_barra = 100 if percentual >= 100 else percentual
-            
-            # Gradiente verde→vermelho
-            if percentual <= 0:
-                r, g, b = 0, 170, 0  # Verde
-            elif percentual >= 100:
-                r, g, b = 255, 0, 0  # Vermelho
-            else:
-                r = int(255 * (percentual / 100))
-                g = int(170 * (1 - percentual / 100))
-                b = 0
-            
-            html = f'''
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 80px; background-color: #333; height: 14px;">
-                    <div style="width: {largura_barra}%; background-color: rgb({r},{g},{b});"></div>
-                </div>
-                <span style="width: 65px; font-size: 0.75rem;">{percentual:.1f}%</span>
-            </div>
-            '''
-            return html
-        ```
-        
-        ### Função `criar_tabela_html_com_barra()`
-        
-        Cria tabela HTML customizada para renderizar HTML nas células:
-        
-        ```python
-        def criar_tabela_html_com_barra(df_display):
-            html_table = "<div style='overflow-x: auto;'>"
-            html_table += "<table style='width: 100%; font-size: 0.75rem;'>"
-            # Cabeçalho
-            html_table += "<thead><tr>"
-            for col in df_display.columns:
-                html_table += f"<th style='padding: 6px;'>{col}</th>"
-            html_table += "</tr></thead><tbody>"
-            # Linhas
-            for idx, row in df_display.iterrows():
-                html_table += "<tr>"
-                for col in df_display.columns:
-                    if col == 'Total / Flex Bud':
-                        html_table += f"<td>{row[col]}</td>"  # HTML renderizado
-                    else:
-                        html_table += f"<td>{row[col]}</td>"
-                html_table += "</tr>"
-            html_table += "</tbody></table></div>"
-            return html_table
-        ```
-        
-        **Uso:**
-        ```python
-        df_display['Total / Flex Bud'] = [
-            formatar_ratio_com_barra(val) for val in valores_originais
-        ]
-        html_table = criar_tabela_html_com_barra(df_display)
-        st.markdown(html_table, unsafe_allow_html=True)
-        ```
-        """)
-    
-    # SUB-TAB 3: Estrutura de Dados
-    with sub_tab3:
-        st.subheader("📁 Estrutura de Dados")
-        
-        st.markdown("""
-        ### Localização dos Arquivos
-        
-        **Dados Históricos (Principal):**
-        - `dados/historico_consolidado/df_final_historico.parquet`
-        - `dados/historico_consolidado/df_vol_historico.parquet`
-        
-        **Dados de Budget:**
-        - `dados/historico_consolidado/BUD/df_final_historico_BUD.parquet`
-        - `dados/historico_consolidado/BUD/df_vol_historico_BUD.parquet`
-        
-        **Dados por Ano:**
-        - `dados/2024/df_final.parquet` e `dados/2024/df_vol.parquet`
-        - `dados/2025/df_final.parquet` e `dados/2025/df_vol.parquet`
-        - `dados/2025/BUD/df_final_BUD.parquet` e `dados/2025/BUD/df_vol_BUD.parquet`
-        
-        ### Estrutura dos Arquivos Parquet
-        
-        **df_final_historico.parquet (e similares):**
-        
-        Colunas obrigatórias:
-        - `Oficina` (texto/category)
-        - `Veículo` (texto/category)
-        - `Período` (texto/category) - Ex: "Janeiro", "Fevereiro"
-        - `Ano` (int) - Opcional, mas recomendado
-        - `Total` (float) - Valor total do custo
-        - `Custo` (texto/category) - "Fixo" ou "Variável"
-        - `Type 05` (texto/category) - Classificação adicional
-        - `Type 06` (texto/category) - Classificação adicional
-        - `Account` (texto/category) - Conta contábil
-        
-        Colunas opcionais:
-        - `Valor` (float)
-        - `Volume` (float)
-        - `CPU` (float)
-        - `USI` (texto/category)
-        
-        **df_vol_historico.parquet:**
-        
-        Colunas obrigatórias:
-        - `Oficina` (texto/category)
-        - `Veículo` (texto/category)
-        - `Período` (texto/category)
-        - `Ano` (int) - Opcional
-        - `Volume` (float) - Quantidade de volume
-        
-        **Arquivos de Budget:**
-        
-        Mesma estrutura dos arquivos principais, localizados em:
-        ```
-        dados/historico_consolidado/BUD/
-        ├── df_final_historico_BUD.parquet
-        └── df_vol_historico_BUD.parquet
-        ```
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("🔍 Otimização de Tipos de Dados")
-    
-    st.markdown("""
-        ### Processo de Otimização
-        
-        ```python
-        # 1. Converter colunas numéricas conhecidas
-        colunas_numericas = ['Valor', 'Total', 'Volume', 'CPU']
-        for col in colunas_numericas:
-            if col in df.columns and df[col].dtype == 'object':
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        # 2. Converter objetos para category (se < 50% valores únicos)
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                unique_ratio = df[col].nunique() / len(df)
-                if unique_ratio < 0.5:
-                    df[col] = df[col].astype('category')
-        
-        # 3. Downcast de floats e ints
-        for col in df.select_dtypes(include=['float64']).columns:
-            df[col] = pd.to_numeric(df[col], downcast='float')
-        for col in df.select_dtypes(include=['int64']).columns:
-            df[col] = pd.to_numeric(df[col], downcast='integer')
-        ```
-        
-        **Benefícios:**
-        - Redução de memória em até 70%
-        - Melhor performance em operações de agrupamento
-        - Cache mais eficiente
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Ordenação de Períodos")
-    
-    st.markdown("""
-        ### Função `ordenar_por_mes()`
-        
-        ```python
-        ORDEM_MESES = [
-            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-        ]
-        
-        def ordenar_por_mes(df, coluna_periodo='Período'):
-            df_copy = df.copy()
-            
-            # Criar coluna de ordenação
-            df_copy['_ordem_mes'] = (
-                df_copy[coluna_periodo]
-                .astype(str)
-                .str.lower()
-                .str.strip()
-                .map({mes: idx for idx, mes in enumerate(ORDEM_MESES)})
-            )
-            
-            # Se houver Ano, ordenar por ano e mês
-            if 'Ano' in df_copy.columns:
-                df_copy['_ordem_ano'] = df_copy['Ano'].fillna(0)
-                df_copy = df_copy.sort_values(['_ordem_ano', '_ordem_mes'])
-            else:
-                df_copy = df_copy.sort_values('_ordem_mes')
-            
-            # Remover colunas temporárias
-            df_copy = df_copy.drop(columns=['_ordem_mes', '_ordem_ano'])
-            
-            return df_copy
-        ```
-        """)
-    
-    # SUB-TAB 4: Implementações Específicas
-    with sub_tab4:
-        st.subheader("🔨 Implementações Específicas por Página")
-        
-        # Sub-seções para cada página
-        page_tabs = st.tabs([
-            "🏠 Dashboard TC Ext (app.py)",
-            "🔮 Simulador Forecast",
-            "📉 Forecast",
-            "🌊 Waterfall"
-        ])
-        
-        # Página Inicial
-        with page_tabs[0]:
-            st.markdown("""
-            ### Página Inicial - Dashboard TC Ext (app.py)
-            
-            **Arquivo**: `app.py` (7.590 linhas)
-            
-            **Principais Funções:**
-            - `listar_anos_disponiveis()`: Lista anos nas pastas de dados
-            - `encontrar_arquivo_parquet()`: Busca arquivos na ordem de prioridade
-            - `load_data()`: Carrega dados históricos com cache
-            - `load_volume_data()`: Carrega volumes com cache
-            - `load_budget_data()`: Carrega dados de budget
-            - `get_filter_options()`: Opções de filtro com cache
-            
-            **Características:**
-            - Ponto de entrada do sistema
-            - Dashboard completo com análise detalhada
-            - Filtros avançados na sidebar (Ano, Oficina, USI, Período, Veículo, etc.)
-            - Visualização de dados agrupados por múltiplas dimensões
-            - Gráficos interativos (Período, Oficina, Veículo, Volume)
-            - Suporte a múltiplas moedas (BRL, USD, EUR)
-            - Cálculo de CPU (Custo por Unidade)
-            - Tabelas dinâmicas e exportação para Excel
-            
-            **Estrutura de Dados:**
-            - Prioridade 1: `dados/historico_consolidado/df_final_historico.parquet`
-            - Prioridade 2: `dados/{ANO}/df_final.parquet`
-            - Prioridade 3: Raiz do projeto (compatibilidade)
-            """)
-        
-        # Simulador Forecast
-        with page_tabs[1]:
-            st.markdown("""
-            ### Página 2 - Simulador Forecast
-            
-            **Arquivo**: `pages/2 - Simulador Forecast.py` (3.973 linhas)
-            
-            **Principais Funções:**
-            - `load_data()`: Carrega dados históricos
-            - `load_volume_data()`: Carrega volumes
-            - `calcular_media_historica()`: Média padronizada
-            - `calcular_forecast()`: Forecast linha a linha
-            - Funções de gráficos Altair
-            
-            **Características:**
-            - Simulação interativa em tempo real
-            - Sliders para sensibilidade e inflação
-            - Seleção de períodos para cálculo
-            - Exclusão de meses específicos
-            - Gráficos de premissas
-            """)
-        
-        # Forecast
-        with page_tabs[2]:
-            st.markdown("""
-            ### Página 3 - Forecast
-            
-            **Arquivo**: `pages/3 - Forecast.py` (7.389 linhas)
-            
-            **Principais Funções:**
-            - `load_data()`: Carrega dados históricos
-            - `load_volume_data()`: Carrega volumes
-            - `calcular_media_historica()`: Média padronizada
-            - `calcular_forecast()`: Forecast linha a linha
-            - Funções de visualização
-            
-            **Características:**
-            - Visualização de forecast calculado
-            - Configuração de sensibilidade (global/detalhada)
-            - Configuração de inflação (global/detalhada)
-            - Gráficos de premissas e forecast
-            - Tabelas detalhadas
-            - Download Excel
-            """)
-        
-        # Waterfall
-        with page_tabs[3]:
-            st.markdown("""
-            ### Página 4 - Waterfall Analysis
-            
-            **Arquivo**: `pages/4 - Waterfall_Analysis.py` (1.345 linhas)
-            
-            **Principais Funções:**
-            - `load_data()`: Carrega dados históricos
-            - `load_volume_data()`: Carrega volumes
-            - `calcular_flex_volume()`: Calcula FLEX Volume
-            - `calcular_flex_inflacao()`: Calcula FLEX Inflação
-            - Funções de gráficos waterfall
-            
-            **Características:**
-            - Modos: Mês a Mês, Ano a Ano, Múltiplos Meses
-            - Cálculo FLEX separado (Volume + Inflação)
-            - Gráficos waterfall com barras empilhadas
-            - Correção para Ano a Ano (volumes totais)
-            """)
-    
-    st.markdown("---")
-    
-    st.markdown("""
-        ### 1. Sistema de Filtros (TC Ext)
-        
-        **Função `get_filter_options()`:**
-        ```python
-        @st.cache_data(ttl=1800, max_entries=5)
-        def get_filter_options(df, column_name):
-            if column_name in df.columns:
-                opcoes = sorted(df[column_name].dropna().astype(str).unique().tolist())
-                return ["Todos"] + opcoes
-            return ["Todos"]
-        ```
-        
-        **Aplicação de Filtros:**
-        ```python
-        # Filtro de Oficina
-        if oficina_selecionadas and "Todos" not in oficina_selecionadas:
-            df = df[df['Oficina'].astype(str).isin(oficina_selecionadas)].copy()
-        
-        # Filtro de Veículo
-        if veiculo_selecionados and "Todos" not in veiculo_selecionados:
-            df = df[df['Veículo'].astype(str).isin(veiculo_selecionados)].copy()
-        ```
-        
-        ### 2. Cálculo de CPU
-        
-        **IMPORTANTE**: CPU deve ser calculado APÓS agrupamento:
-        
-        ```python
-        # ERRADO: Calcular CPU antes de agrupar
-        df['CPU'] = df['Total'] / df['Volume']
-        df_agrupado = df.groupby('Período')['CPU'].mean()  # ❌ Incorreto
-        
-        # CORRETO: Agrupar Total e Volume, depois calcular CPU
-        df_agrupado = df.groupby('Período').agg({
-            'Total': 'sum',
-            'Volume': 'sum'
-        }).reset_index()
-        df_agrupado['CPU'] = df_agrupado['Total'] / df_agrupado['Volume']
-        ```
-        
-        ### 3. Gráfico Delta (Real - Flex Bud)
-        
-        **Cálculo do Delta:**
-        ```python
-        # Combinar dados Real e Flex Bud
-        delta_data = pd.merge(
-            df_real_agrupado[['Período', 'Total']].rename(columns={'Total': 'Real'}),
-            df_flex_agrupado[['Período', 'FLEX']].rename(columns={'FLEX': 'Flex_Bud'}),
-            on='Período',
-            how='outer'
-        )
-        
-        # Calcular delta
-        delta_data['Delta'] = (
-            delta_data['Real'].fillna(0) - 
-            delta_data['Flex_Bud'].fillna(0)
-        )
-        
-        # Calcular min/max para escala de cores
-        delta_min = delta_data['Delta'].min()
-        delta_max = delta_data['Delta'].max()
-        ```
-        
-        **Gráfico com Gradiente:**
-        ```python
-        grafico_delta = alt.Chart(delta_data).mark_bar().encode(
-            x=alt.X('Período:N', sort=ordem, 
-                   axis=alt.Axis(grid=False, domain=False, ticks=False, labels=False)),
-            y=alt.Y('Delta:Q', title='Delta (Real - Flex Bud)',
-                   axis=alt.Axis(grid=False, domain=True, ticks=True, labels=True)),
-            color=alt.Color(
-                'Delta:Q',
-                scale=alt.Scale(
-                    domain=[delta_min, 0, delta_max],
-                    range=['#00AA00', '#888888', '#FF0000'],  # Verde, Cinza, Vermelho
-                    type='linear'
-                ),
-                legend=None
-            )
-        ).properties(height=60)
-        ```
-        
-        ### 4. Tabela Flex Bud com Hierarquia
-        
-        **Estrutura Hierárquica:**
-        ```python
-        # Nível 1: Custo (Fixo/Variável)
-        for custo in ['Fixo', 'Variável']:
-            df_custo = df_tabela[df_tabela['Custo'] == custo]
-            
-            with st.expander(f"💰 {custo} - Total: R$ {total_custo:,.2f}"):
-                # Nível 2: Type 05
-                for type05 in sorted(df_custo['Type 05'].unique()):
-                    df_type05 = df_custo[df_custo['Type 05'] == type05]
-                    
-                    with st.expander(f"📊 Type 05: {type05}"):
-                        # Nível 3: Type 06
-                        for type06 in sorted(df_type05['Type 06'].unique()):
-                            df_type06 = df_type05[df_type05['Type 06'] == type06]
-                            
-                            # Tabela detalhada com Account (se existir)
-                            if 'Account' in df_type06.columns:
-                                # Agrupar por Account
-                                # Exibir tabela com formatação HTML
-                            else:
-                                # Exibir diretamente Type 06
-        ```
-        
-        ### 5. Exportação Excel
-        
-        ```python
-        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-        file_name = f"TC_Ext_tabela_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        file_path = os.path.join(downloads_path, file_name)
-        
-        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Dados')
-        
-        st.success(f"✅ Arquivo salvo: {file_path}")
-        ```
-        """)
-    
-    st.markdown("---")
-    
-    st.subheader("⚡ Otimizações de Performance")
-    
-    st.markdown("""
-        ### 1. Cache Estratégico
-        
-        - **Dados**: TTL 3600s (1 hora) - dados mudam pouco
-        - **Gráficos**: TTL 900s (15 min) - podem mudar com filtros
-        - **Filtros**: TTL 1800s (30 min) - opções mudam pouco
-        
-        ### 2. Operações Vetorizadas
-        
-        **Evitar `iterrows()`:**
-        ```python
-        # LENTO
-        for idx, row in df.iterrows():
-            df.loc[idx, 'CPU'] = row['Total'] / row['Volume']
-        
-        # RÁPIDO
-        df['CPU'] = df['Total'] / df['Volume']
-        ```
-        
-        **Usar `np.where()` ao invés de `apply()`:**
-        ```python
-        # LENTO
-        df['Categoria'] = df.apply(lambda x: 'Alto' if x['Valor'] > 100 else 'Baixo', axis=1)
-        
-        # RÁPIDO
-        df['Categoria'] = np.where(df['Valor'] > 100, 'Alto', 'Baixo')
-        ```
-        
-        ### 3. Redução de Cópias
-        
-        ```python
-        # Evitar múltiplas cópias
-        df_filtrado = df[df['Oficina'] == 'A'].copy()  # Apenas uma cópia quando necessário
-        df_filtrado = df_filtrado[df_filtrado['Veículo'] == 'V001']  # Sem cópia adicional
-        ```
-        """)
-
-# ==========================================
-# TAB 2: DOCUMENTAÇÃO TEÓRICA
-# ==========================================
-with tab_teorica:
-    st.header("📖 Documentação Teórica - Cálculos e Metodologia")
-    
-    st.markdown("""
-    Esta seção contém explicações teóricas sobre os cálculos utilizados, fórmulas matemáticas,
-    metodologias de análise e o que cada página deve mostrar ao usuário.
-    """)
-    
-    st.markdown("---")
-    
-    # Sub-tabs para organização teórica
-    sub_tab1, sub_tab2, sub_tab3, sub_tab4, sub_tab5, sub_tab6 = st.tabs([
-        "🏠 Dashboard TC Ext (app.py)",
-        "🔮 Página 2 - Simulador Forecast",
-        "📉 Página 3 - Forecast",
-        "🌊 Página 4 - Waterfall Analysis",
-        "📈 Cálculos e Fórmulas",
-        "📚 Estrutura do Sistema"
-    ])
-    
-    # SUB-TAB 1: Dashboard TC Ext
-    with sub_tab1:
-        st.subheader("🏠 Dashboard TC Ext (app.py) - O que Mostra")
-    
-    st.markdown("""
-        ### Visão Geral
-        
-        O Dashboard TC Ext (`app.py`) é o ponto de entrada do sistema, fornecendo uma análise completa
-        e detalhada dos dados de custos e volumes, com visualizações interativas e filtros avançados.
-        
-        ### Funcionalidades Principais
-        
-        **Título e Descrição:**
-        - Título: "📊 Dashboard TC Ext - df_final"
-        - Subtítulo: "Análise de dados agrupados por Oficina e Período"
-        
-        **Filtros Avançados:**
-        - Seleção de ano (Todos ou específico)
-        - Filtros por Oficina, USI, Período, Centro CST
-        - Filtros por Conta Contábil, Type 05/06, Fornecedor
-        - Filtros avançados (Usuário, Material, Data Lançamento, etc.)
-        - Seleção de moeda (BRL, USD, EUR) com taxas configuráveis
-        
-        **Visualizações:**
-        - Gráficos por Período (com suporte a múltiplos anos)
-        - Gráficos por Oficina
-        - Gráficos por Veículo
-        - Gráficos de Volume
-        - Tabelas dinâmicas interativas
-        - Modo CPU (Custo por Unidade) ou Custo Total
-        
-        **Exportação:**
-        - Download de tabelas em Excel
-        - Exportação de dados filtrados
-        
-        ### Estrutura Técnica
-        
-        - **Arquivo**: `app.py` (7.590 linhas)
-        - **Layout**: Wide
-        - **Sidebar**: Expanded por padrão
-        - **CSS**: Títulos reduzidos em 20%, estilos customizados
-        
-        ### Dados Utilizados
-        
-        - Carrega dados do histórico consolidado (`df_final_historico.parquet`)
-        - Suporta dados por ano específico (`df_final.parquet`)
-        - Suporta dados de budget (`df_final_historico_BUD.parquet`)
-        - Carrega volumes separadamente para cálculo de CPU
-        - Exibe resumo estatístico
-    """)
-    
-    st.markdown("---")
-    
-    # SUB-TAB 2: Detalhes do Dashboard TC Ext
-    with sub_tab2:
-        st.subheader("📊 Dashboard TC Ext - Detalhes Funcionais")
-        
-        st.markdown("""
-        ### Visão Geral
-        
-        O **Dashboard TC Ext** (app.py) é um dashboard completo para visualização e análise de dados históricos
-        de custos, com comparação com budget e cálculo de Flex Bud (budget flexível ajustado por volume).
-        
-        ### Organização em Tabs
-        
-        A página está organizada em **4 tabs principais**:
-        
-        #### 📊 Tab 1: TC Ext
-        
-        **Gráfico: Soma do Valor por Período**
-        - Barras azuis mostrando valores reais por período
-        - Gradiente azul baseado no valor (quanto maior, mais escuro)
-        - Linha tracejada laranja (#FF6B35) mostrando valores de Budget
-        - Gráfico Delta acima mostrando diferença (Real - Flex Bud)
-          - Verde para valores negativos (Real < Flex Bud)
-          - Vermelho para valores positivos (Real > Flex Bud)
-          - Altura reduzida (60px) para não ocupar muito espaço
-          - Rótulos de dados acima/abaixo das barras
-        
-        **Tabela: Análise Flex Bud por Categoria**
-        - Hierarquia: Custo → Type 05 → Type 06 → Account
-        - Colunas:
-          - **BUD**: Valores originais do budget
-          - **Flex Bud - BUD**: Diferença entre Flex Bud e BUD
-          - **Flex BUD**: Valores calculados de Flex Bud
-          - **Total - Flex Bud**: Diferença entre Total (real) e Flex Bud
-          - **Total**: Valores reais
-          - **Total / Flex Bud**: Razão em percentual com barra de progresso
-            - Gradiente verde→vermelho (0% = verde, 100% = vermelho)
-            - Barra cheia quando atinge 100% ou mais
-            - Percentual com 1 casa decimal
-        
-        #### 📈 Tab 2: Volume
-        
-        **Gráfico: Volume Total por Período**
-        - Barras verdes com gradiente baseado no volume
-        - Linha tracejada laranja mostrando Volume Budget
-        - Altura: 250px
-        
-        **Gráfico: Volume por Veículo**
-        - Barras horizontais por veículo
-        - Gradiente verde
-        - Ordenado por volume (maior para menor)
-        
-        #### 🚗 Tab 3: TC Ext por Veíc
-        
-        **Gráfico: Soma do Valor por Oficina**
-        - Barras horizontais por oficina
-        - Ordenado por valor (maior para menor)
-        - Gradiente azul
-        
-        **Gráfico: Total por Veículo**
-        - Barras horizontais por veículo
-        - Ordenado por total (maior para menor)
-        - Gradiente azul
-        
-        #### 📋 Tab 4: Detalhe Real
-        
-        **Tabelas Detalhadas:**
-        - Tabela pivot: Valor por Oficina e Período
-        - Tabela filtrada: Todas as linhas com filtros aplicados
-        - Botões de download Excel
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("🔢 Cálculo de Flex Bud")
-    
-    st.markdown("""
-        ### Conceito
-        
-        **Flex Bud** (Budget Flexível) é o budget ajustado pela variação de volume real vs budget,
-        aplicando sensibilidade fixa baseada no tipo de custo (Fixo ou Variável).
-        
-        ### Fórmula Base
-        
-        Para cada período e categoria:
-        
-        ```
-        Proporção_Volume = Volume_Budget / Volume_Real
-        Variação_% = Proporção_Volume - 1.0
-        ```
-        
-        ### Aplicação de Sensibilidade
-        
-        **Custo Fixo:**
-        - Sensibilidade = **0** (não varia com volume)
-        - Flex_Bud_Fixo = BUD_Fixo (mantém valor original)
-        
-        **Custo Variável:**
-        - Sensibilidade = **1** (varia 100% com volume)
-        - Flex_Bud_Variável = BUD_Variável × (Volume_Real / Volume_Budget)
-        
-        ### Cálculo Final
-        
-        **Modo Custo Total:**
-        ```
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
-        ```
-        
-        **Modo CPU:**
-        ```
-        # 1. Calcular Flex Bud em Custo Total primeiro
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
-        
-        # 2. Converter para CPU
-        Flex_Bud_CPU = Flex_Bud_Total / Volume_Real
-        BUD_CPU = BUD_Total / Volume_Budget
-        ```
-        
-        ### Exemplo Prático
-        
-        **Dados:**
-        - Volume Real: 10.000 unidades
-        - Volume Budget: 12.000 unidades
-        - BUD Fixo: R$ 50.000
-        - BUD Variável: R$ 100.000
-        - BUD Total: R$ 150.000
-        
-        **Cálculo:**
-        ```
-        Proporção_Volume = 12.000 / 10.000 = 1.2
-        Variação_% = 1.2 - 1.0 = 0.2 (+20%)
-        
-        Flex_Bud_Fixo = R$ 50.000 (não varia)
-        Flex_Bud_Variável = R$ 100.000 × (10.000 / 12.000) = R$ 83.333
-        
-        Flex_Bud_Total = R$ 50.000 + R$ 83.333 = R$ 133.333
-        ```
-        
-        **Resultado na Tabela:**
-        - BUD: R$ 150.000
-        - Flex Bud - BUD: R$ 133.333 - R$ 150.000 = -R$ 16.667
-        - Flex BUD: R$ 133.333
-        - Total - Flex Bud: (depende do valor real)
-        - Total / Flex Bud: (razão em percentual)
-        """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Gráfico Delta")
-    
-    st.markdown("""
-        ### Conceito
-        
-        O gráfico Delta mostra a diferença entre os valores reais e o Flex Bud,
-        permitindo visualizar rapidamente onde há desvios.
-        
-        ### Cálculo
-        
-        ```
-        Delta = Real - Flex_Bud
-        ```
-        
-        ### Interpretação
-        
-        - **Delta Negativo (Verde)**: Real < Flex Bud (melhor que esperado)
-        - **Delta Zero (Cinza)**: Real = Flex Bud (exatamente como esperado)
-        - **Delta Positivo (Vermelho)**: Real > Flex Bud (pior que esperado)
-        
-        ### Visualização
-        
-        - Altura: 60px (compacto)
-        - Sem linha de eixo X (dá impressão de gráfico único)
-        - Rótulos de dados acima (positivo) ou abaixo (negativo)
-        - Gradiente contínuo verde→cinza→vermelho
-        """)
-    
-    # SUB-TAB 3: Simulador Forecast
-    with sub_tab3:
-        st.subheader("🔮 Página 2 - Simulador Forecast - O que Mostra")
-    
-    st.markdown("""
-        ### Visão Geral
-        
-        A página **Simulador Forecast** permite testar cenários de forecast de forma interativa,
-        ajustando parâmetros em tempo real e visualizando os impactos imediatamente.
-        
-        ### Funcionalidades Principais
-        
-        **Simulação Interativa:**
-        - Ajuste de sensibilidade em tempo real (sliders)
-        - Ajuste de inflação em tempo real
-        - Seleção de períodos para cálculo
-        - Exclusão de meses específicos
-        
-        **Visualizações:**
-        - Gráficos de premissas (custo e volume)
-        - Gráficos de forecast por período
-        - Comparação entre cenários
-        - Tabelas detalhadas com valores calculados
-        
-        **Configurações:**
-        - Sensibilidade global (Fixo/Variável)
-        - Sensibilidade detalhada (por Type 06)
-        - Inflação global ou detalhada
-        - Seleção de meses para cálculo da média histórica
-        
-        ### Cálculos Realizados
-        
-        **Média Histórica:**
-        - Calculada usando lógica padronizada
-        - Considera apenas períodos selecionados
-        - Exclui meses marcados para exclusão
-        - Agrupa por Oficina, Veículo e Tipo de Custo
-        
-        **Forecast:**
-        - Baseado na média histórica
-        - Aplica sensibilidade ao volume
-        - Aplica inflação
-        - Calculado linha a linha
-        
-        ### Estrutura da Página
-        
-        **Sidebar:**
-        - Filtros (Ano, Oficina, Veículo, Período)
-        - Tipo de visualização (Custo Total / CPU)
-        - Resumo estatístico
-        
-        **Área Principal:**
-        - Configuração do Forecast
-        - Gráficos de premissas
-        - Gráficos de forecast
-        - Tabelas detalhadas
-        - Botões de download
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("🔧 Configuração de Sensibilidade")
-    
-    st.markdown("""
-        ### Modo Global
-        
-        **Sensibilidade Fixo:**
-        - Valor padrão: 0.0 (não varia com volume)
-        - Ajustável via slider (0.0 a 1.0)
-        - Aplicado a todos os custos fixos
-        
-        **Sensibilidade Variável:**
-        - Valor padrão: 1.0 (varia 100% com volume)
-        - Ajustável via slider (0.0 a 1.0)
-        - Aplicado a todos os custos variáveis
-        
-        ### Modo Detalhado
-        
-        **Por Type 06:**
-        - Cada Type 06 tem sua própria sensibilidade
-        - Configurável individualmente
-        - Permite ajustes finos por categoria
-        
-        **Aplicação:**
-        - Valores são salvos em session_state
-        - Aplicados ao calcular forecast
-        - Podem ser limpos com botão "Limpar Configurações"
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("📊 Gráficos de Premissas")
-    
-    st.markdown("""
-        **Gráfico de Custo Médio Histórico:**
-        - Mostra média histórica por período
-        - Agrupado por Oficina, Veículo e Tipo de Custo
-        - Base para cálculo do forecast
-        
-        **Gráfico de Volume Médio Histórico:**
-        - Mostra volume médio histórico
-        - Usado para calcular proporção de volume
-        - Base para aplicação de sensibilidade
-        
-        **Gráfico de Volume Futuro:**
-        - Mostra volumes previstos para períodos futuros
-        - Comparado com volume médio histórico
-        - Usado para calcular variação percentual
-        """)
-    
-    # SUB-TAB 4: Forecast
-    with sub_tab4:
-        st.subheader("📉 Página 3 - Forecast - O que Mostra")
-        
-        st.markdown("""
-        ### Visão Geral
-        
-        A página **Forecast** é o sistema completo de previsão de custos, calculando forecast
-        baseado em média histórica, aplicando sensibilidade ao volume e inflação.
-        
-        ### Funcionalidades Principais
-        
-        **Cálculo de Forecast:**
-        - Média histórica padronizada
-        - Aplicação de sensibilidade ao volume
-        - Aplicação de inflação
-        - Cálculo linha a linha para precisão
-        
-        **Visualizações:**
-        - Gráficos de premissas (custo e volume)
-        - Gráficos de forecast por período
-        - Comparação histórico vs forecast
-        - Tabelas detalhadas
-        
-        **Configurações:**
-        - Sensibilidade global ou detalhada
-        - Inflação global ou por Type 06
-        - Seleção de períodos para cálculo
-        - Exclusão de meses específicos
-        
-        ### Estrutura da Página
-        
-        **Sidebar:**
-        - Filtros (Ano, Oficina, Veículo, Período)
-        - Tipo de visualização
-        - Resumo estatístico
-        
-        **Área Principal:**
-        - Configuração do Forecast
-        - Gráficos de premissas
-        - Gráficos de forecast
-        - Tabelas detalhadas
-        - Download de resultados
-        
-        ### Diferença do Simulador
-        
-        **Simulador Forecast (Página 2):**
-        - Foco em simulação interativa
-        - Ajustes em tempo real
-        - Teste de cenários
-        
-        **Forecast (Página 3):**
-        - Foco em visualização de resultados
-        - Forecast já calculado
-        - Análise de previsões
-    """)
-    
-    st.markdown("---")
-    
-    st.subheader("📈 Metodologia de Cálculo")
-    
-    st.markdown("""
-        ### 1. Cálculo da Média Histórica
-        
-        **Lógica Padronizada:**
-        1. Normalização de períodos (adiciona ano se necessário)
-        2. Filtro por períodos selecionados
-        3. Exclusão de meses marcados
-        4. Filtro por ano de referência
-        5. Agregação por período único
-        6. Média aritmética dos valores agregados
-        
-        **Fórmula:**
-        ```
-        Média_Mensal = Média(Soma(Custos_por_Período_Único))
-        ```
-        
-        ### 2. Cálculo da Proporção de Volume
-        
-        ```
-        Proporção_Volume = Volume_Futuro / Volume_Médio_Histórico
-        Variação_% = Proporção_Volume - 1.0
-        ```
-        
-        ### 3. Aplicação de Sensibilidade
-        
-        ```
-        Variação_Ajustada = Variação_% × Sensibilidade
-        Proporção_Ajustada = 1.0 + Variação_Ajustada
-        ```
-        
-        ### 4. Aplicação de Inflação
-        
-        ```
-        Fator_Inflação = 1.0 + (Inflação / 100.0)
-        ```
-        
-        ### 5. Cálculo Final do Forecast
-        
-        ```
-        Forecast = Média_Mensal × Proporção_Ajustada × Fator_Inflação
-        ```
-        
-        **Características:**
-        - Cálculo linha a linha (não agregado)
-        - Total = Soma de todas as linhas
-        - Precisão matemática garantida
-        """)
-    
-    # SUB-TAB 5: Waterfall Analysis
-    with sub_tab5:
-        st.subheader("🌊 Página 4 - Waterfall Analysis - O que Mostra")
-        
-        st.markdown("""
-        ### Visão Geral
-        
-        A página **Waterfall Analysis** permite comparar custos entre dois períodos e identificar
-        as causas das variações, separando os efeitos de volume, sensibilidade e inflação.
-        
-        ### Funcionalidades Principais
-        
-        **Modos de Comparação:**
-        - **Mês a Mês**: Compara dois meses específicos
-        - **Ano a Ano**: Compara dois anos completos (usa volumes totais)
-        - **Múltiplos Meses**: Mostra série temporal completa
-        
-        **Cálculo FLEX:**
-        - **FLEX Volume**: Efeito da variação de volume + sensibilidade
-        - **FLEX Inflação**: Efeito da inflação aplicada
-        - Separação clara dos efeitos
-        
-        **Visualizações:**
-        - Gráficos waterfall (barras empilhadas)
-        - Barras coloridas (verde=aumento, vermelho=redução)
-        - Tooltips informativos
-        - Tabelas detalhadas
-        
-        ### Estrutura da Página
-        
-        **Sidebar:**
-        - Seleção de modo (Mês a Mês / Ano a Ano / Múltiplos Meses)
-        - Seleção de períodos para comparação
-        - Configuração de sensibilidade
-        - Configuração de inflação
-        
-        **Área Principal:**
-        - Gráficos waterfall
-        - Tabelas de variação
-        - Análise detalhada por categoria
-        - Download de resultados
-        
-        ### Cálculo FLEX
-        
-        **FLEX Volume:**
-        ```
-        Volume_Inicial = Volume do período inicial
-        Volume_Final = Volume do período final
-        Proporção = Volume_Final / Volume_Inicial
-        Variação_% = Proporção - 1.0
-        
-        Para cada tipo de custo:
-        Variação_Ajustada = Variação_% × Sensibilidade
-        Fator = 1.0 + Variação_Ajustada
-        Custo_Após_Volume = Custo_Inicial × Fator
-        FLEX_Volume = Custo_Após_Volume - Custo_Inicial
-        ```
-        
-        **FLEX Inflação:**
-        ```
-        Fator_Inflação = 1.0 + (Inflação / 100.0)
-        Custo_Final = Custo_Após_Volume × Fator_Inflação
-        FLEX_Inflação = Custo_Final - Custo_Após_Volume
-        ```
-        
-        **Importante para Ano a Ano:**
-        - Usa volume TOTAL do ano inicial
-        - Usa volume TOTAL do ano final
-        - Não usa meses específicos (correção implementada)
-        """)
-        
-        st.markdown("---")
-        
-        st.subheader("📊 Gráficos Waterfall")
-        
-        st.markdown("""
-        **Estrutura do Gráfico:**
-        - Barra inicial: Custo do período inicial
-        - Barra FLEX Volume: Efeito do volume (verde ou vermelho)
-        - Barra FLEX Inflação: Efeito da inflação (verde ou vermelho)
-        - Barra final: Custo do período final
-        
-        **Cores:**
-        - Verde: Aumento (valores positivos)
-        - Vermelho: Redução (valores negativos)
-        - Intensidade baseada no valor absoluto
-        
-        **Tooltips:**
-        - Mostram valores exatos
-        - Mostram variações percentuais
-        - Mostram descrições dos efeitos
-        """)
-    
-    # SUB-TAB 6: Cálculos e Fórmulas
-    with sub_tab6:
-        st.subheader("📈 Cálculos e Fórmulas Principais")
-        
-        st.markdown("""
-        ### 1. Cálculo de CPU
-        
-        **IMPORTANTE**: CPU deve ser calculado APÓS agrupamento:
-        
-        ```
-        CPU = Total_Agregado / Volume_Agregado
-        ```
-        
-        **Nunca fazer:**
-        ```
-        CPU_Individual = Total_Individual / Volume_Individual
-        CPU_Médio = Média(CPU_Individual)  ❌ INCORRETO
-        ```
-        
-        **Sempre fazer:**
-        ```
-        Total_Agregado = Soma(Total_Individual)
-        Volume_Agregado = Soma(Volume_Individual)
-        CPU = Total_Agregado / Volume_Agregado  ✅ CORRETO
-        ```
-        
-        ### 2. Agrupamento por Período
-        
-        **Com Ano:**
-        ```
-        Agrupar por: ['Ano', 'Período']
-        Criar: 'Período_Completo' = Período + ' ' + Ano
-        ```
-        
-        **Sem Ano:**
-        ```
-        Agrupar por: ['Período']
-        ```
-        
-        ### 3. Cálculo de Total / Flex Bud
-        
-        ```
-        Ratio = Total / Flex_Bud
-        Percentual = Ratio × 100
-        ```
-        
-        **Interpretação:**
-        - Percentual < 100%: Total < Flex Bud (melhor)
-        - Percentual = 100%: Total = Flex Bud (exato)
-        - Percentual > 100%: Total > Flex Bud (pior)
-        
-        ### 4. Formatação de Valores
-        
-        **Valores Monetários:**
-        ```python
-        f"R$ {valor:,.2f}"  # Ex: R$ 1.234,56
-        ```
-        
-        **Percentuais:**
-        ```python
-        f"{percentual:.1f}%"  # Ex: 32.1%
-        ```
-        
-        **Volumes:**
-        ```python
-        f"{volume:,.0f}"  # Ex: 10.000
-        ```
-        """)
-        
-        st.markdown("---")
-        
-        st.subheader("🎨 Formatação Visual")
-        
-        st.markdown("""
-        ### Barra de Progresso (Total / Flex Bud)
-        
-        **Cálculo de Cor (Gradiente Verde→Vermelho):**
-        ```
-        Se percentual <= 0:
-            Cor = RGB(0, 170, 0)  # Verde puro
-        
-        Se percentual >= 100:
-            Cor = RGB(255, 0, 0)  # Vermelho puro
-        
-        Caso contrário (interpolação linear):
-            R = 255 × (percentual / 100)
-            G = 170 × (1 - percentual / 100)
-            B = 0
-        ```
-        
-        **Largura da Barra:**
-        ```
-        Se percentual >= 100:
-            Largura = 100%  # Barra cheia
-        Caso contrário:
-            Largura = percentual  # Proporcional
-        ```
-        
-        ### Gráfico Delta
-        
-        **Escala de Cores:**
-        ```
-        Domain: [delta_min, 0, delta_max]
-        Range: ['#00AA00', '#888888', '#FF0000']  # Verde, Cinza, Vermelho
-        ```
-        
-        - delta_min (mais negativo) = Verde mais intenso
-        - 0 = Cinza (#888888)
-        - delta_max (mais positivo) = Vermelho mais intenso
-        """)
-    
-    # SUB-TAB 3: Funcionalidades por Página
-    with sub_tab3:
-        st.subheader("🎯 Funcionalidades por Página")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ### 📊 Dashboard TC Ext (app.py)
-            
-            **Objetivo:** Visualização e análise de dados históricos
-            
-            **Funcionalidades:**
-            - ✅ Visualização por período (barras)
-            - ✅ Comparação com budget (linha tracejada)
-            - ✅ Gráfico delta (diferença Real - Flex Bud)
-            - ✅ Análise Flex Bud por categoria
-            - ✅ Visualização de volume
-            - ✅ Análise por veículo e oficina
-            - ✅ Tabelas detalhadas e pivot
-            - ✅ Download Excel
-            - ✅ Filtros interativos (Ano, Oficina, Veículo, Período)
-            - ✅ Modos: Custo Total e CPU
-            
-            **Tabs:**
-            1. TC Ext: Gráfico principal + análise Flex Bud
-            2. Volume: Gráficos de volume
-            3. TC Ext por Veíc: Análise por veículo/oficina
-            4. Detalhe Real: Tabelas completas
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### 📈 Página 2 - Simulador Forecast
-            
-            **Objetivo:** Simulação interativa de cenários
-            
-            **Funcionalidades:**
-            - ✅ Ajuste de sensibilidade em tempo real
-            - ✅ Visualização de impactos
-            - ✅ Comparação de cenários
-            
-            ### 📉 Página 3 - Forecast
-            
-            **Objetivo:** Previsão de custos futuros
-            
-            **Funcionalidades:**
-            - ✅ Cálculo de forecast baseado em média histórica
-            - ✅ Aplicação de sensibilidade ao volume
-            - ✅ Aplicação de inflação
-            - ✅ Gráficos de premissas
-            - ✅ Tabelas detalhadas
-            - ✅ Download de resultados
-            
-            ### 🌊 Página 4 - Waterfall Analysis
-            
-            **Objetivo:** Análise de variações entre períodos
-            
-            **Funcionalidades:**
-            - ✅ Comparação mês a mês
-            - ✅ Comparação ano a ano
-            - ✅ Cálculo de FLEX (Volume + Inflação)
-            - ✅ Gráficos waterfall
-            """)
-        
-        st.markdown("---")
-        
-        st.subheader("🔍 Filtros e Interatividade")
-        
-        st.markdown("""
-        ### Filtros Disponíveis (TC Ext)
-        
-        1. **Ano**: Radio button (Todos + anos disponíveis)
-        2. **Tipo de Visualização**: Radio button (Custo Total / CPU)
-        3. **Oficina**: Multiselect (Todos + oficinas únicas)
-        4. **Veículo**: Multiselect (Todos + veículos únicos)
-        5. **USI**: Multiselect (se coluna existir)
-        6. **Período**: Multiselect (ordenado cronologicamente)
-        
-        ### Aplicação de Filtros
-        
-        - Filtros são aplicados sequencialmente
-        - "Todos" significa sem filtro para aquela dimensão
-        - Filtros de Oficina e Veículo também são aplicados ao Budget
-        - Cache é invalidado quando filtros mudam
-        
-        ### Modos de Visualização
-        
-        **Custo Total:**
-        - Mostra valores totais (R$)
-        - Tabela Flex Bud disponível
-        - Gráficos em valores absolutos
-        
-        **CPU (Custo por Unidade):**
-        - Mostra valores por unidade (R$/unidade)
-        - CPU calculado após agrupamento
-        - Tabela Flex Bud não disponível (apenas linha no gráfico)
-        """)
-    
-    # SUB-TAB 4: Exemplos Práticos
-    with sub_tab4:
-        st.subheader("💡 Exemplos Práticos")
-        
-        st.markdown("""
-        ### Exemplo 1: Cálculo de Flex Bud
-        
-        **Cenário:**
-        - Volume Real: 8.000 unidades
-        - Volume Budget: 10.000 unidades
-        - BUD Fixo: R$ 40.000
-        - BUD Variável: R$ 80.000
-        - BUD Total: R$ 120.000
-        
-        **Cálculo:**
-        ```
-        Proporção = 10.000 / 8.000 = 1.25
-        Variação = 1.25 - 1.0 = 0.25 (+25%)
-        
-        Flex_Bud_Fixo = R$ 40.000 (não varia)
-        Flex_Bud_Variável = R$ 80.000 × (8.000 / 10.000) = R$ 64.000
-        
-        Flex_Bud_Total = R$ 40.000 + R$ 64.000 = R$ 104.000
-        ```
-        
-        **Interpretação:**
-        - Volume real é 20% menor que budget
-        - Custo fixo permanece igual
-        - Custo variável reduz proporcionalmente
-        - Flex Bud total é R$ 16.000 menor que BUD original
-        
-        ### Exemplo 2: Gráfico Delta
-        
-        **Cenário:**
-        - Real: R$ 110.000
-        - Flex Bud: R$ 104.000
-        - Delta: R$ 110.000 - R$ 104.000 = R$ 6.000
-        
-        **Visualização:**
-        - Barra vermelha (positiva)
-        - Rótulo: "+R$ 6.000" acima da barra
-        - Indica que o real está acima do Flex Bud
-        
-        ### Exemplo 3: Total / Flex Bud
-        
-        **Cenário:**
-        - Total: R$ 110.000
-        - Flex Bud: R$ 104.000
-        - Ratio: 110.000 / 104.000 = 1.058
-        
-        **Visualização:**
-        - Percentual: 105.8%
-        - Barra: 100% (cheia, pois > 100%)
-        - Cor: Vermelho (RGB(255, 0, 0))
-        - Indica que o total está 5.8% acima do Flex Bud
-        """)
-        
-        st.markdown("---")
-        
-        st.subheader("📊 Interpretação de Resultados")
-        
-        st.markdown("""
-        ### Tabela Flex Bud
-        
-        **BUD**: Valor original do budget
-        - Referência inicial do planejamento
-        
-        **Flex Bud - BUD**: Diferença entre Flex Bud e BUD
-        - Negativo: Flex Bud < BUD (volume menor que planejado)
-        - Positivo: Flex Bud > BUD (volume maior que planejado)
-        - Zero: Volume igual ao planejado
-        
-        **Flex BUD**: Budget ajustado pela variação de volume
-        - Representa o que o budget deveria ser dado o volume real
-        
-        **Total - Flex Bud**: Diferença entre Real e Flex Bud
-        - Negativo: Real < Flex Bud (melhor que esperado)
-        - Positivo: Real > Flex Bud (pior que esperado)
-        - Zero: Real = Flex Bud (exatamente como esperado)
-        
-        **Total / Flex Bud**: Razão em percentual
-        - < 100%: Real melhor que Flex Bud
-        - = 100%: Real igual ao Flex Bud
-        - > 100%: Real pior que Flex Bud
-        - Barra verde→vermelho indica visualmente a situação
+                - 📈 Plotly (Waterfall)
         """)
 
 # Rodapé
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão 2.0 | Dezembro 2024
+    📚 Documentação Completa do Sistema TC | Versão 3.0 | Janeiro 2025
     <br>
-    <small>Atualizado com: Tabs, Gráfico Delta, Formatação HTML, Barra de Progresso, Gradientes</small>
+    <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>
 """, unsafe_allow_html=True)

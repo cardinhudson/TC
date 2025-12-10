@@ -5638,7 +5638,12 @@ with tab1:
                                             if df_custo['Total'].fillna(0).abs().sum() <= 0.0001:
                                                 continue  # Pular Custo completamente zerado
                                     
-                                    total_custo = df_custo['Total'].sum()
+                                    # Verificar se a coluna 'Total' existe antes de acessá-la
+                                    if 'Total' in df_custo.columns:
+                                        total_custo = df_custo['Total'].sum()
+                                    else:
+                                        # Se não houver coluna 'Total', usar 0 ou calcular a partir de outras colunas
+                                        total_custo = 0.0
                                     total_custo_formatado = f"{total_custo:,.2f}"
                                     
                                     with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
@@ -5667,7 +5672,11 @@ with tab1:
                                                             if df_type05['Total'].fillna(0).abs().sum() <= 0.0001:
                                                                 continue  # Pular Type 05 completamente zerado
                                                     
-                                                    total_type05 = df_type05['Total'].sum()
+                                                    # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                    if 'Total' in df_type05.columns:
+                                                        total_type05 = df_type05['Total'].sum()
+                                                    else:
+                                                        total_type05 = 0.0
                                                     total_type05_formatado = f"{total_type05:,.2f}"
                                                     
                                                     with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
@@ -5693,7 +5702,11 @@ with tab1:
                                                                             if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
                                                                                 continue  # Pular Type 06 completamente zerado
                                                                     
-                                                                    total_type06 = df_type06['Total'].sum()
+                                                                    # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                    if 'Total' in df_type06.columns:
+                                                                        total_type06 = df_type06['Total'].sum()
+                                                                    else:
+                                                                        total_type06 = 0.0
                                                                     total_type06_formatado = f"{total_type06:,.2f}"
                                                                     
                                                                     # Nível 4: Account (se existir)
@@ -6026,10 +6039,19 @@ with tab1:
                                                 if df_type05['Total'].fillna(0).abs().sum() <= 0.0001:
                                                     continue  # Pular Type 05 completamente zerado
                                         
-                                        total_type05 = df_type05['Total'].sum()
+                                        # Verificar se a coluna 'Total' existe antes de acessá-la
+                                        if 'Total' in df_type05.columns:
+                                            total_type05 = df_type05['Total'].sum()
+                                        else:
+                                            total_type05 = 0.0
                                         total_type05_formatado = f"{total_type05:,.2f}"
                                         
                                         with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                            # Resumo do Type 05
+                                            linha_resumo_type05, linha_resumo_type05_formatado = calcular_resumo_tabela_flex(df_type05, tipo_visualizacao, moeda_simbolo, fator_conversao)
+                                            exibir_caixas_resumo(linha_resumo_type05, linha_resumo_type05_formatado, tipo_visualizacao)
+                                            st.markdown("---")
+                                            
                                             # Nível 2: Type 06 (se existir)
                                             if 'Type 06' in df_type05.columns:
                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -6050,7 +6072,11 @@ with tab1:
                                                                 if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
                                                                     continue  # Pular Type 06 completamente zerado
                                                         
-                                                        total_type06 = df_type06['Total'].sum()
+                                                        # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                        if 'Total' in df_type06.columns:
+                                                            total_type06 = df_type06['Total'].sum()
+                                                        else:
+                                                            total_type06 = 0.0
                                                         total_type06_formatado = f"{total_type06:,.2f}"
                                                         
                                                         # Nível 3: Account (se existir)
@@ -6079,27 +6105,43 @@ with tab1:
                                                                     colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                     colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                         if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Custo', 'Período']]
-                                                                    colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                    
+                                                                    # 🔧 CORREÇÃO: Reordenar colunas na ordem correta
+                                                                    ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']
+                                                                    colunas_ordenadas = []
+                                                                    for col_ordem in ordem_colunas:
+                                                                        if col_ordem in colunas_numericas:
+                                                                            colunas_ordenadas.append(col_ordem)
+                                                                    # Adicionar outras colunas numéricas que não estão na ordem padrão (colunas dinâmicas)
+                                                                    for col in colunas_numericas:
+                                                                        if col not in colunas_ordenadas:
+                                                                            colunas_ordenadas.append(col)
+                                                                    
                                                                     colunas_display = colunas_id + colunas_ordenadas
                                                                     df_display = df_type06_filtrado[colunas_display].copy()
                                                                     
-                                                                    # Formatar valores
-                                                                    for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
-                                                                        if col in df_display.columns:
-                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                            else:
-                                                                                sufixo = ""
-                                                                                if fator_conversao:
-                                                                                    if fator_conversao == "K (milhares)":
-                                                                                        sufixo = " K"
-                                                                                    elif fator_conversao == "M (Milhões)":
-                                                                                        sufixo = " M"
-                                                                                df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                    
-                                                                    # Formatar Total / Flex Bud com barra HTML
-                                                                    if 'Total / Flex Bud' in df_display.columns:
-                                                                        df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
+                                                                    # Formatar valores (formatar todas as colunas numéricas dinamicamente)
+                                                                    for col in df_display.columns:
+                                                                        if col not in colunas_id:
+                                                                            # Formatar Total / Flex Bud com barra HTML (deve estar em formato decimal, não percentual)
+                                                                            if col == 'Total / Flex Bud':
+                                                                                df_display[col] = df_display[col].map(lambda x: formatar_ratio_com_barra(x) if pd.notna(x) and isinstance(x, (int, float)) else formatar_ratio_com_barra(0))
+                                                                            # Formatar percentuais de forma especial com barrinha
+                                                                            elif col.startswith('%'):
+                                                                                # Usar formatar_ratio_com_barra para colunas de percentual
+                                                                                df_display[col] = df_display[col].map(lambda x: formatar_ratio_com_barra(x / 100) if pd.notna(x) and isinstance(x, (int, float)) else "-")
+                                                                            # Formatar outras colunas numéricas
+                                                                            elif pd.api.types.is_numeric_dtype(df_display[col]):
+                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                else:
+                                                                                    sufixo = ""
+                                                                                    if fator_conversao:
+                                                                                        if fator_conversao == "K (milhares)":
+                                                                                            sufixo = " K"
+                                                                                        elif fator_conversao == "M (Milhões)":
+                                                                                            sufixo = " M"
+                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
                                                                     
                                                                     # Calcular linha de resumo (usar dados filtrados)
                                                                     linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
@@ -6135,29 +6177,38 @@ with tab1:
                                                                     colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
                                                                     colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                         if col not in colunas_id and col not in ['Type 05', 'Account', 'Custo', 'Período']]
-                                                                    colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                    
+                                                                    # 🔧 CORREÇÃO: Reordenar colunas na ordem correta
+                                                                    ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']
+                                                                    colunas_ordenadas = []
+                                                                    for col_ordem in ordem_colunas:
+                                                                        if col_ordem in colunas_numericas:
+                                                                            colunas_ordenadas.append(col_ordem)
+                                                                    # Adicionar outras colunas numéricas que não estão na ordem padrão (colunas dinâmicas)
+                                                                    for col in colunas_numericas:
+                                                                        if col not in colunas_ordenadas:
+                                                                            colunas_ordenadas.append(col)
+                                                                    
                                                                     colunas_display = colunas_id + colunas_ordenadas
                                                                     df_display = df_type06_filtrado[colunas_display].copy()
                                                                     
-                                                                    # Formatar valores (formatar todas as colunas numéricas dinamicamente)
-                                                                    for col in df_display.columns:
-                                                                        if col not in colunas_id:
-                                                                            # Formatar percentuais de forma especial com barrinha
-                                                                            if col.startswith('%'):
-                                                                                # Usar formatar_ratio_com_barra para colunas de percentual (dividir por 100 pois está em %)
-                                                                                df_display[col] = df_display[col].map(lambda x: formatar_ratio_com_barra(x / 100) if pd.notna(x) and isinstance(x, (int, float)) else "-")
-                                                                            # Formatar outras colunas numéricas
-                                                                            elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                                else:
-                                                                                    sufixo = ""
-                                                                                    if fator_conversao:
-                                                                                        if fator_conversao == "K (milhares)":
-                                                                                            sufixo = " K"
-                                                                                        elif fator_conversao == "M (Milhões)":
-                                                                                            sufixo = " M"
-                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                    # Formatar valores
+                                                                    for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                                                                        if col in df_display.columns:
+                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                            else:
+                                                                                sufixo = ""
+                                                                                if fator_conversao:
+                                                                                    if fator_conversao == "K (milhares)":
+                                                                                        sufixo = " K"
+                                                                                    elif fator_conversao == "M (Milhões)":
+                                                                                        sufixo = " M"
+                                                                                df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                    
+                                                                    # Formatar Total / Flex Bud com barra HTML
+                                                                    if 'Total / Flex Bud' in df_display.columns:
+                                                                        df_display['Total / Flex Bud'] = df_display['Total / Flex Bud'].map(formatar_ratio_com_barra)
                                                                     
                                                                     # Calcular linha de resumo (usar dados filtrados)
                                                                     linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
@@ -6181,12 +6232,24 @@ with tab1:
                                                     ].copy()
                                                 
                                                 # Criar tabela para este Type 05
-                                                colunas_padrao_type05 = ['Type 05', 'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']
-                                                colunas_existentes_type05 = [col for col in colunas_padrao_type05 if col in df_type05.columns]
-                                                if not colunas_existentes_type05:
-                                                    colunas_existentes_type05 = colunas_numericas_type05_total if colunas_numericas_type05_total else df_type05.columns.tolist()
+                                                # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
+                                                colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
+                                                colunas_numericas = [col for col in df_type05.columns 
+                                                                    if col not in colunas_id and col not in ['Type 06', 'Account', 'Custo', 'Período']]
                                                 
-                                                df_display = df_type05[colunas_existentes_type05].copy()
+                                                # 🔧 CORREÇÃO: Reordenar colunas na ordem correta
+                                                ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud']
+                                                colunas_ordenadas = []
+                                                for col_ordem in ordem_colunas:
+                                                    if col_ordem in colunas_numericas:
+                                                        colunas_ordenadas.append(col_ordem)
+                                                # Adicionar outras colunas numéricas que não estão na ordem padrão (colunas dinâmicas)
+                                                for col in colunas_numericas:
+                                                    if col not in colunas_ordenadas:
+                                                        colunas_ordenadas.append(col)
+                                                
+                                                colunas_display = colunas_id + colunas_ordenadas
+                                                df_display = df_type05[colunas_display].copy()
                                                 
                                                 # Formatar valores
                                                 for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
