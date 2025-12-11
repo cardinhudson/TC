@@ -2130,8 +2130,9 @@ else:
                                                                                                 if len(df_type06_filtrado) > 0:
                                                                                                     # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
                                                                                                     # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                    st.markdown("---")  # Separador visual
+                                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                     with st.container():
-                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                         # Criar tabela
                                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -2218,8 +2219,9 @@ else:
                                                                                                 if len(df_type06_filtrado) > 0:
                                                                                                     # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
                                                                                                     # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                    st.markdown("---")  # Separador visual
+                                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                     with st.container():
-                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                         colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                                                             if col not in colunas_id and col not in ['Type 05', 'Account', 'Custo', 'Período']]
@@ -2440,8 +2442,9 @@ else:
                                                                                 if len(df_type06_filtrado) > 0:
                                                                                     # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
                                                                                     # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                    st.markdown("---")  # Separador visual
+                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                     with st.container():
-                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                         # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3593,8 +3596,9 @@ else:
                                                                                                     if len(df_type06_filtrado) > 0:
                                                                                                         # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
                                                                                                         # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                        st.markdown("---")  # Separador visual
+                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                         with st.container():
-                                                                                                            st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                                             # Criar tabela
                                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3736,8 +3740,9 @@ else:
                                                                                     if len(df_type06_filtrado) > 0:
                                                                                         # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
                                                                                         # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                        st.markdown("---")  # Separador visual
+                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                         with st.container():
-                                                                                            st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                             # Criar tabela
                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
