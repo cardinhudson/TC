@@ -2099,36 +2099,59 @@ else:
                                                                     total_type05 = df_type05['Mês 2'].sum() if 'Mês 2' in df_type05.columns else 0
                                                                     total_type05_formatado = f"{total_type05:,.2f}"
                                                                     
-                                                                    # Não exibir se o total for zero
-                                                                    if total_type05 != 0 and pd.notna(total_type05):
-                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                            # Nível 3: Type 06
-                                                                            if 'Type 06' in df_type05.columns:
+                                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                                    # A filtragem de linhas zeradas já é feita dentro do loop do Type 06
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                        # Nível 3: Type 06
+                                                                        if 'Type 06' in df_type05.columns:
                                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                                     
                                                                                     if len(df_type06) > 0:
-                                                                                        total_type06 = df_type06['Mês 2'].sum() if 'Mês 2' in df_type06.columns else 0
+                                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                                        colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                        if colunas_numericas_check:
+                                                                                            # Verificar se há pelo menos uma linha com valores não zerados
+                                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                                            if not tem_valores_nao_zerados:
+                                                                                                continue  # Pular Type 06 completamente zerado
+                                                                                        else:
+                                                                                            # Se não há colunas numéricas, verificar se Mês 2 existe e é zero
+                                                                                            if 'Mês 2' in df_type06.columns:
+                                                                                                if df_type06['Mês 2'].fillna(0).abs().sum() <= 0.0001:
+                                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                                        
+                                                                                        # Verificar se a coluna 'Mês 2' existe antes de acessá-la
+                                                                                        if 'Mês 2' in df_type06.columns:
+                                                                                            total_type06 = df_type06['Mês 2'].sum()
+                                                                                        else:
+                                                                                            total_type06 = 0.0
                                                                                         total_type06_formatado = f"{total_type06:,.2f}"
                                                                                         
-                                                                                        # Não exibir se o total for zero
-                                                                                        if total_type06 != 0 and pd.notna(total_type06):
-                                                                                            # Nível 4: Account
-                                                                                            if 'Account' in df_type06.columns:
-                                                                                                # Filtrar linhas zeradas
-                                                                                                colunas_numericas = [col for col in df_type06.columns 
-                                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                                if colunas_numericas:
-                                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                                    df_type06_filtrado = df_type06[
-                                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                                    ].copy()
-                                                                                                else:
-                                                                                                    df_type06_filtrado = df_type06.copy()
-                                                                                                
-                                                                                                if len(df_type06_filtrado) > 0:
-                                                                                                    with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                                        # Nível 4: Account (se existir)
+                                                                                        if 'Account' in df_type06.columns:
+                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                                            colunas_numericas = [col for col in df_type06.columns 
+                                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                            if colunas_numericas:
+                                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                                df_type06_filtrado = df_type06[
+                                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                                ].copy()
+                                                                                            else:
+                                                                                                df_type06_filtrado = df_type06.copy()
+                                                                                            
+                                                                                            # Só exibir se houver dados após filtrar
+                                                                                            if len(df_type06_filtrado) > 0:
+                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                st.markdown("---")  # Separador visual
+                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                                with st.container():
                                                                                                         # Criar tabela
                                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -2201,19 +2224,27 @@ else:
                                                                                                                         st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
+                                                                                        else:
+                                                                                            # Sem Account: exibir Type 06 diretamente
+                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                                            colunas_numericas = [col for col in df_type06.columns 
+                                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                            if colunas_numericas:
+                                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                                df_type06_filtrado = df_type06[
+                                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                                ].copy()
                                                                                             else:
-                                                                                                # Sem Account: exibir Type 06 diretamente
-                                                                                                colunas_numericas = ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']
-                                                                                                colunas_numericas_existentes = [col for col in colunas_numericas if col in df_type06.columns]
-                                                                                                if colunas_numericas_existentes:
-                                                                                                    df_type06_filtrado = df_type06[
-                                                                                                        df_type06[colunas_numericas_existentes].abs().sum(axis=1) > 0.0001
-                                                                                                    ].copy()
-                                                                                                else:
-                                                                                                    df_type06_filtrado = df_type06.copy()
-                                                                                                
-                                                                                                if len(df_type06_filtrado) > 0:
-                                                                                                    with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                                                df_type06_filtrado = df_type06.copy()
+                                                                                            
+                                                                                            # Só exibir se houver dados após filtrar
+                                                                                            if len(df_type06_filtrado) > 0:
+                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                st.markdown("---")  # Separador visual
+                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                                with st.container():
                                                                                                         colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                                                             if col not in colunas_id and col not in ['Type 05', 'Account', 'Custo', 'Período']]
@@ -2285,79 +2316,82 @@ else:
                                                                                                                         st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
-                                                                            else:
-                                                                                # Sem Type 06: exibir Type 05 diretamente
-                                                                                colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
-                                                                                colunas_numericas = [col for col in df_type05.columns 
-                                                                                                    if col not in colunas_id and col not in ['Type 06', 'Account', 'Custo', 'Período']]
-                                                                                colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                colunas_display = colunas_id + colunas_ordenadas
-                                                                                df_display = df_type05[colunas_display].copy()
-                                                                        
-                                                                        # Formatar valores
-                                                                        for col in df_display.columns:
-                                                                            if col not in colunas_id:
-                                                                                if col.startswith('%'):
-                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else (x if pd.notna(x) else "-"))
-                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                            else:
+                                                                                                # Sem dados filtrados: não exibir nada
+                                                                                                pass
                                                                                     else:
-                                                                                        sufixo = ""
-                                                                                        if fator_conversao:
-                                                                                            if fator_conversao == "K (milhares)":
-                                                                                                sufixo = " K"
-                                                                                            elif fator_conversao == "M (Milhões)":
-                                                                                                sufixo = " M"
-                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                        
-                                                                        # Calcular resumo usando os nomes corretos das colunas
-                                                                        linha_resumo_type05 = {
-                                                                            'Mês 1': df_type05['Mês 1'].sum(),
-                                                                            'Flex Mês 1 - Mês 1': df_type05['Flex Mês 1 - Mês 1'].sum(),
-                                                                            'Flex Mês 1': df_type05['Flex Mês 1'].sum(),
-                                                                            'Mês 2 - Flex Mês 1': df_type05['Mês 2 - Flex Mês 1'].sum(),
-                                                                            'Mês 2': df_type05['Mês 2'].sum(),
-                                                                            '% Mês 2/Flex Mês 1': df_type05['% Mês 2/Flex Mês 1'].sum()
-                                                                        }
-                                                                        
-                                                                        # Formatar resumo
-                                                                        linha_resumo_type05_formatado = {}
-                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
-                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}"
-                                                                            else:
-                                                                                sufixo = ""
-                                                                                if fator_conversao:
-                                                                                    if fator_conversao == "K (milhares)":
-                                                                                        sufixo = " K"
-                                                                                    elif fator_conversao == "M (Milhões)":
-                                                                                        sufixo = " M"
-                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}{sufixo}"
-                                                                        
-                                                                        # Formatar percentual
-                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type05['% Mês 2/Flex Mês 1']:,.2f}%"
-                                                                        
-                                                                        # Exibir caixas na ordem correta: Mês 1, Flex Mês 1 - Mês 1, Flex Mês 1, Mês 2 - Flex Mês 1, Mês 2, % Mês 2/Flex Mês 1
-                                                                        ordem_colunas_waterfall = [
-                                                                            'Mês 1',
-                                                                            'Flex Mês 1 - Mês 1',
-                                                                            'Flex Mês 1',
-                                                                            'Mês 2 - Flex Mês 1',
-                                                                            'Mês 2',
-                                                                            '% Mês 2/Flex Mês 1'
-                                                                        ]
-                                                                        num_colunas = min(len(ordem_colunas_waterfall), 6)
-                                                                        if num_colunas > 0:
-                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall[:num_colunas]):
-                                                                                if col_nome in linha_resumo_type05_formatado:
-                                                                                    with cols[idx]:
-                                                                                        valor_formatado = linha_resumo_type05_formatado.get(col_nome, '-')
-                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
-                                                                        
-                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_type05_formatado)
-                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                                                                        # Sem Type 06: exibir Type 05 diretamente
+                                                                                        colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
+                                                                                        colunas_numericas = [col for col in df_type05.columns 
+                                                                                                            if col not in colunas_id and col not in ['Type 06', 'Account', 'Custo', 'Período']]
+                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                                        colunas_display = colunas_id + colunas_ordenadas
+                                                                                        df_display = df_type05[colunas_display].copy()
+                                                                                        
+                                                                                        # Formatar valores
+                                                                                        for col in df_display.columns:
+                                                                                            if col not in colunas_id:
+                                                                                                if col.startswith('%'):
+                                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else (x if pd.notna(x) else "-"))
+                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
+                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                                    else:
+                                                                                                        sufixo = ""
+                                                                                                        if fator_conversao:
+                                                                                                            if fator_conversao == "K (milhares)":
+                                                                                                                sufixo = " K"
+                                                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                                                sufixo = " M"
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                                        
+                                                                                        # Calcular resumo usando os nomes corretos das colunas
+                                                                                        linha_resumo_type05 = {
+                                                                                            'Mês 1': df_type05['Mês 1'].sum(),
+                                                                                            'Flex Mês 1 - Mês 1': df_type05['Flex Mês 1 - Mês 1'].sum(),
+                                                                                            'Flex Mês 1': df_type05['Flex Mês 1'].sum(),
+                                                                                            'Mês 2 - Flex Mês 1': df_type05['Mês 2 - Flex Mês 1'].sum(),
+                                                                                            'Mês 2': df_type05['Mês 2'].sum(),
+                                                                                            '% Mês 2/Flex Mês 1': df_type05['% Mês 2/Flex Mês 1'].sum()
+                                                                                        }
+                                                                                        
+                                                                                        # Formatar resumo
+                                                                                        linha_resumo_type05_formatado = {}
+                                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
+                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}"
+                                                                                            else:
+                                                                                                sufixo = ""
+                                                                                                if fator_conversao:
+                                                                                                    if fator_conversao == "K (milhares)":
+                                                                                                        sufixo = " K"
+                                                                                                    elif fator_conversao == "M (Milhões)":
+                                                                                                        sufixo = " M"
+                                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}{sufixo}"
+                                                                                        
+                                                                                        # Formatar percentual
+                                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type05['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                        
+                                                                                        # Exibir caixas na ordem correta: Mês 1, Flex Mês 1 - Mês 1, Flex Mês 1, Mês 2 - Flex Mês 1, Mês 2, % Mês 2/Flex Mês 1
+                                                                                        ordem_colunas_waterfall = [
+                                                                                            'Mês 1',
+                                                                                            'Flex Mês 1 - Mês 1',
+                                                                                            'Flex Mês 1',
+                                                                                            'Mês 2 - Flex Mês 1',
+                                                                                            'Mês 2',
+                                                                                            '% Mês 2/Flex Mês 1'
+                                                                                        ]
+                                                                                        num_colunas = min(len(ordem_colunas_waterfall), 6)
+                                                                                        if num_colunas > 0:
+                                                                                            cols = st.columns(num_colunas, gap="small")
+                                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall[:num_colunas]):
+                                                                                                if col_nome in linha_resumo_type05_formatado:
+                                                                                                    with cols[idx]:
+                                                                                                        valor_formatado = linha_resumo_type05_formatado.get(col_nome, '-')
+                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                        
+                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_type05_formatado)
+                                                                                        st.markdown(html_table, unsafe_allow_html=True)
                                     else:
                                         # Modo "Total": estrutura hierárquica sem separação Fixo/Variável
                                         # Agrupar por Type 05, Type 06, Account (somando Fixo + Variável)
@@ -2406,34 +2440,57 @@ else:
                                                     total_type05 = df_type05['Mês 2'].sum()
                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                     
-                                                    if total_type05 != 0 and pd.notna(total_type05):
-                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                            # Nível 2: Type 06
-                                                            if 'Type 06' in df_type05.columns:
+                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                        # Nível 2: Type 06
+                                                        if 'Type 06' in df_type05.columns:
                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                     
                                                                     if len(df_type06) > 0:
-                                                                        total_type06 = df_type06['Mês 2'].sum()
+                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                        colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                        if colunas_numericas_check:
+                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                            if not tem_valores_nao_zerados:
+                                                                                continue  # Pular Type 06 completamente zerado
+                                                                        else:
+                                                                            if 'Mês 2' in df_type06.columns:
+                                                                                if df_type06['Mês 2'].fillna(0).abs().sum() <= 0.0001:
+                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                        
+                                                                        # Verificar se a coluna 'Mês 2' existe antes de acessá-la
+                                                                        if 'Mês 2' in df_type06.columns:
+                                                                            total_type06 = df_type06['Mês 2'].sum()
+                                                                        else:
+                                                                            total_type06 = 0.0
                                                                         total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
                                                                         
-                                                                        if total_type06 != 0 and pd.notna(total_type06):
-                                                                            # Nível 3: Account
-                                                                            if 'Account' in df_type06.columns:
-                                                                                colunas_numericas = [col for col in df_type06.columns 
-                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
-                                                                                if colunas_numericas:
-                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                    df_type06_filtrado = df_type06[
-                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                    ].copy()
-                                                                                else:
-                                                                                    df_type06_filtrado = df_type06.copy()
-                                                                                
-                                                                                if len(df_type06_filtrado) > 0:
-                                                                                    with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
-                                                                                        # Criar tabela
+                                                                        # Nível 3: Account (se existir)
+                                                                        if 'Account' in df_type06.columns:
+                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                            colunas_numericas = [col for col in df_type06.columns 
+                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                            if colunas_numericas:
+                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                df_type06_filtrado = df_type06[
+                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                ].copy()
+                                                                            else:
+                                                                                df_type06_filtrado = df_type06.copy()
+                                                                            
+                                                                            # Só exibir se houver dados após filtrar
+                                                                            if len(df_type06_filtrado) > 0:
+                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                st.markdown("---")  # Separador visual
+                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                with st.container():
+                                                                                    # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                                             if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Período']]
@@ -3556,20 +3613,37 @@ else:
                                                                         total_type05 = df_type05['Total'].sum()
                                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                                         
-                                                                        if total_type05 != 0 and pd.notna(total_type05):
-                                                                            with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                                # Nível 3: Type 06
-                                                                                if 'Type 06' in df_type05.columns:
+                                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                            # Nível 3: Type 06
+                                                                            if 'Type 06' in df_type05.columns:
                                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                                         df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                                         
                                                                                         if len(df_type06) > 0:
-                                                                                            total_type06 = df_type06['Total'].sum()
+                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                                            colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                                      if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                      and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                            if colunas_numericas_check:
+                                                                                                df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                                                tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                                                if not tem_valores_nao_zerados:
+                                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                                            else:
+                                                                                                if 'Total' in df_type06.columns:
+                                                                                                    if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                                                                        continue  # Pular Type 06 completamente zerado
+                                                                                            
+                                                                                            # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                                            if 'Total' in df_type06.columns:
+                                                                                                total_type06 = df_type06['Total'].sum()
+                                                                                            else:
+                                                                                                total_type06 = 0.0
                                                                                             total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
                                                                                             
-                                                                                            if total_type06 != 0 and pd.notna(total_type06):
-                                                                                                # Nível 4: Account
-                                                                                                if 'Account' in df_type06.columns:
+                                                                                            # Nível 4: Account (se existir)
+                                                                                            if 'Account' in df_type06.columns:
                                                                                                     colunas_numericas = [col for col in df_type06.columns 
                                                                                                                         if pd.api.types.is_numeric_dtype(df_type06[col]) 
                                                                                                                         and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
@@ -3582,7 +3656,11 @@ else:
                                                                                                         df_type06_filtrado = df_type06.copy()
                                                                                                     
                                                                                                     if len(df_type06_filtrado) > 0:
-                                                                                                        with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                                                        # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                                        # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                        st.markdown("---")  # Separador visual
+                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                                        with st.container():
                                                                                                             # Criar tabela
                                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3696,33 +3774,56 @@ else:
                                                         total_type05 = df_type05['Total'].sum()
                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                         
-                                                        if total_type05 != 0 and pd.notna(total_type05):
-                                                            with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                # Nível 2: Type 06
-                                                                if 'Type 06' in df_type05.columns:
+                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                            # Nível 2: Type 06
+                                                            if 'Type 06' in df_type05.columns:
                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                         df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                         
                                                                         if len(df_type06) > 0:
-                                                                            total_type06 = df_type06['Total'].sum()
+                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                            colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                      if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                      and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                            if colunas_numericas_check:
+                                                                                df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                                tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                                if not tem_valores_nao_zerados:
+                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                            else:
+                                                                                if 'Total' in df_type06.columns:
+                                                                                    if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                                                        continue  # Pular Type 06 completamente zerado
+                                                                            
+                                                                            # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                            if 'Total' in df_type06.columns:
+                                                                                total_type06 = df_type06['Total'].sum()
+                                                                            else:
+                                                                                total_type06 = 0.0
                                                                             total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
                                                                             
-                                                                            if total_type06 != 0 and pd.notna(total_type06):
-                                                                                # Nível 3: Account
-                                                                                if 'Account' in df_type06.columns:
-                                                                                    colunas_numericas = [col for col in df_type06.columns 
-                                                                                                        if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                        and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
-                                                                                    if colunas_numericas:
-                                                                                        df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                        df_type06_filtrado = df_type06[
-                                                                                            df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                        ].copy()
-                                                                                    else:
-                                                                                        df_type06_filtrado = df_type06.copy()
-                                                                                    
-                                                                                    if len(df_type06_filtrado) > 0:
-                                                                                        with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                            # Nível 3: Account (se existir)
+                                                                            if 'Account' in df_type06.columns:
+                                                                                # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                                colunas_numericas = [col for col in df_type06.columns 
+                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                if colunas_numericas:
+                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                    df_type06_filtrado = df_type06[
+                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                    ].copy()
+                                                                                else:
+                                                                                    df_type06_filtrado = df_type06.copy()
+                                                                                
+                                                                                # Só exibir se houver dados após filtrar
+                                                                                if len(df_type06_filtrado) > 0:
+                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                    st.markdown("---")  # Separador visual
+                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                    with st.container():
                                                                                             # Criar tabela
                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
