@@ -2445,30 +2445,49 @@ else:
                                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                     
                                                                     if len(df_type06) > 0:
-                                                                        total_type06 = df_type06['Mês 2'].sum()
+                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                        colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                        if colunas_numericas_check:
+                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                            if not tem_valores_nao_zerados:
+                                                                                continue  # Pular Type 06 completamente zerado
+                                                                        else:
+                                                                            if 'Mês 2' in df_type06.columns:
+                                                                                if df_type06['Mês 2'].fillna(0).abs().sum() <= 0.0001:
+                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                        
+                                                                        # Verificar se a coluna 'Mês 2' existe antes de acessá-la
+                                                                        if 'Mês 2' in df_type06.columns:
+                                                                            total_type06 = df_type06['Mês 2'].sum()
+                                                                        else:
+                                                                            total_type06 = 0.0
                                                                         total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
                                                                         
-                                                                        if total_type06 != 0 and pd.notna(total_type06):
-                                                                            # Nível 3: Account
-                                                                            if 'Account' in df_type06.columns:
-                                                                                colunas_numericas = [col for col in df_type06.columns 
-                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
-                                                                                if colunas_numericas:
-                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                    df_type06_filtrado = df_type06[
-                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                    ].copy()
-                                                                                else:
-                                                                                    df_type06_filtrado = df_type06.copy()
-                                                                                
-                                                                                if len(df_type06_filtrado) > 0:
-                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                    st.markdown("---")  # Separador visual
-                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                    with st.container():
-                                                                                        # Criar tabela
+                                                                        # Nível 3: Account (se existir)
+                                                                        if 'Account' in df_type06.columns:
+                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                            colunas_numericas = [col for col in df_type06.columns 
+                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                            if colunas_numericas:
+                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                df_type06_filtrado = df_type06[
+                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                ].copy()
+                                                                            else:
+                                                                                df_type06_filtrado = df_type06.copy()
+                                                                            
+                                                                            # Só exibir se houver dados após filtrar
+                                                                            if len(df_type06_filtrado) > 0:
+                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                st.markdown("---")  # Separador visual
+                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                with st.container():
+                                                                                    # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                                             if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Período']]
@@ -3760,29 +3779,48 @@ else:
                                                                         df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                         
                                                                         if len(df_type06) > 0:
-                                                                            total_type06 = df_type06['Total'].sum()
+                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                            colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                      if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                      and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                            if colunas_numericas_check:
+                                                                                df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                                tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                                if not tem_valores_nao_zerados:
+                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                            else:
+                                                                                if 'Total' in df_type06.columns:
+                                                                                    if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                                                        continue  # Pular Type 06 completamente zerado
+                                                                            
+                                                                            # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                            if 'Total' in df_type06.columns:
+                                                                                total_type06 = df_type06['Total'].sum()
+                                                                            else:
+                                                                                total_type06 = 0.0
                                                                             total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
                                                                             
-                                                                            if total_type06 != 0 and pd.notna(total_type06):
-                                                                                # Nível 3: Account
-                                                                                if 'Account' in df_type06.columns:
-                                                                                    colunas_numericas = [col for col in df_type06.columns 
-                                                                                                        if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                        and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
-                                                                                    if colunas_numericas:
-                                                                                        df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                        df_type06_filtrado = df_type06[
-                                                                                            df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                        ].copy()
-                                                                                    else:
-                                                                                        df_type06_filtrado = df_type06.copy()
-                                                                                    
-                                                                                    if len(df_type06_filtrado) > 0:
-                                                                                        # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                        # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                        st.markdown("---")  # Separador visual
-                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                        with st.container():
+                                                                            # Nível 3: Account (se existir)
+                                                                            if 'Account' in df_type06.columns:
+                                                                                # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                                colunas_numericas = [col for col in df_type06.columns 
+                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                if colunas_numericas:
+                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                    df_type06_filtrado = df_type06[
+                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                    ].copy()
+                                                                                else:
+                                                                                    df_type06_filtrado = df_type06.copy()
+                                                                                
+                                                                                # Só exibir se houver dados após filtrar
+                                                                                if len(df_type06_filtrado) > 0:
+                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                    st.markdown("---")  # Separador visual
+                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                    with st.container():
                                                                                             # Criar tabela
                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
