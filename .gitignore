@@ -17,7 +17,8 @@ __pycache__/
 *.sqlite3
 
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

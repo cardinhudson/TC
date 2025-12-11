@@ -1,43 +1,32 @@
 {
-    "python.defaultInterpreterPath": "python",
+    // Configuração do ambiente virtual Python
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.venvPath": "${workspaceFolder}",
+    "python.venvFolders": [
+        "${workspaceFolder}"
+    ],
+    // Selecionar automaticamente o ambiente virtual
     "python.terminal.activateEnvironment": true,
-    "python.analysis.autoImportCompletions": true,
-    "code-runner.showRunIconInEditorTitleMenu": true,
-    "code-runner.runInTerminal": true,
-    "code-runner.clearPreviousOutput": true,
-    "code-runner.saveFileBeforeRun": true,
-    "code-runner.executorMap": {
-        "python": "python -u"
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    // Configurações adicionais
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.formatting.provider": "none",
+    // Configurações do terminal
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}"
     },
+    // Configurações do arquivo
     "files.exclude": {
         "**/__pycache__": true,
         "**/*.pyc": true
     },
-    "python.languageServer": "None",
-    "editor.codeActions.triggerOnFocusChange": true,
-    "python.codeActions.enabled": false,
-    "python.notifications.codelens": false,
-    "python.analysis.disabled": true
+    // Configurações do editor
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": false
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
