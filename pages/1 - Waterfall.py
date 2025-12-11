@@ -2316,79 +2316,82 @@ else:
                                                                                                                         st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
-                                                                            else:
-                                                                                # Sem Type 06: exibir Type 05 diretamente
-                                                                                colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
-                                                                                colunas_numericas = [col for col in df_type05.columns 
-                                                                                                    if col not in colunas_id and col not in ['Type 06', 'Account', 'Custo', 'Período']]
-                                                                                colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                colunas_display = colunas_id + colunas_ordenadas
-                                                                                df_display = df_type05[colunas_display].copy()
-                                                                        
-                                                                        # Formatar valores
-                                                                        for col in df_display.columns:
-                                                                            if col not in colunas_id:
-                                                                                if col.startswith('%'):
-                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else (x if pd.notna(x) else "-"))
-                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                            else:
+                                                                                                # Sem dados filtrados: não exibir nada
+                                                                                                pass
                                                                                     else:
-                                                                                        sufixo = ""
-                                                                                        if fator_conversao:
-                                                                                            if fator_conversao == "K (milhares)":
-                                                                                                sufixo = " K"
-                                                                                            elif fator_conversao == "M (Milhões)":
-                                                                                                sufixo = " M"
-                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                        
-                                                                        # Calcular resumo usando os nomes corretos das colunas
-                                                                        linha_resumo_type05 = {
-                                                                            'Mês 1': df_type05['Mês 1'].sum(),
-                                                                            'Flex Mês 1 - Mês 1': df_type05['Flex Mês 1 - Mês 1'].sum(),
-                                                                            'Flex Mês 1': df_type05['Flex Mês 1'].sum(),
-                                                                            'Mês 2 - Flex Mês 1': df_type05['Mês 2 - Flex Mês 1'].sum(),
-                                                                            'Mês 2': df_type05['Mês 2'].sum(),
-                                                                            '% Mês 2/Flex Mês 1': df_type05['% Mês 2/Flex Mês 1'].sum()
-                                                                        }
-                                                                        
-                                                                        # Formatar resumo
-                                                                        linha_resumo_type05_formatado = {}
-                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
-                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}"
-                                                                            else:
-                                                                                sufixo = ""
-                                                                                if fator_conversao:
-                                                                                    if fator_conversao == "K (milhares)":
-                                                                                        sufixo = " K"
-                                                                                    elif fator_conversao == "M (Milhões)":
-                                                                                        sufixo = " M"
-                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}{sufixo}"
-                                                                        
-                                                                        # Formatar percentual
-                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type05['% Mês 2/Flex Mês 1']:,.2f}%"
-                                                                        
-                                                                        # Exibir caixas na ordem correta: Mês 1, Flex Mês 1 - Mês 1, Flex Mês 1, Mês 2 - Flex Mês 1, Mês 2, % Mês 2/Flex Mês 1
-                                                                        ordem_colunas_waterfall = [
-                                                                            'Mês 1',
-                                                                            'Flex Mês 1 - Mês 1',
-                                                                            'Flex Mês 1',
-                                                                            'Mês 2 - Flex Mês 1',
-                                                                            'Mês 2',
-                                                                            '% Mês 2/Flex Mês 1'
-                                                                        ]
-                                                                        num_colunas = min(len(ordem_colunas_waterfall), 6)
-                                                                        if num_colunas > 0:
-                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall[:num_colunas]):
-                                                                                if col_nome in linha_resumo_type05_formatado:
-                                                                                    with cols[idx]:
-                                                                                        valor_formatado = linha_resumo_type05_formatado.get(col_nome, '-')
-                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
-                                                                        
-                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_type05_formatado)
-                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                                                                        # Sem Type 06: exibir Type 05 diretamente
+                                                                                        colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
+                                                                                        colunas_numericas = [col for col in df_type05.columns 
+                                                                                                            if col not in colunas_id and col not in ['Type 06', 'Account', 'Custo', 'Período']]
+                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                                        colunas_display = colunas_id + colunas_ordenadas
+                                                                                        df_display = df_type05[colunas_display].copy()
+                                                                                        
+                                                                                        # Formatar valores
+                                                                                        for col in df_display.columns:
+                                                                                            if col not in colunas_id:
+                                                                                                if col.startswith('%'):
+                                                                                                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else (x if pd.notna(x) else "-"))
+                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
+                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                                    else:
+                                                                                                        sufixo = ""
+                                                                                                        if fator_conversao:
+                                                                                                            if fator_conversao == "K (milhares)":
+                                                                                                                sufixo = " K"
+                                                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                                                sufixo = " M"
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                                        
+                                                                                        # Calcular resumo usando os nomes corretos das colunas
+                                                                                        linha_resumo_type05 = {
+                                                                                            'Mês 1': df_type05['Mês 1'].sum(),
+                                                                                            'Flex Mês 1 - Mês 1': df_type05['Flex Mês 1 - Mês 1'].sum(),
+                                                                                            'Flex Mês 1': df_type05['Flex Mês 1'].sum(),
+                                                                                            'Mês 2 - Flex Mês 1': df_type05['Mês 2 - Flex Mês 1'].sum(),
+                                                                                            'Mês 2': df_type05['Mês 2'].sum(),
+                                                                                            '% Mês 2/Flex Mês 1': df_type05['% Mês 2/Flex Mês 1'].sum()
+                                                                                        }
+                                                                                        
+                                                                                        # Formatar resumo
+                                                                                        linha_resumo_type05_formatado = {}
+                                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
+                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}"
+                                                                                            else:
+                                                                                                sufixo = ""
+                                                                                                if fator_conversao:
+                                                                                                    if fator_conversao == "K (milhares)":
+                                                                                                        sufixo = " K"
+                                                                                                    elif fator_conversao == "M (Milhões)":
+                                                                                                        sufixo = " M"
+                                                                                                linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}{sufixo}"
+                                                                                        
+                                                                                        # Formatar percentual
+                                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type05['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                        
+                                                                                        # Exibir caixas na ordem correta: Mês 1, Flex Mês 1 - Mês 1, Flex Mês 1, Mês 2 - Flex Mês 1, Mês 2, % Mês 2/Flex Mês 1
+                                                                                        ordem_colunas_waterfall = [
+                                                                                            'Mês 1',
+                                                                                            'Flex Mês 1 - Mês 1',
+                                                                                            'Flex Mês 1',
+                                                                                            'Mês 2 - Flex Mês 1',
+                                                                                            'Mês 2',
+                                                                                            '% Mês 2/Flex Mês 1'
+                                                                                        ]
+                                                                                        num_colunas = min(len(ordem_colunas_waterfall), 6)
+                                                                                        if num_colunas > 0:
+                                                                                            cols = st.columns(num_colunas, gap="small")
+                                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall[:num_colunas]):
+                                                                                                if col_nome in linha_resumo_type05_formatado:
+                                                                                                    with cols[idx]:
+                                                                                                        valor_formatado = linha_resumo_type05_formatado.get(col_nome, '-')
+                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                        
+                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_type05_formatado)
+                                                                                        st.markdown(html_table, unsafe_allow_html=True)
                                     else:
                                         # Modo "Total": estrutura hierárquica sem separação Fixo/Variável
                                         # Agrupar por Type 05, Type 06, Account (somando Fixo + Variável)
