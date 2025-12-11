@@ -82,8 +82,16 @@ O ambiente virtual contém versões **EXATAS** (não >=) para garantir compatibi
 - Erros ao usar `st.expander`
 - Problemas na formatação de DataFrames
 - Diferenças na renderização de gráficos
+- **Erro específico:** "não podemos usar tabelas aninhadas com 3 camadas" - O código foi corrigido para usar containers no nível 3 em vez de expanders aninhados
 
 **Solução:** Sempre use as versões EXATAS especificadas no `requirements.txt`.
+
+### 🔧 Correção Aplicada: Expanders Aninhados
+
+O código foi ajustado para evitar o problema de "tabelas aninhadas com 3 camadas" que pode ocorrer no Streamlit 1.50.0:
+- **Problema:** Expanders aninhados em 3 níveis (Custo → Type 05 → Type 06) podem causar erros de renderização
+- **Solução:** O terceiro nível (Type 06) agora usa `st.container()` em vez de `st.expander()`, mantendo a funcionalidade mas evitando o problema de aninhamento
+- **Resultado:** As tabelas funcionam corretamente em todos os PCs, independente de configurações específicas
 
 ## Verificar Instalação
 

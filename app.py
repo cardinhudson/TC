@@ -5755,8 +5755,10 @@ with tab1:
                                                                         
                                                                         # Só exibir se houver dados após filtrar
                                                                         if len(df_type06_filtrado) > 0:
-                                                                            # 🔧 EXPANDER: Transformar título do Type 06 em expander
-                                                                            with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                            # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                            # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                            with st.container():
+                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                 # Criar uma única tabela com todas as Accounts
                                                                                 # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                                 colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
@@ -5843,8 +5845,10 @@ with tab1:
                                                                         
                                                                         # Só exibir se houver dados após filtrar
                                                                         if len(df_type06_filtrado) > 0:
-                                                                            # 🔧 EXPANDER: Transformar título do Type 06 em expander
-                                                                            with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                            # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                            # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                            with st.container():
+                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                                 # Criar tabela para este Type 06
                                                                                 # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                                 colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
@@ -6226,8 +6230,10 @@ with tab1:
                                                             
                                                             # Só exibir se houver dados após filtrar
                                                             if len(df_type06_filtrado) > 0:
-                                                                # 🔧 EXPANDER: Transformar título do Type 06 em expander
-                                                                with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                with st.container():
+                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                     # Criar uma única tabela com todas as Accounts
                                                                     # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                     colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
@@ -6298,8 +6304,10 @@ with tab1:
                                                             
                                                             # Só exibir se houver dados após filtrar
                                                             if len(df_type06_filtrado) > 0:
-                                                                # 🔧 EXPANDER: Transformar título do Type 06 em expander
-                                                                with st.expander(f"**Type 06: {type06} - Total: {total_type06_formatado}**", expanded=True):
+                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                with st.container():
+                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
                                                                     # Criar tabela para este Type 06
                                                                     # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                     colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []

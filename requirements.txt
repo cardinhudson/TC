@@ -17,6 +17,8 @@
 streamlit==1.50.0
 # Versão específica necessária para compatibilidade com st.expander
 # Versões anteriores podem causar erros ao usar expanders
+# NOTA: O código foi ajustado para evitar expanders aninhados em 3 níveis
+# (substituídos por containers no nível 3) para evitar problemas de renderização
 
 pandas==2.3.3
 # Versão específica para garantir renderização consistente de tabelas
