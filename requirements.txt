@@ -1,9 +1,43 @@
+# ==========================================
+# IMPORTANTE: VERSÕES ESPECÍFICAS OBRIGATÓRIAS
+# ==========================================
+# Este arquivo usa versões EXATAS (==) em vez de >= para garantir
+# que todos os PCs tenham exatamente as mesmas versões instaladas.
+#
+# PROBLEMA COMUM: Se usar >=, diferentes PCs podem instalar versões
+# diferentes das bibliotecas, causando problemas de renderização de
+# tabelas, gráficos e comportamento inconsistente do Streamlit.
+#
+# SOLUÇÃO: Sempre instale as versões EXATAS especificadas abaixo.
+# Se houver problemas, desinstale tudo e reinstale usando este arquivo:
+#   pip uninstall streamlit pandas numpy altair plotly openpyxl -y
+#   pip install -r requirements.txt
+# ==========================================
+
 streamlit==1.50.0
-pandas>=2.0.0
-numpy>=1.24.0
-altair>=5.0.0
-plotly>=5.17.0
-openpyxl>=3.1.0
+# Versão específica necessária para compatibilidade com st.expander
+# Versões anteriores podem causar erros ao usar expanders
+
+pandas==2.3.3
+# Versão específica para garantir renderização consistente de tabelas
+# Versões diferentes podem causar problemas no st.dataframe() e na
+# formatação de DataFrames, especialmente com tipos category e downcast
+
+numpy==2.3.5
+# Versão específica compatível com pandas 2.3.3
+# Mudanças no numpy podem afetar processamento de dados numéricos
+
+altair==5.5.0
+# Versão específica para gráficos Altair
+# Compatível com Streamlit 1.50.0
+
+plotly==6.5.0
+# Versão específica para gráficos Plotly
+# Versões diferentes podem causar problemas de renderização
+
+openpyxl==3.1.5
+# Versão específica para leitura/escrita de arquivos Excel
+# Necessário para processar arquivos .xlsx
 
 
 

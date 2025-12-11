@@ -64,14 +64,26 @@ Se ambos os PCs forem Windows com a mesma arquitetura (ex: ambos 64-bit), você 
 
 ## Dependências Instaladas
 
-O ambiente virtual contém:
+O ambiente virtual contém versões **EXATAS** (não >=) para garantir compatibilidade:
+
 - **streamlit==1.50.0** (versão específica para garantir compatibilidade com `st.expander`)
-- pandas>=2.0.0
-- numpy>=1.24.0
-- altair>=5.0.0
-- plotly>=5.17.0
-- openpyxl>=3.1.0
+- **pandas==2.3.3** (versão específica para renderização consistente de tabelas)
+- **numpy==2.3.5** (versão específica compatível com pandas 2.3.3)
+- **altair==5.5.0** (versão específica para gráficos Altair)
+- **plotly==6.5.0** (versão específica para gráficos Plotly)
+- **openpyxl==3.1.5** (versão específica para leitura/escrita de arquivos Excel)
 - E todas as dependências transitivas necessárias
+
+### ⚠️ IMPORTANTE: Por que versões exatas?
+
+**Problema comum:** Se usar `>=` em vez de `==`, diferentes PCs podem instalar versões diferentes das bibliotecas, causando:
+- Problemas de renderização de tabelas (`st.dataframe()`)
+- Comportamento inconsistente com tipos de dados (category, downcast)
+- Erros ao usar `st.expander`
+- Problemas na formatação de DataFrames
+- Diferenças na renderização de gráficos
+
+**Solução:** Sempre use as versões EXATAS especificadas no `requirements.txt`.
 
 ## Verificar Instalação
 
@@ -95,11 +107,31 @@ Se receber um erro de política de execução no PowerShell, execute:
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-### Erro de versão do Streamlit
-Certifique-se de que está usando exatamente a versão 1.50.0:
-```bash
-pip install streamlit==1.50.0
-```
+### Erro de versão do Streamlit ou problemas com tabelas
+Se houver problemas com renderização de tabelas ou erros relacionados a versões:
+
+1. **Desinstale todas as dependências:**
+   ```bash
+   pip uninstall streamlit pandas numpy altair plotly openpyxl -y
+   ```
+
+2. **Reinstale usando o requirements.txt:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Verifique as versões instaladas:**
+   ```bash
+   pip list | findstr /i "streamlit pandas numpy altair plotly openpyxl"
+   ```
+   
+   Deve mostrar exatamente:
+   - streamlit 1.50.0
+   - pandas 2.3.3
+   - numpy 2.3.5
+   - altair 5.5.0
+   - plotly 6.5.0
+   - openpyxl 3.1.5
 
 ### Limpar e reinstalar
 Se houver problemas, você pode recriar o ambiente:
