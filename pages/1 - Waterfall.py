@@ -2099,11 +2099,11 @@ else:
                                                                     total_type05 = df_type05['Mês 2'].sum() if 'Mês 2' in df_type05.columns else 0
                                                                     total_type05_formatado = f"{total_type05:,.2f}"
                                                                     
-                                                                    # Não exibir se o total for zero
-                                                                    if total_type05 != 0 and pd.notna(total_type05):
-                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                            # Nível 3: Type 06
-                                                                            if 'Type 06' in df_type05.columns:
+                                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                                    # A filtragem de linhas zeradas já é feita dentro do loop do Type 06
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                        # Nível 3: Type 06
+                                                                        if 'Type 06' in df_type05.columns:
                                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                                     
@@ -2437,10 +2437,10 @@ else:
                                                     total_type05 = df_type05['Mês 2'].sum()
                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                     
-                                                    if total_type05 != 0 and pd.notna(total_type05):
-                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                            # Nível 2: Type 06
-                                                            if 'Type 06' in df_type05.columns:
+                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                        # Nível 2: Type 06
+                                                        if 'Type 06' in df_type05.columns:
                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                     
@@ -3610,10 +3610,10 @@ else:
                                                                         total_type05 = df_type05['Total'].sum()
                                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                                         
-                                                                        if total_type05 != 0 and pd.notna(total_type05):
-                                                                            with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                                # Nível 3: Type 06
-                                                                                if 'Type 06' in df_type05.columns:
+                                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                            # Nível 3: Type 06
+                                                                            if 'Type 06' in df_type05.columns:
                                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                                         df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                                         
@@ -3771,10 +3771,10 @@ else:
                                                         total_type05 = df_type05['Total'].sum()
                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                         
-                                                        if total_type05 != 0 and pd.notna(total_type05):
-                                                            with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                # Nível 2: Type 06
-                                                                if 'Type 06' in df_type05.columns:
+                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                            # Nível 2: Type 06
+                                                            if 'Type 06' in df_type05.columns:
                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                                         df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
                                                                         
