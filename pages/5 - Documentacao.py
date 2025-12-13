@@ -3,6 +3,8 @@ import pandas as pd
 import json
 import os
 import base64
+import sys
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -11,6 +13,40 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Função para obter data e hora de atualização dos dados
+def obter_data_atualizacao_dados():
+    """Retorna a data e hora da última atualização dos arquivos de dados"""
+    arquivos_dados = [
+        os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+        os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+        os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+    ]
+    
+    data_atualizacao = None
+    for arquivo in arquivos_dados:
+        if os.path.exists(arquivo):
+            data_modificacao = os.path.getmtime(arquivo)
+            if data_atualizacao is None or data_modificacao > data_atualizacao:
+                data_atualizacao = data_modificacao
+    
+    if data_atualizacao:
+        dt = datetime.fromtimestamp(data_atualizacao)
+        meses = {
+            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+        }
+        return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+    return "Não disponível"
+
+# Exibir data de atualização dos dados no topo
+data_atualizacao = obter_data_atualizacao_dados()
+st.markdown(f"""
+<div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
+    📅 Dados atualizados em: {data_atualizacao}
+</div>
+""", unsafe_allow_html=True)
 
 # CSS para melhorar visualização
 st.markdown("""
@@ -27,42 +63,40 @@ st.markdown("""
             padding: 10px 20px;
             font-weight: 600;
         }
-        /* Alinhar expanders de perfil na mesma linha horizontal */
-        .profile-section {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        .profile-photo-area {
-            flex: 0 0 auto;
-        }
-        .profile-expander-area {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            min-height: 0;
-        }
-        /* Garantir que as colunas tenham a mesma altura */
-        div[data-testid="column"] {
-            display: flex;
-            flex-direction: column;
-        }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("📚 Documentação Completa do Sistema TC")
 
-# Funções para carregar dados da equipe
+# Função para detectar caminho base correto
+def get_base_path():
+    """Retorna o caminho base correto para LEITURA de dados"""
+    import sys
+    if hasattr(sys, '_MEIPASS'):
+        # Rodando no executável PyInstaller - apontar para _internal
+        return sys._MEIPASS
+    else:
+        # Rodando em desenvolvimento
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Funções para persistir dados da equipe
+def salvar_dados_equipe(dados):
+    """Salva os dados da equipe em arquivo JSON"""
+    try:
+        base_path = get_base_path()
+        dados_path = os.path.join(base_path, 'dados_equipe.json')
+        with open(dados_path, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar dados: {e}")
+        return False
+
 def carregar_dados_equipe():
     """Carrega os dados da equipe do arquivo JSON"""
     try:
-        dados_path = os.path.join(os.path.dirname(__file__), '..', 'dados_equipe.json')
-        if os.path.exists(dados_path):
-            with open(dados_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        # Tentar caminho alternativo
-        dados_path = 'dados_equipe.json'
+        base_path = get_base_path()
+        dados_path = os.path.join(base_path, 'dados_equipe.json')
         if os.path.exists(dados_path):
             with open(dados_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -86,6 +120,13 @@ def carregar_dados_equipe():
             'foto': None
         }
     }
+
+def salvar_foto_base64(foto_bytes, nome_arquivo):
+    """Converte foto para base64 para salvar no JSON"""
+    try:
+        return base64.b64encode(foto_bytes).decode('utf-8')
+    except:
+        return None
 
 def carregar_foto_base64(foto_base64):
     """Converte base64 de volta para bytes"""
@@ -128,108 +169,178 @@ if indice_selecionado == "👥 Equipe do Projeto":
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown('<div class="profile-section">', unsafe_allow_html=True)
         st.subheader("🔧 Hudson Cardin")
         
-        # Container para área da foto
-        st.markdown('<div class="profile-photo-area">', unsafe_allow_html=True)
-        foto_area1 = st.container()
-        with foto_area1:
-            # Mostrar foto salva
-            if dados_equipe.get('hudson', {}).get('foto'):
-                foto_bytes = carregar_foto_base64(dados_equipe['hudson']['foto'])
-                if foto_bytes:
-                    st.image(foto_bytes, width=200, caption="Hudson Cardin")
-                else:
-                    st.info("👤 Foto não disponível")
-            else:
-                st.info("👤 Foto não disponível")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Upload de foto para Hudson
+        foto_hudson = st.file_uploader(
+            "📸 Upload da foto do Hudson",
+            type=['png', 'jpg', 'jpeg'],
+            key="foto_hudson",
+            help="Faça upload de uma foto do perfil do Hudson (formato: PNG, JPG, JPEG)"
+        )
         
-        # Área do expander (alinhada na parte inferior)
-        st.markdown('<div class="profile-expander-area">', unsafe_allow_html=True)
+        # Mostrar foto salva ou nova foto
+        if foto_hudson is not None:
+            st.image(foto_hudson, width=200, caption="Hudson Cardin")
+            # Salvar nova foto
+            dados_equipe['hudson']['foto'] = salvar_foto_base64(foto_hudson.read(), "hudson.jpg")
+        elif dados_equipe['hudson']['foto']:
+            # Mostrar foto salva
+            foto_bytes = carregar_foto_base64(dados_equipe['hudson']['foto'])
+            if foto_bytes:
+                st.image(foto_bytes, width=200, caption="Hudson Cardin")
+            else:
+                st.info("👤 Aguardando upload da foto")
+        else:
+            st.info("👤 Aguardando upload da foto")
+        
+        # Campos para informações do Hudson
+        st.markdown("**📋 Informações Profissionais:**")
+        
+        with st.expander("✏️ Editar informações do Hudson", expanded=False):
+            with st.form("form_hudson"):
+                cargo_hudson = st.text_input(
+                    "💼 Cargo atual:", 
+                    value=dados_equipe['hudson']['cargo'],
+                    placeholder="Ex: Analista de Sistemas", 
+                    key="cargo_hudson"
+                )
+                empresa_hudson = st.text_input(
+                    "🏢 Empresa:", 
+                    value=dados_equipe['hudson']['empresa'],
+                    placeholder="Ex: Empresa XYZ", 
+                    key="empresa_hudson"
+                )
+                experiencia_hudson = st.text_area(
+                    "🎯 Experiência:", 
+                    value=dados_equipe['hudson']['experiencia'],
+                    placeholder="Descreva a experiência profissional...", 
+                    key="exp_hudson"
+                )
+                linkedin_hudson = st.text_input(
+                    "🔗 LinkedIn:", 
+                    value=dados_equipe['hudson']['linkedin'],
+                    placeholder="https://linkedin.com/in/hudson-cardin", 
+                    key="linkedin_hudson"
+                )
+                
+                if st.form_submit_button("💾 Salvar informações do Hudson", use_container_width=True):
+                    dados_equipe['hudson']['cargo'] = cargo_hudson
+                    dados_equipe['hudson']['empresa'] = empresa_hudson
+                    dados_equipe['hudson']['experiencia'] = experiencia_hudson
+                    dados_equipe['hudson']['linkedin'] = linkedin_hudson
+                    
+                    if salvar_dados_equipe(dados_equipe):
+                        st.success("✅ Informações do Hudson salvas com sucesso!")
+                        st.rerun()
+        
         # Expander para perfil profissional
         with st.expander("👨‍💻 Perfil Profissional", expanded=False):
-            if dados_equipe.get('hudson', {}).get('cargo') and dados_equipe.get('hudson', {}).get('empresa'):
+            if dados_equipe['hudson']['cargo'] and dados_equipe['hudson']['empresa']:
                 st.write(f"💼 **{dados_equipe['hudson']['cargo']}** na **{dados_equipe['hudson']['empresa']}**")
-            elif dados_equipe.get('hudson', {}).get('cargo'):
+            elif dados_equipe['hudson']['cargo']:
                 st.write(f"💼 **{dados_equipe['hudson']['cargo']}**")
-            elif dados_equipe.get('hudson', {}).get('empresa'):
+            elif dados_equipe['hudson']['empresa']:
                 st.write(f"🏢 **{dados_equipe['hudson']['empresa']}**")
             else:
                 st.write("💼 *Cargo não informado*")
             
-            if dados_equipe.get('hudson', {}).get('experiencia'):
+            if dados_equipe['hudson']['experiencia']:
                 st.write(f"🎯 {dados_equipe['hudson']['experiencia']}")
             else:
                 st.write("🎯 *Experiência não informada*")
             
-            if dados_equipe.get('hudson', {}).get('linkedin'):
+            if dados_equipe['hudson']['linkedin']:
                 st.markdown(f"🔗 [Perfil no LinkedIn]({dados_equipe['hudson']['linkedin']})")
             else:
                 st.write("🔗 *LinkedIn não informado*")
-        
-        st.markdown("""
-        **Contribuições ao Projeto:**
-        - Arquitetura e estrutura do sistema
-        - Implementação de cálculos e regras de negócio
-        - Otimizações de performance
-        - Desenvolvimento de funcionalidades principais
-        - Documentação técnica
-        """)
-    
+
     with col2:
-        st.markdown('<div class="profile-section">', unsafe_allow_html=True)
-        st.subheader("📊 Lauro Paiva")
+        st.subheader("📊 Lauro Paiva Junior")
         
-        # Container para área da foto
-        st.markdown('<div class="profile-photo-area">', unsafe_allow_html=True)
-        foto_area2 = st.container()
-        with foto_area2:
+        # Upload de foto para Lauro
+        foto_lauro = st.file_uploader(
+            "📸 Upload da foto do Lauro",
+            type=['png', 'jpg', 'jpeg'],
+            key="foto_lauro",
+            help="Faça upload de uma foto do perfil do Lauro (formato: PNG, JPG, JPEG)"
+        )
+        
+        # Mostrar foto salva ou nova foto
+        if foto_lauro is not None:
+            st.image(foto_lauro, width=200, caption="Lauro Paiva Junior")
+            # Salvar nova foto
+            dados_equipe['lauro']['foto'] = salvar_foto_base64(foto_lauro.read(), "lauro.jpg")
+        elif dados_equipe['lauro']['foto']:
             # Mostrar foto salva
-            if dados_equipe.get('lauro', {}).get('foto'):
-                foto_bytes = carregar_foto_base64(dados_equipe['lauro']['foto'])
-                if foto_bytes:
-                    st.image(foto_bytes, width=200, caption="Lauro Paiva")
-                else:
-                    st.info("👤 Foto não disponível")
+            foto_bytes = carregar_foto_base64(dados_equipe['lauro']['foto'])
+            if foto_bytes:
+                st.image(foto_bytes, width=200, caption="Lauro Paiva Junior")
             else:
-                st.info("👤 Foto não disponível")
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.info("👤 Aguardando upload da foto")
+        else:
+            st.info("👤 Aguardando upload da foto")
         
-        # Área do expander (alinhada na parte inferior)
-        st.markdown('<div class="profile-expander-area">', unsafe_allow_html=True)
+        # Campos para informações do Lauro
+        st.markdown("**📋 Informações Profissionais:**")
+        
+        with st.expander("✏️ Editar informações do Lauro", expanded=False):
+            with st.form("form_lauro"):
+                cargo_lauro = st.text_input(
+                    "💼 Cargo atual:", 
+                    value=dados_equipe['lauro']['cargo'],
+                    placeholder="Ex: Analista Financeiro", 
+                    key="cargo_lauro"
+                )
+                empresa_lauro = st.text_input(
+                    "🏢 Empresa:", 
+                    value=dados_equipe['lauro']['empresa'],
+                    placeholder="Ex: Empresa ABC", 
+                    key="empresa_lauro"
+                )
+                experiencia_lauro = st.text_area(
+                    "🎯 Experiência:", 
+                    value=dados_equipe['lauro']['experiencia'],
+                    placeholder="Descreva a experiência profissional...", 
+                    key="exp_lauro"
+                )
+                linkedin_lauro = st.text_input(
+                    "🔗 LinkedIn:", 
+                    value=dados_equipe['lauro']['linkedin'],
+                    placeholder="https://linkedin.com/in/lauro-paiva", 
+                    key="linkedin_lauro"
+                )
+                
+                if st.form_submit_button("💾 Salvar informações do Lauro", use_container_width=True):
+                    dados_equipe['lauro']['cargo'] = cargo_lauro
+                    dados_equipe['lauro']['empresa'] = empresa_lauro
+                    dados_equipe['lauro']['experiencia'] = experiencia_lauro
+                    dados_equipe['lauro']['linkedin'] = linkedin_lauro
+                    
+                    if salvar_dados_equipe(dados_equipe):
+                        st.success("✅ Informações do Lauro salvas com sucesso!")
+                        st.rerun()
+        
         # Expander para perfil profissional
         with st.expander("👨‍💼 Perfil Profissional", expanded=False):
-            if dados_equipe.get('lauro', {}).get('cargo') and dados_equipe.get('lauro', {}).get('empresa'):
+            if dados_equipe['lauro']['cargo'] and dados_equipe['lauro']['empresa']:
                 st.write(f"💼 **{dados_equipe['lauro']['cargo']}** na **{dados_equipe['lauro']['empresa']}**")
-            elif dados_equipe.get('lauro', {}).get('cargo'):
+            elif dados_equipe['lauro']['cargo']:
                 st.write(f"💼 **{dados_equipe['lauro']['cargo']}**")
-            elif dados_equipe.get('lauro', {}).get('empresa'):
+            elif dados_equipe['lauro']['empresa']:
                 st.write(f"🏢 **{dados_equipe['lauro']['empresa']}**")
             else:
                 st.write("💼 *Cargo não informado*")
             
-            if dados_equipe.get('lauro', {}).get('experiencia'):
+            if dados_equipe['lauro']['experiencia']:
                 st.write(f"🎯 {dados_equipe['lauro']['experiencia']}")
             else:
                 st.write("🎯 *Experiência não informada*")
             
-            if dados_equipe.get('lauro', {}).get('linkedin'):
+            if dados_equipe['lauro']['linkedin']:
                 st.markdown(f"🔗 [Perfil no LinkedIn]({dados_equipe['lauro']['linkedin']})")
             else:
                 st.write("🔗 *LinkedIn não informado*")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("""
-        **Contribuições ao Projeto:**
-        - Análise de requisitos e regras de negócio
-        - Validação de cálculos e resultados
-        - Testes e garantia de qualidade
-        - Documentação de processos
-        - Suporte e manutenção
-        """)
-        st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -1879,17 +1990,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
     with col4:
         st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
         
-        st.markdown("---")
-        
-    # Sub-tabs para organização
-    tab_estrutura, tab_tecnologias, tab_equipe = st.tabs([
-        "📁 Estrutura de Arquivos",
-        "💻 Tecnologias e Bibliotecas",
-        "👥 Equipe do Projeto"
-    ])
-    
-    # TAB 1: Estrutura de Arquivos
-    with tab_estrutura:
+    # EXPANDER 1: Estrutura de Arquivos
+    with st.expander("📁 **Estrutura de Arquivos e Organização do Projeto**", expanded=False):
         st.subheader("📁 Estrutura de Arquivos")
         
         st.markdown("""
@@ -1899,8 +2001,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         C:\\GIT\\TC\\
         ├── app.py                                    # Aplicação principal - Dashboard TC Ext (~9.800 linhas)
         ├── pages\\
-        │   ├── 2 - Simulador Forecast.py            # Simulador de forecast (~4.300 linhas)
-        │   ├── 3 - Forecast.py                      # Sistema de forecast (~7.400 linhas)
+               │   ├── 2 - Best Estimate - Simulador.py     # Simulador de Best Estimate (~4.300 linhas)
+               │   ├── 3 - Best Estimate - Análise.py       # Análise de Best Estimate (~7.400 linhas)
         │   ├── 4 - Waterfall.py                     # Análise waterfall (~2.400 linhas)
         │   ├── 4 - Waterfall_Analysis.py            # Análise waterfall (legado)
         │   └── 5 - Documentacao.py                 # Documentação (este arquivo)
@@ -1955,8 +2057,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             - Tabelas hierárquicas
             - Exportação Excel
             
-            **pages/2 - Simulador Forecast.py** (~4.300 linhas)
-            - Simulação interativa de forecast
+            **pages/2 - Best Estimate - Simulador.py** (~4.300 linhas)
+            - Simulação interativa de Best Estimate
             - Ajuste de sensibilidade em tempo real
             - Configuração de inflação
             - Gráficos de premissas
@@ -1964,8 +2066,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         
         with col2:
             st.markdown("""
-            **pages/3 - Forecast.py** (~7.400 linhas)
-            - Sistema completo de forecast
+            **pages/3 - Best Estimate - Análise.py** (~7.400 linhas)
+            - Sistema completo de Best Estimate
             - Cálculo baseado em média histórica
             - Aplicação de sensibilidade e inflação
             - Visualizações e tabelas detalhadas
@@ -1976,9 +2078,179 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             - Gráficos waterfall interativos
             - Tabelas com hierarquia
             """)
+        
+        st.markdown("---")
+        
+        # Sub-expander: Estrutura da Pasta dados
+        with st.expander("📂 **Estrutura e Funcionamento da Pasta `dados/`**", expanded=False):
+            st.markdown("""
+            ### 📂 Organização da Pasta `dados/`
+            
+            A pasta `dados/` é o coração do sistema, onde todos os arquivos processados são armazenados.
+            Ela é organizada de forma hierárquica para facilitar o gerenciamento e acesso aos dados.
+            
+            **Estrutura Completa:**
+            ```
+            dados/
+            ├── historico_consolidado/          # 📚 Dados históricos consolidados (PRINCIPAL)
+            │   ├── df_final_historico.parquet  # Dados de custos históricos consolidados
+            │   ├── df_ke5z_historico.parquet  # Dados KE5Z históricos consolidados
+            │   ├── df_vol_historico.parquet    # Volumes históricos consolidados
+            │   └── BUD/                        # 📊 Dados de Budget históricos
+            │       ├── df_final_historico_BUD.parquet
+            │       ├── df_ke5z_historico_BUD.parquet
+            │       └── df_vol_historico_BUD.parquet
+            │
+            ├── 2024/                           # 📅 Dados específicos do ano 2024
+            │   ├── df_final.parquet           # Dados de custos do ano
+            │   ├── df_vol.parquet             # Volumes do ano
+            │   ├── df_ke5z_group.parquet      # Dados KE5Z agrupados
+            │   └── Dados SAPIENS.xlsx          # Arquivo fonte (entrada)
+            │   └── Reporting fluxo anexo.xlsx  # Arquivo fonte (entrada)
+            │
+            ├── 2025/                           # 📅 Dados específicos do ano 2025
+            │   ├── df_final.parquet
+            │   ├── df_vol.parquet
+            │   ├── df_ke5z_group.parquet
+            │   ├── BUD/                        # 📊 Budget do ano 2025
+            │   │   ├── df_final_BUD.parquet
+            │   │   └── df_vol_BUD.parquet
+            │   └── ... (arquivos fonte)
+            │
+            └── Forecast/                       # 🔮 Dados processados para Forecast
+                ├── df_final_historico_forecast.parquet
+                ├── df_vol_historico.parquet
+                ├── forecast_completo.parquet
+                ├── forecast_historico.parquet
+                └── forecast_previsao.parquet
+            ```
+            """)
+            
+            st.markdown("---")
+            
+            st.markdown("""
+            ### 🔄 Como as Pastas São Criadas e Atualizadas
+            
+            **1. Criação Inicial da Estrutura:**
+            
+            Quando o sistema é executado pela primeira vez ou quando novos dados são processados,
+            o sistema verifica e cria automaticamente as pastas necessárias:
+            
+            ```python
+            # Exemplo de criação de pastas (dados.ipynb)
+            PASTA_ANO = f'dados/{ANO_ATUAL}'  # Ex: dados/2025
+            PASTA_HISTORICO = 'dados/historico_consolidado'
+            PASTA_BUD = f'dados/{ANO_ATUAL}/BUD'
+            
+            # Criar estrutura de pastas
+            os.makedirs(PASTA_ANO, exist_ok=True)
+            os.makedirs(PASTA_HISTORICO, exist_ok=True)
+            os.makedirs(PASTA_BUD, exist_ok=True)
+            ```
+            
+            **2. Processo de Atualização:**
+            
+            **a) Processamento de Dados do Ano:**
+            - Os arquivos Excel (`Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`) são colocados na pasta do ano (ex: `dados/2025/`)
+            - O notebook `dados.ipynb` processa esses arquivos e gera os arquivos Parquet
+            - Os arquivos Parquet são salvos na mesma pasta do ano
+            - **Simultaneamente**, os dados são consolidados no histórico
+            
+            **b) Consolidação no Histórico:**
+            - Após processar os dados do ano, o sistema **concatena** os novos dados com o histórico existente
+            - Os arquivos em `historico_consolidado/` são **atualizados** (não substituídos)
+            - Isso permite que o sistema tenha acesso a **todos os dados históricos** em um único lugar
+            
+            **c) Processamento de Budget:**
+            - Similar ao processo de dados do ano, mas os arquivos são processados pelo `dados_BUD.ipynb`
+            - Os dados de Budget são salvos em `dados/{ANO}/BUD/`
+            - O histórico de Budget é consolidado em `historico_consolidado/BUD/`
+            
+            **d) Processamento de Forecast:**
+            - Quando o Forecast é gerado (páginas 2 ou 3), a pasta `dados/Forecast/` é criada automaticamente
+            - Os arquivos de forecast são salvos diretamente nesta pasta
+            - A pasta é criada dinamicamente se não existir:
+            ```python
+            pasta_dados = "dados"
+            pasta_forecast = os.path.join(pasta_dados, "Forecast")
+            
+            if not os.path.exists(pasta_forecast):
+                os.makedirs(pasta_forecast, exist_ok=True)
+            ```
+            """)
+            
+            st.markdown("---")
+            
+            st.markdown("""
+            ### 🔗 Como as Pastas Funcionam Entre Si
+            
+            **1. Relação entre Pastas por Ano e Histórico:**
+            
+            ```
+            dados/2025/df_final.parquet  ──┐
+                                           ├──> Concatena ──> dados/historico_consolidado/df_final_historico.parquet
+            dados/2024/df_final.parquet  ──┘
+            ```
+            
+            - **Dados do Ano:** Contêm apenas os dados do ano específico (útil para filtros rápidos)
+            - **Histórico Consolidado:** Contém **TODOS** os anos concatenados (usado pelo sistema principal)
+            - O sistema **prioriza** o histórico consolidado para análises que precisam de múltiplos anos
+            
+            **2. Fluxo de Dados:**
+            
+            ```
+            Arquivos Excel (entrada)
+                │
+                ├──> Processamento (dados.ipynb)
+                │       │
+                │       ├──> Salva em dados/{ANO}/ (dados do ano)
+                │       │
+                │       └──> Concatena em historico_consolidado/ (histórico completo)
+                │
+                └──> Sistema Streamlit lê de historico_consolidado/ (fonte principal)
+            ```
+            
+            **3. Separação de Budget:**
+            
+            - **Dados Reais:** `dados/{ANO}/` e `historico_consolidado/`
+            - **Dados Budget:** `dados/{ANO}/BUD/` e `historico_consolidado/BUD/`
+            - Esta separação permite comparações **Real vs Budget** sem misturar os dados
+            
+            **4. Forecast como Dados Derivados:**
+            
+            - A pasta `Forecast/` contém dados **processados e calculados** pelo sistema
+            - Não são dados de entrada, mas sim **resultados** de cálculos de forecast
+            - São gerados dinamicamente quando o usuário executa o Forecast
+            """)
+            
+            st.markdown("---")
+            
+            st.markdown("""
+            ### ⚙️ Regras de Criação e Atualização
+            
+            **Regra 1: Criação Automática**
+            - Todas as pastas são criadas automaticamente quando necessário
+            - O parâmetro `exist_ok=True` garante que não há erro se a pasta já existir
+            - Não é necessário criar manualmente nenhuma pasta
+            
+            **Regra 2: Consolidação Incremental**
+            - O histórico é **atualizado** (não substituído) a cada processamento
+            - Novos dados são **adicionados** ao histórico existente
+            - Isso mantém a integridade dos dados históricos
+            
+            **Regra 3: Separação por Tipo**
+            - Dados Reais e Budget são mantidos **separados** em pastas diferentes
+            - Isso evita confusão e permite comparações precisas
+            - O sistema sabe qual pasta usar baseado no modo de comparação selecionado
+            
+            **Regra 4: Formato Parquet**
+            - Todos os arquivos processados são salvos em formato **Parquet**
+            - Parquet oferece compressão e leitura rápida
+            - Formato otimizado para grandes volumes de dados
+            """)
     
-    # TAB 2: Tecnologias
-    with tab_tecnologias:
+    # EXPANDER 2: Tecnologias
+    with st.expander("💻 **Tecnologias e Bibliotecas**", expanded=False):
         st.subheader("💻 Tecnologias e Bibliotecas")
         
         st.markdown("""
@@ -2045,156 +2317,100 @@ plotly>=5.0.0
         - Cache de filtros para opções repetidas
         """)
     
-    # TAB 3: Equipe
-    with tab_equipe:
-        st.subheader("👥 Equipe do Projeto")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ### 🔧 Hudson Cardin
-            
-            **Responsável pelo desenvolvimento do projeto**
-            
-            **Contribuições:**
-            - Arquitetura e estrutura do sistema
-            - Implementação de cálculos e regras de negócio
-            - Otimizações de performance
-            - Desenvolvimento de funcionalidades principais
-            - Documentação técnica
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### 📊 Lauro Paiva
-            
-            **Responsável pelo desenvolvimento do projeto**
-            
-            **Contribuições:**
-            - Análise de requisitos e regras de negócio
-            - Validação de cálculos e resultados
-            - Testes e garantia de qualidade
-            - Documentação de processos
-            - Suporte e manutenção
-            """)
-        
-        st.markdown("---")
-        
-        st.subheader("🎯 Objetivos do Projeto")
-        
+    # EXPANDER 3: Desafios e Soluções
+    with st.expander("⚠️ **Desafios Principais & Soluções Implementadas**", expanded=False):
         st.markdown("""
-        **🎯 Objetivos Principais:**
-        - 📈 **Análise avançada de custos** com visualizações interativas
-        - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
-        - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
-        - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
-        - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
-        - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
-        - 📥 **Exportação Excel:** Downloads formatados e filtrados
-        - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
-        - 📦 **Formato Parquet:** Dados comprimidos e otimizados
-        - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
+        ### 📊 Desafios Identificados
+        
+        - **📁 Dados grandes:** Milhões de registros causando lentidão
+        - **💾 Uso de memória:** Excedia limites de processamento
+        - **Instabilidade:** Sistema lento com muitos filtros
+        - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
+        - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
+        - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
         """)
         
         st.markdown("---")
         
-        st.subheader("⚠️ Desafios Principais & Soluções")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 10px; margin: 1rem 0; color: white;">
-                <h4 style="color: white; margin: 0; font-weight: 600;">
-                    📊 DESAFIOS IDENTIFICADOS
-                </h4>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("""
-            - **📁 Dados grandes:** Milhões de registros causando lentidão
-            - **💾 Uso de memória:** Excedia limites de processamento
-            - **[INCORRETO] Instabilidade:** Sistema lento com muitos filtros
-            - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
-            - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
-            - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
-            """)
-        
-        with col2:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #00b894 0%, #00a085 100%); border-radius: 10px; margin: 1rem 0; color: white;">
-                <h4 style="color: white; margin: 0; font-weight: 600;">
-                    [CORRETO] SOLUÇÕES IMPLEMENTADAS
-                </h4>
-            </div>
-            """, unsafe_allow_html=True)
-        
         st.markdown("""
-            - **📊 Otimização de dados:** Parquet com tipos categóricos
-            - **⚡ Cache estratégico:** TTL configurável por tipo de dado
-            - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
-            - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
-            - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
-            - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
-            """)
+        ### ✅ Soluções Implementadas
+        
+        - **📊 Otimização de dados:** Parquet com tipos categóricos
+        - **⚡ Cache estratégico:** TTL configurável por tipo de dado
+        - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
+        - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
+        - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
+        - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
+        """)
         
         st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
-        
-        st.markdown("---")
-        
-        st.subheader("📊 Estatísticas do Sistema")
-        
+    
+    # EXPANDER 4: Estatísticas do Sistema
+    with st.expander("📊 **Estatísticas e Métricas do Sistema**", expanded=False):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            with st.expander("💾 **DADOS E PERFORMANCE**", expanded=True):
-                st.markdown("""
-                **📁 Arquivos Principais:**
-                - `df_final_historico.parquet` (dados históricos)
-                - `df_vol_historico.parquet` (volumes)
-                - `df_final_historico_BUD.parquet` (budget)
-                
-                **⚡ Otimizações:**
-                - Tipos categóricos para strings
-                - Downcast de numéricos
-                - Compressão Parquet
-                - Cache com TTL
-                """)
+            st.markdown("""
+            ### 💾 Dados e Performance
+            
+            **📁 Arquivos Principais:**
+            - `df_final_historico.parquet` (dados históricos)
+            - `df_vol_historico.parquet` (volumes)
+            - `df_final_historico_BUD.parquet` (budget)
+            
+            **⚡ Otimizações:**
+            - Tipos categóricos para strings
+            - Downcast de numéricos
+            - Compressão Parquet
+            - Cache com TTL
+            """)
         
         with col2:
-            with st.expander("📊 **PÁGINAS DO SISTEMA**", expanded=True):
-                st.markdown("""
-                **📄 Páginas Disponíveis:**
-                - `app.py` - Dashboard principal TC Ext (~9.800 linhas)
-                - `2 - Simulador Forecast.py` - Simulação (~4.300 linhas)
-                - `3 - Forecast.py` - Visualização (~7.400 linhas)
-                - `4 - Waterfall.py` - Análise (~2.400 linhas)
-                - `5 - Documentacao.py` - Documentação
-                
-                **📊 Total:** ~20.000+ linhas de código
-                """)
+            st.markdown("""
+            ### 📊 Páginas do Sistema
+            
+            **📄 Páginas Disponíveis:**
+            - `app.py` - Dashboard principal TC Ext (~9.800 linhas)
+                   - `2 - Best Estimate - Simulador.py` - Simulação (~4.300 linhas)
+                   - `3 - Best Estimate - Análise.py` - Análise (~7.400 linhas)
+            - `4 - Waterfall.py` - Análise (~2.400 linhas)
+            - `5 - Documentacao.py` - Documentação
+            
+            **📊 Total:** ~20.000+ linhas de código
+            """)
         
         with col3:
-            with st.expander("🔧 **TECNOLOGIAS**", expanded=True):
-                st.markdown("""
-                **[CORRETO] Stack Tecnológico:**
-                - 🐍 Python 3.8+
-                - 🌊 Streamlit (Web Framework)
-                - 🐼 Pandas (Análise de Dados)
-                - 📊 Altair (Gráficos)
-                - 💾 PyArrow (Parquet)
-                - 📋 OpenPyXL (Excel)
-                - 🔢 NumPy (Cálculos)
-                - 📈 Plotly (Waterfall)
-        """)
+            st.markdown("""
+            ### 🔧 Tecnologias
+            
+            **Stack Principal:**
+            - Streamlit 1.50.0
+            - Pandas 2.3.3
+            - NumPy 2.3.5
+            - Altair 5.5.0
+            - Plotly 6.5.0
+            - OpenPyXL 3.1.5
+            """)
 
+
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
 
 # Rodapé
 st.markdown("---")
-st.markdown("""
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão 3.0 | Janeiro 2025
+    📚 Documentação Completa do Sistema TC | Versão 1.0 | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

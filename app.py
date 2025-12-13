@@ -16,6 +16,40 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Função para obter data e hora de atualização dos dados
+def obter_data_atualizacao_dados():
+    """Retorna a data e hora da última atualização dos arquivos de dados"""
+    arquivos_dados = [
+        os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+        os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+        os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+    ]
+    
+    data_atualizacao = None
+    for arquivo in arquivos_dados:
+        if os.path.exists(arquivo):
+            data_modificacao = os.path.getmtime(arquivo)
+            if data_atualizacao is None or data_modificacao > data_atualizacao:
+                data_atualizacao = data_modificacao
+    
+    if data_atualizacao:
+        dt = datetime.fromtimestamp(data_atualizacao)
+        meses = {
+            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+        }
+        return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+    return "Não disponível"
+
+# Exibir data de atualização dos dados no topo
+data_atualizacao = obter_data_atualizacao_dados()
+st.markdown(f"""
+<div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
+    📅 Dados atualizados em: {data_atualizacao}
+</div>
+""", unsafe_allow_html=True)
+
 # CSS para reduzir títulos em 20% e evitar quebra de linha
 st.markdown("""
     <style>
@@ -10035,3 +10069,25 @@ with tab4:
 # O código completo do tab5 (linhas 9659-11008) foi extraído para a nova página
 # Removido: todo o código do tab5 foi movido para pages/4 - Waterfall.py
 st.markdown("---")
+
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
+
+# Rodapé
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+st.markdown(f"""
+<div style='text-align: center; color: #666; padding: 20px;'>
+    📚 Documentação Completa do Sistema TC | Versão 1.0 | {mes_atual} {ano_atual}
+    <br>
+    <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
+</div>
+""", unsafe_allow_html=True)
