@@ -7,7 +7,10 @@ import json
 import sqlite3
 from datetime import datetime
 import plotly.graph_objects as go
-from versionamento import obter_versao_atual
+from versionamento import obter_versao_atual, verificar_mudancas_paginas
+
+# Verificar mudanças nas páginas e incrementar versão se necessário
+verificar_mudancas_paginas()
 
 # Configuração da página
 st.set_page_config(

@@ -71,62 +71,41 @@ def incrementar_versao():
     partes = versao_atual.split('.')
     parte_inteira = int(partes[0])
     parte_decimal_str = partes[1] if len(partes) > 1 else "0"
-    parte_decimal = int(parte_decimal_str)
     
-    # Determina se a versão atual usa 2 dígitos decimais (ANTES de incrementar)
-    usa_dois_digitos_original = len(parte_decimal_str) == 2 or versao_atual == "1.0"
-    eh_versao_1_1 = versao_atual == "1.1"
+    # Determina se a versão atual usa 2 dígitos decimais
+    usa_dois_digitos = len(parte_decimal_str) == 2
     
-    # Se versão é "1.1", trata como se parte_decimal fosse 10 (não 1)
-    # Isso permite que 1.1 -> 1.11 (não 1.02)
-    if eh_versao_1_1:
-        parte_decimal = 10  # Trata como se fosse 1.10
+    # Converte parte decimal para número inteiro
+    # Se for "1" (de 1.1), trata como 10 para facilitar o cálculo
+    if parte_decimal_str == "1" and not usa_dois_digitos:
+        parte_decimal = 10
+    else:
+        parte_decimal = int(parte_decimal_str)
     
     # Incrementa a parte decimal
     parte_decimal += 1
     
-    # Lógica de incremento e formatação:
-    # - Se parte_decimal == 10 e estava usando 2 dígitos: transforma em 1 (sem zero) -> 1.09 -> 1.1
-    # - Se parte_decimal == 11 (vindo de 1.1): formata como 1.11 (com 2 dígitos)
-    # - Se parte_decimal < 10 e estava usando 2 dígitos: mantém 2 dígitos -> 1.01 -> 1.02, 1.11 -> 1.12
-    # - Se parte_decimal == 20 (vindo de 1.19): transforma em 2 (sem zero) -> 1.19 -> 1.2
-    # - Se parte_decimal >= 10 e não estava usando 2 dígitos: incrementa parte inteira -> 1.9 -> 2.0
-    
-    if parte_decimal == 10 and usa_dois_digitos_original:
-        # 1.09 -> 1.1 (sem zero à esquerda)
-        parte_decimal = 1
-        usa_dois_digitos = False
+    # Lógica de formatação seguindo o padrão:
+    # 1.0 -> 1.01 -> 1.02 -> ... -> 1.09 -> 1.1 -> 1.11 -> 1.12 -> ...
+    if versao_atual == "1.0":
+        # 1.0 -> 1.01 (primeiro incremento usa 2 dígitos)
+        nova_versao = f"{parte_inteira}.01"
+    elif parte_decimal == 10 and usa_dois_digitos:
+        # 1.09 -> 1.1 (remove zero à esquerda)
+        nova_versao = f"{parte_inteira}.1"
     elif parte_decimal == 11:
         # 1.1 -> 1.11 (volta a usar 2 dígitos)
-        parte_decimal = 11
-        usa_dois_digitos = True
-    elif parte_decimal >= 10 and not usa_dois_digitos_original and not eh_versao_1_1:
+        nova_versao = f"{parte_inteira}.11"
+    elif usa_dois_digitos:
+        # 1.01 -> 1.02, 1.11 -> 1.12, etc. (mantém 2 dígitos)
+        nova_versao = f"{parte_inteira}.{parte_decimal:02d}"
+    elif parte_decimal >= 10:
         # 1.9 -> 2.0 (incrementa parte inteira)
         parte_inteira += 1
         parte_decimal = parte_decimal - 10
-        usa_dois_digitos = False  # 2.0 não usa 2 dígitos
-    elif usa_dois_digitos_original:
-        # Mantém 2 dígitos (1.01 -> 1.02, 1.11 -> 1.12, etc.)
-        usa_dois_digitos = True
+        nova_versao = f"{parte_inteira}.{parte_decimal}"
     else:
         # Caso padrão: mantém formato atual
-        usa_dois_digitos = False
-    
-    # Formata a nova versão
-    if parte_decimal == 11:
-        # 1.11 (mantém como está)
-        nova_versao = f"{parte_inteira}.{parte_decimal}"
-    elif usa_dois_digitos and parte_decimal < 10:
-        # 1.01, 1.02, etc. (com 2 dígitos)
-        nova_versao = f"{parte_inteira}.{parte_decimal:02d}"
-    else:
-        # 1.1, 1.2, etc. (sem zero à esquerda)
-        nova_versao = f"{parte_inteira}.{parte_decimal}"
-    
-    # Formata a nova versão
-    if usa_dois_digitos and parte_decimal < 10:
-        nova_versao = f"{parte_inteira}.{parte_decimal:02d}"
-    else:
         nova_versao = f"{parte_inteira}.{parte_decimal}"
     
     salvar_versao(nova_versao)
@@ -160,4 +139,112 @@ def obter_versao_com_incremento():
     versao_atual = carregar_versao()
     incrementar_versao()
     return versao_atual
+
+
+def get_controle_paginas_path():
+    """Retorna o caminho do arquivo de controle de timestamps das páginas"""
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, 'controle_paginas.json')
+
+
+def obter_timestamps_paginas():
+    """Obtém os timestamps de modificação de todas as páginas do sistema"""
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    pasta_pages = os.path.join(base_path, 'pages')
+    
+    timestamps = {}
+    
+    if not os.path.exists(pasta_pages):
+        return timestamps
+    
+    # Lista todas as páginas .py na pasta pages
+    for arquivo in os.listdir(pasta_pages):
+        if arquivo.endswith('.py'):
+            caminho_completo = os.path.join(pasta_pages, arquivo)
+            if os.path.isfile(caminho_completo):
+                # Obtém timestamp de modificação
+                timestamp = os.path.getmtime(caminho_completo)
+                timestamps[arquivo] = timestamp
+    
+    return timestamps
+
+
+def carregar_controle_paginas():
+    """Carrega o arquivo de controle com timestamps anteriores das páginas"""
+    controle_path = get_controle_paginas_path()
+    
+    if not os.path.exists(controle_path):
+        return {}
+    
+    try:
+        with open(controle_path, 'r', encoding='utf-8') as f:
+            dados = json.load(f)
+            return dados.get('timestamps', {})
+    except (json.JSONDecodeError, FileNotFoundError, KeyError):
+        return {}
+
+
+def salvar_controle_paginas(timestamps):
+    """Salva o arquivo de controle com timestamps atuais das páginas"""
+    controle_path = get_controle_paginas_path()
+    
+    dados = {
+        'timestamps': timestamps,
+        'ultima_verificacao': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
+    with open(controle_path, 'w', encoding='utf-8') as f:
+        json.dump(dados, f, indent=4, ensure_ascii=False)
+
+
+def verificar_mudancas_paginas():
+    """
+    Verifica se houve mudanças nas páginas do sistema.
+    Se detectar mudanças, incrementa a versão automaticamente.
+    
+    Returns:
+        tuple: (houve_mudanca: bool, versao_atual: str)
+    """
+    # Obter timestamps atuais das páginas
+    timestamps_atuais = obter_timestamps_paginas()
+    
+    # Carregar timestamps anteriores
+    timestamps_anteriores = carregar_controle_paginas()
+    
+    # Se não há controle anterior, criar um e não incrementar (primeira execução)
+    if not timestamps_anteriores:
+        salvar_controle_paginas(timestamps_atuais)
+        return False, carregar_versao()
+    
+    # Verificar se houve mudanças
+    houve_mudanca = False
+    
+    # Verificar se alguma página foi modificada ou nova página foi adicionada
+    for arquivo, timestamp_atual in timestamps_atuais.items():
+        if arquivo not in timestamps_anteriores:
+            # Nova página adicionada
+            houve_mudanca = True
+            break
+        elif timestamps_anteriores[arquivo] != timestamp_atual:
+            # Página foi modificada
+            houve_mudanca = True
+            break
+    
+    # Verificar se alguma página foi removida
+    if not houve_mudanca:
+        for arquivo in timestamps_anteriores:
+            if arquivo not in timestamps_atuais:
+                houve_mudanca = True
+                break
+    
+    # Se houve mudança, incrementar versão
+    if houve_mudanca:
+        nova_versao = incrementar_versao()
+        # Atualizar controle com timestamps atuais
+        salvar_controle_paginas(timestamps_atuais)
+        return True, nova_versao
+    else:
+        # Atualizar controle mesmo sem mudanças (para manter sincronizado)
+        salvar_controle_paginas(timestamps_atuais)
+        return False, carregar_versao()
 

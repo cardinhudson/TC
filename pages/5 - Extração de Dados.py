@@ -97,24 +97,30 @@ st.set_page_config(
 st.title("📥 Extração e Processamento de Dados")
 st.markdown("---")
 
-# Sidebar - Seleção do tipo de extração
-st.sidebar.header("⚙️ Configurações")
-tipo_extracao = st.sidebar.radio(
-    "Selecione o tipo de extração:",
-    ["📊 Dados REAIS (dados.ipynb)", "💰 Dados BUDGET (dados_BUD.ipynb)", "🔄 Ambos"]
-)
+# Seleção de configurações na página principal
+col_config1, col_config2 = st.columns(2)
 
-# Seleção do ano
-ano_padrao = datetime.now().year
-ano_selecionado = st.sidebar.number_input(
-    "📅 Ano para processar:",
-    min_value=2020,
-    max_value=2100,
-    value=ano_padrao,
-    step=1
-)
+with col_config1:
+    tipo_extracao = st.radio(
+        "📊 Selecione o tipo de extração:",
+        ["📊 Dados REAIS (dados.ipynb)", "💰 Dados BUDGET (dados_BUD.ipynb)", "🔄 Ambos"],
+        horizontal=True
+    )
 
-st.sidebar.markdown("---")
+with col_config2:
+    ano_padrao = datetime.now().year
+    ano_selecionado = st.number_input(
+        "📅 Ano para processar:",
+        min_value=2020,
+        max_value=2100,
+        value=ano_padrao,
+        step=1
+    )
+
+st.markdown("---")
+
+# Sidebar - Informações
+st.sidebar.header("ℹ️ Informações")
 st.sidebar.info("""
 **📋 Instruções:**
 1. Selecione o tipo de extração
