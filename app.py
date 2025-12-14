@@ -7,6 +7,7 @@ import json
 import sqlite3
 from datetime import datetime
 import plotly.graph_objects as go
+from versionamento import obter_versao_atual
 
 # Configuração da página
 st.set_page_config(
@@ -10084,9 +10085,10 @@ def obter_mes_atual():
 # Rodapé
 mes_atual = obter_mes_atual()
 ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão 1.0 | {mes_atual} {ano_atual}
+    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

@@ -81,3 +81,4 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 - Todas as dependências estão instaladas no ambiente virtual
 - O arquivo `.gitignore` já está configurado para ignorar `venv/`
 
+

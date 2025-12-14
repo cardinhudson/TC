@@ -122,6 +122,7 @@ opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
 
 # Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
 from datetime import datetime
+from versionamento import obter_versao_atual
 ano_atual = datetime.now().year
 ano_atual_str = str(ano_atual)
 if ano_atual_str in opcoes_ano:
@@ -3949,9 +3950,10 @@ def obter_mes_atual():
 # Rodapé
 mes_atual = obter_mes_atual()
 ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão 1.0 | {mes_atual} {ano_atual}
+    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

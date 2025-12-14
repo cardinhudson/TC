@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import json
 import os
 import base64
@@ -141,10 +142,10 @@ def carregar_foto_base64(foto_base64):
 st.sidebar.markdown("## 📑 Índice")
 st.sidebar.markdown("---")
 
-# Criar três índices no sidebar
+# Criar quatro índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
-    ["👥 Equipe do Projeto", "📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura"],
+    ["👥 Equipe do Projeto", "📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura", "📥 Guia de Extração de Dados"],
     key="indice_documentacao"
 )
 
@@ -2253,11 +2254,11 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
     with st.expander("💻 **Tecnologias e Bibliotecas**", expanded=False):
         st.subheader("💻 Tecnologias e Bibliotecas")
         
-        st.markdown("""
+        st.markdown(f"""
         ### Stack Tecnológico
         
         **Framework Principal:**
-        - **Streamlit** 1.28.0+ - Framework web para aplicações de dados
+        - **Streamlit** {st.__version__} - Framework web para aplicações de dados
         
         **Linguagem:**
         - **Python** 3.8+ - Linguagem de programação
@@ -2380,16 +2381,16 @@ plotly>=5.0.0
             """)
         
         with col3:
-            st.markdown("""
+            st.markdown(f"""
             ### 🔧 Tecnologias
             
             **Stack Principal:**
-            - Streamlit 1.50.0
-            - Pandas 2.3.3
-            - NumPy 2.3.5
-            - Altair 5.5.0
-            - Plotly 6.5.0
-            - OpenPyXL 3.1.5
+            - Streamlit {st.__version__}
+            - Pandas {pd.__version__}
+            - NumPy {np.__version__}
+            - Altair (versão instalada)
+            - Plotly (versão instalada)
+            - OpenPyXL (versão instalada)
             """)
 
 
