@@ -20,28 +20,38 @@ except ImportError as e:
 # Função para obter data e hora de atualização dos dados
 def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
-    arquivos_dados = [
-        os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
-        os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
-        os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
-    ]
-    
-    data_atualizacao = None
-    for arquivo in arquivos_dados:
-        if os.path.exists(arquivo):
-            data_modificacao = os.path.getmtime(arquivo)
-            if data_atualizacao is None or data_modificacao > data_atualizacao:
-                data_atualizacao = data_modificacao
-    
-    if data_atualizacao:
-        dt = datetime.fromtimestamp(data_atualizacao)
-        meses = {
-            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-        }
-        return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
-    return "Não disponível"
+    try:
+        arquivos_dados = [
+            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+        ]
+        
+        data_atualizacao = None
+        for arquivo in arquivos_dados:
+            if os.path.exists(arquivo):
+                try:
+                    data_modificacao = os.path.getmtime(arquivo)
+                    if data_modificacao and data_modificacao > 0:
+                        if data_atualizacao is None or data_modificacao > data_atualizacao:
+                            data_atualizacao = data_modificacao
+                except (OSError, ValueError):
+                    continue
+        
+        if data_atualizacao and data_atualizacao > 0:
+            try:
+                dt = datetime.fromtimestamp(data_atualizacao)
+                meses = {
+                    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+                    5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+                    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+                }
+                return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+            except (ValueError, OSError):
+                return "Não disponível"
+        return "Não disponível"
+    except Exception:
+        return "Não disponível"
 
 # Exibir data de atualização dos dados no topo
 data_atualizacao = obter_data_atualizacao_dados()
