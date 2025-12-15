@@ -64,25 +64,47 @@ st.set_page_config(
 def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
+        # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
+            # Caminhos do histórico consolidado
             os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
             os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            # Caminhos alternativos (pode existir em diferentes estruturas)
+            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
+        # Também tentar buscar em pastas de anos recentes
+        pasta_dados = "dados"
+        if os.path.exists(pasta_dados):
+            try:
+                anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
+                if anos:
+                    ano_mais_recente = max(anos, key=int)
+                    arquivos_dados.extend([
+                        os.path.join(pasta_dados, ano_mais_recente, "df_final.parquet"),
+                        os.path.join(pasta_dados, ano_mais_recente, "df_vol.parquet"),
+                    ])
+            except (OSError, ValueError):
+                pass
+        
         data_atualizacao = None
+        arquivos_encontrados = []
+        
         for arquivo in arquivos_dados:
             if os.path.exists(arquivo):
                 try:
                     data_modificacao = os.path.getmtime(arquivo)
                     # Validar que o timestamp é válido (positivo e razoável)
                     if data_modificacao and data_modificacao > 0:
+                        arquivos_encontrados.append(arquivo)
                         if data_atualizacao is None or data_modificacao > data_atualizacao:
                             data_atualizacao = data_modificacao
-                except (OSError, ValueError) as e:
-                    # Ignorar erros ao obter data de modificação de arquivos individuais
+                except (OSError, ValueError):
                     continue
         
+        # Se encontrou pelo menos um arquivo, retornar data
         if data_atualizacao and data_atualizacao > 0:
             try:
                 dt = datetime.fromtimestamp(data_atualizacao)
@@ -92,21 +114,23 @@ def obter_data_atualizacao_dados():
                     9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
                 }
                 return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
-            except (ValueError, OSError) as e:
-                # Erro ao converter timestamp, retornar mensagem padrão
-                return "Não disponível"
-        return "Não disponível"
-    except Exception as e:
-        # Em caso de qualquer erro, retornar mensagem padrão
-        return "Não disponível"
+            except (ValueError, OSError):
+                return None  # Retornar None para não exibir mensagem
+        
+        # Se não encontrou nenhum arquivo, retornar None (não exibir mensagem)
+        return None
+    except Exception:
+        # Em caso de qualquer erro, retornar None (não exibir mensagem)
+        return None
 
-# Exibir data de atualização dos dados no topo
+# Exibir data de atualização dos dados no topo (apenas se disponível)
 data_atualizacao = obter_data_atualizacao_dados()
-st.markdown(f"""
-<div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
-    📅 Dados atualizados em: {data_atualizacao}
-</div>
-""", unsafe_allow_html=True)
+if data_atualizacao:
+    st.markdown(f"""
+    <div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
+        📅 Dados atualizados em: {data_atualizacao}
+    </div>
+    """, unsafe_allow_html=True)
 
 # CSS
 st.markdown("""
