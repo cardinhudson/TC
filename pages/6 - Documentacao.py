@@ -146,7 +146,7 @@ st.sidebar.markdown("---")
 # Criar quatro índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
-    ["👥 Equipe do Projeto", "📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura", "📥 Guia de Extração de Dados", "🔮 Guia de Best Estimate"],
+    ["👥 Equipe do Projeto", "📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura", "📥 Guia de Extração de Dados", "🔮 Guia de Best Estimate", "📊 Apresentação Visual", "💬 Chatbot de Documentação"],
     key="indice_documentacao"
 )
 
@@ -4859,6 +4859,172 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         das páginas de Best Estimate. Use estas informações para entender como o sistema
         organiza os dados, processa os forecasts e como cada página contribui para o processo.
         """)
+
+# ==========================================
+# SEÇÃO 6: APRESENTAÇÃO VISUAL
+# ==========================================
+elif indice_selecionado == "📊 Apresentação Visual":
+    st.header("📊 Apresentação Visual - 5 Minutos")
+    
+    st.markdown("""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
+        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Sistema TC</h2>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
+            Apresentação completa de 5 minutos com todos os slides e diagramas visuais
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Carregar e exibir apresentação
+    try:
+        # Caminho relativo à raiz do projeto
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        caminho_apresentacao = os.path.join(base_path, "APRESENTACAO_5_MINUTOS_VISUAL.md")
+        if os.path.exists(caminho_apresentacao):
+            with open(caminho_apresentacao, 'r', encoding='utf-8') as f:
+                conteudo_apresentacao = f.read()
+            
+            # Exibir apresentação usando st.markdown
+            st.markdown(conteudo_apresentacao, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Arquivo de apresentação não encontrado. Verifique se o arquivo APRESENTACAO_5_MINUTOS_VISUAL.md existe na raiz do projeto.")
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar apresentação: {str(e)}")
+
+# ==========================================
+# SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO
+# ==========================================
+elif indice_selecionado == "💬 Chatbot de Documentação":
+    st.header("💬 Chatbot de Documentação")
+    
+    st.markdown("""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
+        <h2 style="color: white; margin: 0;">💬 Assistente Virtual de Documentação</h2>
+        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
+            Faça perguntas sobre o sistema e receba respostas baseadas na documentação completa
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Importar chatbot
+    try:
+        # Adicionar diretório raiz ao path para importar chatbot
+        import sys
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if base_path not in sys.path:
+            sys.path.insert(0, base_path)
+        from chatbot_documentacao import responder_pergunta
+        
+        # Inicializar histórico de conversa
+        if 'historico_chat' not in st.session_state:
+            st.session_state.historico_chat = []
+        
+        # Exibir histórico
+        st.subheader("💬 Conversa")
+        
+        if st.session_state.historico_chat:
+            for i, (pergunta, resposta, score) in enumerate(st.session_state.historico_chat):
+                with st.expander(f"❓ {pergunta[:50]}...", expanded=False):
+                    st.markdown(f"**Pergunta:** {pergunta}")
+                    st.markdown(f"**Resposta:**")
+                    st.markdown(resposta)
+                    if score > 0:
+                        st.caption(f"Relevância: {score:.0%}")
+        else:
+            st.info("💡 Faça sua primeira pergunta abaixo para começar!")
+        
+        st.markdown("---")
+        
+        # Campo de entrada
+        st.subheader("📝 Faça uma Pergunta")
+        
+        pergunta = st.text_input(
+            "Digite sua pergunta sobre o sistema:",
+            placeholder="Ex: Como funciona o Best Estimate? O que é Flex Bud? Como processar dados?",
+            key="input_pergunta"
+        )
+        
+        col1, col2 = st.columns([1, 4])
+        
+        with col1:
+            botao_perguntar = st.button("🔍 Buscar Resposta", type="primary", use_container_width=True)
+        
+        with col2:
+            botao_limpar = st.button("🗑️ Limpar Histórico", use_container_width=True)
+        
+        if botao_limpar:
+            st.session_state.historico_chat = []
+            st.rerun()
+        
+        if botao_perguntar and pergunta:
+            with st.spinner("🔍 Buscando na documentação..."):
+                resultado = responder_pergunta(pergunta)
+                
+                if resultado['resposta']:
+                    # Adicionar ao histórico
+                    st.session_state.historico_chat.append((
+                        pergunta,
+                        resultado['resposta'],
+                        resultado['score']
+                    ))
+                    
+                    # Exibir resposta
+                    st.success("✅ Resposta encontrada!")
+                    st.markdown("**Resposta:**")
+                    st.markdown(resultado['resposta'])
+                    
+                    if resultado['score'] > 0:
+                        st.caption(f"📊 Relevância da resposta: {resultado['score']:.0%}")
+                    
+                    # Exibir segmentos adicionais se houver
+                    if resultado['segmentos_encontrados']:
+                        st.markdown("---")
+                        st.subheader("📚 Informações Adicionais")
+                        for i, segmento in enumerate(resultado['segmentos_encontrados'], 1):
+                            with st.expander(f"Informação adicional {i}", expanded=False):
+                                st.markdown(segmento)
+                    
+                    st.rerun()
+        
+        # Sugestões de perguntas
+        st.markdown("---")
+        st.subheader("💡 Perguntas Sugeridas")
+        
+        perguntas_sugeridas = [
+            "O que é o Sistema TC?",
+            "Como funciona o Best Estimate?",
+            "O que é Flex Bud?",
+            "Como processar dados?",
+            "Como funciona o versionamento?",
+            "Quais são as funcionalidades principais?",
+            "Como calcular médias históricas?",
+            "O que é sensibilidade no Best Estimate?",
+        ]
+        
+        cols = st.columns(2)
+        for i, pergunta_sugerida in enumerate(perguntas_sugeridas):
+            with cols[i % 2]:
+                if st.button(f"❓ {pergunta_sugerida}", key=f"sug_{i}", use_container_width=True):
+                    # Processar pergunta sugerida diretamente
+                    with st.spinner("🔍 Buscando na documentação..."):
+                        resultado = responder_pergunta(pergunta_sugerida)
+                        
+                        if resultado['resposta']:
+                            # Adicionar ao histórico
+                            st.session_state.historico_chat.append((
+                                pergunta_sugerida,
+                                resultado['resposta'],
+                                resultado['score']
+                            ))
+                            st.rerun()
+        
+    except ImportError as e:
+        st.error(f"❌ Erro ao importar módulo de chatbot: {str(e)}")
+        st.info("💡 Certifique-se de que o arquivo chatbot_documentacao.py existe na raiz do projeto.")
+    except Exception as e:
+        st.error(f"❌ Erro no chatbot: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
 
 # Função para obter mês atual em português
 def obter_mes_atual():
