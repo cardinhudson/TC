@@ -1,0 +1,34 @@
+# ==========================================
+# DEPENDÊNCIAS OPCIONAIS DO CHATBOT
+# ==========================================
+# Estas bibliotecas são OPCIONAIS. O chatbot funciona sem elas usando
+# método de busca simples baseado em palavras-chave.
+#
+# Para melhor qualidade de respostas (busca semântica), instale estas dependências:
+#   pip install -r requirements-chatbot.txt
+#
+# NOTA: Estas bibliotecas são pesadas (~1GB total) e podem causar problemas
+# em ambientes de deploy com limitações de memória/tempo.
+# ==========================================
+
+sentence-transformers==2.2.2
+# Biblioteca para criar embeddings vetoriais de texto
+# Usado no chatbot para busca semântica local (sem APIs externas)
+# Modelo multilingual suporta português
+# Primeira execução baixa modelo ~420MB (depois usa cache local)
+
+faiss-cpu==1.7.4
+# Biblioteca Facebook AI Similarity Search para busca rápida em vetores
+# Versão CPU (sem GPU) - adequada para uso local
+# Usado para busca eficiente de similaridade semântica no chatbot
+# NOTA: Se houver problemas de instalação, tente: pip install faiss-cpu --no-cache-dir
+
+torch==2.0.1
+# PyTorch - dependência do sentence-transformers
+# Versão compatível com sentence-transformers 2.2.2
+# Tamanho: ~500MB (dependência pesada mas necessária)
+
+transformers==4.35.2
+# Hugging Face Transformers - dependência do sentence-transformers
+# Versão compatível com sentence-transformers 2.2.2
+

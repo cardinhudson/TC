@@ -42,32 +42,14 @@ openpyxl==3.1.5
 # Necessário para processar arquivos .xlsx
 
 # ==========================================
-# DEPENDÊNCIAS DO CHATBOT (Opcionais - Fallback disponível)
+# NOTA: DEPENDÊNCIAS DO CHATBOT SÃO OPCIONAIS
 # ==========================================
-# Estas bibliotecas são opcionais. Se não instaladas, o chatbot usará
-# método de busca simples baseado em palavras-chave.
-# Para melhor qualidade de respostas, recomenda-se instalar todas.
-
-sentence-transformers==2.2.2
-# Biblioteca para criar embeddings vetoriais de texto
-# Usado no chatbot para busca semântica local (sem APIs externas)
-# Modelo multilingual suporta português
-# Primeira execução baixa modelo ~420MB (depois usa cache local)
-
-faiss-cpu==1.7.4
-# Biblioteca Facebook AI Similarity Search para busca rápida em vetores
-# Versão CPU (sem GPU) - adequada para uso local
-# Usado para busca eficiente de similaridade semântica no chatbot
-# NOTA: Se houver problemas de instalação, tente: pip install faiss-cpu --no-cache-dir
-
-torch==2.0.1
-# PyTorch - dependência do sentence-transformers
-# Versão compatível com sentence-transformers 2.2.2
-# Tamanho: ~500MB (dependência pesada mas necessária)
-
-transformers==4.35.2
-# Hugging Face Transformers - dependência do sentence-transformers
-# Versão compatível com sentence-transformers 2.2.2
-
-
-
+# As dependências do chatbot (sentence-transformers, faiss-cpu, torch, transformers)
+# foram movidas para requirements-chatbot.txt para evitar problemas em deploys.
+# O chatbot funciona sem elas usando método de busca simples (fallback).
+# 
+# Para instalar as dependências do chatbot (melhor qualidade de respostas):
+#   pip install -r requirements-chatbot.txt
+#
+# OU instalar tudo de uma vez:
+#   pip install -r requirements.txt -r requirements-chatbot.txt
