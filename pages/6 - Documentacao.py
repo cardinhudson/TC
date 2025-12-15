@@ -4884,8 +4884,33 @@ elif indice_selecionado == "📊 Apresentação Visual":
             with open(caminho_apresentacao, 'r', encoding='utf-8') as f:
                 conteudo_apresentacao = f.read()
             
+            # Limpar espaços extras no final das linhas e linhas vazias desnecessárias
+            linhas = conteudo_apresentacao.split('\n')
+            linhas_limpas = []
+            linha_anterior_vazia = False
+            
+            for linha in linhas:
+                # Remover espaços no final da linha
+                linha_limpa = linha.rstrip()
+                # Remover linhas vazias consecutivas (máximo 1)
+                if not linha_limpa:
+                    if not linha_anterior_vazia:
+                        linhas_limpas.append('')
+                    linha_anterior_vazia = True
+                else:
+                    linhas_limpas.append(linha_limpa)
+                    linha_anterior_vazia = False
+            
+            # Remover linhas vazias no início e fim
+            while linhas_limpas and not linhas_limpas[0]:
+                linhas_limpas.pop(0)
+            while linhas_limpas and not linhas_limpas[-1]:
+                linhas_limpas.pop()
+            
+            conteudo_limpo = '\n'.join(linhas_limpas)
+            
             # Exibir apresentação usando st.markdown
-            st.markdown(conteudo_apresentacao, unsafe_allow_html=True)
+            st.markdown(conteudo_limpo, unsafe_allow_html=True)
         else:
             st.warning("⚠️ Arquivo de apresentação não encontrado. Verifique se o arquivo APRESENTACAO_5_MINUTOS_VISUAL.md existe na raiz do projeto.")
     except Exception as e:

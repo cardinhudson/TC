@@ -149,7 +149,7 @@ def extrair_texto_documentacao(codigo_python: str) -> str:
     return "\n\n".join(texto_extraido_unico)
 
 
-def dividir_em_segmentos(texto: str, tamanho_segmento: int = 600) -> List[str]:
+def dividir_em_segmentos(texto: str, tamanho_segmento: int = 700) -> List[str]:
     """
     Divide o texto em segmentos menores para busca.
     
@@ -302,11 +302,11 @@ def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 10) -> List[T
         # Score combinado (priorizar palavras-chave ainda mais)
         score_final = (similaridade * 0.25) + (score_palavras * 0.75)
         
-        # Penalizar segmentos muito grandes (priorizar respostas mais diretas)
-        if len(segmento) > 1000:
-            score_final *= 0.9  # 10% de penalidade para segmentos muito longos
-        elif len(segmento) < 200:
-            score_final *= 1.1  # 10% de bonus para segmentos concisos e diretos
+        # Ajustar score baseado no tamanho (mais flexível)
+        if len(segmento) > 1500:
+            score_final *= 0.95  # 5% de penalidade para segmentos muito longos
+        elif 300 <= len(segmento) <= 1000:
+            score_final *= 1.05  # 5% de bonus para segmentos com tamanho ideal
         
         # Classificar tipo do segmento
         tipo_segmento = classificar_tipo_segmento(segmento)
@@ -319,9 +319,10 @@ def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 10) -> List[T
     return scores[:top_n]
 
 
-def extrair_trecho_relevante(segmento: str, palavras_chave: List[str], max_caracteres: int = 2000) -> str:
+def extrair_trecho_relevante(segmento: str, palavras_chave: List[str], max_caracteres: int = 3000) -> str:
     """
     Extrai o trecho mais relevante de um segmento baseado nas palavras-chave da pergunta.
+    Inclui contexto adjacente para respostas mais completas e consistentes.
     
     Args:
         segmento: Texto completo do segmento
@@ -329,40 +330,89 @@ def extrair_trecho_relevante(segmento: str, palavras_chave: List[str], max_carac
         max_caracteres: Tamanho máximo do trecho
     
     Returns:
-        str: Trecho mais relevante
+        str: Trecho mais relevante com contexto
     """
     if not palavras_chave:
+        # Sem palavras-chave, retornar início com contexto
+        if len(segmento) <= max_caracteres:
+            return segmento
+        # Tentar cortar em parágrafo
+        corte = segmento[:max_caracteres]
+        ultimo_paragrafo = corte.rfind('\n\n')
+        if ultimo_paragrafo > max_caracteres * 0.7:
+            return segmento[:ultimo_paragrafo]
         return segmento[:max_caracteres]
     
     # Encontrar parágrafos que contêm palavras-chave
     paragrafos = segmento.split('\n\n')
+    paragrafos_com_indice = [(i, p) for i, p in enumerate(paragrafos)]
     paragrafos_relevantes = []
     
-    for paragrafo in paragrafos:
+    for idx, paragrafo in paragrafos_com_indice:
         paragrafo_lower = paragrafo.lower()
         # Contar quantas palavras-chave aparecem neste parágrafo
         palavras_no_paragrafo = sum(1 for palavra in palavras_chave if palavra.lower() in paragrafo_lower)
         if palavras_no_paragrafo > 0:
-            paragrafos_relevantes.append((paragrafo, palavras_no_paragrafo))
+            paragrafos_relevantes.append((idx, paragrafo, palavras_no_paragrafo))
     
-    # Se encontrou parágrafos relevantes, priorizar eles
+    # Se encontrou parágrafos relevantes, priorizar eles com contexto
     if paragrafos_relevantes:
         # Ordenar por relevância (mais palavras-chave primeiro)
-        paragrafos_relevantes.sort(key=lambda x: x[1], reverse=True)
-        # Pegar os mais relevantes até o limite
+        paragrafos_relevantes.sort(key=lambda x: x[2], reverse=True)
+        
+        # Coletar índices dos parágrafos mais relevantes
+        indices_relevantes = set()
+        # Pegar top 3 mais relevantes e incluir contexto ao redor
+        for idx, _, _ in paragrafos_relevantes[:3]:
+            indices_relevantes.add(idx)
+            # Incluir parágrafos adjacentes (antes e depois) para contexto completo
+            if idx > 0:
+                indices_relevantes.add(idx - 1)
+            if idx < len(paragrafos) - 1:
+                indices_relevantes.add(idx + 1)
+        
+        # Se ainda há espaço, incluir mais parágrafos relevantes
+        for idx, _, _ in paragrafos_relevantes[3:6]:  # Próximos 3 mais relevantes
+            if len(indices_relevantes) * 300 < max_caracteres:  # Estimativa de tamanho
+                indices_relevantes.add(idx)
+        
+        # Ordenar índices para manter ordem original
+        indices_ordenados = sorted(indices_relevantes)
+        
+        # Construir trecho com parágrafos relevantes e contexto
         trecho = []
         tamanho_atual = 0
-        for paragrafo, _ in paragrafos_relevantes:
+        for idx in indices_ordenados:
+            paragrafo = paragrafos[idx]
             if tamanho_atual + len(paragrafo) <= max_caracteres:
                 trecho.append(paragrafo)
-                tamanho_atual += len(paragrafo)
+                tamanho_atual += len(paragrafo) + 2  # +2 para \n\n
             else:
+                # Se ainda há espaço, tentar adicionar parte do parágrafo de forma inteligente
+                espaco_restante = max_caracteres - tamanho_atual
+                if espaco_restante > 300:  # Se há espaço significativo
+                    # Tentar encontrar um ponto final de frase
+                    paragrafo_cortado = paragrafo[:espaco_restante]
+                    ultimo_ponto = paragrafo_cortado.rfind('.')
+                    if ultimo_ponto > espaco_restante * 0.7:
+                        trecho.append(paragrafo[:ultimo_ponto + 1])
+                    else:
+                        trecho.append(paragrafo_cortado + "...")
                 break
         
         if trecho:
             return '\n\n'.join(trecho)
     
-    # Se não encontrou parágrafos específicos, retornar início do segmento
+    # Se não encontrou parágrafos específicos, retornar início do segmento com mais contexto
+    if len(segmento) <= max_caracteres:
+        return segmento
+    
+    # Tentar cortar em parágrafo completo
+    corte = segmento[:max_caracteres]
+    ultimo_paragrafo = corte.rfind('\n\n')
+    if ultimo_paragrafo > max_caracteres * 0.6:
+        return segmento[:ultimo_paragrafo]
+    
     return segmento[:max_caracteres]
 
 
@@ -387,13 +437,21 @@ def formatar_resposta(segmento: str, max_caracteres: int = 2000, palavras_chave:
         segmento = extrair_trecho_relevante(segmento, palavras_chave, max_caracteres)
     
     # Limitar tamanho se necessário, preservando parágrafos completos
+    # Mas ser mais flexível para manter consistência
     if len(segmento) > max_caracteres:
+        # Tentar encontrar um bom ponto de corte (parágrafo completo)
         corte = segmento[:max_caracteres]
         ultimo_paragrafo = corte.rfind('\n\n')
-        if ultimo_paragrafo > max_caracteres * 0.7:
-            segmento = segmento[:ultimo_paragrafo] + "\n\n..."
+        # Ser mais flexível - aceitar corte em 60% do tamanho se necessário
+        if ultimo_paragrafo > max_caracteres * 0.6:
+            segmento = segmento[:ultimo_paragrafo]
         else:
-            segmento = segmento[:max_caracteres] + "..."
+            # Se não encontrou parágrafo próximo, tentar encontrar ponto final de frase
+            ultimo_ponto = corte.rfind('.')
+            if ultimo_ponto > max_caracteres * 0.7:
+                segmento = segmento[:ultimo_ponto + 1]
+            else:
+                segmento = segmento[:max_caracteres] + "..."
     
     return segmento.strip()
 
@@ -446,12 +504,12 @@ def responder_pergunta(pergunta: str) -> Dict[str, any]:
     # Buscar melhor resposta técnica
     if resultados_tecnicos:
         melhor_tecnico, score_tecnico = resultados_tecnicos[0]
-        resposta_tecnica = formatar_resposta(melhor_tecnico, max_caracteres=1800, palavras_chave=palavras_chave)
+        resposta_tecnica = formatar_resposta(melhor_tecnico, max_caracteres=2800, palavras_chave=palavras_chave)
     
     # Buscar melhor resposta teórica
     if resultados_teoricos:
         melhor_teorico, score_teorico = resultados_teoricos[0]
-        resposta_teorica = formatar_resposta(melhor_teorico, max_caracteres=1800, palavras_chave=palavras_chave)
+        resposta_teorica = formatar_resposta(melhor_teorico, max_caracteres=2800, palavras_chave=palavras_chave)
     
     # Combinar as duas respostas
     respostas_combinadas = []
@@ -464,19 +522,19 @@ def responder_pergunta(pergunta: str) -> Dict[str, any]:
     if not resposta_tecnica and not resposta_teorica:
         # Fallback: usar melhor resultado geral
         melhor_segmento, melhor_score = resultados[0][0], resultados[0][1]
-        resposta_formatada = formatar_resposta(melhor_segmento, max_caracteres=2000, palavras_chave=palavras_chave)
+        resposta_formatada = formatar_resposta(melhor_segmento, max_caracteres=3000, palavras_chave=palavras_chave)
         respostas_combinadas = [resposta_formatada]
     elif not resposta_tecnica:
         # Se só tem teórica, buscar segunda melhor técnica ou melhor geral
         if len(resultados) > 1:
             segundo_melhor = resultados[1][0]
-            resposta_tecnica_alt = formatar_resposta(segundo_melhor, max_caracteres=1800, palavras_chave=palavras_chave)
+            resposta_tecnica_alt = formatar_resposta(segundo_melhor, max_caracteres=2800, palavras_chave=palavras_chave)
             respostas_combinadas.insert(0, f"**🔧 Resposta Técnica/Implementação:**\n\n{resposta_tecnica_alt}")
     elif not resposta_teorica:
         # Se só tem técnica, buscar segunda melhor teórica ou melhor geral
         if len(resultados) > 1:
             segundo_melhor = resultados[1][0]
-            resposta_teorica_alt = formatar_resposta(segundo_melhor, max_caracteres=1800, palavras_chave=palavras_chave)
+            resposta_teorica_alt = formatar_resposta(segundo_melhor, max_caracteres=2800, palavras_chave=palavras_chave)
             respostas_combinadas.append(f"**📚 Resposta Teórica/Cálculos:**\n\n{resposta_teorica_alt}")
     
     # Combinar respostas
@@ -485,20 +543,23 @@ def responder_pergunta(pergunta: str) -> Dict[str, any]:
     # Melhor score para retorno
     melhor_score = max([r[1] for r in resultados[:2]]) if len(resultados) >= 2 else resultados[0][1]
     
-    # Segmentos adicionais (terceira melhor de cada tipo se disponível)
+    # Segmentos adicionais (complementares de cada tipo se disponível)
     segmentos_adicionais = []
-    if len(resultados_tecnicos) > 1 and len(segmentos_adicionais) < 1:
+    
+    # Adicionar segundo melhor técnico se for complementar
+    if len(resultados_tecnicos) > 1:
         segundo_tecnico = resultados_tecnicos[1][0]
         if calcular_similaridade(resultados_tecnicos[0][0], segundo_tecnico) < 0.7:
-            seg_formatado = formatar_resposta(segundo_tecnico, max_caracteres=600, palavras_chave=palavras_chave)
-            if seg_formatado and len(seg_formatado) > 50:
+            seg_formatado = formatar_resposta(segundo_tecnico, max_caracteres=800, palavras_chave=palavras_chave)
+            if seg_formatado and len(seg_formatado) > 100:
                 segmentos_adicionais.append(seg_formatado)
     
-    if len(resultados_teoricos) > 1 and len(segmentos_adicionais) < 1:
+    # Adicionar segundo melhor teórico se for complementar
+    if len(resultados_teoricos) > 1:
         segundo_teorico = resultados_teoricos[1][0]
         if calcular_similaridade(resultados_teoricos[0][0], segundo_teorico) < 0.7:
-            seg_formatado = formatar_resposta(segundo_teorico, max_caracteres=600, palavras_chave=palavras_chave)
-            if seg_formatado and len(seg_formatado) > 50:
+            seg_formatado = formatar_resposta(segundo_teorico, max_caracteres=800, palavras_chave=palavras_chave)
+            if seg_formatado and len(seg_formatado) > 100:
                 segmentos_adicionais.append(seg_formatado)
     
     return {
