@@ -557,27 +557,17 @@ TOTAL  5 minutos      ```
 
 ### ❓ Perguntas Frequentes
 
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│  Q: Quanto tempo leva para processar novos dados?   │
-│  A: Depende do volume, mas geralmente menos de      │
-│     1 minuto para um ano completo.                  │
-│                                                     │
-│  Q: É possível adicionar novos filtros?             │
-│  A: Sim, o sistema é modular e facilmente           │
-│     extensível.                                     │
-│                                                     │
-│  Q: Os dados são seguros?                           │
-│  A: Sim, todos os dados ficam no servidor local,    │
-│     sem envio para nuvem externa.                   │
-│                                                     │
-│  Q: Como funciona o versionamento?                  │
-│  A: A versão incrementa automaticamente quando      │
-│     qualquer página é modificada.                   │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
+**Q: Quanto tempo leva para processar novos dados?**  
+A: Depende do volume, mas geralmente menos de 1 minuto para um ano completo.
+
+**Q: É possível adicionar novos filtros?**  
+A: Sim, o sistema é modular e facilmente extensível.
+
+**Q: Os dados são seguros?**  
+A: Sim, todos os dados ficam no servidor local, sem envio para nuvem externa.
+
+**Q: Como funciona o versionamento?**  
+A: A versão incrementa automaticamente quando qualquer página é modificada.
 
 ---
 

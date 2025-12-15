@@ -41,5 +41,23 @@ openpyxl==3.1.5
 # Versão específica para leitura/escrita de arquivos Excel
 # Necessário para processar arquivos .xlsx
 
+sentence-transformers==2.2.2
+# Biblioteca para criar embeddings vetoriais de texto
+# Usado no chatbot para busca semântica local (sem APIs externas)
+# Modelo multilingual suporta português
+
+faiss-cpu==1.7.4
+# Biblioteca Facebook AI Similarity Search para busca rápida em vetores
+# Versão CPU (sem GPU) - adequada para uso local
+# Usado para busca eficiente de similaridade semântica no chatbot
+
+torch==2.0.1
+# PyTorch - dependência do sentence-transformers
+# Versão compatível com sentence-transformers 2.2.2
+
+transformers==4.35.2
+# Hugging Face Transformers - dependência do sentence-transformers
+# Versão compatível com sentence-transformers 2.2.2
+
 
 
