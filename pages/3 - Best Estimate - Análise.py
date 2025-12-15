@@ -6,14 +6,50 @@ import numpy as np
 import re
 import shutil
 from datetime import datetime, timedelta
+from versionamento import obter_versao_atual
 
 # Configuração da página
 st.set_page_config(
-    page_title="Forecast - Visualização",
+    page_title="Best Estimate - Análise",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Função para obter data e hora de atualização dos dados
+def obter_data_atualizacao_dados():
+    """Retorna a data e hora da última atualização dos arquivos de dados"""
+    arquivos_dados = [
+        os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+        os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+        os.path.join("dados", "Forecast", "forecast_completo.parquet"),
+        os.path.join("dados", "Forecast", "forecast_historico.parquet"),
+    ]
+    
+    data_atualizacao = None
+    for arquivo in arquivos_dados:
+        if os.path.exists(arquivo):
+            data_modificacao = os.path.getmtime(arquivo)
+            if data_atualizacao is None or data_modificacao > data_atualizacao:
+                data_atualizacao = data_modificacao
+    
+    if data_atualizacao:
+        dt = datetime.fromtimestamp(data_atualizacao)
+        meses = {
+            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+        }
+        return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+    return "Não disponível"
+
+# Exibir data de atualização dos dados no topo
+data_atualizacao = obter_data_atualizacao_dados()
+st.markdown(f"""
+<div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
+    📅 Dados atualizados em: {data_atualizacao}
+</div>
+""", unsafe_allow_html=True)
 
 # CSS para customização
 st.markdown("""
@@ -44,8 +80,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título
-st.title("📊 Forecast - Visualização")
-st.subheader("Gráficos e tabelas gerados com os arquivos do Forecast")
+st.title("📊 Best Estimate - Análise")
+st.subheader("Gráficos e tabelas gerados com os arquivos do Best Estimate")
 
 st.markdown("---")
 
@@ -214,7 +250,7 @@ def load_data(ano_selecionado_param, mtime_forecast=None):
         
         if not os.path.exists(caminho_forecast):
             st.error(f"❌ Arquivo não encontrado: {caminho_forecast}")
-            st.info("💡 Por favor, gere os arquivos de forecast na página '2 - Simulador Forecast'.")
+            st.info("💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'.")
             st.stop()
         
         # 🔧 CORREÇÃO: Usar tempo de modificação do arquivo para invalidar cache quando arquivo é atualizado
@@ -253,7 +289,7 @@ def load_volume_data(ano_selecionado_param, mtime_vol=None):
         
         if not os.path.exists(caminho_forecast_vol):
             st.warning(f"⚠️ Arquivo de volume não encontrado: {caminho_forecast_vol}")
-            st.info("💡 Por favor, gere os arquivos de forecast na página '2 - Simulador Forecast'.")
+            st.info("💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'.")
             return None
         
         # 🔧 CORREÇÃO: Usar tempo de modificação do arquivo para invalidar cache quando arquivo é atualizado
@@ -345,7 +381,7 @@ if arquivos_existem:
 else:
     # Arquivos não existem, mostrar mensagem e parar
     st.warning("⚠️ Arquivos de forecast não encontrados.")
-    st.info("ℹ️ Por favor, gere os arquivos de forecast na página **2 - Simulador Forecast**.")
+    st.info("ℹ️ Por favor, gere os arquivos de Best Estimate na página **2 - Best Estimate - Simulador**.")
     st.info(f"📁 Arquivos esperados:")
     st.info(f"   - {caminho_forecast_check}")
     st.info(f"   - {caminho_vol_check}")
@@ -7412,7 +7448,27 @@ else:
 # Esta seção foi removida para evitar duplicação de gráficos
 # ====================================================================
 
-# Footer
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
+
+# Rodapé
 st.markdown("---")
-st.info("💡 Forecast TC - Análise preditiva e previsões")
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
+st.markdown(f"""
+<div style='text-align: center; color: #666; padding: 20px;'>
+    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    <br>
+    <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
+</div>
+""", unsafe_allow_html=True)
 

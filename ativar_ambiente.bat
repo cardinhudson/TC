@@ -31,3 +31,4 @@ if not exist "venv\Scripts\activate.bat" (
 REM Manter o prompt aberto
 cmd /k
 
+
