@@ -21,18 +21,12 @@ def carregar_documentacao() -> str:
     """
     base_path = os.path.dirname(os.path.abspath(__file__))
     
-    # PRIORIDADE 1: Documentação completa (mais detalhada)
+    # Carregar APENAS a documentação completa (NÃO incluir apresentações)
     arquivo_doc_completa = os.path.join(base_path, "pages", "6 - Documentacao.py")
     
-    # PRIORIDADE 2: Apresentação (mais resumida, apenas como complemento)
-    arquivos_apresentacao = [
-        os.path.join(base_path, "APRESENTACAO_5_MINUTOS_VISUAL.md"),
-        os.path.join(base_path, "APRESENTACAO_5_MINUTOS.md"),
-    ]
+    conteudo_completo = ""
     
-    conteudo_completo = []
-    
-    # Carregar documentação completa primeiro (prioridade)
+    # Carregar apenas documentação completa
     if os.path.exists(arquivo_doc_completa):
         try:
             with open(arquivo_doc_completa, 'r', encoding='utf-8') as f:
@@ -40,33 +34,11 @@ def carregar_documentacao() -> str:
                 # Extrair TODO o conteúdo markdown da documentação
                 conteudo_extraido = extrair_texto_documentacao(conteudo)
                 if conteudo_extraido:
-                    conteudo_completo.append(conteudo_extraido)
+                    conteudo_completo = conteudo_extraido
         except Exception as e:
             print(f"Erro ao carregar documentação completa: {e}")
     
-    # Carregar apresentações como complemento (menor prioridade)
-    for arquivo in arquivos_apresentacao:
-        if os.path.exists(arquivo):
-            try:
-                with open(arquivo, 'r', encoding='utf-8') as f:
-                    conteudo = f.read()
-                    # Apresentações já são markdown, usar diretamente
-                    conteudo_completo.append(conteudo)
-            except Exception as e:
-                print(f"Erro ao carregar {arquivo}: {e}")
-    
-    # Separar documentação completa da apresentação para aplicar pesos diferentes
-    doc_completa = conteudo_completo[0] if conteudo_completo else ""
-    apresentacoes = "\n\n".join(conteudo_completo[1:]) if len(conteudo_completo) > 1 else ""
-    
-    # Combinar com marcador para identificar origem (priorizar documentação completa)
-    # Adicionar prefixo para identificar origem na busca
-    if doc_completa:
-        doc_completa = "[DOC_COMPLETA]\n" + doc_completa
-    if apresentacoes:
-        apresentacoes = "[APRESENTACAO]\n" + apresentacoes
-    
-    return "\n\n".join([doc_completa, apresentacoes]) if apresentacoes else doc_completa
+    return conteudo_completo
 
 
 def extrair_texto_documentacao(codigo_python: str) -> str:
@@ -177,7 +149,7 @@ def extrair_texto_documentacao(codigo_python: str) -> str:
     return "\n\n".join(texto_extraido_unico)
 
 
-def dividir_em_segmentos(texto: str, tamanho_segmento: int = 800) -> List[str]:
+def dividir_em_segmentos(texto: str, tamanho_segmento: int = 600) -> List[str]:
     """
     Divide o texto em segmentos menores para busca.
     
@@ -241,7 +213,56 @@ def buscar_palavras_chave(texto: str, palavras: List[str]) -> int:
     return encontradas
 
 
-def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 5) -> List[Tuple[str, float]]:
+def classificar_tipo_segmento(segmento: str) -> str:
+    """
+    Classifica um segmento como 'tecnico' ou 'teorico' baseado no conteúdo.
+    
+    Args:
+        segmento: Texto do segmento
+    
+    Returns:
+        str: 'tecnico' ou 'teorico'
+    """
+    segmento_lower = segmento.lower()
+    
+    # Palavras-chave técnicas (programação, implementação, estrutura)
+    palavras_tecnicas = [
+        'python', 'streamlit', 'pandas', 'parquet', 'notebook', 'arquivo', 'pasta',
+        'código', 'função', 'classe', 'método', 'import', 'processamento', 'upload',
+        'estrutura', 'organização', 'sistema', 'página', 'interface', 'dashboard',
+        'execução', 'carregamento', 'salvamento', 'validação', 'erro', 'tratamento',
+        'merge', 'dataframe', 'coluna', 'linha', 'filtro', 'busca', 'caminho',
+        'diretório', 'extensão', 'formato', 'encoding', 'utf-8', 'json', 'excel'
+    ]
+    
+    # Palavras-chave teóricas (cálculos, fórmulas, conceitos, teoria)
+    palavras_teoricas = [
+        'cálculo', 'fórmula', 'média', 'histórico', 'previsão', 'forecast',
+        'best estimate', 'sensibilidade', 'inflação', 'volume', 'proporção',
+        'teoria', 'conceito', 'fundamento', 'princípio', 'metodologia',
+        'fixo', 'variável', 'ajuste', 'fator', 'multiplicador', 'rateio',
+        'comparação', 'análise', 'tendência', 'padrão', 'comportamento',
+        'matemática', 'estatística', 'projeção', 'estimativa', 'acurácia'
+    ]
+    
+    # Contar ocorrências
+    count_tecnico = sum(1 for palavra in palavras_tecnicas if palavra in segmento_lower)
+    count_teorico = sum(1 for palavra in palavras_teoricas if palavra in segmento_lower)
+    
+    # Classificar baseado na maioria
+    if count_teorico > count_tecnico:
+        return 'teorico'
+    elif count_tecnico > count_teorico:
+        return 'tecnico'
+    else:
+        # Em caso de empate, verificar palavras-chave mais específicas
+        if any(palavra in segmento_lower for palavra in ['fórmula', 'cálculo', 'média', 'best estimate']):
+            return 'teorico'
+        else:
+            return 'tecnico'
+
+
+def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 10) -> List[Tuple[str, float, str]]:
     """
     Busca as melhores respostas na documentação baseado na pergunta.
     
@@ -251,7 +272,8 @@ def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 5) -> List[Tu
         top_n: Número de respostas a retornar
     
     Returns:
-        List[Tuple[str, float]]: Lista de (resposta, score) ordenada por relevância
+        List[Tuple[str, float, str]]: Lista de (resposta, score, tipo) ordenada por relevância
+        onde tipo é 'tecnico' ou 'teorico'
     """
     # Dividir documentação em segmentos
     segmentos = dividir_em_segmentos(documentacao)
@@ -263,62 +285,112 @@ def buscar_resposta(pergunta: str, documentacao: str, top_n: int = 5) -> List[Tu
                       'um', 'uma', 'uns', 'umas', 'é', 'são', 'como', 'que', 'qual', 'quais', 'para', 'por', 'com'}
     palavras_chave = [p for p in palavras_pergunta if p not in palavras_comuns and len(p) > 2]
     
-    # Calcular score para cada segmento
+    # Calcular score para cada segmento e classificar tipo
     scores = []
     for segmento in segmentos:
-        # Verificar se é da documentação completa ou apresentação
-        peso_origem = 1.5 if segmento.startswith("[DOC_COMPLETA]") else 0.8  # Priorizar doc completa
-        # Remover marcador para cálculo
-        segmento_limpo = segmento.replace("[DOC_COMPLETA]\n", "").replace("[APRESENTACAO]\n", "")
-        
         # Score baseado em similaridade
-        similaridade = calcular_similaridade(pergunta, segmento_limpo)
+        similaridade = calcular_similaridade(pergunta, segmento)
         
-        # Score baseado em palavras-chave
-        palavras_encontradas = buscar_palavras_chave(segmento_limpo, palavras_chave)
+        # Score baseado em palavras-chave (mais rigoroso)
+        palavras_encontradas = buscar_palavras_chave(segmento, palavras_chave)
         score_palavras = palavras_encontradas / max(len(palavras_chave), 1) if palavras_chave else 0
         
-        # Score combinado (priorizar palavras-chave)
-        score_final = (similaridade * 0.3) + (score_palavras * 0.7)
+        # Bonus se encontrar TODAS as palavras-chave importantes
+        if palavras_chave and palavras_encontradas == len(palavras_chave):
+            score_palavras *= 1.3  # 30% de bonus se encontrar todas
         
-        # Aplicar peso de origem (documentação completa tem prioridade)
-        score_final *= peso_origem
+        # Score combinado (priorizar palavras-chave ainda mais)
+        score_final = (similaridade * 0.25) + (score_palavras * 0.75)
         
-        # Bonus para segmentos maiores (mais completos)
-        if len(segmento_limpo) > 500:
-            score_final *= 1.15  # 15% de bonus para respostas mais completas
+        # Penalizar segmentos muito grandes (priorizar respostas mais diretas)
+        if len(segmento) > 1000:
+            score_final *= 0.9  # 10% de penalidade para segmentos muito longos
+        elif len(segmento) < 200:
+            score_final *= 1.1  # 10% de bonus para segmentos concisos e diretos
         
-        # Usar segmento limpo (sem marcador) no resultado
-        scores.append((segmento_limpo, score_final))
+        # Classificar tipo do segmento
+        tipo_segmento = classificar_tipo_segmento(segmento)
+        
+        # Adicionar com tipo
+        scores.append((segmento, score_final, tipo_segmento))
     
     # Ordenar por score e retornar top N
     scores.sort(key=lambda x: x[1], reverse=True)
     return scores[:top_n]
 
 
-def formatar_resposta(segmento: str, max_caracteres: int = 3000) -> str:
+def extrair_trecho_relevante(segmento: str, palavras_chave: List[str], max_caracteres: int = 2000) -> str:
     """
-    Formata um segmento de resposta para exibição.
+    Extrai o trecho mais relevante de um segmento baseado nas palavras-chave da pergunta.
+    
+    Args:
+        segmento: Texto completo do segmento
+        palavras_chave: Lista de palavras-chave da pergunta
+        max_caracteres: Tamanho máximo do trecho
+    
+    Returns:
+        str: Trecho mais relevante
+    """
+    if not palavras_chave:
+        return segmento[:max_caracteres]
+    
+    # Encontrar parágrafos que contêm palavras-chave
+    paragrafos = segmento.split('\n\n')
+    paragrafos_relevantes = []
+    
+    for paragrafo in paragrafos:
+        paragrafo_lower = paragrafo.lower()
+        # Contar quantas palavras-chave aparecem neste parágrafo
+        palavras_no_paragrafo = sum(1 for palavra in palavras_chave if palavra.lower() in paragrafo_lower)
+        if palavras_no_paragrafo > 0:
+            paragrafos_relevantes.append((paragrafo, palavras_no_paragrafo))
+    
+    # Se encontrou parágrafos relevantes, priorizar eles
+    if paragrafos_relevantes:
+        # Ordenar por relevância (mais palavras-chave primeiro)
+        paragrafos_relevantes.sort(key=lambda x: x[1], reverse=True)
+        # Pegar os mais relevantes até o limite
+        trecho = []
+        tamanho_atual = 0
+        for paragrafo, _ in paragrafos_relevantes:
+            if tamanho_atual + len(paragrafo) <= max_caracteres:
+                trecho.append(paragrafo)
+                tamanho_atual += len(paragrafo)
+            else:
+                break
+        
+        if trecho:
+            return '\n\n'.join(trecho)
+    
+    # Se não encontrou parágrafos específicos, retornar início do segmento
+    return segmento[:max_caracteres]
+
+
+def formatar_resposta(segmento: str, max_caracteres: int = 2000, palavras_chave: List[str] = None) -> str:
+    """
+    Formata um segmento de resposta para exibição, focando nas partes mais relevantes.
     
     Args:
         segmento: Texto do segmento
-        max_caracteres: Número máximo de caracteres (aumentado para respostas mais completas)
+        max_caracteres: Número máximo de caracteres
+        palavras_chave: Palavras-chave da pergunta para extrair trecho relevante
     
     Returns:
         str: Resposta formatada
     """
     # Limpar código Python mas manter estrutura markdown
-    # Remover apenas código Python, manter diagramas ASCII e markdown
     segmento = re.sub(r'```python.*?```', '', segmento, flags=re.DOTALL)
-    # Manter diagramas ASCII (boxes com ┌ ┐ └ ┘ │ ─)
     segmento = re.sub(r'st\.\w+\([^)]*\)', '', segmento)
     
-    # Limitar tamanho apenas se muito grande, mas preservar parágrafos completos
+    # Se temos palavras-chave, extrair trecho mais relevante
+    if palavras_chave:
+        segmento = extrair_trecho_relevante(segmento, palavras_chave, max_caracteres)
+    
+    # Limitar tamanho se necessário, preservando parágrafos completos
     if len(segmento) > max_caracteres:
-        # Tentar cortar em um ponto de parágrafo
         corte = segmento[:max_caracteres]
         ultimo_paragrafo = corte.rfind('\n\n')
-        if ultimo_paragrafo > max_caracteres * 0.7:  # Se encontrou parágrafo em 70% do tamanho
+        if ultimo_paragrafo > max_caracteres * 0.7:
             segmento = segmento[:ultimo_paragrafo] + "\n\n..."
         else:
             segmento = segmento[:max_caracteres] + "..."
@@ -346,43 +418,88 @@ def responder_pergunta(pergunta: str) -> Dict[str, any]:
             'segmentos_encontrados': []
         }
     
-    # Buscar mais respostas para combinar
-    resultados = buscar_resposta(pergunta, documentacao, top_n=5)
+    # Buscar respostas (aumentar top_n para ter mais opções de classificação)
+    resultados = buscar_resposta(pergunta, documentacao, top_n=10)
     
-    if not resultados or resultados[0][1] < 0.1:
+    # Aumentar threshold mínimo para respostas mais precisas
+    if not resultados or resultados[0][1] < 0.15:
         return {
             'resposta': 'Desculpe, não encontrei informações relevantes na documentação para sua pergunta. Tente reformular ou usar palavras-chave diferentes.',
             'score': 0.0,
             'segmentos_encontrados': []
         }
     
-    # Combinar múltiplos segmentos relevantes para resposta mais completa
-    melhor_segmento, melhor_score = resultados[0]
+    # Extrair palavras-chave da pergunta para focar a resposta
+    palavras_pergunta = re.findall(r'\b\w+\b', pergunta.lower())
+    palavras_comuns = {'o', 'a', 'os', 'as', 'de', 'da', 'do', 'das', 'dos', 'em', 'no', 'na', 'nos', 'nas', 
+                      'um', 'uma', 'uns', 'umas', 'é', 'são', 'como', 'que', 'qual', 'quais', 'para', 'por', 'com'}
+    palavras_chave = [p for p in palavras_pergunta if p not in palavras_comuns and len(p) > 2]
     
-    # Combinar com segmentos adicionais relevantes (score > 0.2 para incluir mais conteúdo)
-    segmentos_combinados = [melhor_segmento]
-    for segmento, score in resultados[1:]:
-        if score > 0.2:  # Segmentos com relevância razoável
-            # Verificar se não é muito similar ao segmento principal
-            similaridade_com_principal = calcular_similaridade(melhor_segmento, segmento)
-            if similaridade_com_principal < 0.85:  # Se não for muito similar, adicionar
-                segmentos_combinados.append(segmento)
-                if len(segmentos_combinados) >= 4:  # Até 4 segmentos para resposta mais completa
-                    break
+    # Separar resultados por tipo (técnico e teórico)
+    resultados_tecnicos = [(seg, score) for seg, score, tipo in resultados if tipo == 'tecnico' and score >= 0.15]
+    resultados_teoricos = [(seg, score) for seg, score, tipo in resultados if tipo == 'teorico' and score >= 0.15]
     
-    # Combinar segmentos em uma resposta completa
-    resposta_completa = "\n\n---\n\n".join(segmentos_combinados)
-    resposta_formatada = formatar_resposta(resposta_completa, max_caracteres=5000)  # Aumentado para 5000
+    # Sempre buscar 2 respostas: uma técnica e uma teórica
+    resposta_tecnica = None
+    resposta_teorica = None
     
-    # Segmentos adicionais para expanders (com score médio)
+    # Buscar melhor resposta técnica
+    if resultados_tecnicos:
+        melhor_tecnico, score_tecnico = resultados_tecnicos[0]
+        resposta_tecnica = formatar_resposta(melhor_tecnico, max_caracteres=1800, palavras_chave=palavras_chave)
+    
+    # Buscar melhor resposta teórica
+    if resultados_teoricos:
+        melhor_teorico, score_teorico = resultados_teoricos[0]
+        resposta_teorica = formatar_resposta(melhor_teorico, max_caracteres=1800, palavras_chave=palavras_chave)
+    
+    # Combinar as duas respostas
+    respostas_combinadas = []
+    if resposta_tecnica:
+        respostas_combinadas.append(f"**🔧 Resposta Técnica/Implementação:**\n\n{resposta_tecnica}")
+    if resposta_teorica:
+        respostas_combinadas.append(f"**📚 Resposta Teórica/Cálculos:**\n\n{resposta_teorica}")
+    
+    # Se não encontrou ambos os tipos, usar os melhores disponíveis
+    if not resposta_tecnica and not resposta_teorica:
+        # Fallback: usar melhor resultado geral
+        melhor_segmento, melhor_score = resultados[0][0], resultados[0][1]
+        resposta_formatada = formatar_resposta(melhor_segmento, max_caracteres=2000, palavras_chave=palavras_chave)
+        respostas_combinadas = [resposta_formatada]
+    elif not resposta_tecnica:
+        # Se só tem teórica, buscar segunda melhor técnica ou melhor geral
+        if len(resultados) > 1:
+            segundo_melhor = resultados[1][0]
+            resposta_tecnica_alt = formatar_resposta(segundo_melhor, max_caracteres=1800, palavras_chave=palavras_chave)
+            respostas_combinadas.insert(0, f"**🔧 Resposta Técnica/Implementação:**\n\n{resposta_tecnica_alt}")
+    elif not resposta_teorica:
+        # Se só tem técnica, buscar segunda melhor teórica ou melhor geral
+        if len(resultados) > 1:
+            segundo_melhor = resultados[1][0]
+            resposta_teorica_alt = formatar_resposta(segundo_melhor, max_caracteres=1800, palavras_chave=palavras_chave)
+            respostas_combinadas.append(f"**📚 Resposta Teórica/Cálculos:**\n\n{resposta_teorica_alt}")
+    
+    # Combinar respostas
+    resposta_formatada = "\n\n---\n\n".join(respostas_combinadas)
+    
+    # Melhor score para retorno
+    melhor_score = max([r[1] for r in resultados[:2]]) if len(resultados) >= 2 else resultados[0][1]
+    
+    # Segmentos adicionais (terceira melhor de cada tipo se disponível)
     segmentos_adicionais = []
-    for segmento, score in resultados[len(segmentos_combinados):]:
-        if score > 0.2:  # Segmentos com relevância média
-            segmento_formatado = formatar_resposta(segmento, max_caracteres=1000)
-            if segmento_formatado and len(segmento_formatado) > 50:
-                segmentos_adicionais.append(segmento_formatado)
-            if len(segmentos_adicionais) >= 2:  # Máximo 2 segmentos adicionais
-                break
+    if len(resultados_tecnicos) > 1 and len(segmentos_adicionais) < 1:
+        segundo_tecnico = resultados_tecnicos[1][0]
+        if calcular_similaridade(resultados_tecnicos[0][0], segundo_tecnico) < 0.7:
+            seg_formatado = formatar_resposta(segundo_tecnico, max_caracteres=600, palavras_chave=palavras_chave)
+            if seg_formatado and len(seg_formatado) > 50:
+                segmentos_adicionais.append(seg_formatado)
+    
+    if len(resultados_teoricos) > 1 and len(segmentos_adicionais) < 1:
+        segundo_teorico = resultados_teoricos[1][0]
+        if calcular_similaridade(resultados_teoricos[0][0], segundo_teorico) < 0.7:
+            seg_formatado = formatar_resposta(segundo_teorico, max_caracteres=600, palavras_chave=palavras_chave)
+            if seg_formatado and len(seg_formatado) > 50:
+                segmentos_adicionais.append(seg_formatado)
     
     return {
         'resposta': resposta_formatada,
