@@ -836,7 +836,28 @@ else:
             
             st.markdown("---")
             
-            if not meses_selecionados or len(meses_selecionados) < 2:
+            # Verificar se períodos foram selecionados e se existem dados válidos
+            periodos_validos = False
+            if meses_selecionados and len(meses_selecionados) >= 2:
+                # Verificar se os períodos selecionados existem nos dados antes de gerar gráfico
+                if modo_comparacao == "Mês a Mês" and periodos_unicos:
+                    # Verificar se ambos os períodos existem na lista de períodos únicos
+                    if mes_inicial in periodos_unicos and mes_final in periodos_unicos:
+                        periodos_validos = True
+                elif modo_comparacao == "Ano a Ano":
+                    # Verificar se os anos existem nos dados
+                    if 'Ano' in df_filtrado.columns:
+                        anos_disponiveis = sorted(df_filtrado['Ano'].dropna().unique().tolist())
+                        if ano_inicial in anos_disponiveis and ano_final in anos_disponiveis:
+                            periodos_validos = True
+                elif modo_comparacao in ["Semestre", "Quarter"]:
+                    # Verificar se os anos existem nos dados
+                    if 'Ano' in df_filtrado.columns:
+                        anos_disponiveis = sorted(df_filtrado['Ano'].dropna().unique().tolist())
+                        if ano_inicial in anos_disponiveis and ano_final in anos_disponiveis:
+                            periodos_validos = True
+            
+            if not meses_selecionados or len(meses_selecionados) < 2 or not periodos_validos:
                 st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
             else:
                 try:
