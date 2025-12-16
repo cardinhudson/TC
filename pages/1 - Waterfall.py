@@ -1002,7 +1002,7 @@ else:
                             df_temp = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
                     # Obter dimensões de categoria disponíveis
-                    dims_cat = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account"] if c in df_analise.columns]
+                    dims_cat = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise.columns]
                     
                     if not dims_cat:
                         st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
@@ -2833,7 +2833,7 @@ else:
                                     st.markdown("---")
                                 
                                 # Obter dimensões de categoria disponíveis
-                                dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account"] if c in df_analise_budget.columns]
+                                dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
                                 
                                 if not dims_cat_budget:
                                     st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
