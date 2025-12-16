@@ -2934,14 +2934,20 @@ else:
                                     
                                     # Controle: Quantidade de categorias a exibir (Top N)
                                     # REMOVIDO limite de 20 - agora permite todas as categorias disponíveis
-                                    default_value_budget = min(total_cats_budget, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
-                                    max_cats_budget = st.slider(
-                                        f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
-                                        min_value=1,
-                                        max_value=total_cats_budget,  # Permitir todas as categorias disponíveis (sem limite de 20)
-                                        value=default_value_budget,
-                                        key="max_cats_budget_waterfall"
-                                    )
+                                    # Garantir que o slider tenha um range válido (min < max)
+                                    if total_cats_budget <= 1:
+                                        # Se há apenas 1 categoria ou nenhuma, não mostrar slider
+                                        max_cats_budget = total_cats_budget
+                                        st.info(f"ℹ️ Apenas {total_cats_budget} categoria disponível para esta dimensão.")
+                                    else:
+                                        default_value_budget = min(total_cats_budget, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                                        max_cats_budget = st.slider(
+                                            f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
+                                            min_value=1,
+                                            max_value=total_cats_budget,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                                            value=default_value_budget,
+                                            key="max_cats_budget_waterfall"
+                                        )
                                     
                                     # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
                                     # Se max_cats_budget = total_cats_budget, selecionar TODAS as categorias
