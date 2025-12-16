@@ -1019,52 +1019,79 @@ else:
                         cats_all = sorted([str(x).strip() for x in df_analise[chosen_dim_waterfall].dropna().unique().tolist() if str(x).strip() != ""])
                         total_cats = max(1, len(cats_all))
                         
-                        # Controle: Quantidade de categorias a exibir (Top N)
-                        # Limitar sempre a no máximo 20 categorias
-                        max_cats_limit = min(total_cats, 20)
-                        # Valor padrão: usar o mínimo entre total_cats e 20, mas limitar a 20
-                        default_value = min(total_cats, 20)
-                        max_cats = st.slider(
-                            f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
-                            min_value=1,
-                            max_value=20,  # Sempre limitar a 20
-                            value=default_value,
-                            key="max_cats_waterfall"
-                        )
-                        # Garantir que não exceda 20
-                        max_cats = min(max_cats, 20)
-                    
-                        # Calcular categorias padrão baseado no mês final
+                        # Calcular categorias ordenadas por impacto absoluto ANTES do slider
+                        # Isso permite ordenar corretamente por valor absoluto (maiores impactos, + ou -)
+                        cats_ordenadas_por_impacto = []
                         if not df_temp.empty:
                             if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_temp.columns and 'Volume' in df_temp.columns:
                                 vol_mf = (df_temp.groupby(chosen_dim_waterfall).agg({'Total': 'sum', 'Volume': 'sum'}).reset_index())
                                 vol_mf['CPU'] = vol_mf['Total'] / vol_mf['Volume'].replace(0, 1)
-                                vol_mf = vol_mf.sort_values('CPU', ascending=False)
-                                vol_index = [str(c).strip() for c in list(vol_mf[chosen_dim_waterfall])]
+                                # Ordenar por valor absoluto (maiores impactos, positivos ou negativos)
+                                vol_mf['abs_CPU'] = vol_mf['CPU'].abs()
+                                vol_mf = vol_mf.sort_values('abs_CPU', ascending=False)
+                                cats_ordenadas_por_impacto = [str(c).strip() for c in list(vol_mf[chosen_dim_waterfall])]
                             else:
-                                vol_mf = (df_temp.groupby(chosen_dim_waterfall)[col_valor].sum().sort_values(ascending=False))
-                                vol_index = [str(c).strip() for c in list(vol_mf.index)]
-                        else:
-                            vol_index = []
+                                vol_mf = df_temp.groupby(chosen_dim_waterfall)[col_valor].sum().reset_index()
+                                # Ordenar por valor absoluto (maiores impactos, positivos ou negativos)
+                                vol_mf['abs_valor'] = vol_mf[col_valor].abs()
+                                vol_mf = vol_mf.sort_values('abs_valor', ascending=False)
+                                cats_ordenadas_por_impacto = [str(c).strip() for c in list(vol_mf[chosen_dim_waterfall])]
                         
-                        default_cats = vol_index[:max_cats] if len(vol_index) else cats_all[:max_cats]
+                        # Se não conseguiu ordenar, usar lista original
+                        if not cats_ordenadas_por_impacto:
+                            cats_ordenadas_por_impacto = cats_all
+                        
+                        # Controle: Quantidade de categorias a exibir (Top N)
+                        # REMOVIDO limite de 20 - agora permite todas as categorias disponíveis
+                        default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                        max_cats = st.slider(
+                            f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
+                            min_value=1,
+                            max_value=total_cats,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                            value=default_value,
+                            key="max_cats_waterfall"
+                        )
+                        
+                        # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
+                        top_cats_selecionadas = cats_ordenadas_por_impacto[:max_cats]
                         
                         # Opções de categorias
                         cats_options = ["Todos"] + cats_all
-                        default_cats = [c for c in default_cats if c in cats_all]
-                        if not default_cats:
-                            default_cats = cats_all[:min(10, len(cats_all))]
+                        
+                        # Inicializar session_state para manter seleção quando slider muda
+                        if 'cats_waterfall_selecionadas' not in st.session_state:
+                            st.session_state.cats_waterfall_selecionadas = top_cats_selecionadas
+                        
+                        # Atualizar seleção baseado no slider (sempre mostrar top N por impacto absoluto)
+                        # Se o slider mudou, atualizar para mostrar apenas as top N
+                        cats_selecionadas_atual = st.session_state.cats_waterfall_selecionadas
+                        
+                        # Filtrar apenas categorias que ainda existem
+                        cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
+                        
+                        # Se o número de categorias selecionadas é diferente do slider, ou
+                        # se as categorias selecionadas não estão nas top N, atualizar automaticamente
+                        if (len(cats_selecionadas_atual) != max_cats or 
+                            not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual)):
+                            # Atualizar para mostrar apenas as top N categorias (maiores impactos absolutos)
+                            cats_selecionadas_atual = top_cats_selecionadas
+                            st.session_state.cats_waterfall_selecionadas = cats_selecionadas_atual
                         
                         # Controle: Categorias (uma ou mais)
                         cats_sel_raw = st.multiselect(
                             "Categorias (uma ou mais):",
                             cats_options,
-                            default=default_cats,
+                            default=cats_selecionadas_atual,
                             key="cats_waterfall"
                         )
                         
+                        # Atualizar session_state com a seleção atual do usuário
+                        if cats_sel_raw and "Todos" not in cats_sel_raw:
+                            st.session_state.cats_waterfall_selecionadas = cats_sel_raw
+                        
                         if (not cats_sel_raw) or ("Todos" in cats_sel_raw):
-                            cats_sel = cats_all[:max_cats] if max_cats < len(cats_all) else cats_all
+                            # Se "Todos" ou vazio, usar top N baseado no slider (ordenadas por impacto absoluto)
+                            cats_sel = top_cats_selecionadas
                         else:
                             cats_sel = cats_sel_raw
                     
@@ -2806,39 +2833,32 @@ else:
                                     cats_all_budget = sorted([str(x).strip() for x in df_analise_budget[chosen_dim_budget].dropna().unique().tolist() if str(x).strip() != ""])
                                     total_cats_budget = max(1, len(cats_all_budget))
                                     
-                                    # Controle: Quantidade de categorias a exibir (Top N)
-                                    max_cats_limit_budget = min(total_cats_budget, 20)
-                                    default_value_budget = min(total_cats_budget, 20)
-                                    max_cats_budget = st.slider(
-                                        f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
-                                        min_value=1,
-                                        max_value=20,
-                                        value=default_value_budget,
-                                        key="max_cats_budget_waterfall"
-                                    )
-                                    max_cats_budget = min(max_cats_budget, 20)
-                                
-                                    # Calcular categorias padrão baseado nos períodos selecionados
+                                    # Calcular categorias ordenadas por impacto absoluto ANTES do slider
+                                    # Isso permite ordenar corretamente por valor absoluto (maiores impactos, + ou -)
+                                    cats_ordenadas_por_impacto_budget = []
                                     if not df_temp_budget.empty:
                                         if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_temp_budget.columns:
                                             if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
-                                                # Filtrar volume pelos períodos
-                                                # Criar coluna Período_Ano se necessário (mesma lógica do df_filtrado_waterfall)
+                                                # Filtrar volume pelos períodos selecionados
                                                 if col_mes_waterfall == 'Período_Ano':
-                                                    # Verificar se a coluna existe, se não, criar
                                                     if 'Período_Ano' not in df_volume.columns:
                                                         if 'Período' in df_volume.columns and 'Ano' in df_volume.columns:
-                                                            df_volume = df_volume.copy()
-                                                            df_volume['Período_Ano'] = df_volume['Período'].astype(str) + ' ' + df_volume['Ano'].astype(str)
-                                                    if 'Período_Ano' in df_volume.columns:
-                                                        df_vol_temp = df_volume[df_volume['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                                            df_volume_temp = df_volume.copy()
+                                                            df_volume_temp['Período_Ano'] = df_volume_temp['Período'].astype(str) + ' ' + df_volume_temp['Ano'].astype(str)
+                                                        else:
+                                                            df_volume_temp = df_volume.copy()
                                                     else:
-                                                        df_vol_temp = df_volume.copy()
+                                                        df_volume_temp = df_volume.copy()
+                                                    if 'Período_Ano' in df_volume_temp.columns:
+                                                        df_vol_temp = df_volume_temp[df_volume_temp['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                                    else:
+                                                        df_vol_temp = df_volume_temp.copy()
                                                 elif 'Período' in df_volume.columns:
                                                     df_vol_temp = df_volume[df_volume['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                                 else:
                                                     df_vol_temp = df_volume.copy()
                                                 
+                                                # Calcular CPU e ordenar por valor absoluto
                                                 if not df_vol_temp.empty and chosen_dim_budget in df_vol_temp.columns:
                                                     vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget).agg({'Total': 'sum'}).reset_index())
                                                     vol_mf_budget = vol_mf_budget.merge(
@@ -2848,38 +2868,84 @@ else:
                                                     )
                                                     vol_mf_budget['Volume'] = vol_mf_budget['Volume'].fillna(0)
                                                     vol_mf_budget['CPU'] = vol_mf_budget['Total'] / vol_mf_budget['Volume'].replace(0, 1)
-                                                    vol_mf_budget = vol_mf_budget.sort_values('CPU', ascending=False)
-                                                    vol_index_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
+                                                    vol_mf_budget['abs_CPU'] = vol_mf_budget['CPU'].abs()
+                                                    vol_mf_budget = vol_mf_budget.sort_values('abs_CPU', ascending=False)
+                                                    cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                                 else:
-                                                    vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget)['Total'].sum().sort_values(ascending=False))
-                                                    vol_index_budget = [str(c).strip() for c in list(vol_mf_budget.index)]
+                                                    # Se não tem volume filtrado, ordenar por Total absoluto
+                                                    vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)['Total'].sum().reset_index()
+                                                    vol_mf_budget['abs_Total'] = vol_mf_budget['Total'].abs()
+                                                    vol_mf_budget = vol_mf_budget.sort_values('abs_Total', ascending=False)
+                                                    cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                             else:
-                                                vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget)['Total'].sum().sort_values(ascending=False))
-                                                vol_index_budget = [str(c).strip() for c in list(vol_mf_budget.index)]
+                                                # Se não tem volume, ordenar por Total absoluto
+                                                vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)['Total'].sum().reset_index()
+                                                vol_mf_budget['abs_Total'] = vol_mf_budget['Total'].abs()
+                                                vol_mf_budget = vol_mf_budget.sort_values('abs_Total', ascending=False)
+                                                cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                         else:
-                                            vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget)['Total'].sum().sort_values(ascending=False))
-                                            vol_index_budget = [str(c).strip() for c in list(vol_mf_budget.index)]
-                                    else:
-                                        vol_index_budget = []
+                                            # Para Custo Total, ordenar por valor absoluto
+                                            if col_valor in df_temp_budget.columns:
+                                                vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)[col_valor].sum().reset_index()
+                                                vol_mf_budget['abs_valor'] = vol_mf_budget[col_valor].abs()
+                                                vol_mf_budget = vol_mf_budget.sort_values('abs_valor', ascending=False)
+                                                cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                     
-                                    default_cats_budget = vol_index_budget[:max_cats_budget] if len(vol_index_budget) else cats_all_budget[:max_cats_budget]
+                                    # Se não conseguiu ordenar, usar lista original
+                                    if not cats_ordenadas_por_impacto_budget:
+                                        cats_ordenadas_por_impacto_budget = cats_all_budget
+                                    
+                                    # Controle: Quantidade de categorias a exibir (Top N)
+                                    # REMOVIDO limite de 20 - agora permite todas as categorias disponíveis
+                                    default_value_budget = min(total_cats_budget, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                                    max_cats_budget = st.slider(
+                                        f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
+                                        min_value=1,
+                                        max_value=total_cats_budget,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                                        value=default_value_budget,
+                                        key="max_cats_budget_waterfall"
+                                    )
+                                    
+                                    # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
+                                    top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]
                                     
                                     # Opções de categorias
                                     cats_options_budget = ["Todos"] + cats_all_budget
-                                    default_cats_budget = [c for c in default_cats_budget if c in cats_all_budget]
-                                    if not default_cats_budget:
-                                        default_cats_budget = cats_all_budget[:min(10, len(cats_all_budget))]
+                                    
+                                    # Inicializar session_state para manter seleção quando slider muda
+                                    if 'cats_budget_waterfall_selecionadas' not in st.session_state:
+                                        st.session_state.cats_budget_waterfall_selecionadas = top_cats_selecionadas_budget
+                                    
+                                    # Atualizar seleção baseado no slider (sempre mostrar top N por impacto absoluto)
+                                    # Se o slider mudou, atualizar para mostrar apenas as top N
+                                    cats_selecionadas_atual_budget = st.session_state.cats_budget_waterfall_selecionadas
+                                    
+                                    # Filtrar apenas categorias que ainda existem
+                                    cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                    
+                                    # Se o número de categorias selecionadas é diferente do slider, ou
+                                    # se as categorias selecionadas não estão nas top N, atualizar automaticamente
+                                    if (len(cats_selecionadas_atual_budget) != max_cats_budget or 
+                                        not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget)):
+                                        # Atualizar para mostrar apenas as top N categorias (maiores impactos absolutos)
+                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
                                     
                                     # Controle: Categorias (uma ou mais)
                                     cats_sel_raw_budget = st.multiselect(
                                         "Categorias (uma ou mais):",
                                         cats_options_budget,
-                                        default=default_cats_budget,
+                                        default=cats_selecionadas_atual_budget,
                                         key="cats_budget_waterfall"
                                     )
                                     
+                                    # Atualizar session_state com a seleção atual do usuário
+                                    if cats_sel_raw_budget and "Todos" not in cats_sel_raw_budget:
+                                        st.session_state.cats_budget_waterfall_selecionadas = cats_sel_raw_budget
+                                    
                                     if (not cats_sel_raw_budget) or ("Todos" in cats_sel_raw_budget):
-                                        cats_sel_budget = cats_all_budget[:max_cats_budget] if max_cats_budget < len(cats_all_budget) else cats_all_budget
+                                        # Se "Todos" ou vazio, usar top N baseado no slider (ordenadas por impacto absoluto)
+                                        cats_sel_budget = top_cats_selecionadas_budget
                                     else:
                                         cats_sel_budget = cats_sel_raw_budget
                                     
