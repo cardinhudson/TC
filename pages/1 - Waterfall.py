@@ -2947,6 +2947,9 @@ else:
                                     # Opções de categorias
                                     cats_options_budget = ["Todos"] + cats_all_budget
                                     
+                                    # IMPORTANTE: Filtrar top_cats_selecionadas_budget para garantir que todas existem em cats_all_budget
+                                    top_cats_selecionadas_budget = [c for c in top_cats_selecionadas_budget if c in cats_all_budget]
+                                    
                                     # Verificar se o slider mudou comparando com o valor anterior
                                     slider_key_budget_prev = f"max_cats_budget_waterfall_prev"
                                     if slider_key_budget_prev not in st.session_state:
