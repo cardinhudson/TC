@@ -3052,17 +3052,17 @@ else:
                                         key=multiselect_key_budget
                                     )
                                     
-                                    # Sempre atualizar para refletir exatamente o valor do slider
-                                    # Se o usuário modificou manualmente mas não corresponde ao slider, corrigir
+                                    # Quando o usuário seleciona categorias manualmente, ajustar o slider e usar todas as selecionadas
                                     if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0 and "Todos" not in cats_sel_raw_budget:
-                                        if len(cats_sel_raw_budget) == max_cats_budget or (max_cats_budget >= total_cats_budget and len(cats_sel_raw_budget) == total_cats_budget):
-                                            # Se corresponde ao slider, salvar
-                                            st.session_state[f"cats_budget_waterfall_saved_{max_cats_budget}"] = cats_sel_raw_budget
-                                            cats_sel_budget = cats_sel_raw_budget
-                                        else:
-                                            # Se não corresponde, forçar uso das categorias do slider
-                                            cats_sel_budget = top_cats_selecionadas_budget
-                                            st.session_state[f"cats_budget_waterfall_saved_{max_cats_budget}"] = cats_sel_budget
+                                        # Usar as categorias selecionadas pelo usuário
+                                        cats_sel_budget = cats_sel_raw_budget
+                                        # Ajustar o slider para refletir o número de categorias selecionadas
+                                        num_cats_selecionadas_budget = len(cats_sel_budget)
+                                        if num_cats_selecionadas_budget != max_cats_budget:
+                                            # Atualizar o slider para refletir a seleção manual
+                                            st.session_state["max_cats_budget_waterfall"] = num_cats_selecionadas_budget
+                                            # Salvar a seleção
+                                            st.session_state[f"cats_budget_waterfall_saved_{num_cats_selecionadas_budget}"] = cats_sel_budget
                                     else:
                                         # Se vazio ou "Todos", usar exatamente o que o slider indica
                                         cats_sel_budget = top_cats_selecionadas_budget
@@ -3420,16 +3420,15 @@ else:
                                                 labels_cats.append(account)
                                                 values_cats.append(float(delta))
                                         
-                                        # Ordenar por valor absoluto e limitar
+                                        # Ordenar por valor absoluto
+                                        # IMPORTANTE: Não limitar pelo slider - usar todas as categorias selecionadas (cats_sel_budget)
                                         if labels_cats:
                                             sorted_idx = sorted(range(len(values_cats)), key=lambda i: abs(values_cats[i]), reverse=True)
                                             labels_cats = [labels_cats[i] for i in sorted_idx]
                                             values_cats = [values_cats[i] for i in sorted_idx]
                                             
-                                            # Aplicar limite usando max_cats_budget
-                                            if len(labels_cats) > max_cats_budget:
-                                                labels_cats = labels_cats[:max_cats_budget]
-                                                values_cats = values_cats[:max_cats_budget]
+                                            # NÃO limitar - usar todas as categorias selecionadas pelo usuário
+                                            # O gráfico deve refletir exatamente o que foi selecionado no multiselect
                                         
                                         # Calcular remainder
                                         remainder = round(total_real - (bud_total + flex_bud_menos_bud + sum(values_cats)), 2)
