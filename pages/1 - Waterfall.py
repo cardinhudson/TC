@@ -1108,17 +1108,17 @@ else:
                             key=multiselect_key
                         )
                         
-                        # Sempre atualizar para refletir exatamente o valor do slider
-                        # Se o usuário modificou manualmente mas não corresponde ao slider, corrigir
+                        # Quando o usuário seleciona categorias manualmente, ajustar o slider e usar todas as selecionadas
                         if cats_sel_raw and len(cats_sel_raw) > 0 and "Todos" not in cats_sel_raw:
-                            if len(cats_sel_raw) == max_cats or (max_cats >= total_cats and len(cats_sel_raw) == total_cats):
-                                # Se corresponde ao slider, salvar
-                                st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel_raw
-                                cats_sel = cats_sel_raw
-                            else:
-                                # Se não corresponde, forçar uso das categorias do slider
-                                cats_sel = top_cats_selecionadas
-                                st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel
+                            # Usar as categorias selecionadas pelo usuário
+                            cats_sel = cats_sel_raw
+                            # Ajustar o slider para refletir o número de categorias selecionadas
+                            num_cats_selecionadas = len(cats_sel)
+                            if num_cats_selecionadas != max_cats:
+                                # Atualizar o slider para refletir a seleção manual
+                                st.session_state["max_cats_waterfall"] = num_cats_selecionadas
+                                # Salvar a seleção
+                                st.session_state[f"cats_waterfall_saved_{num_cats_selecionadas}"] = cats_sel
                         else:
                             # Se vazio ou "Todos", usar exatamente o que o slider indica
                             cats_sel = top_cats_selecionadas
@@ -1441,15 +1441,14 @@ else:
                                     values_cats.append(float(delta))
                         
                         # Ordenar por valor absoluto
+                        # IMPORTANTE: Não limitar pelo slider - usar todas as categorias selecionadas (cats_sel)
                         if labels_cats:
                             sorted_idx = sorted(range(len(values_cats)), key=lambda i: abs(values_cats[i]), reverse=True)
                             labels_cats = [labels_cats[i] for i in sorted_idx]
                             values_cats = [values_cats[i] for i in sorted_idx]
                             
-                            # LIMITAR quantidade de categorias baseado no slider max_cats
-                            if len(labels_cats) > max_cats:
-                                labels_cats = labels_cats[:max_cats]
-                                values_cats = values_cats[:max_cats]
+                            # NÃO limitar - usar todas as categorias selecionadas pelo usuário
+                            # O gráfico deve refletir exatamente o que foi selecionado no multiselect
                         
                         # Calcular Flex Volume = Flex Mês 1 - Mês 1 (usando exatamente a mesma lógica das tabelas)
                         # Nas tabelas: Flex Mês 1 - Mês 1 = Flex BUD - BUD
