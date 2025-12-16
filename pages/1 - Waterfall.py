@@ -2940,59 +2940,62 @@ else:
                                     # Opções de categorias
                                     cats_options_budget = ["Todos"] + cats_all_budget
                                     
-                                    # Inicializar session_state para manter seleção quando slider muda
-                                    if 'cats_budget_waterfall_selecionadas' not in st.session_state:
-                                        st.session_state.cats_budget_waterfall_selecionadas = top_cats_selecionadas_budget
-                                    
                                     # Verificar se o slider mudou comparando com o valor anterior
-                                    slider_key_budget = f"max_cats_budget_waterfall_prev"
-                                    if slider_key_budget not in st.session_state:
-                                        st.session_state[slider_key_budget] = max_cats_budget
+                                    slider_key_budget_prev = f"max_cats_budget_waterfall_prev"
+                                    if slider_key_budget_prev not in st.session_state:
+                                        st.session_state[slider_key_budget_prev] = max_cats_budget
                                     
-                                    slider_mudou_budget = st.session_state[slider_key_budget] != max_cats_budget
-                                    st.session_state[slider_key_budget] = max_cats_budget
+                                    slider_mudou_budget = st.session_state[slider_key_budget_prev] != max_cats_budget
+                                    st.session_state[slider_key_budget_prev] = max_cats_budget
                                     
-                                    # Atualizar seleção baseado no slider
-                                    # Se o slider mudou, atualizar para mostrar exatamente as categorias indicadas pelo slider
+                                    # Se o slider mudou, resetar a seleção para refletir o novo valor do slider
                                     if slider_mudou_budget:
-                                        # Atualizar para mostrar exatamente as categorias baseadas no slider
+                                        # Limpar a seleção anterior e usar apenas as categorias do slider
+                                        if 'cats_budget_waterfall_selecionadas' in st.session_state:
+                                            del st.session_state.cats_budget_waterfall_selecionadas
+                                    
+                                    # Sempre usar as categorias baseadas no slider como default
+                                    # Se o usuário não modificou manualmente, usar top_cats_selecionadas_budget
+                                    if 'cats_budget_waterfall_selecionadas' not in st.session_state:
                                         cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                        st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
                                     else:
-                                        # Se o slider não mudou, usar a seleção atual do session_state
+                                        # Verificar se a seleção atual corresponde ao que o slider indica
                                         cats_selecionadas_atual_budget = st.session_state.cats_budget_waterfall_selecionadas
-                                        
                                         # Filtrar apenas categorias que ainda existem
                                         cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
                                         
-                                        # Verificar se a seleção atual corresponde ao que o slider indica
-                                        # Se não corresponder (número diferente ou categorias diferentes), atualizar
+                                        # Se o número de categorias não corresponde ao slider, forçar atualização
                                         if len(cats_selecionadas_atual_budget) != max_cats_budget:
                                             cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                            st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
                                         elif max_cats_budget < total_cats_budget:
                                             # Se não está no máximo, verificar se são as top N corretas
                                             if not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget):
                                                 cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                                st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
                                     
                                     # Controle: Categorias (uma ou mais)
+                                    # IMPORTANTE: Sempre usar top_cats_selecionadas_budget como default para garantir sincronização com slider
                                     cats_sel_raw_budget = st.multiselect(
                                         "Categorias (uma ou mais):",
                                         cats_options_budget,
-                                        default=cats_selecionadas_atual_budget,
+                                        default=top_cats_selecionadas_budget,  # Sempre usar as categorias do slider como default
                                         key="cats_budget_waterfall"
                                     )
                                     
-                                    # Atualizar session_state com a seleção atual do usuário
-                                    if cats_sel_raw_budget and "Todos" not in cats_sel_raw_budget:
-                                        st.session_state.cats_budget_waterfall_selecionadas = cats_sel_raw_budget
-                                    
-                                    if (not cats_sel_raw_budget) or ("Todos" in cats_sel_raw_budget):
-                                        # Se "Todos" ou vazio, usar exatamente o que o slider indica
-                                        cats_sel_budget = top_cats_selecionadas_budget
+                                    # Atualizar session_state apenas se o usuário modificou manualmente E não está vazio
+                                    if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0 and "Todos" not in cats_sel_raw_budget:
+                                        # Se o usuário selecionou manualmente, respeitar a seleção
+                                        # Mas verificar se corresponde ao slider
+                                        if len(cats_sel_raw_budget) == max_cats_budget or max_cats_budget >= total_cats_budget:
+                                            st.session_state.cats_budget_waterfall_selecionadas = cats_sel_raw_budget
+                                            cats_sel_budget = cats_sel_raw_budget
+                                        else:
+                                            # Se não corresponde, usar as categorias do slider
+                                            cats_sel_budget = top_cats_selecionadas_budget
+                                            st.session_state.cats_budget_waterfall_selecionadas = cats_sel_budget
                                     else:
-                                        cats_sel_budget = cats_sel_raw_budget
+                                        # Se vazio ou "Todos", usar exatamente o que o slider indica
+                                        cats_sel_budget = top_cats_selecionadas_budget
+                                        st.session_state.cats_budget_waterfall_selecionadas = cats_sel_budget
                                     
                                     st.markdown("---")
                                     
