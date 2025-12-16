@@ -1043,14 +1043,20 @@ else:
                         
                         # Controle: Quantidade de categorias a exibir (Top N)
                         # REMOVIDO limite de 20 - agora permite todas as categorias disponíveis
-                        default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
-                        max_cats = st.slider(
-                            f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
-                            min_value=1,
-                            max_value=total_cats,  # Permitir todas as categorias disponíveis (sem limite de 20)
-                            value=default_value,
-                            key="max_cats_waterfall"
-                        )
+                        # Garantir que o slider tenha um range válido (min < max)
+                        if total_cats <= 1:
+                            # Se há apenas 1 categoria ou nenhuma, não mostrar slider
+                            max_cats = total_cats
+                            st.info(f"ℹ️ Apenas {total_cats} categoria disponível para esta dimensão.")
+                        else:
+                            default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                            max_cats = st.slider(
+                                f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
+                                min_value=1,
+                                max_value=total_cats,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                                value=default_value,
+                                key="max_cats_waterfall"
+                            )
                         
                         # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
                         # Se max_cats = total_cats, selecionar TODAS as categorias
