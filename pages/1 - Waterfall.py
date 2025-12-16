@@ -1062,6 +1062,9 @@ else:
                         # Opções de categorias
                         cats_options = ["Todos"] + cats_all
                         
+                        # IMPORTANTE: Filtrar top_cats_selecionadas para garantir que todas existem em cats_all
+                        top_cats_selecionadas = [c for c in top_cats_selecionadas if c in cats_all]
+                        
                         # Verificar se o slider mudou comparando com o valor anterior
                         slider_key_prev = f"max_cats_waterfall_prev"
                         if slider_key_prev not in st.session_state:
@@ -1080,20 +1083,23 @@ else:
                             keys_to_delete = [k for k in st.session_state.keys() if k.startswith("cats_waterfall")]
                             for key in keys_to_delete:
                                 del st.session_state[key]
-                            # Forçar uso das categorias do slider
+                            # Forçar uso das categorias do slider (já filtradas)
                             cats_selecionadas_atual = top_cats_selecionadas
                         else:
                             # Verificar se há uma seleção salva que corresponde ao slider atual
                             saved_key = f"cats_waterfall_saved_{max_cats}"
                             if saved_key in st.session_state:
                                 cats_selecionadas_atual = st.session_state[saved_key]
-                                # Verificar se ainda são válidas
+                                # Verificar se ainda são válidas e existem em cats_all
                                 cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
                                 # Se não correspondem ao slider, usar top_cats_selecionadas
                                 if len(cats_selecionadas_atual) != max_cats or (max_cats < total_cats and not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual)):
                                     cats_selecionadas_atual = top_cats_selecionadas
                             else:
                                 cats_selecionadas_atual = top_cats_selecionadas
+                        
+                        # Garantir que cats_selecionadas_atual contém apenas valores válidos
+                        cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
                         
                         # Controle: Categorias (uma ou mais)
                         # Usar chave única baseada no valor do slider para forçar atualização quando slider muda
