@@ -1070,54 +1070,55 @@ else:
                         slider_mudou = st.session_state[slider_key_prev] != max_cats
                         st.session_state[slider_key_prev] = max_cats
                         
-                        # Se o slider mudou, resetar a seleção para refletir o novo valor do slider
-                        if slider_mudou:
-                            # Limpar a seleção anterior e usar apenas as categorias do slider
-                            if 'cats_waterfall_selecionadas' in st.session_state:
-                                del st.session_state.cats_waterfall_selecionadas
+                        # Se o slider mudou, forçar atualização do multiselect
+                        # Usar uma chave única baseada no valor do slider para forçar recriação do widget
+                        multiselect_key = f"cats_waterfall_{max_cats}"
                         
-                        # Sempre usar as categorias baseadas no slider como default
-                        # Se o usuário não modificou manualmente, usar top_cats_selecionadas
-                        if 'cats_waterfall_selecionadas' not in st.session_state:
+                        # Se o slider mudou, limpar qualquer estado anterior e usar apenas top_cats_selecionadas
+                        if slider_mudou:
+                            # Limpar todas as chaves relacionadas ao multiselect
+                            keys_to_delete = [k for k in st.session_state.keys() if k.startswith("cats_waterfall")]
+                            for key in keys_to_delete:
+                                del st.session_state[key]
+                            # Forçar uso das categorias do slider
                             cats_selecionadas_atual = top_cats_selecionadas
                         else:
-                            # Verificar se a seleção atual corresponde ao que o slider indica
-                            cats_selecionadas_atual = st.session_state.cats_waterfall_selecionadas
-                            # Filtrar apenas categorias que ainda existem
-                            cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
-                            
-                            # Se o número de categorias não corresponde ao slider, forçar atualização
-                            if len(cats_selecionadas_atual) != max_cats:
-                                cats_selecionadas_atual = top_cats_selecionadas
-                            elif max_cats < total_cats:
-                                # Se não está no máximo, verificar se são as top N corretas
-                                if not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual):
+                            # Verificar se há uma seleção salva que corresponde ao slider atual
+                            saved_key = f"cats_waterfall_saved_{max_cats}"
+                            if saved_key in st.session_state:
+                                cats_selecionadas_atual = st.session_state[saved_key]
+                                # Verificar se ainda são válidas
+                                cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
+                                # Se não correspondem ao slider, usar top_cats_selecionadas
+                                if len(cats_selecionadas_atual) != max_cats or (max_cats < total_cats and not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual)):
                                     cats_selecionadas_atual = top_cats_selecionadas
+                            else:
+                                cats_selecionadas_atual = top_cats_selecionadas
                         
                         # Controle: Categorias (uma ou mais)
-                        # IMPORTANTE: Sempre usar top_cats_selecionadas como default para garantir sincronização com slider
+                        # Usar chave única baseada no valor do slider para forçar atualização quando slider muda
                         cats_sel_raw = st.multiselect(
                             "Categorias (uma ou mais):",
                             cats_options,
-                            default=top_cats_selecionadas,  # Sempre usar as categorias do slider como default
-                            key="cats_waterfall"
+                            default=cats_selecionadas_atual,
+                            key=multiselect_key
                         )
                         
-                        # Atualizar session_state apenas se o usuário modificou manualmente E não está vazio
+                        # Sempre atualizar para refletir exatamente o valor do slider
+                        # Se o usuário modificou manualmente mas não corresponde ao slider, corrigir
                         if cats_sel_raw and len(cats_sel_raw) > 0 and "Todos" not in cats_sel_raw:
-                            # Se o usuário selecionou manualmente, respeitar a seleção
-                            # Mas verificar se corresponde ao slider
-                            if len(cats_sel_raw) == max_cats or max_cats >= total_cats:
-                                st.session_state.cats_waterfall_selecionadas = cats_sel_raw
+                            if len(cats_sel_raw) == max_cats or (max_cats >= total_cats and len(cats_sel_raw) == total_cats):
+                                # Se corresponde ao slider, salvar
+                                st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel_raw
                                 cats_sel = cats_sel_raw
                             else:
-                                # Se não corresponde, usar as categorias do slider
+                                # Se não corresponde, forçar uso das categorias do slider
                                 cats_sel = top_cats_selecionadas
-                                st.session_state.cats_waterfall_selecionadas = cats_sel
+                                st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel
                         else:
                             # Se vazio ou "Todos", usar exatamente o que o slider indica
                             cats_sel = top_cats_selecionadas
-                            st.session_state.cats_waterfall_selecionadas = cats_sel
+                            st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel
                     
                     st.markdown("---")
                     
