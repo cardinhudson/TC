@@ -1053,7 +1053,11 @@ else:
                         )
                         
                         # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
-                        top_cats_selecionadas = cats_ordenadas_por_impacto[:max_cats]
+                        # Se max_cats = total_cats, selecionar TODAS as categorias
+                        if max_cats >= total_cats:
+                            top_cats_selecionadas = cats_all  # Todas as categorias
+                        else:
+                            top_cats_selecionadas = cats_ordenadas_por_impacto[:max_cats]  # Top N por impacto absoluto
                         
                         # Opções de categorias
                         cats_options = ["Todos"] + cats_all
@@ -1062,20 +1066,37 @@ else:
                         if 'cats_waterfall_selecionadas' not in st.session_state:
                             st.session_state.cats_waterfall_selecionadas = top_cats_selecionadas
                         
-                        # Atualizar seleção baseado no slider (sempre mostrar top N por impacto absoluto)
-                        # Se o slider mudou, atualizar para mostrar apenas as top N
-                        cats_selecionadas_atual = st.session_state.cats_waterfall_selecionadas
+                        # Verificar se o slider mudou comparando com o valor anterior
+                        slider_key = f"max_cats_waterfall_prev"
+                        if slider_key not in st.session_state:
+                            st.session_state[slider_key] = max_cats
                         
-                        # Filtrar apenas categorias que ainda existem
-                        cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
+                        slider_mudou = st.session_state[slider_key] != max_cats
+                        st.session_state[slider_key] = max_cats
                         
-                        # Se o número de categorias selecionadas é diferente do slider, ou
-                        # se as categorias selecionadas não estão nas top N, atualizar automaticamente
-                        if (len(cats_selecionadas_atual) != max_cats or 
-                            not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual)):
-                            # Atualizar para mostrar apenas as top N categorias (maiores impactos absolutos)
+                        # Atualizar seleção baseado no slider
+                        # Se o slider mudou, atualizar para mostrar exatamente as categorias indicadas pelo slider
+                        if slider_mudou:
+                            # Atualizar para mostrar exatamente as categorias baseadas no slider
                             cats_selecionadas_atual = top_cats_selecionadas
                             st.session_state.cats_waterfall_selecionadas = cats_selecionadas_atual
+                        else:
+                            # Se o slider não mudou, usar a seleção atual do session_state
+                            cats_selecionadas_atual = st.session_state.cats_waterfall_selecionadas
+                            
+                            # Filtrar apenas categorias que ainda existem
+                            cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
+                            
+                            # Verificar se a seleção atual corresponde ao que o slider indica
+                            # Se não corresponder (número diferente ou categorias diferentes), atualizar
+                            if len(cats_selecionadas_atual) != max_cats:
+                                cats_selecionadas_atual = top_cats_selecionadas
+                                st.session_state.cats_waterfall_selecionadas = cats_selecionadas_atual
+                            elif max_cats < total_cats:
+                                # Se não está no máximo, verificar se são as top N corretas
+                                if not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual):
+                                    cats_selecionadas_atual = top_cats_selecionadas
+                                    st.session_state.cats_waterfall_selecionadas = cats_selecionadas_atual
                         
                         # Controle: Categorias (uma ou mais)
                         cats_sel_raw = st.multiselect(
@@ -1090,7 +1111,7 @@ else:
                             st.session_state.cats_waterfall_selecionadas = cats_sel_raw
                         
                         if (not cats_sel_raw) or ("Todos" in cats_sel_raw):
-                            # Se "Todos" ou vazio, usar top N baseado no slider (ordenadas por impacto absoluto)
+                            # Se "Todos" ou vazio, usar exatamente o que o slider indica
                             cats_sel = top_cats_selecionadas
                         else:
                             cats_sel = cats_sel_raw
@@ -2907,7 +2928,11 @@ else:
                                     )
                                     
                                     # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
-                                    top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]
+                                    # Se max_cats_budget = total_cats_budget, selecionar TODAS as categorias
+                                    if max_cats_budget >= total_cats_budget:
+                                        top_cats_selecionadas_budget = cats_all_budget  # Todas as categorias
+                                    else:
+                                        top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]  # Top N por impacto absoluto
                                     
                                     # Opções de categorias
                                     cats_options_budget = ["Todos"] + cats_all_budget
@@ -2916,20 +2941,37 @@ else:
                                     if 'cats_budget_waterfall_selecionadas' not in st.session_state:
                                         st.session_state.cats_budget_waterfall_selecionadas = top_cats_selecionadas_budget
                                     
-                                    # Atualizar seleção baseado no slider (sempre mostrar top N por impacto absoluto)
-                                    # Se o slider mudou, atualizar para mostrar apenas as top N
-                                    cats_selecionadas_atual_budget = st.session_state.cats_budget_waterfall_selecionadas
+                                    # Verificar se o slider mudou comparando com o valor anterior
+                                    slider_key_budget = f"max_cats_budget_waterfall_prev"
+                                    if slider_key_budget not in st.session_state:
+                                        st.session_state[slider_key_budget] = max_cats_budget
                                     
-                                    # Filtrar apenas categorias que ainda existem
-                                    cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                    slider_mudou_budget = st.session_state[slider_key_budget] != max_cats_budget
+                                    st.session_state[slider_key_budget] = max_cats_budget
                                     
-                                    # Se o número de categorias selecionadas é diferente do slider, ou
-                                    # se as categorias selecionadas não estão nas top N, atualizar automaticamente
-                                    if (len(cats_selecionadas_atual_budget) != max_cats_budget or 
-                                        not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget)):
-                                        # Atualizar para mostrar apenas as top N categorias (maiores impactos absolutos)
+                                    # Atualizar seleção baseado no slider
+                                    # Se o slider mudou, atualizar para mostrar exatamente as categorias indicadas pelo slider
+                                    if slider_mudou_budget:
+                                        # Atualizar para mostrar exatamente as categorias baseadas no slider
                                         cats_selecionadas_atual_budget = top_cats_selecionadas_budget
                                         st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
+                                    else:
+                                        # Se o slider não mudou, usar a seleção atual do session_state
+                                        cats_selecionadas_atual_budget = st.session_state.cats_budget_waterfall_selecionadas
+                                        
+                                        # Filtrar apenas categorias que ainda existem
+                                        cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                        
+                                        # Verificar se a seleção atual corresponde ao que o slider indica
+                                        # Se não corresponder (número diferente ou categorias diferentes), atualizar
+                                        if len(cats_selecionadas_atual_budget) != max_cats_budget:
+                                            cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                            st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
+                                        elif max_cats_budget < total_cats_budget:
+                                            # Se não está no máximo, verificar se são as top N corretas
+                                            if not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget):
+                                                cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                                st.session_state.cats_budget_waterfall_selecionadas = cats_selecionadas_atual_budget
                                     
                                     # Controle: Categorias (uma ou mais)
                                     cats_sel_raw_budget = st.multiselect(
@@ -2944,7 +2986,7 @@ else:
                                         st.session_state.cats_budget_waterfall_selecionadas = cats_sel_raw_budget
                                     
                                     if (not cats_sel_raw_budget) or ("Todos" in cats_sel_raw_budget):
-                                        # Se "Todos" ou vazio, usar top N baseado no slider (ordenadas por impacto absoluto)
+                                        # Se "Todos" ou vazio, usar exatamente o que o slider indica
                                         cats_sel_budget = top_cats_selecionadas_budget
                                     else:
                                         cats_sel_budget = cats_sel_raw_budget
