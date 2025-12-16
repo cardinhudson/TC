@@ -3717,10 +3717,12 @@ else:
                                             hoverlabel=dict(
                                                 bgcolor="rgba(255, 255, 255, 0.95)",
                                                 bordercolor="#1e6ba8",
-                                                borderwidth=2,
-                                                font_size=12,
-                                                font_family="Arial",
-                                                font_color="#000000"
+                                                font=dict(
+                                                    size=12,
+                                                    family="Arial",
+                                                    color="#000000"
+                                                ),
+                                                align="left"
                                             ),
                                             xaxis=dict(
                                                 showgrid=False,
