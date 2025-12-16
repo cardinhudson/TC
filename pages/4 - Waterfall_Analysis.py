@@ -1050,9 +1050,9 @@ def get_filter_options(df, column_name):
 # Filtros principais (com cache otimizado)
 filtros_principais = [
     ("Type 05", "Type 05", "multiselect"),
-    ("Type 06", "Type 06", "multiselect"), 
-    ("Type 07", "Type 07", "multiselect"),
-    ("Account", "Account", "multiselect")
+    ("Type 06", "Type 06", "multiselect"),
+    ("Account", "Account", "multiselect"),
+    ("Type 07", "Type 07", "multiselect")
 ]
 
 for col_name, label, widget_type in filtros_principais:

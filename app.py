@@ -1343,6 +1343,7 @@ if 'Nºconta' in df_filtrado.columns:
 filtros_principais = [
     ("Type 05", "Type 05", "multiselect"),
     ("Type 06", "Type 06", "multiselect"),
+    ("Account", "Account", "multiselect"),
     ("Fornecedor", "Fornecedor", "multiselect"),
     ("Fornec.", "Fornec.", "multiselect"),
     ("Tipo", "Tipo", "multiselect")
@@ -1375,8 +1376,7 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
         ("Usuário", "Usuário", "multiselect"),
         ("Material", "Material", "multiselect"),
         ("Dt.lçto.", "Data Lançamento", "multiselect"),
-        ("Texto breve", "Texto breve", "multiselect"),
-        ("Account", "Account", "multiselect")
+        ("Texto breve", "Texto breve", "multiselect")
     ]
 
     for col_name, label, widget_type in filtros_avancados:
