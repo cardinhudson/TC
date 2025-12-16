@@ -315,8 +315,6 @@ taxas_cambio = {
     "EUR": taxa_brl_para_eur
 }
 
-st.markdown("---")
-
 # Seletores no topo
 col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
 
@@ -357,8 +355,6 @@ elif moeda_selecionada == "🇪🇺 €":
 else:
     moeda_codigo = "BRL"
     moeda_simbolo = "R$"
-
-st.markdown("---")
 
 # Carregar dados com o ano selecionado
 try:
@@ -743,10 +739,6 @@ else:
         trimestre_inicial = None
         trimestre_final = None
         meses_selecionados = []
-        
-        st.markdown("---")
-        
-        st.markdown("---")
         
         # TAB REAL
         with tab_real:
