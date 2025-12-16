@@ -826,8 +826,6 @@ else:
                 else:
                     st.warning("⚠️ Coluna 'Ano' não encontrada nos dados.")
             
-            st.markdown("---")
-            
             # Verificar se períodos foram selecionados e se existem dados válidos
             periodos_validos = False
             if meses_selecionados and len(meses_selecionados) >= 2:
@@ -1041,7 +1039,17 @@ else:
                             max_cats = total_cats
                             st.info(f"ℹ️ Apenas {total_cats} categoria disponível para esta dimensão.")
                         else:
-                            default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                            # Verificar se há um valor desejado do slider (quando usuário seleciona categorias manualmente)
+                            slider_desired_key = "max_cats_waterfall_desired"
+                            if slider_desired_key in st.session_state:
+                                # Usar o valor desejado e remover da session_state para próxima execução
+                                default_value = st.session_state[slider_desired_key]
+                                del st.session_state[slider_desired_key]
+                                # Garantir que o valor está dentro dos limites
+                                default_value = max(1, min(default_value, total_cats))
+                            else:
+                                default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                            
                             max_cats = st.slider(
                                 f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
                                 min_value=1,
@@ -1075,56 +1083,68 @@ else:
                         # Usar uma chave única baseada no valor do slider para forçar recriação do widget
                         multiselect_key = f"cats_waterfall_{max_cats}"
                         
-                        # Se o slider mudou, limpar qualquer estado anterior e usar apenas top_cats_selecionadas
+                        # Controle: Categorias (uma ou mais)
+                        # Usar uma chave fixa para o multiselect
+                        multiselect_key_fixed = "cats_waterfall_multiselect"
+                        
+                        # Determinar o valor inicial do multiselect
                         if slider_mudou:
-                            # Limpar todas as chaves relacionadas ao multiselect
-                            keys_to_delete = [k for k in st.session_state.keys() if k.startswith("cats_waterfall")]
-                            for key in keys_to_delete:
-                                del st.session_state[key]
-                            # Forçar uso das categorias do slider (já filtradas)
+                            # Se o slider mudou, atualizar o valor no session_state ANTES de criar o widget
                             cats_selecionadas_atual = top_cats_selecionadas
+                            # Atualizar diretamente no session_state - isso força o multiselect a usar o novo valor
+                            st.session_state[multiselect_key_fixed] = cats_selecionadas_atual
+                            st.session_state["cats_waterfall_saved_current"] = cats_selecionadas_atual
+                        elif multiselect_key_fixed in st.session_state:
+                            # Se já existe valor no multiselect (usuário selecionou manualmente), usar ele
+                            cats_selecionadas_atual = st.session_state[multiselect_key_fixed]
+                            # Verificar se ainda são válidas
+                            cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
                         else:
-                            # Verificar se há uma seleção salva que corresponde ao slider atual
-                            saved_key = f"cats_waterfall_saved_{max_cats}"
-                            if saved_key in st.session_state:
-                                cats_selecionadas_atual = st.session_state[saved_key]
-                                # Verificar se ainda são válidas e existem em cats_all
-                                cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
-                                # Se não correspondem ao slider, usar top_cats_selecionadas
-                                if len(cats_selecionadas_atual) != max_cats or (max_cats < total_cats and not all(cat in top_cats_selecionadas for cat in cats_selecionadas_atual)):
-                                    cats_selecionadas_atual = top_cats_selecionadas
-                            else:
-                                cats_selecionadas_atual = top_cats_selecionadas
+                            # Primeira vez, usar top_cats_selecionadas
+                            cats_selecionadas_atual = top_cats_selecionadas
+                            st.session_state[multiselect_key_fixed] = cats_selecionadas_atual
+                            st.session_state["cats_waterfall_saved_current"] = cats_selecionadas_atual
                         
                         # Garantir que cats_selecionadas_atual contém apenas valores válidos
                         cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
                         
-                        # Controle: Categorias (uma ou mais)
-                        # Usar chave única baseada no valor do slider para forçar atualização quando slider muda
-                        cats_sel_raw = st.multiselect(
-                            "Categorias (uma ou mais):",
-                            cats_options,
-                            default=cats_selecionadas_atual,
-                            key=multiselect_key
-                        )
-                        
-                        # Quando o usuário seleciona categorias manualmente, ajustar o slider e usar todas as selecionadas
-                        if cats_sel_raw and len(cats_sel_raw) > 0 and "Todos" not in cats_sel_raw:
-                            # Usar as categorias selecionadas pelo usuário
-                            cats_sel = cats_sel_raw
-                            # Ajustar o slider para refletir o número de categorias selecionadas
-                            num_cats_selecionadas = len(cats_sel)
-                            if num_cats_selecionadas != max_cats:
-                                # Atualizar o slider para refletir a seleção manual
-                                st.session_state["max_cats_waterfall"] = num_cats_selecionadas
-                                # Salvar a seleção
-                                st.session_state[f"cats_waterfall_saved_{num_cats_selecionadas}"] = cats_sel
+                        # Criar o multiselect
+                        # IMPORTANTE: Quando o slider muda, o session_state já foi atualizado acima
+                        # O Streamlit vai usar o valor do session_state automaticamente (ignora default se key existe)
+                        # Quando não existe no session_state, usa o default
+                        if multiselect_key_fixed in st.session_state:
+                            # Usar o valor do session_state (pode ter sido atualizado pelo slider ou pelo usuário)
+                            cats_sel_raw = st.multiselect(
+                                "Categorias (uma ou mais):",
+                                cats_options,
+                                default=st.session_state[multiselect_key_fixed],
+                                key=multiselect_key_fixed
+                            )
                         else:
-                            # Se vazio ou "Todos", usar exatamente o que o slider indica
+                            # Primeira vez, usar o valor calculado
+                            cats_sel_raw = st.multiselect(
+                                "Categorias (uma ou mais):",
+                                cats_options,
+                                default=cats_selecionadas_atual,
+                                key=multiselect_key_fixed
+                            )
+                        
+                        # Processar seleção do usuário
+                        # IMPORTANTE: Quando o usuário seleciona categorias manualmente, NÃO atualizar o slider
+                        # Apenas salvar a seleção e usar para o gráfico
+                        if cats_sel_raw and len(cats_sel_raw) > 0:
+                            # Remover "Todos" se estiver presente e usar todas as categorias
+                            if "Todos" in cats_sel_raw:
+                                cats_sel = cats_all
+                            else:
+                                # Usar as categorias selecionadas pelo usuário
+                                cats_sel = cats_sel_raw
+                            # Salvar a seleção atual (sem atualizar o slider)
+                            st.session_state["cats_waterfall_saved_current"] = cats_sel
+                        else:
+                            # Se vazio, usar exatamente o que o slider indica
                             cats_sel = top_cats_selecionadas
-                            st.session_state[f"cats_waterfall_saved_{max_cats}"] = cats_sel
-                    
-                    st.markdown("---")
+                            st.session_state["cats_waterfall_saved_current"] = cats_sel
                     
                     # Filtrar e agrupar dados baseado no modo de comparação
                     if modo_comparacao == "Mês a Mês":
@@ -1180,7 +1200,10 @@ else:
                             df_m1 = df_analise[df_analise['Período'].astype(str) == str(mes_inicial)].copy()
                             df_m2 = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
-                    if df_m1.empty or df_m2.empty:
+                    # Verificar se os períodos foram realmente selecionados antes de processar
+                    if not periodos_validos or not meses_selecionados or len(meses_selecionados) < 2:
+                        st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
+                    elif df_m1.empty or df_m2.empty:
                         st.warning("⚠️ Não há dados suficientes para os períodos selecionados.")
                     else:
                         # Calcular totais por dimensão selecionada
@@ -2228,7 +2251,10 @@ else:
                                         ]
                                         for col in colunas_resumo_ordenadas:
                                             if col.startswith('%'):
-                                                linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}%"
+                                                # Usar formatar_ratio_com_barra para exibir barra de progresso
+                                                # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
+                                                valor_percentual = linha_resumo_geral[col]
+                                                linha_resumo_geral_formatado[col] = formatar_ratio_com_barra(valor_percentual / 100)
                                             elif tipo_visualizacao == "CPU (Custo por Unidade)":
                                                 linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}"
                                             else:
@@ -2408,8 +2434,10 @@ else:
                                                                                                                         sufixo = " M"
                                                                                                                 linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
                                                                                                         
-                                                                                                        # Formatar percentual
-                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type06['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                                        # Formatar percentual com barra de progresso
+                                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
+                                                                                                        valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
+                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                                         
                                                                                                         # Exibir resumo e tabela usando ordem explícita
                                                                                                         ordem_colunas_waterfall = [
@@ -2500,8 +2528,10 @@ else:
                                                                                                                         sufixo = " M"
                                                                                                                 linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
                                                                                                         
-                                                                                                        # Formatar percentual
-                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type06['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                                        # Formatar percentual com barra de progresso
+                                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
+                                                                                                        valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
+                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                                         
                                                                                                         # Exibir resumo usando ordem explícita
                                                                                                         ordem_colunas_waterfall = [
@@ -2575,8 +2605,10 @@ else:
                                                                                                         sufixo = " M"
                                                                                                 linha_resumo_type05_formatado[col] = f"{linha_resumo_type05[col]:,.2f}{sufixo}"
                                                                                         
-                                                                                        # Formatar percentual
-                                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type05['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                        # Formatar percentual com barra de progresso
+                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
+                                                                                        valor_percentual = linha_resumo_type05['% Mês 2/Flex Mês 1']
+                                                                                        linha_resumo_type05_formatado['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                         
                                                                                         # Exibir caixas na ordem correta: Mês 1, Flex Mês 1 - Mês 1, Flex Mês 1, Mês 2 - Flex Mês 1, Mês 2, % Mês 2/Flex Mês 1
                                                                                         ordem_colunas_waterfall = [
@@ -2745,7 +2777,10 @@ else:
                                                                                                         sufixo = " M"
                                                                                                 linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
                                                                                         
-                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = f"{linha_resumo_type06['% Mês 2/Flex Mês 1']:,.2f}%"
+                                                                                        # Formatar percentual com barra de progresso
+                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
+                                                                                        valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
+                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                         
                                                                                         # Exibir resumo e tabela
                                                                                         ordem_colunas_waterfall = [
