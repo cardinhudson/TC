@@ -1723,6 +1723,50 @@ else:
                                     xref="x", yref="y", yanchor="bottom"
                                 ))
                         
+                        # Preparar informações detalhadas para o tooltip
+                        hovertexts = []
+                        for i, (label, value, measure) in enumerate(zip(labels_waterfall, values_waterfall, measures_waterfall)):
+                            # Calcular valor acumulado até este ponto
+                            if measure == "absolute":
+                                acumulado = value
+                                tipo_medida = "Valor Inicial"
+                            elif measure == "total":
+                                acumulado = value
+                                tipo_medida = "Valor Final"
+                            else:
+                                # Calcular acumulado para medidas relativas
+                                acumulado = valor_inicial_grafico
+                                for j in range(1, i):
+                                    if measures_waterfall[j] == "relative":
+                                        acumulado += values_waterfall[j]
+                                acumulado += value
+                                tipo_medida = "Variação"
+                            
+                            # Formatar valor
+                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                valor_formatado = f"{value:,.2f}"
+                                acumulado_formatado = f"{acumulado:,.2f}"
+                            else:
+                                sufixo = ""
+                                if fator_conversao:
+                                    if fator_conversao == "K (milhares)":
+                                        sufixo = " K"
+                                    elif fator_conversao == "M (Milhões)":
+                                        sufixo = " M"
+                                valor_formatado = f"{value:,.2f}{sufixo}"
+                                acumulado_formatado = f"{acumulado:,.2f}{sufixo}"
+                            
+                            # Criar texto do tooltip detalhado
+                            hover_text = (
+                                f"<b>{label}</b><br>"
+                                f"Tipo: {tipo_medida}<br>"
+                                f"Valor: {moeda_simbolo} {valor_formatado}<br>"
+                                f"Acumulado: {moeda_simbolo} {acumulado_formatado}<br>"
+                                f"Período: {mes_inicial} → {mes_final}<br>"
+                                f"Modo: {modo_comparacao}"
+                            )
+                            hovertexts.append(hover_text)
+                        
                         # Criar figura do waterfall
                         fig = go.Figure(go.Waterfall(
                             name="Waterfall",
@@ -1731,6 +1775,8 @@ else:
                             x=labels_waterfall,
                             y=values_waterfall,
                             textposition="none",
+                            hovertext=hovertexts,
+                            hovertemplate="%{hovertext}<extra></extra>",
                             connector={"line": {"color": "rgba(0, 0, 0, 0)"}},
                             increasing={"marker": {"color": cor_vermelha, "line": {"width": 0}}},
                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
@@ -1874,6 +1920,15 @@ else:
                             paper_bgcolor="rgba(0,0,0,0)",
                             margin=dict(l=80, r=40, t=50, b=40),
                             font=dict(color=text_color, size=10),
+                            hovermode='closest',
+                            hoverlabel=dict(
+                                bgcolor="rgba(255, 255, 255, 0.95)",
+                                bordercolor="#1e6ba8",
+                                borderwidth=2,
+                                font_size=12,
+                                font_family="Arial",
+                                font_color="#000000"
+                            ),
                             xaxis=dict(
                                 showgrid=False,
                                 zeroline=False,
@@ -3476,6 +3531,50 @@ else:
                                                     xref="x", yref="y", yanchor="bottom"
                                                 ))
                                         
+                                        # Preparar informações detalhadas para o tooltip
+                                        hovertexts_budget = []
+                                        for i, (label, value, measure) in enumerate(zip(labels_waterfall, values_waterfall, measures_waterfall)):
+                                            # Calcular valor acumulado até este ponto
+                                            if measure == "absolute":
+                                                acumulado = value
+                                                tipo_medida = "Valor Inicial (BUD)"
+                                            elif measure == "total":
+                                                acumulado = value
+                                                tipo_medida = "Valor Final (Total)"
+                                            else:
+                                                # Calcular acumulado para medidas relativas
+                                                acumulado = bud_total
+                                                for j in range(1, i):
+                                                    if measures_waterfall[j] == "relative":
+                                                        acumulado += values_waterfall[j]
+                                                acumulado += value
+                                                tipo_medida = "Variação"
+                                            
+                                            # Formatar valor
+                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                valor_formatado = f"{value:,.2f}"
+                                                acumulado_formatado = f"{acumulado:,.2f}"
+                                            else:
+                                                sufixo = ""
+                                                if fator_conversao:
+                                                    if fator_conversao == "K (milhares)":
+                                                        sufixo = " K"
+                                                    elif fator_conversao == "M (Milhões)":
+                                                        sufixo = " M"
+                                                valor_formatado = f"{value:,.2f}{sufixo}"
+                                                acumulado_formatado = f"{acumulado:,.2f}{sufixo}"
+                                            
+                                            # Criar texto do tooltip detalhado
+                                            hover_text = (
+                                                f"<b>{label}</b><br>"
+                                                f"Tipo: {tipo_medida}<br>"
+                                                f"Valor: {moeda_simbolo} {valor_formatado}<br>"
+                                                f"Acumulado: {moeda_simbolo} {acumulado_formatado}<br>"
+                                                f"Análise: Real x Budget<br>"
+                                                f"Modo: {tipo_visualizacao}"
+                                            )
+                                            hovertexts_budget.append(hover_text)
+                                        
                                         # Criar figura do waterfall
                                         fig = go.Figure(go.Waterfall(
                                             name="Waterfall",
@@ -3484,6 +3583,8 @@ else:
                                             x=labels_waterfall,
                                             y=values_waterfall,
                                             textposition="none",
+                                            hovertext=hovertexts_budget,
+                                            hovertemplate="%{hovertext}<extra></extra>",
                                             connector={"line": {"color": "rgba(0, 0, 0, 0)"}},
                                             increasing={"marker": {"color": cor_vermelha, "line": {"width": 0}}},
                                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
@@ -3610,6 +3711,15 @@ else:
                                             paper_bgcolor="rgba(0,0,0,0)",
                                             margin=dict(l=80, r=40, t=50, b=40),
                                             font=dict(color=text_color, size=10),
+                                            hovermode='closest',
+                                            hoverlabel=dict(
+                                                bgcolor="rgba(255, 255, 255, 0.95)",
+                                                bordercolor="#1e6ba8",
+                                                borderwidth=2,
+                                                font_size=12,
+                                                font_family="Arial",
+                                                font_color="#000000"
+                                            ),
                                             xaxis=dict(
                                                 showgrid=False,
                                                 zeroline=False,
