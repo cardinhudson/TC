@@ -4585,6 +4585,78 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - Permite testar diferentes valores de sensibilidade
         - Visualiza impacto de mudanças nos parâmetros
         - Útil para cenários "what-if"
+        
+        **6. Custos Específicos (BE Manual):**
+        - Permite adicionar custos específicos com valores manuais
+        - Suporta dois tipos de aplicação:
+          - **Pontual**: Aplicado em meses específicos selecionados
+          - **Constante**: Aplicado a partir de um mês inicial em diante
+        - Rateio automático por veículo baseado em percentuais do arquivo de rateio
+        - Integração automática com Account (Type 07) para buscar Type 06, Type 05, Custo e USI
+        - Visualização e exclusão de custos específicos cadastrados
+        - Formatação numérica com separador de milhares (formato brasileiro)
+        - Tabela interativa com seleção múltipla para exclusão em lote
+        - Os custos específicos são marcados como "BE Manual" na coluna Tipo
+        - Integrados automaticamente ao forecast final como linhas separadas
+        
+        **7. Nomenclatura Atualizada:**
+        - Coluna "Tipo" agora usa "BE" para forecast normal
+        - Coluna "Tipo" usa "BE Manual" para custos específicos/manuais
+        - Título atualizado: "Best Estimate - Previsão de Custo Total"
+        - Compatibilidade automática com arquivos antigos (conversão de "Forecast" para "BE")
+        """)
+        
+        st.markdown("---")
+        
+        # Seção 3.1: Custos Específicos - Detalhamento
+        st.markdown("### 💰 Custos Específicos (BE Manual) - Detalhamento")
+        
+        st.markdown("""
+        **Funcionalidade:** Permite adicionar custos específicos com valores manuais que são integrados ao forecast.
+        
+        **Como Funciona:**
+        
+        **1. Adicionar Custo Específico:**
+        - Acesse a aba "➕ Adicionar Custo" na página 2
+        - Preencha os campos obrigatórios:
+          - **Account (Type 07)**: Seleciona o Account e busca automaticamente Type 06, Type 05, Custo e USI
+          - **Oficina**: Seleciona a oficina (sem opção "Todos")
+          - **Veículo**: Seleciona veículo específico ou "Todos" para rateio automático
+          - **Período**: Seleciona o período (mês e ano)
+          - **Tipo de Aplicação**: 
+            - **Pontual**: Aplicado apenas nos meses selecionados
+            - **Constante**: Aplicado a partir do mês inicial em diante
+          - **Valor Total**: Valor total do custo
+          - **Descrição**: Descrição opcional do custo
+        
+        **2. Rateio Automático:**
+        - Se "Todos" for selecionado para Veículo, o sistema busca automaticamente os percentuais de rateio do arquivo `Reporting fluxo anexo.xlsx` (aba "Rateio")
+        - O rateio é aplicado mês a mês conforme os percentuais do arquivo
+        - Se um veículo específico for selecionado, o rateio é 100% para aquele veículo
+        - O valor total é distribuído proporcionalmente entre os veículos
+        
+        **3. Visualizar Custos:**
+        - Acesse a aba "📋 Visualizar Custos"
+        - Tabela interativa com todas as colunas do formato `df_final_historico_forecast.xlsx`
+        - Formatação numérica com 2 casas decimais e separador de milhares (formato brasileiro)
+        - Seleção múltipla com checkboxes para exclusão em lote
+        - Botão "🗑️ Deletar Selecionadas" para remover custos
+        
+        **4. Integração com Forecast:**
+        - Os custos específicos são automaticamente incluídos no forecast final
+        - Aparecem como linhas separadas com Tipo = "BE Manual"
+        - Não são somados ao forecast calculado, mas adicionados como linhas independentes
+        - Mantém o mesmo formato e estrutura do forecast normal
+        
+        **5. Persistência:**
+        - Os custos específicos são salvos em `dados/Forecast/custos_especificos.parquet`
+        - São carregados automaticamente ao gerar o forecast
+        - Permanecem salvos até serem explicitamente excluídos
+        
+        **6. Formato de Dados:**
+        - Os custos específicos seguem exatamente o formato de `df_final_historico_forecast.xlsx`
+        - Colunas na ordem: Account, Ano, Centrocst, Custo, Fornec., Fornecedor, Mes, Oficina, Período, Soma_Percentuais, Tipo, Total, Type 05, Type 06, USI, Valor, Veículo
+        - Tipo sempre preenchido como "BE Manual" para identificação
         """)
         
         st.markdown("---")
@@ -4723,6 +4795,38 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - **Estrutura**: Volumes por período, oficina, veículo
         - **Uso**: Cálculo de volume médio histórico e proporções
         - **Atualização**: Pode ser copiado do histórico consolidado ou gerado
+        
+        **6. custos_especificos.parquet**
+        - **Conteúdo**: Custos específicos cadastrados manualmente (BE Manual)
+        - **Estrutura**: Mesmo formato de `df_final_historico_forecast.xlsx` com coluna Tipo = "BE Manual"
+        - **Uso**: Armazena custos específicos que são integrados ao forecast final
+        - **Atualização**: Criado/modificado ao adicionar ou excluir custos específicos
+        - **Localização**: `dados/Forecast/custos_especificos.parquet`
+        """)
+        
+        st.markdown("---")
+        
+        # Seção 6.1: Nomenclatura e Tipos
+        st.markdown("### 🏷️ Nomenclatura e Tipos de Dados")
+        
+        st.markdown("""
+        **Coluna "Tipo" no Forecast:**
+        
+        O sistema utiliza a coluna "Tipo" para identificar diferentes tipos de dados no forecast:
+        
+        - **"Histórico"**: Dados históricos reais (não previstos)
+        - **"BE"**: Best Estimate - Forecast calculado automaticamente pelo sistema
+        - **"BE Manual"**: Best Estimate Manual - Custos específicos adicionados manualmente
+        
+        **Compatibilidade:**
+        - Arquivos antigos com "Forecast" são automaticamente convertidos para "BE" ao carregar
+        - Isso garante compatibilidade com versões anteriores do sistema
+        
+        **Filtros e Separação:**
+        - O sistema separa automaticamente histórico, BE e BE Manual ao gerar arquivos
+        - `forecast_historico.parquet`: Apenas dados históricos
+        - `forecast_previsao.parquet`: Apenas BE e BE Manual (previsões)
+        - `df_final_historico_forecast.parquet`: Consolidado com todos os tipos
         """)
         
         st.markdown("---")

@@ -41,6 +41,14 @@ openpyxl==3.1.5
 # Versão específica para leitura/escrita de arquivos Excel
 # Necessário para processar arquivos .xlsx
 
+pyarrow==18.1.0
+# Versão específica para leitura/escrita de arquivos Parquet
+# Necessário para processar arquivos .parquet (formato usado para dados históricos e forecast)
+
+streamlit-aggrid==1.2.1
+# Versão específica para tabelas interativas AgGrid no Streamlit
+# Usado na funcionalidade de custos específicos para exibição e seleção de linhas
+
 # ==========================================
 # NOTA: DEPENDÊNCIAS DO CHATBOT SÃO OPCIONAIS
 # ==========================================
