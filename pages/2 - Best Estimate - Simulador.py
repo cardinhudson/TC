@@ -7,6 +7,7 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from versionamento import obter_versao_atual
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 
 # Configuração da página
 st.set_page_config(
@@ -1299,7 +1300,7 @@ else:
         st.sidebar.write(f"**Total:** {moeda_simbolo} {total_sum_convertido:,.2f}")
 
 # Área principal - Forecast
-st.markdown("## 📈 Forecast - Previsão de Custo Total")
+st.markdown("## 📈 Best Estimate - Previsão de Custo Total")
 
 # ====================================================================
 # 🔮 CONFIGURAÇÃO DO FORECAST - PRIMEIRO (antes dos sliders)
@@ -2098,6 +2099,899 @@ else:
 st.markdown("---")
 
 # ====================================================================
+# 💰 CUSTOS ESPECÍFICOS / MANUAIS
+# ====================================================================
+st.markdown("### 💰 Custos Específicos / Manuais")
+
+st.markdown("""
+Adicione custos específicos que serão aplicados apenas no forecast (não afetam dados históricos).
+Estes custos seguirão as mesmas regras de rateio por veículo que os dados normais.
+""")
+
+# Funções auxiliares para gerenciar custos específicos
+def carregar_custos_especificos():
+    """Carrega custos específicos do arquivo parquet"""
+    caminho_custos = os.path.join("dados", "Forecast", "custos_especificos.parquet")
+    if os.path.exists(caminho_custos):
+        try:
+            df = pd.read_parquet(caminho_custos)
+            return df
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao carregar custos específicos: {str(e)}")
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+def salvar_custos_especificos(df):
+    """Salva custos específicos no arquivo parquet"""
+    pasta_forecast = os.path.join("dados", "Forecast")
+    os.makedirs(pasta_forecast, exist_ok=True)
+    caminho_custos = os.path.join(pasta_forecast, "custos_especificos.parquet")
+    try:
+        df.to_parquet(caminho_custos, index=False)
+        return True
+    except Exception as e:
+        st.error(f"❌ Erro ao salvar custos específicos: {str(e)}")
+        return False
+
+def carregar_rateio_arquivo(ano_selecionado=None):
+    """Carrega o arquivo de rateio diretamente do Reporting fluxo anexo.xlsx"""
+    try:
+        # Determinar caminho do arquivo
+        if ano_selecionado and ano_selecionado != "Todos":
+            caminho_rateio = os.path.join("dados", str(ano_selecionado), "Reporting fluxo anexo.xlsx")
+        else:
+            # Tentar encontrar em qualquer pasta de ano
+            caminho_rateio = None
+            for ano in [2024, 2025]:
+                caminho_teste = os.path.join("dados", str(ano), "Reporting fluxo anexo.xlsx")
+                if os.path.exists(caminho_teste):
+                    caminho_rateio = caminho_teste
+                    break
+        
+        # Se não encontrou, tentar na raiz
+        if caminho_rateio is None or not os.path.exists(caminho_rateio):
+            caminho_rateio = "Reporting fluxo anexo.xlsx"
+        
+        if not os.path.exists(caminho_rateio):
+            return None
+        
+        # Ler a guia "Rateio" do arquivo Excel
+        df_raw = pd.read_excel(caminho_rateio, sheet_name='Rateio', header=None)
+        
+        # Excluir a primeira linha (linha de referência)
+        df = df_raw.iloc[1:].reset_index(drop=True)
+        
+        # Usar a primeira linha (que agora é a linha dos nomes/meses) como cabeçalho real
+        df.columns = df.iloc[0]
+        
+        # Excluir a linha usada como cabeçalho
+        df = df.iloc[1:].reset_index(drop=True)
+        
+        # Remover colunas totalmente NaN
+        df = df.loc[:, df.notna().any(axis=0)]
+        df = df.dropna(axis=1, how='all')
+        df = df.loc[:, df.columns.notna()]
+        
+        # Identificar as colunas que são meses (janeiro a dezembro)
+        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        colunas_meses = [col for col in df.columns if any(mes.lower() in str(col).lower() for mes in meses)]
+        
+        # Identificar as colunas que NÃO são meses (para usar como id_vars)
+        colunas_id = [col for col in df.columns if col not in colunas_meses and pd.notna(col)]
+        
+        # Transformar as colunas de meses em linhas usando melt
+        df = df.melt(id_vars=colunas_id, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
+        df['Rateio'] = pd.to_numeric(df['Rateio'], errors='coerce').fillna(0)
+        df = df.rename(columns={'Mês': 'Período'})
+        
+        # Normalizar Período para capitalizado
+        df['Período'] = df['Período'].astype(str).str.strip().str.capitalize()
+        
+        # Filtrar: Remove 'Veículos' e linhas com Oficina NaN
+        df = df[df['Oficina'] != 'Veículos']
+        df = df[df['Oficina'].notna()]
+        
+        return df
+    except Exception as e:
+        return None
+
+def buscar_rateios_arquivo(oficina, periodo, ano_selecionado=None):
+    """Busca rateios por veículo diretamente do arquivo Reporting fluxo anexo.xlsx"""
+    df_rateio = carregar_rateio_arquivo(ano_selecionado)
+    
+    if df_rateio is None or df_rateio.empty:
+        return {}
+    
+    # Normalizar período para comparação
+    periodo_normalizado = str(periodo).strip().capitalize()
+    if ' ' in periodo_normalizado:
+        periodo_normalizado = periodo_normalizado.split(' ', 1)[0]
+    
+    # Filtrar por Oficina e Período
+    mask_oficina = df_rateio['Oficina'].astype(str) == str(oficina)
+    periodos_df = df_rateio['Período'].astype(str).str.strip().str.capitalize()
+    # Extrair primeira palavra do período (normalizar) - usar apply para extrair primeira palavra
+    periodos_df_normalizados = periodos_df.apply(lambda x: x.split(' ', 1)[0] if ' ' in str(x) else str(x))
+    mask_periodo = periodos_df_normalizados == periodo_normalizado
+    
+    df_filtrado = df_rateio[mask_oficina & mask_periodo]
+    
+    if df_filtrado.empty:
+        return {}
+    
+    # Criar dicionário com rateios por veículo
+    rateios = {}
+    veiculos = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
+    
+    for veiculo in veiculos:
+        mask_veiculo = df_filtrado['Veículo'].astype(str) == str(veiculo)
+        df_veiculo = df_filtrado[mask_veiculo]
+        
+        if not df_veiculo.empty:
+            # Calcular média dos rateios (pode haver múltiplas linhas)
+            valores = pd.to_numeric(df_veiculo['Rateio'], errors='coerce').fillna(0.0)
+            media = valores.mean()
+            if media > 0:
+                rateios[f"{veiculo}%"] = float(media)
+    
+    return rateios
+
+def buscar_info_por_account(account, df_base=None):
+    """Busca Type 06, Type 05, Custo e USI a partir do Account (Type 07)"""
+    if df_base is None or df_base.empty or not account or pd.isna(account):
+        return {}
+    
+    if 'Account' not in df_base.columns:
+        return {}
+    
+    # Filtrar por Account
+    mask = df_base['Account'].astype(str) == str(account)
+    df_filtrado = df_base[mask]
+    
+    if df_filtrado.empty:
+        return {}
+    
+    # Buscar informações (pegar o primeiro valor encontrado, já que Account deve ser único)
+    info = {}
+    
+    if 'Type 06' in df_filtrado.columns:
+        type06_valores = df_filtrado['Type 06'].dropna().unique()
+        if len(type06_valores) > 0:
+            info['Type 06'] = str(type06_valores[0])
+    
+    if 'Type 05' in df_filtrado.columns:
+        type05_valores = df_filtrado['Type 05'].dropna().unique()
+        if len(type05_valores) > 0:
+            info['Type 05'] = str(type05_valores[0])
+    
+    if 'Custo' in df_filtrado.columns:
+        custo_valores = df_filtrado['Custo'].dropna().unique()
+        if len(custo_valores) > 0:
+            info['Custo'] = str(custo_valores[0])
+            # Custo já está preenchido, não precisa criar Tipo_Custo (redundante)
+    
+    if 'USI' in df_filtrado.columns:
+        usi_valores = df_filtrado['USI'].dropna().unique()
+        if len(usi_valores) > 0:
+            info['USI'] = str(usi_valores[0])
+    
+    # Se não encontrou Custo nos dados, tentar buscar do arquivo Base conso
+    if 'Custo' not in info:
+        try:
+            caminho_sapiens = os.path.join("dados", "Dados SAPIENS.xlsx")
+            if os.path.exists(caminho_sapiens):
+                df_base_conso = pd.read_excel(caminho_sapiens, sheet_name='Base conso')
+                if 'Type 04' in df_base_conso.columns:
+                    df_base_conso = df_base_conso.rename(columns={'Type 04': 'Custo'})
+                if 'Custo' in df_base_conso.columns and 'Type 07' in df_base_conso.columns:
+                    df_base_conso = df_base_conso[['Custo', 'Type 07']].rename(columns={'Type 07': 'Account'})
+                    df_base_conso = df_base_conso.drop_duplicates(subset=['Account'], keep='first')
+                    
+                    mask_conso = df_base_conso['Account'].astype(str) == str(account)
+                    df_conso_filtrado = df_base_conso[mask_conso]
+                    
+                    if not df_conso_filtrado.empty:
+                        custo_valor = df_conso_filtrado['Custo'].iloc[0]
+                        if pd.notna(custo_valor):
+                            info['Custo'] = str(custo_valor)
+                            custo_str = str(custo_valor).strip().upper()
+                            if 'FIXO' in custo_str or 'FIX' in custo_str:
+                                info['Tipo_Custo'] = 'Fixo'
+                            else:
+                                info['Tipo_Custo'] = 'Variável'
+        except Exception as e:
+            pass  # Se não conseguir ler, continua sem o Custo
+    
+    return info
+
+# Lista de veículos padrão
+VEICULOS_PADRAO = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
+
+# Carregar custos existentes
+df_custos_especificos = carregar_custos_especificos()
+
+# Definir colunas da tabela (mesmas do forecast)
+# NOTA: Usamos apenas 'Custo' (original), não 'Tipo_Custo' (redundante)
+colunas_tabela_custos = [
+    'Oficina', 'Veículo', 'Ano', 'Período', 'Custo',
+    'Total', 'Valor', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
+    'Type 05', 'Type 06', 'Account', 'CC21%', 'CC22%', 'CC24%', 
+    'CC24 5L%', 'CC24 7L%', 'J516%', 'Tipo_Aplicacao', 
+    'Mes_Inicial', 'Meses_Especificos', 'Descricao'
+]
+
+# Inicializar DataFrame se vazio
+if df_custos_especificos.empty:
+    df_custos_especificos = pd.DataFrame(columns=colunas_tabela_custos)
+else:
+    # Garantir que todas as colunas existam
+    for col in colunas_tabela_custos:
+        if col not in df_custos_especificos.columns:
+            df_custos_especificos[col] = None
+    # Reordenar colunas
+    colunas_existentes = [col for col in colunas_tabela_custos if col in df_custos_especificos.columns]
+    colunas_restantes = [col for col in df_custos_especificos.columns if col not in colunas_existentes]
+    df_custos_especificos = df_custos_especificos[colunas_existentes + colunas_restantes]
+
+# Interface para gerenciar custos
+tab_visualizar, tab_adicionar = st.tabs(["📋 Visualizar Custos", "➕ Adicionar Custo"])
+
+with tab_visualizar:
+    if not df_custos_especificos.empty:
+        # Os custos já vêm com uma linha por veículo, então apenas formatar para exibição
+        df_custos_formatado = df_custos_especificos.copy()
+        
+        # Filtrar apenas linhas válidas (com Oficina, Veículo, Período e Total)
+        mask_valido = (
+            df_custos_formatado['Oficina'].notna() &
+            df_custos_formatado['Veículo'].notna() &
+            df_custos_formatado['Período'].notna() &
+            (df_custos_formatado['Total'].notna()) &
+            (pd.to_numeric(df_custos_formatado['Total'], errors='coerce') > 0)
+        )
+        df_custos_formatado = df_custos_formatado[mask_valido].copy()
+        
+        if not df_custos_formatado.empty:
+            # Renomear 'Total' para 'Valor' para compatibilidade com forecast_completo
+            if 'Valor' not in df_custos_formatado.columns:
+                df_custos_formatado['Valor'] = pd.to_numeric(df_custos_formatado['Total'], errors='coerce').fillna(0.0)
+            else:
+                # Se já existe 'Valor', usar o maior entre 'Total' e 'Valor'
+                df_custos_formatado['Valor'] = pd.to_numeric(df_custos_formatado['Total'], errors='coerce').fillna(0.0)
+            
+            # Garantir que todas as colunas necessárias existam (sem Tipo_Custo, apenas Custo)
+            colunas_necessarias = [
+                'Oficina', 'Veículo', 'Ano', 'Período', 'Custo',
+                'Valor', 'Total', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
+                'Type 05', 'Type 06', 'Account', 'Tipo'
+            ]
+            
+            for col in colunas_necessarias:
+                if col not in df_custos_formatado.columns:
+                    df_custos_formatado[col] = None
+            
+            # Preencher 'Tipo' com 'BE Manual' se estiver vazio (para custos específicos)
+            if 'Tipo' in df_custos_formatado.columns:
+                df_custos_formatado['Tipo'] = df_custos_formatado['Tipo'].fillna('BE Manual')
+            else:
+                df_custos_formatado['Tipo'] = 'BE Manual'
+            
+            # Remover coluna Tipo_Custo se existir (redundante, usamos apenas Custo)
+            if 'Tipo_Custo' in df_custos_formatado.columns:
+                df_custos_formatado = df_custos_formatado.drop(columns=['Tipo_Custo'])
+            
+            # Aplicar padronização de colunas usando a mesma função do forecast
+            def padronizar_colunas_custos(df, nome_tipo="Custos Específicos"):
+                """Padroniza colunas do DataFrame de custos para garantir mesma ordem do df_final_historico_forecast.xlsx
+                Mantém APENAS as colunas que existem no arquivo Excel de referência"""
+                if df is None or df.empty:
+                    return df
+                
+                df_padronizado = df.copy()
+                
+                # Ordem EXATA das colunas do arquivo df_final_historico_forecast.xlsx
+                # NOTA: Removemos Tipo_Custo (redundante, usamos apenas Custo)
+                ordem_colunas_referencia = [
+                    'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
+                    'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
+                    'Total', 'Type 05', 'Type 06', 'USI', 'Valor', 'Veículo'
+                ]
+                
+                # Coletar todas as colunas do DataFrame
+                colunas_existentes = list(df_padronizado.columns)
+                
+                # Remover Tipo_Custo se existir (redundante)
+                if 'Tipo_Custo' in df_padronizado.columns:
+                    df_padronizado = df_padronizado.drop(columns=['Tipo_Custo'])
+                    colunas_existentes = list(df_padronizado.columns)
+                
+                # Adicionar colunas faltantes com valores None (apenas as do arquivo de referência)
+                for col in ordem_colunas_referencia:
+                    if col not in colunas_existentes:
+                        df_padronizado[col] = None
+                
+                # Reordenar DataFrame seguindo EXATAMENTE a ordem de referência
+                # Manter apenas colunas que existem no DataFrame ou que estão na referência
+                colunas_finais = [col for col in ordem_colunas_referencia if col in df_padronizado.columns]
+                df_padronizado = df_padronizado.reindex(columns=colunas_finais)
+                
+                return df_padronizado
+            
+            # Aplicar padronização
+            df_custos_formatado = padronizar_colunas_custos(df_custos_formatado)
+            
+            # Criar tabela usando st.dataframe com scroll horizontal e botões de deletar
+            st.markdown("#### 📋 Custos Específicos Cadastrados")
+            
+            # Ordem EXATA das colunas do arquivo df_final_historico_forecast.xlsx
+            # NOTA: Removemos Tipo_Custo (redundante, usamos apenas Custo)
+            ordem_colunas_referencia = [
+                'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
+                'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
+                'Total', 'Type 05', 'Type 06', 'USI', 'Valor', 'Veículo'
+            ]
+            
+            # Usar APENAS as colunas do arquivo de referência (na mesma ordem)
+            colunas_para_exibir = [col for col in ordem_colunas_referencia if col in df_custos_formatado.columns]
+            
+            # Remover coluna 'Índice' se existir (para evitar duplicação)
+            if 'Índice' in df_custos_formatado.columns:
+                df_custos_formatado = df_custos_formatado.drop(columns=['Índice'])
+            if 'Índice_Original' in df_custos_formatado.columns:
+                df_custos_formatado = df_custos_formatado.drop(columns=['Índice_Original'])
+            
+            # Criar DataFrame para exibição com todas as colunas na ordem correta
+            df_display = df_custos_formatado[colunas_para_exibir].copy()
+            
+            # Resetar índice e adicionar como coluna para referência
+            df_display = df_display.reset_index(drop=True)
+            df_display.insert(0, 'Índice', df_display.index)
+            
+            # Configurar AgGrid com seleção múltipla (checkboxes)
+            gb = GridOptionsBuilder.from_dataframe(df_display)
+            
+            # Configurar larguras mínimas e auto-size para todas as colunas
+            larguras_colunas = {
+                'Índice': 80,
+                'Account': 150,
+                'Ano': 60,
+                'Centrocst': 100,
+                'Custo': 120,
+                'Fornec.': 80,
+                'Fornecedor': 150,
+                'Mes': 80,
+                'Oficina': 120,
+                'Período': 120,
+                'Soma_Percentuais': 120,
+                'Tipo': 100,
+                'Total': 120,
+                'Type 05': 100,
+                'Type 06': 100,
+                'USI': 80,
+                'Valor': 120,
+                'Veículo': 100
+            }
+            
+            # Colunas numéricas que devem ser formatadas com 2 casas decimais
+            colunas_numericas = ['Total', 'Valor', 'Soma_Percentuais']
+            
+            # Configurar todas as colunas como não editáveis com auto-size
+            for col in df_display.columns:
+                largura = larguras_colunas.get(col, 120)
+                
+                # Configuração especial para colunas numéricas
+                if col in colunas_numericas:
+                    gb.configure_column(
+                        col, 
+                        editable=False, 
+                        sortable=True, 
+                        filter=True,
+                        minWidth=largura,
+                        width=largura,
+                        autoSizeColumns=True,
+                        wrapText=True,
+                        autoHeight=True,
+                        type=["numericColumn"],
+                        valueFormatter="value != null ? value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true}) : ''"
+                    )
+                else:
+                    gb.configure_column(
+                        col, 
+                        editable=False, 
+                        sortable=True, 
+                        filter=True,
+                        minWidth=largura,
+                        width=largura,
+                        autoSizeColumns=True,
+                        wrapText=True,
+                        autoHeight=True
+                    )
+            
+            # Configurar seleção múltipla com checkboxes
+            gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
+            gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
+            gb.configure_side_bar()
+            gb.configure_default_column(groupable=False, value=True, enableRowGroup=True, aggFunc='sum', editable=False)
+            
+            # Fixar coluna de índice à esquerda
+            gb.configure_column('Índice', pinned='left', width=80, minWidth=80)
+            
+            grid_options = gb.build()
+            
+            # Exibir tabela AgGrid
+            grid_response = AgGrid(
+                df_display,
+                gridOptions=grid_options,
+                height=480,  # Aumentado em 20% (400 * 1.2 = 480)
+                width='100%',
+                data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+                update_mode=GridUpdateMode.SELECTION_CHANGED,
+                fit_columns_on_grid_load=True,
+                allow_unsafe_jscode=False,
+                enable_enterprise_modules=False,
+                theme='streamlit',
+                key='tabela_custos_aggrid',
+                reload_data=False
+            )
+            
+            # Processar exclusões
+            indices_para_deletar = []
+            
+            # Botão para deletar linhas selecionadas
+            # CSS para ajustar tamanho do botão
+            st.markdown("""
+                <style>
+                    div[data-testid="column"]:first-child button {
+                        min-width: 200px;
+                        height: 45px;
+                        font-size: 16px;
+                        font-weight: 600;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            col_btn1, col_btn2 = st.columns([2, 3])
+            with col_btn1:
+                if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
+                    selected_rows = grid_response.get('selected_rows')
+                    if selected_rows is not None:
+                        # Converter para lista se for DataFrame
+                        if isinstance(selected_rows, pd.DataFrame):
+                            selected_rows = selected_rows.to_dict('records')
+                        elif not isinstance(selected_rows, list):
+                            selected_rows = []
+                        
+                        if len(selected_rows) > 0:
+                            # Extrair os índices da coluna 'Índice' das linhas selecionadas
+                            indices_selecionados = []
+                            for row in selected_rows:
+                                if 'Índice' in row and pd.notna(row.get('Índice')):
+                                    idx_valor = row.get('Índice')
+                                    # O índice pode ser o valor da coluna 'Índice' que corresponde ao índice original
+                                    indices_selecionados.append(idx_valor)
+                            
+                            if indices_selecionados:
+                                # Usar os dados das linhas selecionadas diretamente para buscar no original
+                                indices_originais_para_deletar = []
+                                
+                                for row in selected_rows:
+                                    # Buscar no DataFrame original usando os campos únicos
+                                    mask = pd.Series([True] * len(df_custos_especificos))
+                                    
+                                    if 'Oficina' in row and pd.notna(row.get('Oficina')):
+                                        mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
+                                    if 'Veículo' in row and pd.notna(row.get('Veículo')):
+                                        mask = mask & (df_custos_especificos['Veículo'].astype(str) == str(row['Veículo']))
+                                    if 'Período' in row and pd.notna(row.get('Período')):
+                                        mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
+                                    if 'Total' in row and pd.notna(row.get('Total')):
+                                        valor_total = pd.to_numeric(row.get('Total'), errors='coerce')
+                                        if pd.notna(valor_total):
+                                            mask = mask & (pd.to_numeric(df_custos_especificos['Total'], errors='coerce') == valor_total)
+                                    
+                                    indices_encontrados = df_custos_especificos[mask].index.tolist()
+                                    indices_originais_para_deletar.extend(indices_encontrados)
+                                
+                                # Remover duplicatas
+                                indices_originais_para_deletar = list(set(indices_originais_para_deletar))
+                                
+                                if indices_originais_para_deletar:
+                                    df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
+                                    if salvar_custos_especificos(df_custos_especificos):
+                                        st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso!")
+                                        st.rerun()
+                                else:
+                                    st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
+                            else:
+                                st.warning("⚠️ Nenhum índice válido encontrado nas linhas selecionadas.")
+                        else:
+                            st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+                    else:
+                        st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+            
+            with col_btn2:
+                selected_rows = grid_response.get('selected_rows')
+                if selected_rows is not None:
+                    # Converter para lista se for DataFrame
+                    if isinstance(selected_rows, pd.DataFrame):
+                        selected_count = len(selected_rows)
+                    elif isinstance(selected_rows, list):
+                        selected_count = len(selected_rows)
+                    else:
+                        selected_count = 0
+                else:
+                    selected_count = 0
+                
+                if selected_count > 0:
+                    st.info(f"📊 {selected_count} linha(s) selecionada(s)")
+            
+            st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
+        else:
+            st.info("ℹ️ Nenhum custo específico válido encontrado.")
+    else:
+        st.info("ℹ️ Nenhum custo específico cadastrado ainda.")
+
+with tab_adicionar:
+    st.markdown("#### ➕ Adicionar Novo Custo Específico")
+    
+    # Obter opções de Oficina e Veículo dos dados
+    oficinas_disponiveis = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
+    veiculos_disponiveis = ["Todos"] + sorted(df_filtrado['Veículo'].dropna().unique().tolist()) if df_filtrado is not None and 'Veículo' in df_filtrado.columns else ["Todos"]
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        oficina_selecionada = st.selectbox("Oficina:", oficinas_disponiveis)
+        
+        # Campo Account (Type 07)
+        accounts_disponiveis = ["Nenhum"] + sorted(df_filtrado['Account'].dropna().unique().tolist()) if df_filtrado is not None and 'Account' in df_filtrado.columns else ["Nenhum"]
+        
+        # Inicializar session_state para armazenar informações do Account (usar chaves diferentes dos widgets)
+        if 'account_info_cache' not in st.session_state:
+            st.session_state.account_info_cache = {}
+        
+        # Inicializar session_state para os valores dos campos
+        if 'type06_valor' not in st.session_state:
+            st.session_state.type06_valor = ""
+        if 'type05_valor' not in st.session_state:
+            st.session_state.type05_valor = ""
+        if 'custo_valor' not in st.session_state:
+            st.session_state.custo_valor = ""
+        if 'tipo_custo_auto' not in st.session_state:
+            st.session_state.tipo_custo_auto = "Variável"
+        if 'usi_valor' not in st.session_state:
+            st.session_state.usi_valor = ""
+        
+        # Função callback para atualizar campos quando Account mudar
+        def atualizar_campos_account():
+            account_atual = st.session_state.account_selectbox
+            if account_atual and account_atual != "Nenhum":
+                # Verificar se já temos as informações em cache
+                if account_atual in st.session_state.account_info_cache:
+                    cache_info = st.session_state.account_info_cache[account_atual]
+                    st.session_state.type06_valor = cache_info.get('Type 06', '')
+                    st.session_state.type05_valor = cache_info.get('Type 05', '')
+                    st.session_state.custo_valor = cache_info.get('Custo', '')
+                    st.session_state.usi_valor = cache_info.get('USI', '')
+                    st.session_state.tipo_custo_auto = cache_info.get('Tipo_Custo', 'Variável')
+                    
+                    # Atualizar também os valores dos widgets diretamente
+                    st.session_state.type06_display = st.session_state.type06_valor
+                    st.session_state.type05_display = st.session_state.type05_valor
+                    st.session_state.custo_display = st.session_state.custo_valor
+                else:
+                    # Buscar informações do Account
+                    df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
+                    
+                    if df_para_buscar is not None and not df_para_buscar.empty:
+                        info_account = buscar_info_por_account(account_atual, df_para_buscar)
+                        
+                        if info_account:
+                            # Preencher valores
+                            st.session_state.type06_valor = info_account.get('Type 06', '')
+                            st.session_state.type05_valor = info_account.get('Type 05', '')
+                            st.session_state.custo_valor = info_account.get('Custo', '')
+                            st.session_state.usi_valor = info_account.get('USI', '')
+                            
+                            # Atualizar também os valores dos widgets diretamente
+                            st.session_state.type06_display = st.session_state.type06_valor
+                            st.session_state.type05_display = st.session_state.type05_valor
+                            st.session_state.custo_display = st.session_state.custo_valor
+                            
+                            # Atualizar Tipo_Custo se encontrado
+                            if 'Tipo_Custo' in info_account:
+                                st.session_state.tipo_custo_auto = info_account['Tipo_Custo']
+                            else:
+                                st.session_state.tipo_custo_auto = "Variável"
+                            
+                            # Salvar no cache
+                            st.session_state.account_info_cache[account_atual] = {
+                                'Type 06': st.session_state.type06_valor,
+                                'Type 05': st.session_state.type05_valor,
+                                'Custo': st.session_state.custo_valor,
+                                'USI': st.session_state.usi_valor,
+                                'Tipo_Custo': st.session_state.tipo_custo_auto
+                            }
+                        else:
+                            # Limpar campos se não encontrou
+                            st.session_state.type06_valor = ""
+                            st.session_state.type05_valor = ""
+                            st.session_state.custo_valor = ""
+                            st.session_state.tipo_custo_auto = "Variável"
+                    else:
+                        # Limpar campos se não tem dados
+                        st.session_state.type06_valor = ""
+                        st.session_state.type05_valor = ""
+                        st.session_state.custo_valor = ""
+                        st.session_state.tipo_custo_auto = "Variável"
+            else:
+                # Limpar campos se nenhum Account selecionado
+                st.session_state.type06_valor = ""
+                st.session_state.type05_valor = ""
+                st.session_state.custo_valor = ""
+                st.session_state.tipo_custo_auto = "Variável"
+        
+        account_selecionado = st.selectbox(
+            "Account (Type 07):", 
+            accounts_disponiveis, 
+            help="Selecione o Account para buscar automaticamente Type 06, Type 05 e Custo",
+            key="account_selectbox"
+        )
+        
+        # Sempre verificar e atualizar após o selectbox (mesmo que não tenha mudado)
+        if account_selecionado and account_selecionado != "Nenhum":
+            # Verificar se o Account mudou ou se precisa buscar
+            account_anterior = st.session_state.get('account_anterior', None)
+            account_mudou = account_anterior != account_selecionado
+            
+            # Verificar se precisa buscar (Account mudou, não está no cache ou valores estão vazios)
+            precisa_buscar = (
+                account_mudou or
+                account_selecionado not in st.session_state.account_info_cache or
+                not st.session_state.type06_valor
+            )
+            
+            if precisa_buscar:
+                atualizar_campos_account()
+                st.session_state.account_anterior = account_selecionado
+                # Forçar atualização da interface
+                st.rerun()
+        else:
+            # Limpar campos se nenhum Account selecionado
+            if st.session_state.type06_valor or st.session_state.type05_valor or st.session_state.custo_valor:
+                st.session_state.type06_valor = ""
+                st.session_state.type05_valor = ""
+                st.session_state.custo_valor = ""
+                st.session_state.tipo_custo_auto = "Variável"
+                st.session_state.account_anterior = None
+        
+        tipo_aplicacao = st.radio(
+            "Tipo de Aplicação:",
+            ["Pontual (meses específicos)", "Constante (a partir de um mês)"],
+            help="Pontual: aplica apenas nos meses selecionados. Constante: aplica a partir do mês inicial até o final do forecast."
+        )
+    
+    with col2:
+        veiculo_selecionado = st.selectbox("Veículo:", veiculos_disponiveis, help="Selecione 'Todos' para aplicar a todos os veículos")
+        valor_total = st.number_input("Valor Total (R$):", min_value=0.0, value=0.0, step=1000.0, format="%.2f")
+        descricao = st.text_input("Descrição do Custo:", placeholder="Ex: Manutenção preventiva")
+    
+    # Campos para Type 06, Type 05 e Custo (preenchidos automaticamente)
+    # Usar session_state diretamente nos widgets para garantir atualização
+    col_type1, col_type2, col_type3 = st.columns(3)
+    with col_type1:
+        # Usar key diferente e atualizar via session_state
+        if 'type06_display' not in st.session_state:
+            st.session_state.type06_display = st.session_state.get('type06_valor', '')
+        else:
+            # Atualizar o valor do widget se o valor mudou
+            if st.session_state.get('type06_valor', '') != st.session_state.type06_display:
+                st.session_state.type06_display = st.session_state.get('type06_valor', '')
+        type06_display = st.text_input("Type 06:", value=st.session_state.type06_display, key="type06_display", disabled=True, help="Preenchido automaticamente ao selecionar Account")
+    with col_type2:
+        if 'type05_display' not in st.session_state:
+            st.session_state.type05_display = st.session_state.get('type05_valor', '')
+        else:
+            if st.session_state.get('type05_valor', '') != st.session_state.type05_display:
+                st.session_state.type05_display = st.session_state.get('type05_valor', '')
+        type05_display = st.text_input("Type 05:", value=st.session_state.type05_display, key="type05_display", disabled=True, help="Preenchido automaticamente ao selecionar Account")
+    with col_type3:
+        if 'custo_display' not in st.session_state:
+            st.session_state.custo_display = st.session_state.get('custo_valor', '')
+        else:
+            if st.session_state.get('custo_valor', '') != st.session_state.custo_display:
+                st.session_state.custo_display = st.session_state.get('custo_valor', '')
+        custo_display = st.text_input("Custo:", value=st.session_state.custo_display, key="custo_display", disabled=True, help="Preenchido automaticamente ao selecionar Account (determina Tipo_Custo: Fixo ou Variável)")
+    
+    # Mostrar mensagem se informações foram encontradas
+    if account_selecionado and account_selecionado != "Nenhum" and st.session_state.type06_valor:
+        st.success(f"✅ Informações encontradas para Account '{account_selecionado}' - Tipo_Custo: {st.session_state.tipo_custo_auto}")
+    
+    # Configuração de meses baseado no tipo de aplicação
+    if tipo_aplicacao == "Pontual (meses específicos)":
+        meses_selecionados = st.multiselect(
+            "Selecione os meses específicos:",
+            options=periodos_restantes if periodos_restantes else meses_ano,
+            help="Selecione os meses onde este custo será aplicado"
+        )
+        mes_inicial = None
+    else:  # Constante
+        mes_inicial = st.selectbox(
+            "Mês inicial:",
+            options=periodos_restantes if periodos_restantes else meses_ano,
+            help="A partir deste mês, o custo será aplicado em todos os meses seguintes"
+        )
+        meses_selecionados = None
+    
+    # Rateio por veículo - busca automática do arquivo original
+    st.markdown("#### 📊 Rateio por Veículo")
+    st.info("ℹ️ Os rateios serão buscados automaticamente do arquivo 'Reporting fluxo anexo.xlsx' baseado em Oficina e Período. O sistema criará uma linha para cada veículo com o valor rateado.")
+    
+    # Buscar rateios automaticamente quando Oficina e Período estiverem disponíveis
+    rateios_preview = {}
+    if oficina_selecionada and periodos_restantes:
+        # Usar o primeiro período disponível para buscar rateios (preview)
+        periodo_para_buscar = periodos_restantes[0]
+        rateios_preview = buscar_rateios_arquivo(oficina_selecionada, periodo_para_buscar, ano_selecionado)
+        
+        if rateios_preview:
+            st.success(f"✅ Rateios encontrados para Oficina '{oficina_selecionada}' e Período '{periodo_para_buscar}':")
+            # Mostrar preview dos rateios
+            for veiculo_pct, percentual in rateios_preview.items():
+                veiculo_nome = veiculo_pct.replace('%', '')
+                st.text(f"   • {veiculo_nome}: {percentual*100:.2f}%")
+        else:
+            st.warning(f"⚠️ Nenhum rateio encontrado para Oficina '{oficina_selecionada}' e Período '{periodo_para_buscar}'. Os rateios serão buscados ao salvar.")
+    
+    # Botão para adicionar
+    if st.button("➕ Adicionar Custo", type="primary"):
+        # Validações
+        if valor_total <= 0:
+            st.error("❌ O valor total deve ser maior que zero.")
+        elif tipo_aplicacao == "Pontual (meses específicos)" and not meses_selecionados:
+            st.error("❌ Selecione pelo menos um mês para aplicação pontual.")
+        elif tipo_aplicacao == "Constante (a partir de um mês)" and not mes_inicial:
+            st.error("❌ Selecione o mês inicial para aplicação constante.")
+        else:
+            # Determinar períodos que serão aplicados
+            periodos_aplicar = []
+            if tipo_aplicacao == "Pontual (meses específicos)" and meses_selecionados:
+                periodos_aplicar = meses_selecionados
+            elif tipo_aplicacao == "Constante (a partir de um mês)" and mes_inicial:
+                # Todos os períodos a partir do mês inicial
+                if periodos_restantes:
+                    idx_inicial = periodos_restantes.index(mes_inicial) if mes_inicial in periodos_restantes else 0
+                    periodos_aplicar = periodos_restantes[idx_inicial:]
+            
+            if not periodos_aplicar:
+                st.error("❌ Nenhum período selecionado para aplicação.")
+            else:
+                # Determinar quais veículos serão incluídos
+                veiculos = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
+                linhas_novas = []
+                
+                # Se um veículo específico foi selecionado (não "Todos"), aplicar 100% para ele
+                veiculo_especifico = None
+                if veiculo_selecionado and veiculo_selecionado != "Todos":
+                    veiculo_especifico = veiculo_selecionado
+                    # Validar se o veículo selecionado está na lista
+                    if veiculo_especifico not in veiculos:
+                        st.error(f"❌ Veículo '{veiculo_especifico}' não é válido.")
+                    else:
+                        st.info(f"ℹ️ Veículo específico selecionado: '{veiculo_especifico}'. Rateio será 100% para este veículo.")
+                
+                for periodo in periodos_aplicar:
+                    # Se um veículo específico foi selecionado, aplicar 100% para ele
+                    if veiculo_especifico:
+                        # Criar rateio manual: 100% para o veículo selecionado, 0% para os outros
+                        rateios_periodo = {}
+                        for veiculo in veiculos:
+                            veiculo_pct = f"{veiculo}%"
+                            if veiculo == veiculo_especifico:
+                                rateios_periodo[veiculo_pct] = 1.0  # 100%
+                            else:
+                                rateios_periodo[veiculo_pct] = 0.0  # 0%
+                    else:
+                        # Buscar rateios do arquivo para este período específico
+                        rateios_periodo = buscar_rateios_arquivo(oficina_selecionada, periodo, ano_selecionado)
+                        
+                        # Se não encontrou rateios, usar distribuição igual
+                        if not rateios_periodo or all(v == 0.0 for v in rateios_periodo.values()):
+                            st.warning(f"⚠️ Rateios não encontrados para {periodo}. Será usado rateio igual para todos os veículos.")
+                            veiculos_pct = ['CC21%', 'CC22%', 'CC24%', 'CC24 5L%', 'CC24 7L%', 'J516%']
+                            rateio_igual = 1.0 / len(veiculos_pct)
+                            for veiculo_pct in veiculos_pct:
+                                rateios_periodo[veiculo_pct] = rateio_igual
+                    
+                    # Criar uma linha para cada veículo (ou apenas para o veículo selecionado)
+                    veiculos_para_criar = [veiculo_especifico] if veiculo_especifico else veiculos
+                    
+                    for veiculo in veiculos_para_criar:
+                        veiculo_pct = f"{veiculo}%"
+                        rateio_veiculo = rateios_periodo.get(veiculo_pct, 0.0)
+                        
+                        # Se rateio é 0, pular este veículo (a menos que seja o veículo específico)
+                        if rateio_veiculo == 0.0 and not veiculo_especifico:
+                            continue
+                        
+                        # Calcular valor rateado para este veículo
+                        valor_rateado = valor_total * rateio_veiculo
+                        
+                        # Determinar o ano para preencher automaticamente
+                        ano_para_custo = None
+                        if ano_selecionado and ano_selecionado != "Todos":
+                            # Se ano selecionado é um número, usar diretamente
+                            try:
+                                ano_para_custo = int(ano_selecionado)
+                            except (ValueError, TypeError):
+                                ano_para_custo = None
+                        
+                        # Se não conseguiu determinar o ano, tentar extrair do período
+                        if ano_para_custo is None and periodo:
+                            periodo_str = str(periodo)
+                            # Tentar extrair ano do período (formato: "Janeiro 2024" ou "2024 Janeiro")
+                            anos_encontrados = re.findall(r'\b(20\d{2})\b', periodo_str)
+                            if anos_encontrados:
+                                try:
+                                    ano_para_custo = int(anos_encontrados[0])
+                                except (ValueError, TypeError):
+                                    pass
+                        
+                        # Se ainda não tem ano, usar o ano atual
+                        if ano_para_custo is None:
+                            ano_para_custo = datetime.now().year
+                        
+                        # Criar registro para este veículo e período
+                        # Usar 'Custo' (padrão do projeto) em vez de 'Tipo_Custo' (redundante)
+                        novo_custo = {
+                            'Oficina': oficina_selecionada,
+                            'Veículo': veiculo,
+                            'Período': periodo,
+                            'Custo': st.session_state.custo_valor if st.session_state.custo_valor else st.session_state.tipo_custo_auto,
+                            'Total': valor_rateado,  # Valor já rateado para este veículo
+                            'Tipo_Aplicacao': tipo_aplicacao,
+                            'Mes_Inicial': mes_inicial if tipo_aplicacao == "Constante (a partir de um mês)" else None,
+                            'Meses_Especificos': ','.join(meses_selecionados) if meses_selecionados else None,
+                            'Descricao': descricao if descricao else "Sem descrição",
+                            'Ano': ano_para_custo,
+                            'Tipo': 'BE Manual'  # Marcar como BE Manual (custo específico)
+                        }
+                        
+                        # Adicionar Account, Type 06, Type 05, Custo e USI se preenchidos
+                        if account_selecionado and account_selecionado != "Nenhum":
+                            novo_custo['Account'] = account_selecionado
+                        if st.session_state.type06_valor:
+                            novo_custo['Type 06'] = st.session_state.type06_valor
+                        if st.session_state.type05_valor:
+                            novo_custo['Type 05'] = st.session_state.type05_valor
+                        if st.session_state.custo_valor:
+                            novo_custo['Custo'] = st.session_state.custo_valor
+                        if st.session_state.usi_valor:
+                            novo_custo['USI'] = st.session_state.usi_valor
+                        
+                        # Adicionar rateio usado (para referência)
+                        novo_custo[veiculo_pct] = rateio_veiculo
+                        
+                        linhas_novas.append(novo_custo)
+                
+                # Adicionar todas as linhas ao DataFrame
+                if linhas_novas:
+                    df_custos_especificos = pd.concat([df_custos_especificos, pd.DataFrame(linhas_novas)], ignore_index=True)
+                    
+                    # Salvar
+                    if salvar_custos_especificos(df_custos_especificos):
+                        st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico adicionada(s) com sucesso!")
+                        # Limpar cache do Account para forçar nova busca na próxima vez
+                        if account_selecionado and account_selecionado != "Nenhum":
+                            if account_selecionado in st.session_state.account_info_cache:
+                                del st.session_state.account_info_cache[account_selecionado]
+                        st.rerun()
+                else:
+                    st.error("❌ Nenhuma linha foi criada. Verifique os rateios disponíveis.")
+
+st.markdown("---")
+
+# ====================================================================
 # 🎯 BOTÃO UNIFICADO PARA APLICAR TODAS AS CONFIGURAÇÕES
 # ====================================================================
 # Inicializar session_state para configurações do forecast
@@ -2653,6 +3547,10 @@ if aplicar_config_forecast:
                 caminho_forecast_original = os.path.join("dados", "historico_consolidado", "df_final_historico_forecast.parquet")
                 if os.path.exists(caminho_forecast_original):
                     df_base_completo = pd.read_parquet(caminho_forecast_original)
+                    # Converter valores antigos 'Forecast' para 'BE' (compatibilidade com arquivos antigos)
+                    if 'Tipo' in df_base_completo.columns:
+                        if 'Forecast' in df_base_completo['Tipo'].values:
+                            df_base_completo.loc[df_base_completo['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
                 else:
                     st.error(f"❌ Arquivo base não encontrado: {caminho_base_original}")
                     st.error("ℹ️ Por favor, verifique se o arquivo existe na pasta 'dados/historico_consolidado/'")
@@ -3422,15 +4320,18 @@ if aplicar_config_forecast:
                         else:
                             volume_mes = float(volume_mes_serie) if isinstance(volume_mes_serie, (int, float)) else float(volume_medio_historico)
                         
-                        # 🔧 CORREÇÃO: Verificar se Tipo_Custo existe (MESMA LÓGICA DO FORECAST COPY linha 6397-6405)
-                        if 'Tipo_Custo' not in df_forecast_completo.columns:
-                            # Se não existe, usar padrão 'Variável'
-                            tipo_custo = 'Variável'
-                        else:
+                        # 🔧 CORREÇÃO: Usar 'Custo' (padrão do projeto) em vez de 'Tipo_Custo' (redundante)
+                        # Verificar se Custo existe, senão verificar Tipo_Custo (para compatibilidade)
+                        if 'Custo' in df_forecast_completo.columns:
+                            tipo_custo = df_forecast_completo.loc[idx, 'Custo']
+                        elif 'Tipo_Custo' in df_forecast_completo.columns:
                             tipo_custo = df_forecast_completo.loc[idx, 'Tipo_Custo']
-                            # Garantir que tipo_custo seja string válida
-                            if pd.isna(tipo_custo) or tipo_custo not in ['Fixo', 'Variável']:
-                                tipo_custo = 'Variável'
+                        else:
+                            tipo_custo = 'Variável'
+                        
+                        # Garantir que tipo_custo seja string válida
+                        if pd.isna(tipo_custo) or str(tipo_custo).strip() not in ['Fixo', 'Variável']:
+                            tipo_custo = 'Variável'
                     except Exception as e:
                         # 🔧 CORREÇÃO: Em caso de erro, usar valores padrão e continuar (MESMA LÓGICA DO FORECAST COPY linha 6406-6409)
                         adicionar_mensagem("warning", f"⚠️ Erro ao processar linha {idx}: {str(e)}")
@@ -3498,6 +4399,10 @@ if aplicar_config_forecast:
                     adicionar_mensagem("warning", f"⚠️ **AVISO:** Forecast para '{periodo}' está zerado. Verifique se há médias históricas > 0.")
                 else:
                     adicionar_mensagem("success", f"✅ **Forecast calculado para '{periodo}':** Total = R$ {valores_forecast:,.2f} ({linhas_com_forecast:,} linhas com valor > 0)")
+                
+                # 💰 NOTA: Custos específicos são adicionados como linhas separadas mais abaixo (linha ~4777)
+                # Não adicionar aqui para evitar duplicação - os custos específicos já são incluídos
+                # como linhas separadas no df_final_historico_forecast
             
             # 🔧 DEBUG: Verificar se todos os períodos foram calculados
             adicionar_mensagem("success", f"✅ **Forecast calculado para todos os {len(periodos_restantes)} períodos!**")
@@ -3741,7 +4646,7 @@ if aplicar_config_forecast:
                         if 'Volume_Medio_Historico' in nova_linha:
                             del nova_linha['Volume_Medio_Historico']
                         
-                        nova_linha['Tipo'] = 'Forecast'
+                        nova_linha['Tipo'] = 'BE'
                         linhas_forecast_dicts.append(nova_linha)
                         linhas_forecast_criadas += 1
                 else:
@@ -3768,6 +4673,94 @@ if aplicar_config_forecast:
             adicionar_mensagem("info", f"📊 Linhas de forecast criadas: {linhas_forecast_criadas}")
             adicionar_mensagem("info", f"📊 Total de DataFrames em linhas_finais: {len(linhas_finais)}")
             
+            # 💰 ADICIONAR CUSTOS ESPECÍFICOS COMO LINHAS SEPARADAS NO FORECAST
+            df_custos_especificos_para_forecast = carregar_custos_especificos()
+            if not df_custos_especificos_para_forecast.empty:
+                adicionar_mensagem("info", f"💰 Carregando {len(df_custos_especificos_para_forecast):,} linha(s) de custos específicos para incluir no forecast")
+                
+                # Filtrar apenas custos que se aplicam aos períodos de forecast
+                linhas_custos_especificos = []
+                
+                for idx, custo_row in df_custos_especificos_para_forecast.iterrows():
+                    # Verificar se este custo se aplica a algum período de forecast
+                    tipo_aplicacao = custo_row.get('Tipo_Aplicacao', None)
+                    periodo_custo = custo_row.get('Período', None)
+                    
+                    if pd.isna(periodo_custo):
+                        continue
+                    
+                    # Normalizar período do custo
+                    periodo_custo_str = str(periodo_custo).strip()
+                    if ' ' in periodo_custo_str:
+                        mes_custo = periodo_custo_str.split(' ', 1)[0].strip().capitalize()
+                    else:
+                        mes_custo = periodo_custo_str.capitalize()
+                    
+                    # Verificar se o período do custo está nos períodos de forecast
+                    periodos_aplicaveis = []
+                    for periodo_forecast in periodos_restantes:
+                        periodo_forecast_str = str(periodo_forecast).strip()
+                        if ' ' in periodo_forecast_str:
+                            mes_forecast = periodo_forecast_str.split(' ', 1)[0].strip().capitalize()
+                        else:
+                            mes_forecast = periodo_forecast_str.capitalize()
+                        
+                        if mes_custo == mes_forecast:
+                            periodos_aplicaveis.append(periodo_forecast)
+                    
+                    # Se o custo se aplica a algum período de forecast, criar linha
+                    if periodos_aplicaveis:
+                        # Criar linha para cada período aplicável
+                        for periodo_aplicavel in periodos_aplicaveis:
+                            linha_custo = {}
+                            
+                            # Copiar todas as colunas do custo
+                            for col in df_custos_especificos_para_forecast.columns:
+                                if col not in ['Tipo_Aplicacao', 'Mes_Inicial', 'Meses_Especificos']:
+                                    linha_custo[col] = custo_row.get(col, None)
+                            
+                            # Ajustar Período para o formato do forecast
+                            periodo_str = str(periodo_aplicavel).strip()
+                            if ' ' in periodo_str:
+                                mes_nome = periodo_str.split(' ', 1)[0].strip().capitalize()
+                                linha_custo['Período'] = mes_nome
+                                
+                                # Extrair ano
+                                partes = periodo_str.split(' ', 1)
+                                if len(partes) == 2 and partes[1].isdigit():
+                                    linha_custo['Ano'] = int(partes[1])
+                            else:
+                                linha_custo['Período'] = periodo_str.strip().capitalize()
+                            
+                            # Garantir que Total e Valor estejam preenchidos
+                            if 'Total' not in linha_custo or pd.isna(linha_custo.get('Total')):
+                                if 'Valor' in linha_custo and pd.notna(linha_custo.get('Valor')):
+                                    linha_custo['Total'] = linha_custo['Valor']
+                                else:
+                                    linha_custo['Total'] = 0.0
+                            
+                            if 'Valor' not in linha_custo or pd.isna(linha_custo.get('Valor')):
+                                if 'Total' in linha_custo and pd.notna(linha_custo.get('Total')):
+                                    linha_custo['Valor'] = linha_custo['Total']
+                                else:
+                                    linha_custo['Valor'] = 0.0
+                            
+                            # Marcar como BE Manual (custo específico/manual)
+                            linha_custo['Tipo'] = 'BE Manual'
+                            
+                            # Adicionar descrição se não existir
+                            if 'Descricao' not in linha_custo or pd.isna(linha_custo.get('Descricao')):
+                                linha_custo['Descricao'] = 'Custo Específico'
+                            
+                            linhas_custos_especificos.append(linha_custo)
+                
+                if linhas_custos_especificos:
+                    df_custos_especificos_forecast = pd.DataFrame(linhas_custos_especificos)
+                    adicionar_mensagem("success", f"✅ {len(df_custos_especificos_forecast):,} linha(s) de custos específicos adicionada(s) ao forecast")
+                    linhas_finais.append(df_custos_especificos_forecast)
+                else:
+                    adicionar_mensagem("info", f"ℹ️ Nenhum custo específico se aplica aos períodos de forecast selecionados")
+            
             # 3. Separar histórico e forecast (MESMA LÓGICA DO FORECAST COPY linha 6788-6847)
             df_historico_final = None
             df_forecast_final = None
@@ -3789,8 +4782,15 @@ if aplicar_config_forecast:
                         adicionar_mensagem("info", f"🔍 DEBUG: Linhas com Tipo='{tipo}': {count:,}")
                     
                     df_historico_final = df_todos[df_todos['Tipo'] == 'Histórico'].copy()
-                    df_forecast_final = df_todos[df_todos['Tipo'] == 'Forecast'].copy()
+                    # Incluir tanto 'BE' quanto 'BE Manual' no forecast final (e 'Forecast' para compatibilidade com arquivos antigos)
+                    df_forecast_final = df_todos[df_todos['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])].copy()
                     df_consolidado_final = df_todos.copy()
+                    
+                    # Converter valores antigos 'Forecast' para 'BE' para padronização
+                    if 'Forecast' in df_forecast_final['Tipo'].values:
+                        df_forecast_final.loc[df_forecast_final['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
+                    if 'Forecast' in df_consolidado_final['Tipo'].values:
+                        df_consolidado_final.loc[df_consolidado_final['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
                     
                     adicionar_mensagem("info", f"🔍 DEBUG: df_historico_final: {len(df_historico_final):,} linhas")
                     adicionar_mensagem("info", f"🔍 DEBUG: df_forecast_final: {len(df_forecast_final):,} linhas")
@@ -3888,8 +4888,9 @@ if aplicar_config_forecast:
                 df_padronizado = df.copy()
                 
                 # Definir ordem padrão das colunas (colunas principais primeiro)
+                # NOTA: Usamos apenas 'Custo' (padrão do projeto), 'Tipo_Custo' é redundante
                 ordem_colunas_principal = [
-                    'Oficina', 'Veículo', 'Ano', 'Período', 'Tipo_Custo', 'Custo',
+                    'Oficina', 'Veículo', 'Ano', 'Período', 'Custo',
                     'Total', 'Valor',  # Total sempre antes de Valor
                     'Centocst', 'Fornec.', 'Fornecedor', 'USI',
                     'Type 05', 'Type 06', 'Account',
@@ -3933,7 +4934,7 @@ if aplicar_config_forecast:
                 df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
             
             if df_forecast_final is not None and not df_forecast_final.empty:
-                df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
             
             # Atualizar consolidado após limpeza e padronização (recombinar histórico e forecast limpos) (MESMA LÓGICA DO FORECAST COPY)
             if df_historico_final is not None and df_forecast_final is not None:
@@ -3947,7 +4948,7 @@ if aplicar_config_forecast:
                     
                     # Padronizar novamente após reindex para garantir ordem correta
                     df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
-                    df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                    df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                     
                     # Garantir que ambos tenham exatamente as mesmas colunas na mesma ordem
                     colunas_finais = list(df_historico_final.columns)
@@ -3982,7 +4983,7 @@ if aplicar_config_forecast:
                     df_forecast_final = df_forecast_final.reindex(columns=todas_colunas)
                     # Padronizar novamente
                     df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
-                    df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                    df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                     adicionar_mensagem("info", f"✅ Colunas alinhadas e padronizadas: {len(todas_colunas)} colunas")
             
             # ============================================================
@@ -4118,7 +5119,7 @@ if aplicar_config_forecast:
             
             # Salvar arquivos e coletar informações
             info_historico = salvar_arquivo(df_historico_final, "forecast_historico", "Histórico")
-            info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "Forecast")
+            info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "BE")
             info_consolidado = salvar_arquivo(df_forecast_completo, nome_arquivo_base, "Consolidado")
             
             # 🔧 DEBUG: Verificar resultado do salvamento
@@ -4144,6 +5145,11 @@ if aplicar_config_forecast:
                     df_historico_carregado = pd.read_parquet(caminho_historico_salvo)
                     df_forecast_carregado = pd.read_parquet(caminho_forecast_salvo)
                     
+                    # Converter valores antigos 'Forecast' para 'BE' (compatibilidade com arquivos antigos)
+                    if 'Tipo' in df_forecast_carregado.columns:
+                        if 'Forecast' in df_forecast_carregado['Tipo'].values:
+                            df_forecast_carregado.loc[df_forecast_carregado['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
+                    
                     adicionar_mensagem("info", f"📊 Histórico carregado: {len(df_historico_carregado):,} linhas")
                     adicionar_mensagem("info", f"📊 Forecast carregado: {len(df_forecast_carregado):,} linhas")
                     
@@ -4155,6 +5161,11 @@ if aplicar_config_forecast:
                     
                     # Combinar (muito rápido - apenas concat)
                     df_consolidado_final = pd.concat([df_historico_carregado, df_forecast_carregado], ignore_index=True)
+                    
+                    # Converter valores antigos 'Forecast' no consolidado também
+                    if 'Tipo' in df_consolidado_final.columns:
+                        if 'Forecast' in df_consolidado_final['Tipo'].values:
+                            df_consolidado_final.loc[df_consolidado_final['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
                     
                     adicionar_mensagem("success", f"✅ Consolidado criado: {len(df_consolidado_final):,} linhas (Histórico: {len(df_historico_carregado):,} + Forecast: {len(df_forecast_carregado):,})")
                     

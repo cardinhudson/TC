@@ -6735,8 +6735,8 @@ else:
                                 if 'Volume_Medio_Historico' in nova_linha:
                                     del nova_linha['Volume_Medio_Historico']
                                 
-                                # Adicionar coluna Tipo = 'Forecast'
-                                nova_linha['Tipo'] = 'Forecast'
+                                # Adicionar coluna Tipo = 'BE'
+                                nova_linha['Tipo'] = 'BE'
                                 
                                 # OTIMIZAÇÃO: Adicionar dicionário à lista (não criar DataFrame ainda)
                                 linhas_forecast_dicts.append(nova_linha)
@@ -6783,8 +6783,15 @@ else:
                         # Separar histórico e forecast
                         if 'Tipo' in df_todos.columns:
                             df_historico_final = df_todos[df_todos['Tipo'] == 'Histórico'].copy()
-                            df_forecast_final = df_todos[df_todos['Tipo'] == 'Forecast'].copy()
+                            # Incluir tanto 'BE' quanto 'BE Manual' no forecast final (e 'Forecast' para compatibilidade com arquivos antigos)
+                            df_forecast_final = df_todos[df_todos['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])].copy()
                             df_consolidado_final = df_todos.copy()
+                            
+                            # Converter valores antigos 'Forecast' para 'BE' para padronização
+                            if 'Forecast' in df_forecast_final['Tipo'].values:
+                                df_forecast_final.loc[df_forecast_final['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
+                            if 'Forecast' in df_consolidado_final['Tipo'].values:
+                                df_consolidado_final.loc[df_consolidado_final['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
                             
                             # 🔧 DEBUG: Verificar separação
                             adicionar_mensagem("info", f"🔍 DEBUG: Total de linhas em df_todos: {len(df_todos):,}")
@@ -6823,7 +6830,7 @@ else:
                             # Verificar se há períodos históricos
                             if 'Tipo' in df_forecast_completo.columns:
                                 periodos_historicos = df_forecast_completo[df_forecast_completo['Tipo'] == 'Histórico']['Período'].unique()
-                                periodos_forecast = df_forecast_completo[df_forecast_completo['Tipo'] == 'Forecast']['Período'].unique()
+                                periodos_forecast = df_forecast_completo[df_forecast_completo['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])]['Período'].unique()
                                 adicionar_mensagem("info", f"📊 Períodos históricos: {len(periodos_historicos)} períodos")
                                 adicionar_mensagem("info", f"📊 Períodos de forecast: {len(periodos_forecast)} períodos")
                     else:
@@ -6963,7 +6970,7 @@ else:
                         df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
                     
                     if df_forecast_final is not None and not df_forecast_final.empty:
-                        df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                        df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                     
                     # Atualizar consolidado após limpeza e padronização (recombinar histórico e forecast limpos)
                     if df_historico_final is not None and df_forecast_final is not None:
@@ -6977,7 +6984,7 @@ else:
                             
                             # Padronizar novamente após reindex para garantir ordem correta
                             df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
-                            df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                            df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                             
                             # Garantir que ambos tenham exatamente as mesmas colunas na mesma ordem
                             colunas_finais = list(df_historico_final.columns)
@@ -7121,7 +7128,7 @@ else:
                     if df_historico_final is not None and not df_historico_final.empty:
                         df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
                     if df_forecast_final is not None and not df_forecast_final.empty:
-                        df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                        df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                     if df_forecast_completo is not None and not df_forecast_completo.empty:
                         df_forecast_completo = padronizar_colunas(df_forecast_completo, "Consolidado")
                     
@@ -7140,12 +7147,12 @@ else:
                             df_forecast_final = df_forecast_final.reindex(columns=todas_colunas)
                             # Padronizar novamente
                             df_historico_final = padronizar_colunas(df_historico_final, "Histórico")
-                            df_forecast_final = padronizar_colunas(df_forecast_final, "Forecast")
+                            df_forecast_final = padronizar_colunas(df_forecast_final, "BE")
                             adicionar_mensagem("info", f"✅ Colunas alinhadas e padronizadas: {len(todas_colunas)} colunas")
                     
                     # Salvar arquivos e coletar informações
                     info_historico = salvar_arquivo(df_historico_final, "forecast_historico", "Histórico")
-                    info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "Forecast")
+                    info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "BE")
                     info_consolidado = salvar_arquivo(df_forecast_completo, nome_arquivo_base, "Consolidado")
                     
                     # 🔧 CORREÇÃO: Exibir todas as mensagens de debug em um único expander
