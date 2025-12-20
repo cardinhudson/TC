@@ -48,18 +48,10 @@ def obter_data_atualizacao_dados():
                 }
                 return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
             except (ValueError, OSError):
-                return "Não disponível"
-        return "Não disponível"
+                return None
+        return None
     except Exception:
-        return "Não disponível"
-
-# Exibir data de atualização dos dados no topo
-data_atualizacao = obter_data_atualizacao_dados()
-st.markdown(f"""
-<div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
-    📅 Dados atualizados em: {data_atualizacao}
-</div>
-""", unsafe_allow_html=True)
+        return None
 
 # CSS para reduzir fonte das configurações da sidebar
 st.markdown("""
@@ -102,6 +94,36 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
+
+# Cabeçalho compacto com data de atualização
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
+# Obter data de atualização (a função já está definida acima)
+data_atualizacao = obter_data_atualizacao_dados()
+
+# Montar textos do cabeçalho
+texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
+
+st.markdown(f"""
+<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
+    <div style='flex: 1;'>{texto_esquerda}</div>
+    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # Título
 st.title("📥 Extração e Processamento de Dados")

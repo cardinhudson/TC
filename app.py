@@ -20,6 +20,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
+
 # Função para obter data e hora de atualização dos dados
 def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
@@ -75,14 +86,23 @@ def obter_data_atualizacao_dados():
     except Exception:
         return None
 
-# Exibir data de atualização dos dados no topo (apenas se disponível)
+# Cabeçalho compacto com data de atualização
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
-if data_atualizacao:
-    st.markdown(f"""
-    <div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
-        📅 Dados atualizados em: {data_atualizacao}
-    </div>
-    """, unsafe_allow_html=True)
+
+# Montar textos do cabeçalho
+texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
+
+st.markdown(f"""
+<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
+    <div style='flex: 1;'>{texto_esquerda}</div>
+    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # CSS para reduzir títulos em 20% e evitar quebra de linha
 st.markdown("""
@@ -426,80 +446,118 @@ st.markdown("""
         }
 """, unsafe_allow_html=True)
 
-# Título - Movido para o topo da página
-st.title("🏭 Dashboard TC Extendido Porto Real")
-st.subheader("Análise de dados agrupados por Oficina e Período")
+# Verificar se estamos na página principal (app.py) e não em uma página separada
+# IMPORTANTE: Verificar ANTES de renderizar qualquer conteúdo do dashboard
+is_main_page = True
+try:
+    import os
+    # Verificar pelo nome do arquivo diretamente (mais confiável)
+    current_file_name = os.path.basename(__file__)
+    if current_file_name == 'app.py':
+        is_main_page = True
+    else:
+        # Verificar pelo caminho completo
+        current_file = os.path.abspath(__file__)
+        # Verificar se o arquivo atual está na pasta pages
+        if current_file and ('pages' in current_file.replace('\\', '/') or 'pages/' in current_file.replace('\\', '/')):
+            is_main_page = False
+        # Verificar se há flag no session_state indicando página separada (ex: Waterfall)
+        if 'is_waterfall_page' in st.session_state and st.session_state.is_waterfall_page:
+            is_main_page = False
+except Exception as e:
+    # Em caso de erro, assumir que estamos na página principal
+    is_main_page = True
 
-st.markdown("---")
+# Verificação adicional: garantir que no app.py sempre seja True
+try:
+    import os
+    current_file_name = os.path.basename(__file__)
+    if current_file_name == 'app.py':
+        is_main_page = True
+    # Se não estamos em pages, forçar is_main_page = True
+    elif not is_main_page:
+        current_file_check = os.path.abspath(__file__)
+        if current_file_check and 'pages' not in current_file_check.replace('\\', '/'):
+            is_main_page = True
+except:
+    # Em caso de erro, assumir página principal
+    is_main_page = True
 
-# Inicializar estado se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "🇧🇷 R$"
-# Inicializar moeda_selecionada_radio também para evitar erro no callback
-if 'moeda_selecionada_radio' not in st.session_state:
-    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
+if is_main_page:
+    # Título - Movido para o topo da página
+    st.title("🏭 Dashboard TC Extendido Porto Real")
+    st.subheader("Análise de dados agrupados por Oficina e Período")
 
-# URLs das bandeiras
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
+    st.markdown("---")
 
-# Seleção de moeda com bandeiras ao lado (sem botões, apenas visual)
-col_moeda1, col_moeda2 = st.columns([3, 1])
+    # Inicializar estado se não existir
+    if 'moeda_selecionada' not in st.session_state:
+        st.session_state.moeda_selecionada = "🇧🇷 R$"
+    # Inicializar moeda_selecionada_radio também para evitar erro no callback
+    if 'moeda_selecionada_radio' not in st.session_state:
+        st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
 
-with col_moeda1:
-    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-    
-    # SEMPRE usar o valor mais atual do session_state para calcular o índice
-    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-    
-    # Função callback para garantir sincronização imediata
-    def atualizar_moeda():
-        # O valor já está em st.session_state.moeda_selecionada_radio após o clique
-        # Verificar se a chave existe antes de acessar
-        if 'moeda_selecionada_radio' in st.session_state:
-            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
-    
-    moeda_selecionada = st.radio(
-        "",
-        opcoes_moeda,
-        index=index_moeda,
-        horizontal=True,
-        help="Selecione a moeda para exibição nos gráficos",
-        key="moeda_selecionada_radio",
-        label_visibility="visible",
-        on_change=atualizar_moeda
-    )
-    
-    # Garantir que o estado esteja sincronizado (backup caso on_change não funcione)
-    if st.session_state.moeda_selecionada != moeda_selecionada:
-        st.session_state.moeda_selecionada = moeda_selecionada
+    # URLs das bandeiras
+    bandeira_brasil_url = "https://flagcdn.com/br.svg"
+    bandeira_eua_url = "https://flagcdn.com/us.svg"
+    bandeira_europa_url = "https://flagcdn.com/eu.svg"
 
-# Obter moeda atual do session_state (sempre atualizado)
-moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-flag_selecionada_eur = moeda_atual == '🇪🇺 €'
+    # Seleção de moeda com bandeiras ao lado (sem botões, apenas visual)
+    col_moeda1, col_moeda2 = st.columns([3, 1])
 
-with col_moeda2:
-    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
-    st.markdown(f"""
-    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
+    with col_moeda1:
+        st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
+        opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
+        
+        # SEMPRE usar o valor mais atual do session_state para calcular o índice
+        moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+        index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
+        
+        # Função callback para garantir sincronização imediata
+        def atualizar_moeda():
+            # O valor já está em st.session_state.moeda_selecionada_radio após o clique
+            # Verificar se a chave existe antes de acessar
+            if 'moeda_selecionada_radio' in st.session_state:
+                st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
+        
+        moeda_selecionada = st.radio(
+            "",
+            opcoes_moeda,
+            index=index_moeda,
+            horizontal=True,
+            help="Selecione a moeda para exibição nos gráficos",
+            key="moeda_selecionada_radio",
+            label_visibility="visible",
+            on_change=atualizar_moeda
+        )
+        
+        # Garantir que o estado esteja sincronizado (backup caso on_change não funcione)
+        if st.session_state.moeda_selecionada != moeda_selecionada:
+            st.session_state.moeda_selecionada = moeda_selecionada
+
+    # Obter moeda atual do session_state (sempre atualizado)
+    moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
+    flag_selecionada_usd = moeda_atual == '🇺🇸 $'
+    flag_selecionada_eur = moeda_atual == '🇪🇺 €'
+
+    with col_moeda2:
+        st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
+        st.markdown(f"""
+        <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
+                <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
+            </div>
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
+                <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
+            </div>
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
+                <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
+            </div>
         </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-# Funções de banco de dados SQLite (definir ANTES de usar)
+# Funções de banco de dados SQLite (definir ANTES de usar - disponíveis para todas as páginas)
 def inicializar_banco_taxas():
     """Cria o banco de dados e tabela para taxas de câmbio se não existir"""
     caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
@@ -570,7 +628,97 @@ def listar_anos_disponiveis():
     
     return sorted(anos_disponiveis, reverse=True)  # Mais recente primeiro
 
-# Filtros na sidebar - ANTES de carregar dados
+# Botões para alternar tema (no topo da sidebar)
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🎨 Tema**")
+
+# Função para salvar tema no config.toml
+def save_theme_to_config(theme_name):
+    """Salva o tema no config.toml"""
+    import os
+    import toml
+    
+    config_path = os.path.join(".streamlit", "config.toml")
+    try:
+        # Ler configuração atual
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+        
+        # Atualizar tema
+        if 'theme' not in config:
+            config['theme'] = {}
+        config['theme']['base'] = theme_name
+        
+        # Cores específicas para cada tema
+        if theme_name == 'dark':
+            config['theme']['primaryColor'] = "#FF4B4B"
+            config['theme']['backgroundColor'] = "#0E1117"
+            config['theme']['secondaryBackgroundColor'] = "#262730"
+            config['theme']['textColor'] = "#FAFAFA"
+            config['theme']['font'] = "sans serif"
+        else:  # light
+            config['theme']['primaryColor'] = "#FF4B4B"
+            config['theme']['backgroundColor'] = "#FFFFFF"
+            config['theme']['secondaryBackgroundColor'] = "#F0F2F6"
+            config['theme']['textColor'] = "#262730"
+            config['theme']['font'] = "sans serif"
+        
+        # Salvar configuração
+        with open(config_path, 'w') as f:
+            toml.dump(config, f)
+        
+        return True
+    except Exception as e:
+        st.sidebar.error(f"❌ Erro: {str(e)}")
+        return False
+
+# Função para ler tema atual
+def get_current_theme():
+    import os
+    import toml
+    config_path = os.path.join(".streamlit", "config.toml")
+    try:
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+        return config.get('theme', {}).get('base', 'light')
+    except:
+        return 'light'
+
+# Ler tema atual (uma vez por sessão)
+if 'current_saved_theme' not in st.session_state:
+    st.session_state.current_saved_theme = get_current_theme()
+
+# Mostrar tema atual
+st.sidebar.caption(f"Tema ativo: **{st.session_state.current_saved_theme.upper()}**")
+
+# Criar duas colunas para os botões
+col_dark, col_light = st.sidebar.columns(2)
+
+# Inicializar flag de mensagem
+if 'show_reload_message' not in st.session_state:
+    st.session_state.show_reload_message = False
+
+# Botão Dark Mode (Lua)
+with col_dark:
+    if st.button("🌙 Dark", key="btn_dark", help="Ativar Dark Mode", use_container_width=True):
+        if save_theme_to_config('dark'):
+            st.session_state.current_saved_theme = 'dark'
+            st.session_state.show_reload_message = True
+
+# Botão Light Mode (Sol)
+with col_light:
+    if st.button("☀️ Light", key="btn_light", help="Ativar Light Mode", use_container_width=True):
+        if save_theme_to_config('light'):
+            st.session_state.current_saved_theme = 'light'
+            st.session_state.show_reload_message = True
+
+# Mostrar mensagem se tema foi alterado
+if st.session_state.show_reload_message:
+    st.sidebar.success(f"✅ Tema **{st.session_state.current_saved_theme.upper()}** salvo!")
+    st.sidebar.info("🔄 **Pressione F5** para aplicar o novo tema")
+    # Manter mensagem visível (não resetar flag)
+
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📅 Seleção de Ano**")
 
@@ -602,137 +750,441 @@ ano_selecionado = st.sidebar.selectbox(
 # Atualizar session_state
 st.session_state.filtro_ano_tc_ext = ano_selecionado
 
-# Carregar taxas do banco de dados para usar na página principal
-try:
-    taxas_cambio_banco = carregar_taxas_banco()
-except Exception as e:
-    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
-
-# Taxas de conversão: entrada em "1 $ = R$ X" e "1 € = R$ X"
-taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
-taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
-
-# Seção de Taxas de Câmbio (seguindo o mesmo padrão dos outros blocos)
-st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
-
-# Criar colunas para as taxas
-# Criar colunas para as taxas (ajustar proporção para evitar corte de texto)
-col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
-
-with col_taxa1:
-    # Usar markdown para o label e campo sem label para evitar corte
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
-    taxa_usd_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_usd_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
-        key="taxa_usd_para_brl_input",
-        label_visibility="collapsed"
-    )
-
-with col_taxa2:
-    # Usar markdown para o label e campo sem label para evitar corte
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
-    taxa_eur_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_eur_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
-        key="taxa_eur_para_brl_input",
-        label_visibility="collapsed"
-    )
-
-# Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
-taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
-taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
-
-# Salvar taxas quando alteradas
-# Usar session_state para evitar salvar múltiplas vezes na mesma execução
-taxa_usd_atual_key = "taxa_usd_atual_salva"
-taxa_eur_atual_key = "taxa_eur_atual_salva"
-
-# Verificar se as taxas mudaram desde a última vez que foram salvas
-taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
-taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
-
-if taxa_usd_mudou or taxa_eur_mudou:
-    novas_taxas = {
-        "USD": float(taxa_usd_para_brl),
-        "EUR": float(taxa_eur_para_brl)
-    }
+# Função para carregar dados com cache (disponível para todas as páginas - deve estar antes do uso)
+@st.cache_data(
+    ttl=3600,
+    max_entries=10,  # Aumentar para cachear diferentes anos
+    show_spinner=True
+)
+def load_data(ano_selecionado_param):
+    """Carrega os dados do arquivo parquet - SEMPRE do histórico consolidado"""
     try:
-        salvar_taxas_banco(novas_taxas)
-        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
-        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
+        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
+        # Apenas aplicar filtro de ano quando necessário
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+        caminho_absoluto = os.path.abspath(caminho_historico)
+        
+        if os.path.exists(caminho_historico):
+            df = pd.read_parquet(caminho_historico)
+        else:
+            st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
+            st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
+            st.stop()
+            return None
+
+        # Se um ano específico foi selecionado, filtrar após carregar
+        # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
+        # e apenas filtramos pelo ano, mantendo consistência
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                # Se não conseguir converter para int, não filtrar por ano
+                pass
+
+        # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
+        # Isso garante consistência com o resto do código que espera períodos capitalizados
+        if 'Período' in df.columns:
+            mapeamento_meses = {
+                'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
+                'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
+                'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
+                'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
+            }
+            
+            def normalizar_periodo(periodo):
+                """Normaliza período para formato capitalizado"""
+                if pd.isna(periodo):
+                    return periodo
+                periodo_str = str(periodo).strip()
+                periodo_lower = periodo_str.lower()
+                if periodo_lower in mapeamento_meses:
+                    return mapeamento_meses[periodo_lower]
+                return periodo_str  # Retornar original se não for um mês conhecido
+            
+            df['Período'] = df['Período'].apply(normalizar_periodo)
+
+        # Converter colunas numéricas conhecidas para numérico ANTES da otimização
+        # Isso evita que sejam convertidas para categorical
+        colunas_numericas = ['Valor', 'Total', 'Volume', 'CPU']
+        for col in colunas_numericas:
+            if col in df.columns and df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Otimizar tipos de dados
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                unique_ratio = df[col].nunique() / len(df)
+                if unique_ratio < 0.5:
+                    df[col] = df[col].astype('category')
+
+        # Converter floats para tipos menores
+        for col in df.select_dtypes(include=['float64']).columns:
+            df[col] = pd.to_numeric(df[col], downcast='float')
+
+        # Converter ints para tipos menores
+        for col in df.select_dtypes(include=['int64']).columns:
+            df[col] = pd.to_numeric(df[col], downcast='integer')
+
+        return df
     except Exception as e:
-        st.error(f"❌ Erro ao salvar taxas: {e}")
+        st.error(f"❌ Erro ao carregar dados: {str(e)}")
+        st.stop()
 
-# Armazenar taxas em dicionário (para conversão: 1 R$ = X USD/EUR)
-# IMPORTANTE: Estas taxas são para MULTIPLICAR valores em BRL
-# Exemplo: Se taxa_brl_para_usd = 0.20, então 100 BRL * 0.20 = 20 USD
-# Isso é equivalente a: 100 BRL / 5 = 20 USD (onde 5 é taxa_usd_para_brl)
-taxas_cambio = {
-    "BRL": 1.0,  # Real é a moeda base
-    "USD": taxa_brl_para_usd,  # Ex: 0.20 (se 1 USD = 5 BRL, então 1 BRL = 0.20 USD)
-    "EUR": taxa_brl_para_eur   # Ex: 0.18 (se 1 EUR = 5.50 BRL, então 1 BRL = 0.18 EUR)
-}
-
-# Seletores no topo da página (layout horizontal compacto - mesma linha)
-col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
-
-with col_tipo:
-    tipo_visualizacao = st.radio(
-        "📊 **Tipo:**",
-        ["Custo Total", "CPU (Custo por Unidade)"],
-        index=0,
-        horizontal=True,
-        key="tipo_visualizacao_top"
-    )
-
-with col_fator:
-    if tipo_visualizacao == "Custo Total":
-        fator_conversao = st.radio(
-            "🔢 **Fator:**",
-            ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=1,
-            horizontal=True,
-            help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
-            key="fator_conversao_top"
+# Função auxiliar para obter opções de filtro (disponível para todas as páginas - deve estar antes do uso)
+@st.cache_data(ttl=1800, max_entries=5)
+def get_filter_options(df, column_name):
+    """Obtém opções de filtro com cache"""
+    if column_name in df.columns:
+        opcoes = sorted(
+            df[column_name].dropna().astype(str).unique().tolist()
         )
+        return ["Todos"] + opcoes
+    return ["Todos"]
+
+# Continuar apenas se estivermos na página principal
+if is_main_page:
+    # Carregar taxas do banco de dados para usar na página principal
+    try:
+        taxas_cambio_banco = carregar_taxas_banco()
+    except Exception as e:
+        taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
+
+    # Taxas de conversão: entrada em "1 $ = R$ X" e "1 € = R$ X"
+    taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
+    taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
+
+    # Seção de Taxas de Câmbio (seguindo o mesmo padrão dos outros blocos)
+    st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
+
+    # Criar colunas para as taxas
+    # Criar colunas para as taxas (ajustar proporção para evitar corte de texto)
+    col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
+
+    with col_taxa1:
+        # Usar markdown para o label e campo sem label para evitar corte
+        st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
+        taxa_usd_para_brl = st.number_input(
+            "",
+            min_value=0.01,
+            max_value=100.0,
+            value=float(taxa_usd_para_brl_padrao),
+            step=0.01,
+            format="%.2f",
+            help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
+            key="taxa_usd_para_brl_input",
+            label_visibility="collapsed"
+        )
+
+    with col_taxa2:
+        # Usar markdown para o label e campo sem label para evitar corte
+        st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
+        taxa_eur_para_brl = st.number_input(
+            "",
+            min_value=0.01,
+            max_value=100.0,
+            value=float(taxa_eur_para_brl_padrao),
+            step=0.01,
+            format="%.2f",
+            help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
+            key="taxa_eur_para_brl_input",
+            label_visibility="collapsed"
+        )
+
+    # Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
+    taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
+    taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
+
+    # Salvar taxas quando alteradas
+    # Usar session_state para evitar salvar múltiplas vezes na mesma execução
+    taxa_usd_atual_key = "taxa_usd_atual_salva"
+    taxa_eur_atual_key = "taxa_eur_atual_salva"
+
+    # Verificar se as taxas mudaram desde a última vez que foram salvas
+    taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
+                      st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
+    taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
+                      st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
+
+    if taxa_usd_mudou or taxa_eur_mudou:
+        novas_taxas = {
+            "USD": float(taxa_usd_para_brl),
+            "EUR": float(taxa_eur_para_brl)
+        }
+        try:
+            salvar_taxas_banco(novas_taxas)
+            st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
+            st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar taxas: {e}")
+
+    # Armazenar taxas em dicionário (para conversão: 1 R$ = X USD/EUR)
+    # IMPORTANTE: Estas taxas são para MULTIPLICAR valores em BRL
+    # Exemplo: Se taxa_brl_para_usd = 0.20, então 100 BRL * 0.20 = 20 USD
+    # Isso é equivalente a: 100 BRL / 5 = 20 USD (onde 5 é taxa_usd_para_brl)
+    taxas_cambio = {
+        "BRL": 1.0,  # Real é a moeda base
+        "USD": taxa_brl_para_usd,  # Ex: 0.20 (se 1 USD = 5 BRL, então 1 BRL = 0.20 USD)
+        "EUR": taxa_brl_para_eur   # Ex: 0.18 (se 1 EUR = 5.50 BRL, então 1 BRL = 0.18 EUR)
+    }
+
+    # Seletores no topo da página (layout horizontal compacto - mesma linha)
+    col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
+
+    with col_tipo:
+        tipo_visualizacao = st.radio(
+            "📊 **Tipo:**",
+            ["Custo Total", "CPU (Custo por Unidade)"],
+            index=0,
+            horizontal=True,
+            key="tipo_visualizacao_top"
+        )
+
+    with col_fator:
+        if tipo_visualizacao == "Custo Total":
+            fator_conversao = st.radio(
+                "🔢 **Fator:**",
+                ["Nenhum", "K (milhares)", "M (Milhões)"],
+                index=1,
+                horizontal=True,
+                help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
+                key="fator_conversao_top"
+            )
+        else:
+            fator_conversao = None
+
+    # Obter a moeda selecionada do session state (já está atualizado acima)
+    moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+
+    # Extrair código e símbolo da moeda
+    if moeda_selecionada == "🇧🇷 R$":
+        moeda_codigo = "BRL"
+        moeda_simbolo = "R$"
+    elif moeda_selecionada == "🇺🇸 $":
+        moeda_codigo = "USD"
+        moeda_simbolo = "$"
+    elif moeda_selecionada == "🇪🇺 €":
+        moeda_codigo = "EUR"
+        moeda_simbolo = "€"
     else:
-        fator_conversao = None
+        # Fallback
+        moeda_codigo = "BRL"
+        moeda_simbolo = "R$"
 
+    st.markdown("---")
 
-# Obter a moeda selecionada do session state (já está atualizado acima)
-moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    # Teste de validação da conversão (mostrar exemplo)
+    if moeda_codigo != "BRL":
+        valor_teste = 100.0
+        valor_convertido = converter_moeda(valor_teste, moeda_codigo, taxas_cambio)
+        if moeda_codigo == "USD":
+            taxa_esperada = taxa_usd_para_brl
+            valor_esperado_divisao = valor_teste / taxa_esperada
+            st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+            st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
+        else:  # EUR
+            taxa_esperada = taxa_eur_para_brl
+            valor_esperado_divisao = valor_teste / taxa_esperada
+            st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+            st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
 
-# Extrair código e símbolo da moeda
-if moeda_selecionada == "🇧🇷 R$":
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-elif moeda_selecionada == "🇺🇸 $":
-    moeda_codigo = "USD"
-    moeda_simbolo = "$"
-elif moeda_selecionada == "🇪🇺 €":
-    moeda_codigo = "EUR"
-    moeda_simbolo = "€"
-else:
-    # Fallback
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔍 Filtros**")
 
-st.markdown("---")
+    # Carregar dados com o ano selecionado
+    try:
+        df_total = load_data(ano_selecionado)
+        
+        # Verificar se df_total foi carregado corretamente
+        if df_total is None:
+            st.error("❌ Erro: Nenhum dado foi carregado (df_total é None)")
+            st.stop()
+        
+        if df_total.empty:
+            st.error("❌ Erro: DataFrame carregado está vazio")
+            st.stop()
+    except Exception as e:
+        st.error(f"❌ Erro: {str(e)}")
+        import traceback
+        st.error(f"Detalhes: {traceback.format_exc()}")
+        st.stop()
 
-# Função auxiliar para encontrar arquivo parquet na ordem de prioridade
+    # Aplicar fator de conversão nas colunas Total e BUD (antes de qualquer processamento)
+    # Isso simplifica os cálculos pois o fator é aplicado uma única vez na origem
+    # Mantém os dados na mesma unidade para comparações consistentes
+    # 🔧 CORREÇÃO CRÍTICA: NÃO aplicar fator de conversão quando está em modo CPU
+    # No modo CPU, o fator não deve ser aplicado pois CPU já é uma razão (Total/Volume)
+    if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+        if fator_conversao == "K (milhares)":
+            if 'Total' in df_total.columns:
+                df_total['Total'] = df_total['Total'] / 1000
+        elif fator_conversao == "M (Milhões)":
+            if 'Total' in df_total.columns:
+                df_total['Total'] = df_total['Total'] / 1000000
+
+    # Aplicar conversão de moeda DEPOIS do fator de conversão (mesma lógica do fator)
+    # Isso garante que todos os dados derivados já terão a conversão aplicada
+    # IMPORTANTE: Aplicar na mesma ordem: primeiro fator, depois moeda
+    # IMPORTANTE: Aplicar conversão em AMBOS os modos (Custo Total e CPU)
+    # No modo CPU, o Total convertido será usado para calcular CPU = Total convertido / Volume
+    if moeda_codigo != "BRL" and 'Total' in df_total.columns:
+        df_total = converter_coluna_moeda(df_total, 'Total', moeda_codigo, taxas_cambio)
+
+    # Inicializar session_state para filtros
+    if 'filtro_oficina_tc_ext' not in st.session_state:
+        st.session_state.filtro_oficina_tc_ext = ["Todos"]
+
+    # Filtro 1: Oficina (com cache otimizado)
+    if 'Oficina' in df_total.columns:
+        oficina_opcoes = get_filter_options(df_total, 'Oficina')
+        # Validar valores salvos
+        default_oficina = st.session_state.filtro_oficina_tc_ext if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_tc_ext) else ["Todos"]
+        oficina_selecionadas = st.sidebar.multiselect(
+            "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_tc_ext_multiselect"
+        )
+        # Atualizar session_state
+        st.session_state.filtro_oficina_tc_ext = oficina_selecionadas if oficina_selecionadas else ["Todos"]
+
+        # Filtrar o DataFrame com base na Oficina
+        if "Todos" in oficina_selecionadas or not oficina_selecionadas:
+            df_filtrado = df_total.copy()
+        else:
+            df_filtrado = df_total[
+                df_total['Oficina'].astype(str).isin(oficina_selecionadas)
+            ].copy()
+    else:
+        df_filtrado = df_total.copy()
+
+    # Filtro 2: Veículo
+    if 'filtro_veiculo_tc_ext' not in st.session_state:
+        st.session_state.filtro_veiculo_tc_ext = ["Todos"]
+    
+    if 'Veículo' in df_filtrado.columns:
+        veiculo_opcoes = get_filter_options(df_filtrado, 'Veículo')
+        default_veiculo = st.session_state.filtro_veiculo_tc_ext if all(x in veiculo_opcoes for x in st.session_state.filtro_veiculo_tc_ext) else ["Todos"]
+        veiculo_selecionados = st.sidebar.multiselect(
+            "Selecione o Veículo:", veiculo_opcoes, default=default_veiculo, key="filtro_veiculo_tc_ext_multiselect"
+        )
+        st.session_state.filtro_veiculo_tc_ext = veiculo_selecionados if veiculo_selecionados else ["Todos"]
+        
+        # Filtrar o DataFrame com base no Veículo
+        if veiculo_selecionados and "Todos" not in veiculo_selecionados:
+            df_filtrado = df_filtrado[
+                df_filtrado['Veículo'].astype(str).isin(veiculo_selecionados)
+            ].copy()
+
+    # Filtro 3: USI
+    if 'filtro_usi_tc_ext' not in st.session_state:
+        st.session_state.filtro_usi_tc_ext = ["Todos"]
+    
+    if 'USI' in df_filtrado.columns:
+        usi_opcoes = get_filter_options(df_filtrado, 'USI')
+        default_usi = st.session_state.filtro_usi_tc_ext if all(x in usi_opcoes for x in st.session_state.filtro_usi_tc_ext) else ["Todos"]
+        usi_selecionadas = st.sidebar.multiselect(
+            "Selecione a USI:", usi_opcoes, default=default_usi, key="filtro_usi_tc_ext_multiselect"
+        )
+        st.session_state.filtro_usi_tc_ext = usi_selecionadas if usi_selecionadas else ["Todos"]
+        
+        # Filtrar o DataFrame com base na USI
+        if usi_selecionadas and "Todos" not in usi_selecionadas:
+            df_filtrado = df_filtrado[
+                df_filtrado['USI'].astype(str).isin(usi_selecionadas)
+            ].copy()
+
+    # Filtro 4: Período
+    if 'filtro_periodo_tc_ext' not in st.session_state:
+        st.session_state.filtro_periodo_tc_ext = ["Todos"]
+    
+    if 'Período' in df_filtrado.columns:
+        periodo_opcoes = get_filter_options(df_filtrado, 'Período')
+        # Ordenar períodos cronologicamente
+        ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        periodo_opcoes_ordenados = ["Todos"]
+        for mes in ordem_meses:
+            if mes in periodo_opcoes:
+                periodo_opcoes_ordenados.append(mes)
+        # Adicionar outros períodos que não são meses
+        for periodo in periodo_opcoes:
+            if periodo != "Todos" and periodo not in periodo_opcoes_ordenados:
+                periodo_opcoes_ordenados.append(periodo)
+        
+        default_periodo = st.session_state.filtro_periodo_tc_ext if all(x in periodo_opcoes_ordenados for x in st.session_state.filtro_periodo_tc_ext) else ["Todos"]
+        periodo_selecionados = st.sidebar.multiselect(
+            "Selecione o Período:", periodo_opcoes_ordenados, default=default_periodo, key="filtro_periodo_tc_ext_multiselect"
+        )
+        st.session_state.filtro_periodo_tc_ext = periodo_selecionados if periodo_selecionados else ["Todos"]
+        
+        # Filtrar o DataFrame com base no Período
+        if periodo_selecionados and "Todos" not in periodo_selecionados:
+            df_filtrado = df_filtrado[
+                df_filtrado['Período'].astype(str).isin(periodo_selecionados)
+            ].copy()
+
+    # Filtros principais adicionais
+    filtros_principais = [
+        ("Type 05", "Type 05", "multiselect"),
+        ("Type 06", "Type 06", "multiselect"),
+        ("Account", "Account", "multiselect"),
+        ("Fornecedor", "Fornecedor", "multiselect"),
+        ("Fornec.", "Fornec.", "multiselect"),
+        ("Tipo", "Tipo", "multiselect")
+    ]
+
+    for col_name, label, widget_type in filtros_principais:
+        if col_name in df_filtrado.columns:
+            # Inicializar session_state para cada filtro principal
+            filtro_key = f'filtro_{col_name}_tc_ext'
+            if filtro_key not in st.session_state:
+                st.session_state[filtro_key] = ["Todos"]
+            
+            opcoes = get_filter_options(df_filtrado, col_name)
+            if widget_type == "multiselect":
+                # Validar valores salvos
+                default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
+                selecionadas = st.sidebar.multiselect(
+                    f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
+                )
+                # Atualizar session_state
+                st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
+                if selecionadas and "Todos" not in selecionadas:
+                    df_filtrado = df_filtrado[
+                        df_filtrado[col_name].astype(str).isin(selecionadas)
+                    ].copy()
+
+    # Filtros avançados (expansível)
+    with st.sidebar.expander("🔍 Filtros Avançados"):
+        filtros_avancados = [
+            ("Custo", "Custo"),
+            ("Type 07", "Type 07"),
+            ("Texto breve", "Texto breve"),
+            ("Material", "Material"),
+            ("Pedido", "Pedido"),
+            ("Ordem", "Ordem"),
+            ("CtAtvFixo", "CtAtvFixo")
+        ]
+        
+        for col_name, label in filtros_avancados:
+            if col_name in df_filtrado.columns:
+                # Inicializar session_state para cada filtro avançado
+                filtro_key = f'filtro_{col_name}_tc_ext_av'
+                if filtro_key not in st.session_state:
+                    st.session_state[filtro_key] = ["Todos"]
+                
+                opcoes = get_filter_options(df_filtrado, col_name)
+                # Validar valores salvos
+                default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
+                selecionadas = st.sidebar.multiselect(
+                    f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
+                )
+                # Atualizar session_state
+                st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
+                if selecionadas and "Todos" not in selecionadas:
+                    df_filtrado = df_filtrado[
+                        df_filtrado[col_name].astype(str).isin(selecionadas)
+                    ].copy()
+
+# Função auxiliar para encontrar arquivo parquet na ordem de prioridade (disponível para todas as páginas)
 def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     """
     Busca arquivo parquet na seguinte ordem de prioridade:
@@ -795,22 +1247,7 @@ def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
     df[coluna] = df[coluna].apply(lambda x: converter_moeda(x, moeda_destino, taxas))
     return df
 
-# Teste de validação da conversão (mostrar exemplo)
-if moeda_codigo != "BRL":
-    valor_teste = 100.0
-    valor_convertido = converter_moeda(valor_teste, moeda_codigo, taxas_cambio)
-    if moeda_codigo == "USD":
-        taxa_esperada = taxa_usd_para_brl
-        valor_esperado_divisao = valor_teste / taxa_esperada
-        st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
-        st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
-    else:  # EUR
-        taxa_esperada = taxa_eur_para_brl
-        valor_esperado_divisao = valor_teste / taxa_esperada
-        st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
-        st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
-
-# Função para obter símbolo da moeda
+# Função para obter símbolo da moeda (disponível para todas as páginas)
 def obter_simbolo_moeda(moeda_codigo):
     """Retorna o símbolo da moeda"""
     simbolos = {
@@ -820,10 +1257,7 @@ def obter_simbolo_moeda(moeda_codigo):
     }
     return simbolos.get(moeda_codigo, "R$")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("**🔍 Filtros**")
-
-# Função para carregar dados com cache
+# Função para carregar dados com cache (disponível para todas as páginas)
 @st.cache_data(
     ttl=3600,
     max_entries=10,  # Aumentar para cachear diferentes anos
@@ -848,8 +1282,12 @@ def load_data(ano_selecionado_param):
         # Se um ano específico foi selecionado, filtrar após carregar
         # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
         # e apenas filtramos pelo ano, mantendo consistência
-        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
-            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                # Se não conseguir converter para int, não filtrar por ano
+                pass
 
         # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
         # Isso garante consistência com o resto do código que espera períodos capitalizados
@@ -925,8 +1363,12 @@ def load_volume_data(ano_selecionado_param):
         # Se um ano específico foi selecionado, filtrar após carregar
         # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
         # e apenas filtramos pelo ano, mantendo consistência
-        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
-            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                # Se não conseguir converter para int, não filtrar por ano
+                pass
 
         # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
         # Isso garante consistência com o resto do código que espera períodos capitalizados
@@ -994,8 +1436,12 @@ def load_budget_data(ano_selecionado_param):
             return None
 
         # Se um ano específico foi selecionado, filtrar após carregar
-        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
-            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                # Se não conseguir converter para int, não filtrar por ano
+                pass
 
         # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
         # Isso garante consistência com o resto do código que espera períodos capitalizados
@@ -1062,8 +1508,12 @@ def load_budget_volume_data(ano_selecionado_param):
             return None
 
         # Se um ano específico foi selecionado, filtrar após carregar
-        if ano_selecionado_param != "Todos" and "Ano" in df.columns:
-            df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                # Se não conseguir converter para int, não filtrar por ano
+                pass
 
         # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
         # Isso garante consistência com o resto do código que espera períodos capitalizados
@@ -1112,626 +1562,13 @@ def load_budget_volume_data(ano_selecionado_param):
     except Exception:
         return None
 
-
-# Carregar dados com o ano selecionado
-try:
-    df_total = load_data(ano_selecionado)
-    
-    # Verificar se df_total foi carregado corretamente
-    if df_total is None:
-        st.error("❌ Erro: Nenhum dado foi carregado (df_total é None)")
-        st.stop()
-    
-    if df_total.empty:
-        st.error("❌ Erro: DataFrame carregado está vazio")
-        st.stop()
-except Exception as e:
-    st.error(f"❌ Erro: {str(e)}")
-    import traceback
-    st.error(f"Detalhes: {traceback.format_exc()}")
-    st.stop()
-
-# Função auxiliar para obter opções de filtro
-
-
-@st.cache_data(ttl=1800, max_entries=5)
-def get_filter_options(df, column_name):
-    """Obtém opções de filtro com cache"""
-    if column_name in df.columns:
-        opcoes = sorted(
-            df[column_name].dropna().astype(str).unique().tolist()
-        )
-        return ["Todos"] + opcoes
-    return ["Todos"]
-
-
-# Ordem dos meses para ordenação cronológica
+# Ordem dos meses para ordenação cronológica (disponível para todas as páginas)
 ORDEM_MESES = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
 ]
 
-
-# Aplicar fator de conversão nas colunas Total e BUD (antes de qualquer processamento)
-# Isso simplifica os cálculos pois o fator é aplicado uma única vez na origem
-# Mantém os dados na mesma unidade para comparações consistentes
-# 🔧 CORREÇÃO CRÍTICA: NÃO aplicar fator de conversão quando está em modo CPU
-# No modo CPU, o fator não deve ser aplicado pois CPU já é uma razão (Total/Volume)
-if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
-    if fator_conversao == "K (milhares)":
-        if 'Total' in df_total.columns:
-            df_total['Total'] = df_total['Total'] / 1000
-    elif fator_conversao == "M (Milhões)":
-        if 'Total' in df_total.columns:
-            df_total['Total'] = df_total['Total'] / 1000000
-
-# Aplicar conversão de moeda DEPOIS do fator de conversão (mesma lógica do fator)
-# Isso garante que todos os dados derivados já terão a conversão aplicada
-# IMPORTANTE: Aplicar na mesma ordem: primeiro fator, depois moeda
-# IMPORTANTE: Aplicar conversão em AMBOS os modos (Custo Total e CPU)
-# No modo CPU, o Total convertido será usado para calcular CPU = Total convertido / Volume
-if moeda_codigo != "BRL" and 'Total' in df_total.columns:
-    df_total = converter_coluna_moeda(df_total, 'Total', moeda_codigo, taxas_cambio)
-
-# Inicializar session_state para filtros
-if 'filtro_oficina_tc_ext' not in st.session_state:
-    st.session_state.filtro_oficina_tc_ext = ["Todos"]
-
-# Filtro 1: Oficina (com cache otimizado)
-if 'Oficina' in df_total.columns:
-    oficina_opcoes = get_filter_options(df_total, 'Oficina')
-    # Validar valores salvos
-    default_oficina = st.session_state.filtro_oficina_tc_ext if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_tc_ext) else ["Todos"]
-    oficina_selecionadas = st.sidebar.multiselect(
-        "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_tc_ext_multiselect"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_oficina_tc_ext = oficina_selecionadas if oficina_selecionadas else ["Todos"]
-
-    # Filtrar o DataFrame com base na Oficina
-    if "Todos" in oficina_selecionadas or not oficina_selecionadas:
-        df_filtrado = df_total.copy()
-    else:
-        df_filtrado = df_total[
-            df_total['Oficina'].astype(str).isin(oficina_selecionadas)
-        ].copy()
-else:
-    df_filtrado = df_total.copy()
-
-# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 1104)
-# NÃO aplicar conversão novamente aqui para evitar duplicação
-
-# Inicializar session_state para Veículo
-if 'filtro_veiculo_tc_ext' not in st.session_state:
-    st.session_state.filtro_veiculo_tc_ext = ["Todos"]
-
-# Filtro 2: Veículo (com cache otimizado)
-if 'Veículo' in df_filtrado.columns:
-    veiculo_opcoes = get_filter_options(df_filtrado, 'Veículo')
-    # Validar valores salvos
-    default_veiculo = st.session_state.filtro_veiculo_tc_ext if all(x in veiculo_opcoes for x in st.session_state.filtro_veiculo_tc_ext) else ["Todos"]
-    veiculo_selecionados = st.sidebar.multiselect(
-        "Selecione o Veículo:", veiculo_opcoes, default=default_veiculo, key="filtro_veiculo_tc_ext_multiselect"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_veiculo_tc_ext = veiculo_selecionados if veiculo_selecionados else ["Todos"]
-    if veiculo_selecionados and "Todos" not in veiculo_selecionados:
-        df_filtrado = df_filtrado[
-            df_filtrado['Veículo'].astype(str).isin(veiculo_selecionados)
-        ].copy()
-
-# Inicializar session_state para USI
-if 'filtro_usi_tc_ext' not in st.session_state:
-    if 'USI' in df_total.columns:
-        usi_opcoes_temp = get_filter_options(df_total, 'USI')
-        st.session_state.filtro_usi_tc_ext = ["TC Ext"] if "TC Ext" in usi_opcoes_temp else ["Todos"]
-    else:
-        st.session_state.filtro_usi_tc_ext = ["Todos"]
-
-# Filtro 3: USI (com cache otimizado)
-if 'USI' in df_filtrado.columns:
-    usi_opcoes = get_filter_options(df_filtrado, 'USI')
-    # Validar valores salvos
-    default_usi = st.session_state.filtro_usi_tc_ext if all(x in usi_opcoes for x in st.session_state.filtro_usi_tc_ext) else (["TC Ext"] if "TC Ext" in usi_opcoes else ["Todos"])
-    usi_selecionada = st.sidebar.multiselect(
-        "Selecione a USI:", usi_opcoes, default=default_usi, key="filtro_usi_tc_ext_multiselect"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_usi_tc_ext = usi_selecionada if usi_selecionada else ["Todos"]
-
-    # Filtrar o DataFrame com base na USI
-    if "Todos" in usi_selecionada or not usi_selecionada:
-        pass  # Manter df_filtrado como está
-    else:
-        df_filtrado = df_filtrado[
-            df_filtrado['USI'].astype(str).isin(usi_selecionada)
-        ].copy()
-
-# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 1104)
-# NÃO aplicar conversão novamente aqui para evitar duplicação
-
-# Filtro 4: Período (com cache otimizado)
-# IMPORTANTE: Criar cópia ANTES do filtro de período para usar no gráfico
-# IMPORTANTE: df_para_grafico_periodo é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
-# NÃO aplicar conversão novamente aqui para evitar duplicação
-df_para_grafico_periodo = df_filtrado.copy()
-
-if 'Período' in df_filtrado.columns:
-    periodo_opcoes_raw = get_filter_options(df_filtrado, 'Período')
-
-    # Ordenar meses cronologicamente
-    periodo_opcoes = ["Todos"]
-    meses_ordenados = []
-    outros_periodos = []
-
-    for periodo in periodo_opcoes_raw[1:]:  # Pular "Todos"
-        periodo_lower = str(periodo).lower()
-        if periodo_lower in ORDEM_MESES:
-            meses_ordenados.append(periodo)
-        else:
-            outros_periodos.append(periodo)
-
-    # Ordenar meses pela ordem cronológica
-    meses_ordenados.sort(
-        key=lambda x: ORDEM_MESES.index(str(x).lower())
-        if str(x).lower() in ORDEM_MESES else 999
-    )
-
-    # Combinar: Todos + meses ordenados + outros períodos
-    periodo_opcoes = periodo_opcoes + meses_ordenados + outros_periodos
-
-    # Inicializar session_state para Período
-    if 'filtro_periodo_tc_ext' not in st.session_state:
-        st.session_state.filtro_periodo_tc_ext = "Todos"
-    
-    # Validar valor salvo
-    periodo_default = st.session_state.filtro_periodo_tc_ext if st.session_state.filtro_periodo_tc_ext in periodo_opcoes else "Todos"
-    periodo_index = periodo_opcoes.index(periodo_default) if periodo_default in periodo_opcoes else 0
-    
-    periodo_selecionado = st.sidebar.selectbox(
-        "Selecione o Período:", periodo_opcoes, index=periodo_index, key="filtro_periodo_tc_ext_selectbox"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_periodo_tc_ext = periodo_selecionado
-    if periodo_selecionado != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado['Período'].astype(str) == str(periodo_selecionado)
-        ].copy()
-
-# Inicializar session_state para Centro cst
-if 'filtro_centro_cst_tc_ext' not in st.session_state:
-    st.session_state.filtro_centro_cst_tc_ext = "Todos"
-
-# Filtro 5: Centro cst (com cache otimizado)
-if 'Centrocst' in df_filtrado.columns:
-    centro_cst_opcoes = get_filter_options(df_filtrado, 'Centrocst')
-    # Validar valor salvo
-    centro_cst_default = st.session_state.filtro_centro_cst_tc_ext if st.session_state.filtro_centro_cst_tc_ext in centro_cst_opcoes else "Todos"
-    centro_cst_index = centro_cst_opcoes.index(centro_cst_default) if centro_cst_default in centro_cst_opcoes else 0
-    centro_cst_selecionado = st.sidebar.selectbox(
-        "Selecione o Centro cst:", centro_cst_opcoes, index=centro_cst_index, key="filtro_centro_cst_tc_ext_selectbox"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_centro_cst_tc_ext = centro_cst_selecionado
-    if centro_cst_selecionado != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado['Centrocst'].astype(str) == str(centro_cst_selecionado)
-        ].copy()
-
-# Inicializar session_state para Conta contábil
-if 'filtro_conta_contabil_tc_ext' not in st.session_state:
-    st.session_state.filtro_conta_contabil_tc_ext = []
-
-# Filtro 6: Conta contábil (com cache otimizado)
-if 'Nºconta' in df_filtrado.columns:
-    conta_contabil_opcoes = get_filter_options(df_filtrado, 'Nºconta')[1:]
-    # Validar valores salvos
-    default_conta = [x for x in st.session_state.filtro_conta_contabil_tc_ext if x in conta_contabil_opcoes] if st.session_state.filtro_conta_contabil_tc_ext else []
-    conta_contabil_selecionadas = st.sidebar.multiselect(
-        "Selecione a Conta contábil:", conta_contabil_opcoes, default=default_conta, key="filtro_conta_contabil_tc_ext_multiselect"
-    )
-    # Atualizar session_state
-    st.session_state.filtro_conta_contabil_tc_ext = conta_contabil_selecionadas
-    if conta_contabil_selecionadas:
-        df_filtrado = df_filtrado[
-            df_filtrado['Nºconta'].astype(str).isin(
-                conta_contabil_selecionadas
-            )
-        ].copy()
-
-# Filtros principais (com cache otimizado)
-filtros_principais = [
-    ("Type 05", "Type 05", "multiselect"),
-    ("Type 06", "Type 06", "multiselect"),
-    ("Account", "Account", "multiselect"),
-    ("Fornecedor", "Fornecedor", "multiselect"),
-    ("Fornec.", "Fornec.", "multiselect"),
-    ("Tipo", "Tipo", "multiselect")
-]
-
-for col_name, label, widget_type in filtros_principais:
-    if col_name in df_filtrado.columns:
-        # Inicializar session_state para cada filtro principal
-        filtro_key = f'filtro_{col_name}_tc_ext'
-        if filtro_key not in st.session_state:
-            st.session_state[filtro_key] = ["Todos"]
-        
-        opcoes = get_filter_options(df_filtrado, col_name)
-        if widget_type == "multiselect":
-            # Validar valores salvos
-            default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
-            selecionadas = st.sidebar.multiselect(
-                f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
-            )
-            # Atualizar session_state
-            st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
-            if selecionadas and "Todos" not in selecionadas:
-                df_filtrado = df_filtrado[
-                    df_filtrado[col_name].astype(str).isin(selecionadas)
-                ].copy()
-
-# Filtros avançados (expansível)
-with st.sidebar.expander("🔍 Filtros Avançados"):
-    filtros_avancados = [
-        ("Usuário", "Usuário", "multiselect"),
-        ("Material", "Material", "multiselect"),
-        ("Dt.lçto.", "Data Lançamento", "multiselect"),
-        ("Texto breve", "Texto breve", "multiselect")
-    ]
-
-    for col_name, label, widget_type in filtros_avancados:
-        if col_name in df_filtrado.columns:
-            opcoes = get_filter_options(df_filtrado, col_name)
-            # Limitar opções para melhor performance
-            if len(opcoes) > 101:  # 100 + "Todos"
-                opcoes = opcoes[:101]
-                st.caption(
-                    f"⚠️ {label}: Limitado a 100 opções para performance"
-                )
-
-            if widget_type == "multiselect":
-                # Inicializar session_state para cada filtro avançado
-                filtro_key = f'filtro_avancado_{col_name}_tc_ext'
-                if filtro_key not in st.session_state:
-                    st.session_state[filtro_key] = ["Todos"]
-                
-                # Validar valores salvos
-                default_val = st.session_state[filtro_key] if all(x in opcoes for x in st.session_state[filtro_key]) else ["Todos"]
-                selecionadas = st.multiselect(
-                    f"Selecione o {label}:", opcoes, default=default_val, key=f"{filtro_key}_multiselect"
-                )
-                # Atualizar session_state
-                st.session_state[filtro_key] = selecionadas if selecionadas else ["Todos"]
-                if selecionadas and "Todos" not in selecionadas:
-                    df_filtrado = df_filtrado[
-                        df_filtrado[col_name].astype(str).isin(selecionadas)
-                    ].copy()
-
-# Preparar dados para visualização
-if tipo_visualizacao == "CPU (Custo por Unidade)":
-    # Carregar dados de volume
-    df_vol_calc = load_volume_data(ano_selecionado)
-
-    if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
-        # Agrupar df_filtrado por Oficina e Período para calcular Total
-        if ('Oficina' in df_filtrado.columns and
-                'Período' in df_filtrado.columns):
-            # Agrupar Total por Oficina e Período
-            if 'Total' in df_filtrado.columns:
-                df_total_agrupado = df_filtrado.groupby(
-                    ['Oficina', 'Período'], as_index=False
-                )['Total'].sum()
-            elif 'Valor' in df_filtrado.columns:
-                df_total_agrupado = df_filtrado.groupby(
-                    ['Oficina', 'Período'], as_index=False
-                )['Valor'].sum()
-                df_total_agrupado.rename(
-                    columns={'Valor': 'Total'}, inplace=True
-                )
-            else:
-                st.warning(
-                    "⚠️ Colunas 'Total' ou 'Valor' necessárias para "
-                    "calcular CPU"
-                )
-                # IMPORTANTE: df_visualizacao é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
-                # NÃO aplicar conversão novamente aqui para evitar duplicação
-                df_visualizacao = df_filtrado.copy()
-                coluna_visualizacao = (
-                    'Total' if 'Total' in df_filtrado.columns else 'Valor'
-                )
-                tipo_visualizacao = "Custo Total"
-                df_vol_calc = None
-
-            if df_vol_calc is not None:
-                # Verificar se df_filtrado tem Veículo e Ano
-                tem_veiculo = 'Veículo' in df_filtrado.columns
-                tem_ano = 'Ano' in df_filtrado.columns
-                
-                # IMPORTANTE: Filtrar df_vol_calc pelos mesmos filtros aplicados em df_filtrado
-                # Isso garante que quando filtra por um veículo, o volume também seja filtrado
-                df_vol_calc_filtrado = df_vol_calc.copy()
-                
-                # Aplicar filtros de Veículo se existir
-                if tem_veiculo and 'Veículo' in df_vol_calc_filtrado.columns:
-                    # Obter veículos únicos de df_filtrado (já filtrado pela sidebar)
-                    veiculos_filtrados = df_filtrado['Veículo'].dropna().unique()
-                    if len(veiculos_filtrados) > 0:
-                        df_vol_calc_filtrado = df_vol_calc_filtrado[
-                            df_vol_calc_filtrado['Veículo'].isin(veiculos_filtrados)
-                        ].copy()
-                
-                # Aplicar filtros de Oficina se existir
-                if 'Oficina' in df_filtrado.columns and 'Oficina' in df_vol_calc_filtrado.columns:
-                    oficinas_filtradas = df_filtrado['Oficina'].dropna().unique()
-                    if len(oficinas_filtradas) > 0:
-                        df_vol_calc_filtrado = df_vol_calc_filtrado[
-                            df_vol_calc_filtrado['Oficina'].isin(oficinas_filtradas)
-                        ].copy()
-                
-                # Usar df_vol_calc_filtrado em vez de df_vol_calc
-                df_vol_calc = df_vol_calc_filtrado
-
-                # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir
-                colunas_agrupamento = ['Oficina', 'Período']
-                if tem_ano:
-                    colunas_agrupamento.append('Ano')
-                if tem_veiculo:
-                    colunas_agrupamento.append('Veículo')
-
-                # Agrupar Volume por Oficina, Período, Ano (se existir) e Veículo (se existir)
-                if tem_veiculo and 'Veículo' in df_vol_calc.columns:
-                    # Agrupar Total incluindo Veículo e Ano
-                    if 'Total' in df_filtrado.columns:
-                        df_total_agrupado = df_filtrado.groupby(
-                            colunas_agrupamento,
-                            as_index=False
-                        )['Total'].sum()
-                    else:
-                        df_total_agrupado = df_filtrado.groupby(
-                            colunas_agrupamento,
-                            as_index=False
-                        )['Valor'].sum()
-                        df_total_agrupado.rename(
-                            columns={'Valor': 'Total'}, inplace=True
-                        )
-
-                    # Agrupar Volume incluindo Veículo e Ano
-                    colunas_agrupamento_vol = ['Oficina', 'Período']
-                    if tem_ano and 'Ano' in df_vol_calc.columns:
-                        colunas_agrupamento_vol.append('Ano')
-                    if 'Veículo' in df_vol_calc.columns:
-                        colunas_agrupamento_vol.append('Veículo')
-                    
-                    df_vol_agrupado = df_vol_calc.groupby(
-                        colunas_agrupamento_vol, as_index=False
-                    )['Volume'].sum()
-
-                    # Fazer merge incluindo Veículo e Ano
-                    df_cpu = pd.merge(
-                        df_total_agrupado,
-                        df_vol_agrupado,
-                        on=colunas_agrupamento,
-                        how='left'
-                    )
-                else:
-                    # Agrupar Total por Oficina, Período e Ano (se existir)
-                    if 'Total' in df_filtrado.columns:
-                        df_total_agrupado = df_filtrado.groupby(
-                            colunas_agrupamento,
-                            as_index=False
-                        )['Total'].sum()
-                    else:
-                        df_total_agrupado = df_filtrado.groupby(
-                            colunas_agrupamento,
-                            as_index=False
-                        )['Valor'].sum()
-                        df_total_agrupado.rename(
-                            columns={'Valor': 'Total'}, inplace=True
-                        )
-                    
-                    # Agrupar Volume por Oficina, Período e Ano (se existir)
-                    colunas_agrupamento_vol = ['Oficina', 'Período']
-                    if tem_ano and 'Ano' in df_vol_calc.columns:
-                        colunas_agrupamento_vol.append('Ano')
-                    
-                    df_vol_agrupado = df_vol_calc.groupby(
-                        colunas_agrupamento_vol, as_index=False
-                    )['Volume'].sum()
-
-                    # Fazer merge
-                    df_cpu = pd.merge(
-                        df_total_agrupado,
-                        df_vol_agrupado,
-                        on=colunas_agrupamento,
-                        how='left'
-                    )
-
-                    # Se df_filtrado tem Veículo mas df_vol não, expandir
-                    if tem_veiculo:
-                        # Fazer merge com df_filtrado para obter Veículo e Ano
-                        colunas_merge_veiculo = ['Oficina', 'Período', 'Veículo']
-                        if tem_ano:
-                            colunas_merge_veiculo.append('Ano')
-                        
-                        df_filtrado_veiculo = (
-                            df_filtrado[colunas_merge_veiculo]
-                            .drop_duplicates()
-                        )
-                        df_cpu_expandido = pd.merge(
-                            df_filtrado_veiculo,
-                            df_cpu,
-                            on=colunas_agrupamento,
-                            how='right'
-                        )
-                        # Usar o mesmo Volume para todos os veículos
-                        df_cpu = df_cpu_expandido.copy()
-
-                # NOTA: A conversão de moeda já foi aplicada no df_total (linha ~707)
-                # Portanto, df_cpu['Total'] já está convertido, e o CPU será calculado automaticamente na moeda correta
-                
-                # Calcular CPU (evitando divisão por zero) - VETORIZADO
-                # CPU já será calculado na moeda convertida automaticamente (pois Total já está convertido)
-                df_cpu['CPU'] = np.where(
-                    (df_cpu['Volume'].notna()) & (df_cpu['Volume'] != 0),
-                    df_cpu['Total'] / df_cpu['Volume'],
-                    0
-                )
-
-                # Criar DataFrame para visualização com CPU
-                # IMPORTANTE: df_cpu['Total'] já está convertido (vem de df_filtrado que tem conversão aplicada)
-                # O CPU será calculado automaticamente na moeda correta (Total convertido / Volume)
-                # NÃO aplicar conversão novamente aqui para evitar duplicação
-                df_visualizacao = df_cpu.copy()
-                coluna_visualizacao = 'CPU'
-        else:
-            st.warning(
-                "⚠️ Colunas 'Oficina' e 'Período' necessárias para "
-                "calcular CPU"
-            )
-            df_visualizacao = df_filtrado.copy()
-            coluna_visualizacao = (
-                'Total' if 'Total' in df_filtrado.columns else 'Valor'
-            )
-            tipo_visualizacao = "Custo Total"
-    else:
-        st.warning(
-            "⚠️ Dados de volume não disponíveis. "
-            "Mostrando Custo Total."
-        )
-        df_visualizacao = df_filtrado.copy()
-        coluna_visualizacao = (
-            'Total' if 'Total' in df_filtrado.columns else 'Valor'
-        )
-        tipo_visualizacao = "Custo Total"
-else:
-    # Usar Total ou Valor diretamente
-    # IMPORTANTE: Adicionar Volume ao df_visualizacao para que o gráfico funcione igual ao modo CPU
-    if 'Total' in df_filtrado.columns:
-        df_visualizacao = df_filtrado.copy()
-        coluna_visualizacao = 'Total'
-    elif 'Valor' in df_filtrado.columns:
-        df_visualizacao = df_filtrado.copy()
-        coluna_visualizacao = 'Valor'
-    else:
-        df_visualizacao = df_filtrado.copy()
-        coluna_visualizacao = 'Total'
-    
-    # Adicionar Volume ao df_visualizacao usando a mesma lógica do modo CPU
-    # PROBLEMA IDENTIFICADO: df_visualizacao = df_filtrado.copy() pode ter múltiplas linhas
-    # para a mesma combinação de Oficina+Período+Veículo, causando duplicação no merge
-    # SOLUÇÃO: Agrupar df_visualizacao ANTES do merge, igual ao modo CPU faz com df_total_agrupado
-    if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.columns and 'Período' in df_visualizacao.columns:
-        df_vol_calc = load_volume_data(ano_selecionado)
-        if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
-            tem_veiculo = 'Veículo' in df_visualizacao.columns
-            tem_ano = 'Ano' in df_visualizacao.columns
-            
-            # Filtrar df_vol_calc pelos mesmos filtros (mesma lógica do modo CPU)
-            df_vol_calc_filtrado = df_vol_calc.copy()
-            
-            if tem_veiculo and 'Veículo' in df_vol_calc_filtrado.columns:
-                veiculos_filtrados = df_visualizacao['Veículo'].dropna().unique()
-                if len(veiculos_filtrados) > 0:
-                    df_vol_calc_filtrado = df_vol_calc_filtrado[
-                        df_vol_calc_filtrado['Veículo'].isin(veiculos_filtrados)
-                    ].copy()
-            
-            if 'Oficina' in df_visualizacao.columns and 'Oficina' in df_vol_calc_filtrado.columns:
-                oficinas_filtradas = df_visualizacao['Oficina'].dropna().unique()
-                if len(oficinas_filtradas) > 0:
-                    df_vol_calc_filtrado = df_vol_calc_filtrado[
-                        df_vol_calc_filtrado['Oficina'].isin(oficinas_filtradas)
-                    ].copy()
-            
-            df_vol_calc = df_vol_calc_filtrado
-            
-            # Agrupar Volume exatamente como no modo CPU
-            if tem_veiculo and 'Veículo' in df_vol_calc.columns:
-                colunas_agrupamento_vol = ['Oficina', 'Período']
-                if tem_ano and 'Ano' in df_vol_calc.columns:
-                    colunas_agrupamento_vol.append('Ano')
-                if 'Veículo' in df_vol_calc.columns:
-                    colunas_agrupamento_vol.append('Veículo')
-                
-                df_vol_agrupado = df_vol_calc.groupby(
-                    colunas_agrupamento_vol, as_index=False
-                )['Volume'].sum()
-                
-                # IMPORTANTE: Usar EXATAMENTE as mesmas colunas de agrupamento para o merge
-                # Garantir que colunas_agrupamento seja idêntica a colunas_agrupamento_vol
-                colunas_agrupamento = colunas_agrupamento_vol.copy()
-                
-                # Agrupar df_visualizacao mantendo apenas as colunas necessárias
-                if coluna_visualizacao in df_visualizacao.columns:
-                    # Se tiver coluna de visualização, somar ela também
-                    df_visualizacao_agrupado = df_visualizacao.groupby(
-                        colunas_agrupamento, as_index=False
-                    )[coluna_visualizacao].sum()
-                else:
-                    # Se não tiver, apenas agrupar para ter estrutura única
-                    df_visualizacao_agrupado = df_visualizacao[colunas_agrupamento].drop_duplicates()
-                
-                # Fazer merge com df_vol_agrupado usando as MESMAS colunas
-                # Isso garante que não há duplicação
-                df_visualizacao = pd.merge(
-                    df_visualizacao_agrupado,
-                    df_vol_agrupado[colunas_agrupamento_vol + ['Volume']],
-                    on=colunas_agrupamento_vol,
-                    how='left'
-                )
-
-# Resumo na sidebar
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📊 Resumo**")
-st.sidebar.write(f"**Linhas:** {df_filtrado.shape[0]:,}")
-
-# Calcular totais se as colunas existirem
-if 'Valor' in df_filtrado.columns:
-    valor_total = df_filtrado['Valor'].sum()
-    st.sidebar.write(f"**Total Valor:** R$ {valor_total:,.2f}")
-if 'Total' in df_filtrado.columns:
-    total_sum = df_filtrado['Total'].sum()
-    st.sidebar.write(f"**Total:** R$ {total_sum:,.2f}")
-    
-    # DIAGNÓSTICO: Comparar com o valor esperado
-    total_esperado = 5849755.04
-    diferenca = total_sum - total_esperado
-    percentual_diff = (diferenca / total_esperado) * 100 if total_esperado != 0 else 0
-    
-    if abs(diferenca) > 0.01:  # Se a diferença for maior que 1 centavo
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("**⚠️ Diagnóstico**")
-        st.sidebar.write(f"**Esperado:** R$ {total_esperado:,.2f}")
-        st.sidebar.write(f"**Diferença:** R$ {diferenca:,.2f} ({percentual_diff:+.2f}%)")
-        
-        # Verificar filtros aplicados
-        if 'Account' in df_filtrado.columns:
-            account_nan = df_filtrado['Account'].isna().sum()
-            account_zero = (df_filtrado['Account'] == 0).sum()
-            account_tc_ext = (df_filtrado['Account'] == 'TC Ext').sum()
-            if account_nan > 0 or account_zero > 0 or account_tc_ext > 0:
-                st.sidebar.write(f"**Account inválidos:** {account_nan + account_zero + account_tc_ext} linhas")
-if 'Volume' in df_filtrado.columns:
-    volume_total = df_filtrado['Volume'].sum()
-    st.sidebar.write(f"**Total Volume:** {volume_total:,.0f}")
-if 'CPU' in df_filtrado.columns:
-    df_cpu_positivo = df_filtrado[df_filtrado['CPU'] > 0]
-    cpu_medio = (
-        df_cpu_positivo['CPU'].mean()
-        if len(df_cpu_positivo) > 0 else 0
-    )
-    st.sidebar.write(f"**CPU Médio:** R$ {cpu_medio:,.2f}")
-
-# Mostrar tipo de visualização selecionado
-st.sidebar.info(f"📈 **Visualizando:** {tipo_visualizacao}")
-
-# Mostrar valores de referência (no final do sidebar)
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📊 Valores de Referência**")
-st.sidebar.markdown(f"**1 $ = R$ {taxa_usd_para_brl:.2f}**")
-st.sidebar.markdown(f"**1 € = R$ {taxa_eur_para_brl:.2f}**")
-st.sidebar.markdown(f"**1 R$ = ${taxa_brl_para_usd:.4f} USD**")
-st.sidebar.markdown(f"**1 R$ = €{taxa_brl_para_eur:.4f} EUR**")
+# (Código de filtros movido para dentro do bloco if is_main_page:)
 
 
 def formatar_ratio_com_barra(valor):
@@ -4265,9 +4102,11 @@ if tab_from_url is not None:
 # Manter compatibilidade com a chave antiga
 st.session_state.tab_selecionada_tc_ext = st.session_state.tab_selecionada_tc_ext_persistente
 
-# JavaScript ANTES das tabs para interceptar a criação
-# Este script será executado antes que o Streamlit defina a primeira tab como padrão
-st.markdown(f"""
+# Só criar tabs e JavaScript se estivermos na página principal
+if is_main_page:
+    # JavaScript ANTES das tabs para interceptar a criação
+    # Este script será executado antes que o Streamlit defina a primeira tab como padrão
+    st.markdown(f"""
 <script>
 (function() {{
     // Obter índice da tab da URL
@@ -4331,21 +4170,12 @@ st.markdown(f"""
 </script>
 """, unsafe_allow_html=True)
 
-# Criar estrutura de tabs para organização
-tab1, tab2, tab3, tab4 = st.tabs(["📊 TC Ext", "📈 Volume", "🚗 TC Ext por Veíc", "📋 Detalhe Real"])
-
-# Verificar se estamos na página principal (app.py) e não em uma página separada
-# No Streamlit, quando estamos em uma página separada (pages/), o app.py ainda é executado,
-# mas devemos evitar exibir os gráficos das tabs quando estamos em outras páginas
-# Verificar se o arquivo atual é o app.py (não está na pasta pages/)
-is_main_page = True
-try:
-    import os
-    current_file = os.path.abspath(__file__)
-    if current_file and ('pages' in current_file.replace('\\', '/') or 'pages/' in current_file.replace('\\', '/')):
-        is_main_page = False
-except:
-    pass
+    # Criar estrutura de tabs para organização
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 TC Ext", "📈 Volume", "🚗 TC Ext por Veíc", "📋 Detalhe Real"])
+else:
+    # Se não estamos na página principal, criar tabs vazias para evitar erros
+    # Mas não renderizar conteúdo
+    tab1 = tab2 = tab3 = tab4 = None
 
 # JavaScript DEPOIS das tabs para manter a seleção
 st.markdown(f"""
@@ -4566,6 +4396,25 @@ st.markdown(f"""
 # ==========================================
 # Só exibir conteúdo das tabs se estivermos na página principal
 if is_main_page:
+    # Criar df_visualizacao a partir de df_filtrado antes de usar nas tabs
+    if 'df_filtrado' in locals() and df_filtrado is not None:
+        df_visualizacao = df_filtrado.copy()
+        # Definir coluna_visualizacao baseado no tipo_visualizacao
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            coluna_visualizacao = 'CPU'
+        else:
+            coluna_visualizacao = 'Total' if 'Total' in df_visualizacao.columns else 'Valor'
+    else:
+        # Se df_filtrado não estiver disponível, criar DataFrame vazio
+        df_visualizacao = pd.DataFrame()
+        coluna_visualizacao = 'Total'
+    
+    # Criar df_para_grafico_periodo a partir de df_filtrado (antes do filtro de período)
+    if 'df_filtrado' in locals() and df_filtrado is not None:
+        df_para_grafico_periodo = df_filtrado.copy()
+    else:
+        df_para_grafico_periodo = pd.DataFrame()
+    
     with tab1:
         # Exibir gráfico por Período
         # No modo CPU, a coluna 'CPU' pode não existir ainda em df_visualizacao,
@@ -5319,12 +5168,17 @@ if is_main_page:
                             """, unsafe_allow_html=True)
                             
                             # Criar o multiselect DEPOIS do JavaScript
+                            # 🔧 CORREÇÃO: Remover 'default' e usar apenas 'key' para evitar conflito
+                            # O Streamlit automaticamente sincroniza o valor do widget com session_state[key]
                             periodos_tabela_raw = st.multiselect(
                                 "📅 **Período(s):**",
                                 opcoes_com_todos,
-                                default=periodos_validos,
                                 key=periodo_tabela_key
                             )
+                            
+                            # Atualizar session_state com o valor selecionado (caso tenha mudado)
+                            if periodos_tabela_raw != st.session_state[periodo_tabela_key]:
+                                st.session_state[periodo_tabela_key] = periodos_tabela_raw
                             
                             # Processar seleção
                             if "Todos" in periodos_tabela_raw:
@@ -8895,15 +8749,14 @@ if is_main_page:
                     if grafico_total:
                         st.altair_chart(grafico_total, use_container_width=True)
 
-# Variáveis necessárias para o tab4 (definidas fora das tabs)
-tem_veiculo = 'Veículo' in df_visualizacao.columns
-tem_oficina = 'Oficina' in df_visualizacao.columns
-tem_periodo = 'Período' in df_visualizacao.columns
+    # Variáveis necessárias para o tab4 (definidas dentro do bloco is_main_page)
+    tem_veiculo = 'Veículo' in df_visualizacao.columns
+    tem_oficina = 'Oficina' in df_visualizacao.columns
+    tem_periodo = 'Período' in df_visualizacao.columns
 
-# ==========================================
-# TAB 4: Detalhe Real
-# ==========================================
-if is_main_page:
+    # ==========================================
+    # TAB 4: Detalhe Real
+    # ==========================================
     with tab4:
         # Expander para mostrar/ocultar todo o bloco de tabelas
         with st.expander("📊 **Tabelas Detalhadas**", expanded=False):
@@ -9975,7 +9828,9 @@ if is_main_page:
 # O código do Waterfall foi movido para uma página separada (pages/4 - Waterfall.py)
 # O código completo do tab5 (linhas 9659-11008) foi extraído para a nova página
 # Removido: todo o código do tab5 foi movido para pages/4 - Waterfall.py
-st.markdown("---")
+
+# Fechar bloco condicional do dashboard principal
+# (O rodapé abaixo será exibido em todas as páginas)
 
 # Função para obter mês atual em português
 def obter_mes_atual():

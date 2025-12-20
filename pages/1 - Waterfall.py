@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import os
 import sys
+from datetime import datetime
+from versionamento import obter_versao_atual
 
 # Configurar Plotly para usar o engine JSON padrão em vez de orjson (evita problemas de importação circular)
 # Isso força o Plotly a usar o json padrão do Python em vez de orjson
@@ -41,7 +43,12 @@ def plotly_chart_safe(fig, use_container_width=True):
 # Adicionar o diretório raiz ao path para importar funções do app.py
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Marcar que estamos em uma página separada (não na página principal)
+# Isso evita que o app.py renderize conteúdo quando importado
+st.session_state.is_waterfall_page = True
+
 # Importar funções necessárias do app.py
+# NOTA: O app.py será executado, mas a verificação is_main_page deve evitar renderização
 from app import (
     load_data, load_volume_data, load_budget_data, load_budget_volume_data,
     formatar_periodo_abreviado, formatar_ratio_com_barra, criar_tabela_html_com_barra,
@@ -59,6 +66,17 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Função para obter mês atual em português
+def obter_mes_atual():
+    """Retorna o mês atual em português"""
+    meses = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    agora = datetime.now()
+    return meses[agora.month]
 
 # Função para obter data e hora de atualização dos dados
 def obter_data_atualizacao_dados():
@@ -123,14 +141,23 @@ def obter_data_atualizacao_dados():
         # Em caso de qualquer erro, retornar None (não exibir mensagem)
         return None
 
-# Exibir data de atualização dos dados no topo (apenas se disponível)
+# Cabeçalho compacto com data de atualização
+mes_atual = obter_mes_atual()
+ano_atual = datetime.now().year
+versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
-if data_atualizacao:
-    st.markdown(f"""
-    <div style='text-align: right; color: #666; padding: 5px 10px; font-size: 0.85rem;'>
-        📅 Dados atualizados em: {data_atualizacao}
-    </div>
-    """, unsafe_allow_html=True)
+
+# Montar textos do cabeçalho
+texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
+
+st.markdown(f"""
+<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
+    <div style='flex: 1;'>{texto_esquerda}</div>
+    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # CSS
 st.markdown("""
@@ -159,8 +186,6 @@ anos_disponiveis = listar_anos_disponiveis()
 opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
 
 # Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
-from datetime import datetime
-from versionamento import obter_versao_atual
 ano_atual = datetime.now().year
 ano_atual_str = str(ano_atual)
 if ano_atual_str in opcoes_ano:
@@ -760,9 +785,33 @@ else:
                 if periodos_unicos:
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        mes_inicial = st.selectbox("Mês inicial:", periodos_unicos, index=0, key="mes_inicial_waterfall")
+                        # Inicializar session_state para mes_inicial se não existir (ANTES do widget)
+                        if 'mes_inicial_waterfall' not in st.session_state:
+                            # Usar primeiro período disponível
+                            st.session_state.mes_inicial_waterfall = periodos_unicos[0] if len(periodos_unicos) > 0 else None
+                        
+                        # Verificar se o valor salvo ainda é válido (ANTES do widget)
+                        if st.session_state.mes_inicial_waterfall not in periodos_unicos:
+                            st.session_state.mes_inicial_waterfall = periodos_unicos[0] if len(periodos_unicos) > 0 else None
+                        
+                        index_inicial = periodos_unicos.index(st.session_state.mes_inicial_waterfall) if st.session_state.mes_inicial_waterfall in periodos_unicos else 0
+                        # O selectbox automaticamente atualiza o session_state, não precisamos fazer manualmente
+                        mes_inicial = st.selectbox("Mês inicial:", periodos_unicos, index=index_inicial, key="mes_inicial_waterfall")
+                        
                     with col_b:
-                        mes_final = st.selectbox("Mês final:", periodos_unicos, index=len(periodos_unicos)-1, key="mes_final_waterfall")
+                        # Inicializar session_state para mes_final se não existir (ANTES do widget)
+                        if 'mes_final_waterfall' not in st.session_state:
+                            # Usar último período disponível
+                            st.session_state.mes_final_waterfall = periodos_unicos[-1] if len(periodos_unicos) > 0 else None
+                        
+                        # Verificar se o valor salvo ainda é válido (ANTES do widget)
+                        if st.session_state.mes_final_waterfall not in periodos_unicos:
+                            st.session_state.mes_final_waterfall = periodos_unicos[-1] if len(periodos_unicos) > 0 else None
+                        
+                        index_final = periodos_unicos.index(st.session_state.mes_final_waterfall) if st.session_state.mes_final_waterfall in periodos_unicos else (len(periodos_unicos)-1 if len(periodos_unicos) > 0 else 0)
+                        # O selectbox automaticamente atualiza o session_state, não precisamos fazer manualmente
+                        mes_final = st.selectbox("Mês final:", periodos_unicos, index=index_final, key="mes_final_waterfall")
+                        
                     meses_selecionados = [mes_inicial, mes_final]
                 else:
                     st.warning("⚠️ Nenhum período encontrado nos dados.")
@@ -826,6 +875,21 @@ else:
                 else:
                     st.warning("⚠️ Coluna 'Ano' não encontrada nos dados.")
             
+            # Garantir que períodos sejam selecionados automaticamente na primeira vez
+            if not meses_selecionados or len(meses_selecionados) < 2:
+                # Tentar usar valores padrão se disponíveis
+                if modo_comparacao == "Mês a Mês" and periodos_unicos and len(periodos_unicos) >= 2:
+                    if 'mes_inicial_waterfall' in st.session_state and 'mes_final_waterfall' in st.session_state:
+                        mes_inicial = st.session_state.mes_inicial_waterfall
+                        mes_final = st.session_state.mes_final_waterfall
+                        meses_selecionados = [mes_inicial, mes_final]
+                    else:
+                        mes_inicial = periodos_unicos[0]
+                        mes_final = periodos_unicos[-1] if len(periodos_unicos) > 1 else periodos_unicos[0]
+                        meses_selecionados = [mes_inicial, mes_final]
+                        st.session_state.mes_inicial_waterfall = mes_inicial
+                        st.session_state.mes_final_waterfall = mes_final
+            
             # Verificar se períodos foram selecionados e se existem dados válidos
             periodos_validos = False
             if meses_selecionados and len(meses_selecionados) >= 2:
@@ -847,6 +911,7 @@ else:
                         if ano_inicial in anos_disponiveis and ano_final in anos_disponiveis:
                             periodos_validos = True
             
+            # Exibir gráfico waterfall se períodos são válidos
             if not meses_selecionados or len(meses_selecionados) < 2 or not periodos_validos:
                 st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
             else:
@@ -1783,7 +1848,7 @@ else:
                         
                         # Criar figura do waterfall
                         fig = go.Figure(go.Waterfall(
-                            name="Waterfall",
+                            name="",  # Remover nome para evitar "undefined"
                             orientation="v",
                             measure=measures_waterfall,
                             x=labels_waterfall,
@@ -1914,18 +1979,9 @@ else:
                             y_min = 0
                             y_max = 1
                         
-                        # Atualizar layout
-                        titulo_grafico = f"Waterfall Analysis - {tipo_visualizacao}"
-                        if modo_comparacao != "Mês a Mês":
-                            titulo_grafico += f" ({modo_comparacao})"
-                        
+                        # Atualizar layout (sem título no gráfico)
                         fig.update_layout(
-                            title={
-                                "text": titulo_grafico,
-                                "x": 0.5,
-                                "xanchor": "center",
-                                "font": {"size": 12}
-                            },
+                            title="",  # Remover título do gráfico completamente
                             xaxis_title="Categoria / Período",
                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
                             height=560,
@@ -1980,6 +2036,9 @@ else:
                         )
                         
                         # Anotação removida - não exibir texto "Flex Mês 1 - Mês 1" no gráfico
+                        
+                        # Exibir título acima do gráfico
+                        st.markdown("### 🌊 Waterfall Analysis")
                         
                         # Exibir gráfico
                         plotly_chart_safe(fig, use_container_width=True)
@@ -3604,7 +3663,7 @@ else:
                                         
                                         # Criar figura do waterfall
                                         fig = go.Figure(go.Waterfall(
-                                            name="Waterfall",
+                                            name="",  # Remover nome para evitar "undefined"
                                             orientation="v",
                                             measure=measures_waterfall,
                                             x=labels_waterfall,
@@ -3721,15 +3780,9 @@ else:
                                             y_min = 0
                                             y_max = 1
                                         
-                                        # Atualizar layout
-                                        titulo_grafico = f"Waterfall Analysis - {tipo_visualizacao} (Real x Budget)"
+                                        # Atualizar layout (sem título no gráfico)
                                         fig.update_layout(
-                                            title={
-                                                "text": titulo_grafico,
-                                                "x": 0.5,
-                                                "xanchor": "center",
-                                                "font": {"size": 12}
-                                            },
+                                            title="",  # Remover título do gráfico completamente
                                             xaxis_title="Categoria",
                                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
                                             height=560,
@@ -3777,6 +3830,9 @@ else:
                                         
                                         # Adicionar anotações
                                         fig.update_layout(annotations=annotations_custom)
+                                        
+                                        # Exibir título acima do gráfico
+                                        st.markdown("### 🌊 Waterfall Analysis")
                                         
                                         # Exibir gráfico
                                         plotly_chart_safe(fig, use_container_width=True)

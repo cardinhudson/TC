@@ -16,3 +16,6 @@ with open(dst, 'w', encoding='utf-8') as f:
 print(f'✅ Arquivo copiado! {len(content)} caracteres, {len(content.splitlines())} linhas')
 
 
+
+
+
