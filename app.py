@@ -2393,7 +2393,7 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
             real_agrupado['Período'] = real_agrupado['Período'].astype(str).str.strip()
             budget_agrupado['Período'] = budget_agrupado['Período'].astype(str).str.strip()
             
-            # Fazer merge de volumes (usar outer para ver todos os períodos, depois filtrar)
+            # Fazer merge de volumes (usar outer para ver todos os períodos)
             volumes = pd.merge(
                 real_vol_agrupado,
                 budget_vol_agrupado,
@@ -2402,11 +2402,16 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                 suffixes=('_real', '_budget')
             )
             
-            # Filtrar apenas períodos que têm volume real (necessário para calcular Flex Bud)
-            volumes = volumes[volumes['Volume_real'].notna() & (volumes['Volume_real'] > 0)].copy()
+            # 🔧 CORREÇÃO CRÍTICA: NÃO filtrar períodos sem volume real
+            # Queremos mostrar o ano todo, usando Budget quando não houver dados reais
+            # Preencher volumes de real ausentes com volumes de budget (para calcular Flex Bud)
+            volumes['Volume_real'] = volumes['Volume_real'].fillna(volumes['Volume_budget'])
             
             # Preencher volumes de budget ausentes com 0 (para períodos sem budget)
             volumes['Volume_budget'] = volumes['Volume_budget'].fillna(0)
+            
+            # Filtrar apenas períodos com algum volume (real ou budget)
+            volumes = volumes[(volumes['Volume_real'] > 0) | (volumes['Volume_budget'] > 0)].copy()
             
             # Calcular FLEX para cada período
             flex_data = []
@@ -2444,6 +2449,12 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                     budget_total = custos_budget['Total'].sum()
                     custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
                     custo_variavel_budget = custos_budget[custos_budget['Custo'] == 'Variável']['Total'].sum()
+                
+                # 🔧 NOVO: Se não houver custos reais, usar os valores do budget
+                if len(custos_real) == 0:
+                    real_total = budget_total
+                else:
+                    real_total = custos_real['Total'].sum()
                 
                 # NOTA: A conversão de moeda já foi aplicada no df_budget (linha ~2563)
                 # Portanto, budget_total, custo_fixo_budget e custo_variavel_budget já estão convertidos
@@ -2519,7 +2530,7 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
             real_agrupado['Período'] = real_agrupado['Período'].astype(str).str.strip()
             budget_agrupado['Período'] = budget_agrupado['Período'].astype(str).str.strip()
             
-            # Fazer merge de volumes (usar outer para ver todos os períodos, depois filtrar)
+            # Fazer merge de volumes (usar outer para ver todos os períodos)
             volumes = pd.merge(
                 real_vol_agrupado,
                 budget_vol_agrupado,
@@ -2528,11 +2539,16 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                 suffixes=('_real', '_budget')
             )
             
-            # Filtrar apenas períodos que têm volume real (necessário para calcular Flex Bud)
-            volumes = volumes[volumes['Volume_real'].notna() & (volumes['Volume_real'] > 0)].copy()
+            # 🔧 CORREÇÃO CRÍTICA: NÃO filtrar períodos sem volume real
+            # Queremos mostrar o ano todo, usando Budget quando não houver dados reais
+            # Preencher volumes de real ausentes com volumes de budget (para calcular Flex Bud)
+            volumes['Volume_real'] = volumes['Volume_real'].fillna(volumes['Volume_budget'])
             
             # Preencher volumes de budget ausentes com 0 (para períodos sem budget)
             volumes['Volume_budget'] = volumes['Volume_budget'].fillna(0)
+            
+            # Filtrar apenas períodos com algum volume (real ou budget)
+            volumes = volumes[(volumes['Volume_real'] > 0) | (volumes['Volume_budget'] > 0)].copy()
             
             # Calcular FLEX para cada período
             flex_data = []
@@ -2563,6 +2579,12 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                     budget_total = custos_budget['Total'].sum()
                     custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
                     custo_variavel_budget = custos_budget[custos_budget['Custo'] == 'Variável']['Total'].sum()
+                
+                # 🔧 NOVO: Se não houver custos reais, usar os valores do budget
+                if len(custos_real) == 0:
+                    real_total = budget_total
+                else:
+                    real_total = custos_real['Total'].sum()
                 
                 # NOTA: A conversão de moeda já foi aplicada no df_budget (linha ~2550)
                 # Portanto, budget_total, custo_fixo_budget e custo_variavel_budget já estão convertidos
@@ -3604,48 +3626,25 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
         if 'Volume' not in df_data.columns or 'Veículo' not in df_data.columns:
             return None
         
-        # 🔧 CORREÇÃO: Filtrar volume a partir do primeiro mês com despesa no ano
-        # Incluir todos os meses desde o primeiro mês com despesa até o final do ano
+        # 🔧 CORREÇÃO CRÍTICA: Incluir TODOS os meses do ano, não apenas a partir do primeiro com despesa
+        # Isso permite ver o Flex Bud completo do ano, mesmo para meses sem dados realizados
         if df_despesas is not None and 'Veículo' in df_despesas.columns:
             # Obter combinações de Veículo + Período (e Ano se houver) que têm despesas
             if 'Ano' in df_despesas.columns and 'Período' in df_despesas.columns:
-                # Agrupar por Veículo e Ano para obter o primeiro e último período com despesas
-                periodos_com_despesas = df_despesas[['Veículo', 'Período', 'Ano']].drop_duplicates()
+                # Agrupar por Veículo e Ano
+                periodos_com_despesas = df_despesas[['Veículo', 'Ano']].drop_duplicates()
                 
-                # Criar mapeamento de ordem dos meses
-                ordem_meses_dict = {mes: idx for idx, mes in enumerate(ORDEM_MESES)}
-                
-                # Para cada combinação de Veículo e Ano, encontrar o primeiro e último período
+                # Para cada combinação de Veículo e Ano, incluir TODOS os meses
                 periodos_filtrados_list = []
                 for veiculo in periodos_com_despesas['Veículo'].unique():
                     for ano in periodos_com_despesas['Ano'].unique():
-                        periodos_veiculo_ano = periodos_com_despesas[
-                            (periodos_com_despesas['Veículo'] == veiculo) & 
-                            (periodos_com_despesas['Ano'] == ano)
-                        ]['Período'].unique()
-                        
-                        if len(periodos_veiculo_ano) > 0:
-                            # Ordenar períodos pela ordem dos meses (normalizar para minúsculas)
-                            ordem_meses_dict_lower = {mes.lower(): idx for idx, mes in enumerate(ORDEM_MESES)}
-                            periodos_ordenados = sorted(
-                                periodos_veiculo_ano,
-                                key=lambda x: ordem_meses_dict_lower.get(str(x).lower(), 999)
-                            )
-                            primeiro_periodo = periodos_ordenados[0]
-                            
-                            # Obter índice do primeiro período na ordem (normalizar para minúsculas)
-                            idx_primeiro = ordem_meses_dict_lower.get(str(primeiro_periodo).lower(), 0)
-                            
-                            # Incluir todos os meses desde o primeiro mês com despesa até o final do ano
-                            meses_para_incluir = ORDEM_MESES[idx_primeiro:]
-                            
-                            # Criar DataFrame com todos os períodos a partir do primeiro
-                            for periodo in meses_para_incluir:
-                                periodos_filtrados_list.append({
-                                    'Veículo': veiculo,
-                                    'Período': periodo.capitalize(),  # Capitalizar para corresponder ao formato
-                                    'Ano': ano
-                                })
+                        # 🔧 MUDANÇA CRÍTICA: Incluir TODOS os 12 meses do ano
+                        for periodo in ORDEM_MESES:
+                            periodos_filtrados_list.append({
+                                'Veículo': veiculo,
+                                'Período': periodo.capitalize(),  # Capitalizar para corresponder ao formato
+                                'Ano': ano
+                            })
                 
                 if periodos_filtrados_list:
                     periodos_filtrados = pd.DataFrame(periodos_filtrados_list)
@@ -3809,47 +3808,24 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                 df_budget_vol_filtrado = df_budget_vol[df_budget_vol['Volume'].notna() & df_budget_vol['Veículo'].notna()].copy()
                 
                 # 🔧 IMPORTANTE: Aplicar o mesmo filtro de períodos que foi aplicado aos dados principais
-                # Usar os mesmos períodos filtrados (a partir do primeiro mês com despesa)
+                # 🔧 CORREÇÃO CRÍTICA: Incluir TODOS os meses do ano no Budget
                 if df_despesas is not None and 'Veículo' in df_despesas.columns and len(df_budget_vol_filtrado) > 0:
-                    # Obter os mesmos períodos filtrados que foram usados para os dados principais
+                    # Obter os mesmos períodos que foram usados para os dados principais (todos os 12 meses)
                     if 'Ano' in df_despesas.columns and 'Período' in df_despesas.columns and 'Ano' in df_budget_vol_filtrado.columns:
-                        # Criar mapeamento de ordem dos meses (normalizar para minúsculas)
-                        ordem_meses_dict_budget = {mes.lower(): idx for idx, mes in enumerate(ORDEM_MESES)}
-                        
                         # Obter períodos com despesas
-                        periodos_com_despesas_budget = df_despesas[['Veículo', 'Período', 'Ano']].drop_duplicates()
+                        periodos_com_despesas_budget = df_despesas[['Veículo', 'Ano']].drop_duplicates()
                         
-                        # Para cada combinação de Veículo e Ano, encontrar o primeiro período
+                        # Para cada combinação de Veículo e Ano, incluir TODOS os 12 meses
                         periodos_filtrados_list_budget = []
                         for veiculo in periodos_com_despesas_budget['Veículo'].unique():
                             for ano in periodos_com_despesas_budget['Ano'].unique():
-                                periodos_veiculo_ano_budget = periodos_com_despesas_budget[
-                                    (periodos_com_despesas_budget['Veículo'] == veiculo) & 
-                                    (periodos_com_despesas_budget['Ano'] == ano)
-                                ]['Período'].unique()
-                                
-                                if len(periodos_veiculo_ano_budget) > 0:
-                                    # Ordenar períodos pela ordem dos meses (normalizar para minúsculas)
-                                    periodos_ordenados_budget = sorted(
-                                        periodos_veiculo_ano_budget,
-                                        key=lambda x: ordem_meses_dict_budget.get(str(x).lower(), 999)
-                                    )
-                                    primeiro_periodo_budget = periodos_ordenados_budget[0]
-                                    
-                                    # Obter índice do primeiro período na ordem
-                                    idx_primeiro_budget = ordem_meses_dict_budget.get(str(primeiro_periodo_budget).lower(), 0)
-                                    
-                                    # Incluir todos os meses desde o primeiro mês com despesa até o final do ano
-                                    meses_para_incluir_budget = ORDEM_MESES[idx_primeiro_budget:]
-                                    
-                                    # Criar DataFrame com todos os períodos a partir do primeiro
-                                    for periodo in meses_para_incluir_budget:
-                                        periodo_formatado = periodo.capitalize() if str(primeiro_periodo_budget)[0].isupper() else periodo
-                                        periodos_filtrados_list_budget.append({
-                                            'Veículo': veiculo,
-                                            'Período': periodo_formatado,
-                                            'Ano': ano
-                                        })
+                                # 🔧 MUDANÇA CRÍTICA: Incluir TODOS os 12 meses do ano
+                                for periodo in ORDEM_MESES:
+                                    periodos_filtrados_list_budget.append({
+                                        'Veículo': veiculo,
+                                        'Período': periodo.capitalize(),
+                                        'Ano': ano
+                                    })
                         
                         if periodos_filtrados_list_budget:
                             periodos_filtrados_budget = pd.DataFrame(periodos_filtrados_list_budget)
@@ -3873,40 +3849,18 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                             df_budget_vol_filtrado = df_budget_vol_filtrado.drop(columns=['Período_normalizado'])
                     
                     elif 'Período' in df_despesas.columns and 'Período' in df_budget_vol_filtrado.columns:
-                        # Criar mapeamento de ordem dos meses (normalizar para minúsculas)
-                        ordem_meses_dict_budget = {mes.lower(): idx for idx, mes in enumerate(ORDEM_MESES)}
-                        
                         # Obter períodos com despesas
-                        periodos_com_despesas_budget = df_despesas[['Veículo', 'Período']].drop_duplicates()
+                        periodos_com_despesas_budget = df_despesas[['Veículo']].drop_duplicates()
                         
-                        # Para cada Veículo, encontrar o primeiro período
+                        # Para cada Veículo, incluir TODOS os 12 meses
                         periodos_filtrados_list_budget = []
                         for veiculo in periodos_com_despesas_budget['Veículo'].unique():
-                            periodos_veiculo_budget = periodos_com_despesas_budget[
-                                periodos_com_despesas_budget['Veículo'] == veiculo
-                            ]['Período'].unique()
-                            
-                            if len(periodos_veiculo_budget) > 0:
-                                # Ordenar períodos pela ordem dos meses (normalizar para minúsculas)
-                                periodos_ordenados_budget = sorted(
-                                    periodos_veiculo_budget,
-                                    key=lambda x: ordem_meses_dict_budget.get(str(x).lower(), 999)
-                                )
-                                primeiro_periodo_budget = periodos_ordenados_budget[0]
-                                
-                                # Obter índice do primeiro período na ordem
-                                idx_primeiro_budget = ordem_meses_dict_budget.get(str(primeiro_periodo_budget).lower(), 0)
-                                
-                                # Incluir todos os meses desde o primeiro mês com despesa até o final do ano
-                                meses_para_incluir_budget = ORDEM_MESES[idx_primeiro_budget:]
-                                
-                                # Criar DataFrame com todos os períodos a partir do primeiro
-                                for periodo in meses_para_incluir_budget:
-                                    periodo_formatado = periodo.capitalize() if str(primeiro_periodo_budget)[0].isupper() else periodo
-                                    periodos_filtrados_list_budget.append({
-                                        'Veículo': veiculo,
-                                        'Período': periodo_formatado
-                                    })
+                            # 🔧 MUDANÇA CRÍTICA: Incluir TODOS os 12 meses
+                            for periodo in ORDEM_MESES:
+                                periodos_filtrados_list_budget.append({
+                                    'Veículo': veiculo,
+                                    'Período': periodo.capitalize()
+                                })
                         
                         if periodos_filtrados_list_budget:
                             periodos_filtrados_budget = pd.DataFrame(periodos_filtrados_list_budget)
@@ -4847,6 +4801,51 @@ if is_main_page:
                         df_real_original_grafico = df_real_original_grafico[
                             df_real_original_grafico['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                         ].copy()
+        
+        # 🔧 CORREÇÃO CRÍTICA: PREENCHER MESES FALTANTES com dados do Budget
+        # Para mostrar o ano completo no gráfico, precisamos adicionar períodos faltantes
+        if df_budget_filtrado is not None and len(df_budget_filtrado) > 0:
+            # Obter períodos que existem nos dados reais
+            if 'Ano' in df_grafico_periodo.columns and 'Período' in df_grafico_periodo.columns:
+                periodos_reais = set(df_grafico_periodo[['Ano', 'Período']].apply(tuple, axis=1))
+                
+                # Obter todos os períodos disponíveis no Budget
+                periodos_budget = set(df_budget_filtrado[['Ano', 'Período']].apply(tuple, axis=1))
+                
+                # Encontrar períodos que estão no Budget mas não nos dados reais
+                periodos_faltantes = periodos_budget - periodos_reais
+                
+                if len(periodos_faltantes) > 0:
+                    # Criar DataFrame com períodos faltantes usando dados do Budget
+                    df_periodos_faltantes = df_budget_filtrado[
+                        df_budget_filtrado[['Ano', 'Período']].apply(tuple, axis=1).isin(periodos_faltantes)
+                    ].copy()
+                    
+                    # Garantir que tem as mesmas colunas que df_grafico_periodo
+                    colunas_comuns = list(set(df_grafico_periodo.columns) & set(df_periodos_faltantes.columns))
+                    df_periodos_faltantes = df_periodos_faltantes[colunas_comuns]
+                    
+                    # Concatenar períodos faltantes com dados reais
+                    df_grafico_periodo = pd.concat([df_grafico_periodo, df_periodos_faltantes], ignore_index=True)
+                    
+                    st.info(f"ℹ️ Adicionados {len(periodos_faltantes)} períodos usando dados do Budget para visualização completa do ano")
+            elif 'Período' in df_grafico_periodo.columns:
+                # Versão sem Ano
+                periodos_reais = set(df_grafico_periodo['Período'].unique())
+                periodos_budget = set(df_budget_filtrado['Período'].unique())
+                periodos_faltantes = periodos_budget - periodos_reais
+                
+                if len(periodos_faltantes) > 0:
+                    df_periodos_faltantes = df_budget_filtrado[
+                        df_budget_filtrado['Período'].isin(periodos_faltantes)
+                    ].copy()
+                    
+                    colunas_comuns = list(set(df_grafico_periodo.columns) & set(df_periodos_faltantes.columns))
+                    df_periodos_faltantes = df_periodos_faltantes[colunas_comuns]
+                    
+                    df_grafico_periodo = pd.concat([df_grafico_periodo, df_periodos_faltantes], ignore_index=True)
+                    
+                    st.info(f"ℹ️ Adicionados {len(periodos_faltantes)} períodos usando dados do Budget para visualização completa")
         
         # Exibir título do gráfico após os filtros para evitar sobreposição
         st.markdown("<br>", unsafe_allow_html=True)

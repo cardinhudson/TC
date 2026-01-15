@@ -15,6 +15,7 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+cache/
 
 # IDEs
 .vscode/*
@@ -30,7 +31,24 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Arquivos de dados grandes (opcional - descomente se não quiser versionar)
-# *.parquet
-# *.xlsx
+# Arquivos de dados grandes
+*.parquet
+*.xlsx
+*.xls
+
+# Arquivos de log de processamento
+.processamento_log.txt
+.processamento_log_BUD.txt
+dados/**/.processamento_log.txt
+dados/**/.processamento_log_BUD.txt
+
+# Arquivos Excel temporários
+~$*.xlsx
+~$*.xls
+
+# Dados processados
+dados/*/df_*.parquet
+dados/*/df_*.xlsx
+dados/historico_consolidado/*.parquet
+dados/historico_consolidado/**/*.parquet
 
