@@ -37,21 +37,34 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/pandas.
 
 ### Execução
-- App principal: `streamlit run app.py`
-- Páginas adicionais em `pages/` são carregadas automaticamente pelo Streamlit.
+- Portal/roteador (entrada do sistema): `streamlit run app.py`
+  - O `app.py` define o menu e roteia as páginas via `st.navigation()`.
+  - As páginas não dependem do carregamento automático de `pages/`; o portal explicita quais páginas aparecem no menu.
+  - Para depuração pontual, é possível executar uma página diretamente (ex.: `streamlit run "pages/1 - Waterfall.py"`).
 
 ---
 
 ## 3) Estrutura do repositório (módulos e responsabilidades)
 
 ### Arquivos principais
-- `app.py`: dashboard principal TC Extendido.
+- `app.py`: **Portal TC** (menu/roteamento) que agrupa:
+  - TC Ext (Linhas Secundárias)
+  - TC (Planta Principal)
+  - Documentação (única, global)
+- `tc_ext/pages/home_ext.py`: **Home do TC Ext** (código que antes estava no `app.py`).
 - `pages/1 - Waterfall.py`: análise Waterfall.
 - `pages/2 - Best Estimate - Simulador.py`: simulador.
 - `pages/3 - Best Estimate - Análise.py`: análise BE.
 - `pages/4 - Waterfall_Analysis.py`: variações/derivações de waterfall.
 - `pages/5 - Extração de Dados.py`: guia/rotinas para extração.
 - `pages/6 - Documentacao.py`: documentação dentro do Streamlit.
+
+### Módulo TC (Planta Principal)
+- `tc_principal/pages/*.py`: páginas **stub** espelhando a estrutura do TC Ext (sem lógica ainda).
+
+### Nota sobre roteamento (Streamlit)
+- Ao usar `st.navigation()`, o conjunto de páginas exibidas no menu fica centralizado no `app.py`.
+- Para evitar conflitos de rota, cada página deve ter `url_path` único (especialmente quando várias páginas exportam uma função `render()`).
 
 ### Camada core (refatoração incremental)
 - `tc_core/`:
@@ -63,7 +76,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 
 ### API estável para pages
 - `tc_exports.py`: **API pública estável** para páginas em `pages/`.
-  - Regra: páginas devem importar daqui (e não de `app.py`) para evitar efeitos colaterais de renderização.
+  - Regra: páginas devem importar daqui (e não de `app.py` e nem de `tc_ext/pages/home_ext.py`) para evitar efeitos colaterais de renderização.
 
 ### Processamento de dados
 - `processamento_dados.py`: processamento de dados **reais** (convertido de notebook).

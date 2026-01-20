@@ -5,21 +5,29 @@ echo ========================================
 echo.
 
 REM Verificar se o ambiente virtual existe
-if not exist "venv\Scripts\activate.bat" (
+set "VENV_DIR=.venv"
+if not exist "%VENV_DIR%\Scripts\activate.bat" (
+    if exist "venv\Scripts\activate.bat" (
+        set "VENV_DIR=venv"
+    )
+)
+
+if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo [ERRO] Ambiente virtual nao encontrado!
     echo.
     echo Criando ambiente virtual...
-    python -m venv venv
+    set "VENV_DIR=.venv"
+    python -m venv %VENV_DIR%
     echo.
     echo Instalando dependencias...
-    call venv\Scripts\activate.bat
+    call %VENV_DIR%\Scripts\activate.bat
     pip install -r requirements.txt
     echo.
     echo Ambiente virtual criado e dependencias instaladas!
     echo.
 ) else (
     echo Ativando ambiente virtual...
-    call venv\Scripts\activate.bat
+    call %VENV_DIR%\Scripts\activate.bat
     echo.
     echo Ambiente virtual ativado!
     echo.

@@ -44,14 +44,19 @@
 ### Estrutura Modular
 
 ```
-📊 Dashboard Principal (app.py)
+📊 Portal (app.py)
     │
-    ├── 📈 1. Waterfall - Análise de Variações
-    ├── 🔮 2. Best Estimate - Simulador
-    ├── 📊 3. Best Estimate - Análise
-    ├── 💧 4. Waterfall Analysis (Legado)
-    ├── 📥 5. Extração de Dados
-    └── 📚 6. Documentação Completa
+    ├── 🧩 TC Ext (Linhas Secundárias)
+    │     ├── 🏠 Home (tc_ext/pages/home_ext.py)
+    │     ├── 📈 Waterfall (pages/1 - Waterfall.py)
+    │     ├── 🔮 Best Estimate (pages/2 e 3)
+    │     ├── 💧 Waterfall Analysis (pages/4 - legado)
+    │     └── 📥 Extração de Dados (pages/5)
+    │
+    ├── 🏭 TC (Planta Principal)
+    │     └── (stubs em tc_principal/pages/ — implementação futura)
+    │
+    └── 📚 Documentação (pages/6 - Documentacao.py)
 ```
 
 ### Fluxo de Dados

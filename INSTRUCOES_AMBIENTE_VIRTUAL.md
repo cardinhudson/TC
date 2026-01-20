@@ -2,7 +2,11 @@
 
 ## Ambiente Virtual Criado
 
-Foi criado um ambiente virtual Python na pasta `venv` com todas as dependências necessárias para o projeto.
+O projeto usa um ambiente virtual Python com todas as dependências necessárias.
+
+Padrão atual recomendado: `.venv/` (mais comum em projetos modernos).
+
+Compatibilidade: se você já usa `venv/`, o projeto continua funcionando — mas as instruções abaixo assumem `.venv/`.
 
 ## Como Usar no Outro PC
 
@@ -14,19 +18,19 @@ Como ambientes virtuais não são portáveis entre diferentes sistemas operacion
 
 2. **Crie um novo ambiente virtual:**
    ```bash
-   python -m venv venv
+   python -m venv .venv
    ```
 
 3. **Ative o ambiente virtual:**
    
    **No Windows (PowerShell):**
    ```powershell
-   .\venv\Scripts\Activate.ps1
+   .\.venv\Scripts\Activate.ps1
    ```
    
    **No Windows (CMD):**
    ```cmd
-   venv\Scripts\activate.bat
+   .venv\Scripts\activate.bat
    ```
    
    **No Linux/Mac:**
@@ -48,11 +52,11 @@ Como ambientes virtuais não são portáveis entre diferentes sistemas operacion
 
 Se ambos os PCs forem Windows com a mesma arquitetura (ex: ambos 64-bit), você pode:
 
-1. **Copiar a pasta `venv` inteira** para o outro PC (mantendo a mesma estrutura de pastas)
+1. **Copiar a pasta `.venv` inteira** para o outro PC (mantendo a mesma estrutura de pastas)
 
 2. **Ativar o ambiente virtual:**
    ```powershell
-   .\venv\Scripts\Activate.ps1
+   .\.venv\Scripts\Activate.ps1
    ```
 
 3. **Executar a aplicação:**
@@ -145,13 +149,13 @@ Se houver problemas com renderização de tabelas ou erros relacionados a versõ
 Se houver problemas, você pode recriar o ambiente:
 ```bash
 # Remover o ambiente antigo
-rmdir /s venv  # Windows
+rmdir /s .venv  # Windows
 # ou
-rm -rf venv    # Linux/Mac
+rm -rf .venv    # Linux/Mac
 
 # Recriar
-python -m venv venv
-.\venv\Scripts\activate  # ou source venv/bin/activate no Linux/Mac
+python -m venv .venv
+\.\.venv\Scripts\activate  # ou source .venv/bin/activate no Linux/Mac
 pip install -r requirements.txt
 ```
 

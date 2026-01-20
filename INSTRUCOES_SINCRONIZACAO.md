@@ -3,8 +3,8 @@
 ## Status Atual do Repositório
 - **Repositório**: https://github.com/cardinhudson/TC.git
 - **Branch**: main
-- **Último commit**: 38ef3ba - "Atualizar taxas de câmbio"
-- **Tag criada**: v20251210-132051
+
+> Observação: não fixe hash/tag aqui (desatualiza rápido). Use `git log --oneline -5` para ver o estado real.
 
 ## Comandos para Executar no Outro PC
 
@@ -45,13 +45,14 @@ git log --oneline -5
 
 Deve mostrar:
 - `Your branch is up to date with 'origin/main'`
-- Último commit: `38ef3ba Atualizar taxas de câmbio`
+- Os commits mais recentes do branch `main`
 
 ## Arquivos Principais Atualizados
 
-- `pages/1 - Waterfall.py` - Tabelas no modo Total corrigidas
-- `taxas_cambio.db` - Banco de dados atualizado
-- Todas as alterações anteriores estão commitadas
+- `app.py` - portal/roteador de navegação (entrada do Streamlit)
+- `tc_ext/pages/home_ext.py` - Home do TC Ext (código principal legado)
+- `pages/*` - páginas legadas (Waterfall/Best Estimate/Extração/Documentação)
+- `tc_principal/pages/*` - stubs do TC (Planta Principal)
 
 ## Se Ainda Não Funcionar
 

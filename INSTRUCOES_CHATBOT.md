@@ -11,21 +11,29 @@ O chatbot foi atualizado para usar **embeddings vetoriais** com **sentence-trans
 
 ## 📦 Instalação das Dependências
 
-### Opção 1: Instalação Completa (Recomendado)
+### Opção 1: Instalação base (recomendado para o projeto)
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Isso instalará todas as dependências, incluindo as novas:
-- `sentence-transformers==2.2.2` - Para criar embeddings vetoriais
-- `faiss-cpu==1.7.4` - Para busca rápida em vetores
-- `torch==2.0.1` - Dependência do sentence-transformers
-- `transformers==4.35.2` - Dependência do sentence-transformers
+Isso instala as dependências do app (Streamlit/pandas/plotly/etc.).
 
-### Opção 2: Instalação Manual
+### Opção 2: Instalação do modo semântico (opcional, melhor qualidade)
 
-Se preferir instalar apenas as novas dependências:
+As dependências “pesadas” do chatbot ficam separadas em `requirements-chatbot.txt`.
+
+```bash
+pip install -r requirements-chatbot.txt
+```
+
+Ou instalar tudo de uma vez:
+
+```bash
+pip install -r requirements.txt -r requirements-chatbot.txt
+```
+
+### Opção 3: Instalação manual (equivalente)
 
 ```bash
 pip install sentence-transformers==2.2.2 faiss-cpu==1.7.4 torch==2.0.1 transformers==4.35.2

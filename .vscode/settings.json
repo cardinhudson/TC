@@ -1,6 +1,6 @@
 {
     // Configuração do ambiente virtual Python
-    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
     "python.venvPath": "${workspaceFolder}",
     "python.venvFolders": [
         "${workspaceFolder}"

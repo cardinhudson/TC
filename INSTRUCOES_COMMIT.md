@@ -43,7 +43,9 @@ git push
 ## 📊 Arquivos que Serão Commitados
 
 ### Arquivos Principais:
-- ✅ `app.py` - Código principal com correções
+- ✅ `app.py` - Portal/roteador (entrada do Streamlit)
+- ✅ `tc_ext/` - Módulo do TC Ext (Home em `tc_ext/pages/home_ext.py`)
+- ✅ `tc_principal/` - Módulo do TC (Planta Principal) (stubs)
 - ✅ `.gitignore` - Configuração atualizada
 - ✅ `versao.json` - Controle de versão
 - ✅ `controle_paginas.json` - Controle de páginas
@@ -56,6 +58,7 @@ git push
 ### Scripts Auxiliares:
 - ✅ Scripts Python (*.py)
 - ✅ `requirements.txt`
+- ✅ `requirements-chatbot.txt` (opcional, para modo semântico do chatbot)
 
 ## ⚠️ Arquivos NÃO Serão Commitados
 
@@ -66,37 +69,15 @@ git push
 
 Estes arquivos permanecem **localmente** mas não vão para o repositório Git.
 
-## 🎯 Mensagem de Commit Sugerida
+## 🎯 Mensagem de Commit (modelo)
 
 ```
-Feat: Visualização completa do ano no Flex Bud
+Feat: Ajustes no portal e documentação
 
-- Corrigida capitalização dos períodos de 2026
-- Implementado preenchimento de meses faltantes com Budget
-- Adicionada lógica para mostrar todos os 12 meses no gráfico
-- Atualizado .gitignore para excluir arquivos grandes
-- Melhorias na função calcular_flex_budget
-
-Resolves: Visualização parcial do ano 2026
+- Atualiza portal/roteamento do Streamlit
+- Mantém documentação como fonte única
+- Alinha instruções de ambiente/instalação
 ```
-
-## 📋 Resumo das Alterações
-
-### 1. Correções no Sistema:
-- ✅ Capitalização dos períodos (minúsculas → Capitalizadas)
-- ✅ Preenchimento de meses faltantes com Budget
-- ✅ Visualização completa do ano (12 meses)
-- ✅ Cálculo de Flex Bud para ano completo
-
-### 2. Arquivos Criados/Modificados:
-- `app.py` - Principais correções
-- `.gitignore` - Exclusão de arquivos grandes
-- Scripts de teste e documentação
-
-### 3. Dados de 2026:
-- 5 meses com dados reais (Julho-Novembro)
-- 7 meses usando Budget (Janeiro-Junho, Dezembro)
-- Total: 12 meses visíveis
 
 ## ✅ Próximos Passos
 
@@ -106,5 +87,5 @@ Resolves: Visualização parcial do ano 2026
 4. Pronto! Suas alterações estarão no repositório
 
 ---
-**Data:** 15/01/2026  
+**Data:** 20/01/2026  
 **Modificado por:** GitHub Copilot
