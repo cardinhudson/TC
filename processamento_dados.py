@@ -11,6 +11,81 @@ from datetime import datetime
 from typing import Tuple, Dict, Optional
 
 
+MAPEAMENTO_MESES = {
+    'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
+    'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
+    'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
+    'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
+}
+
+
+def normalizar_coluna_periodo(df: pd.DataFrame, coluna: str = 'Período') -> pd.DataFrame:
+    """Normaliza valores de mês na coluna de período para o formato capitalizado.
+
+    Isso evita falhas de merge entre fontes que trazem meses como "janeiro" vs "Janeiro".
+    """
+    if df is None or df.empty or coluna not in df.columns:
+        return df
+
+    df = df.copy()
+    serie = df[coluna]
+    if pd.api.types.is_categorical_dtype(serie):
+        serie = serie.astype(str)
+
+    serie = serie.astype(str).str.strip()
+    for mes_min, mes_cap in MAPEAMENTO_MESES.items():
+        serie = serie.str.replace(mes_min, mes_cap, case=False, regex=False)
+
+    df[coluna] = serie
+    return df
+
+
+def limpar_colunas_duplicadas(df):
+    """
+    Remove colunas duplicadas de forma definitiva:
+    1. Remove colunas com sufixos .1, .2, .3, etc (duplicadas pelo pandas)
+    2. Remove colunas Unnamed: (vazias do Excel)
+    3. Garante que apenas as colunas originais permaneçam
+    """
+    if df is None or df.empty:
+        return df
+    
+    df = df.copy()
+    colunas_para_manter = []
+    colunas_ja_vistas = set()
+    colunas_removidas = []
+    
+    for col in df.columns:
+        col_str = str(col)
+        
+        # 1. Remover colunas Unnamed: (vazias do Excel)
+        if 'Unnamed:' in col_str or 'unnamed:' in col_str.lower():
+            colunas_removidas.append(col_str)
+            continue
+        
+        # 2. Verificar se é coluna duplicada com sufixo numérico (.1, .2, etc)
+        if '.' in col_str:
+            partes = col_str.rsplit('.', 1)  # Split da direita para a esquerda, apenas 1 vez
+            if len(partes) == 2 and partes[1].isdigit():
+                # É uma coluna duplicada (ex: "Abril.1", "Janeiro.2")
+                colunas_removidas.append(col_str)
+                continue
+        
+        # 3. Verificar se já vimos esta coluna
+        if col_str in colunas_ja_vistas:
+            colunas_removidas.append(col_str)
+            continue
+        
+        # Adicionar coluna à lista de colunas válidas
+        colunas_para_manter.append(col)
+        colunas_ja_vistas.add(col_str)
+    
+    # Retornar DataFrame apenas com colunas válidas
+    df_limpo = df[colunas_para_manter].copy()
+    
+    return df_limpo
+
+
 def normalizar_tipos_para_parquet(df):
     """Normaliza tipos de dados para evitar erros ao salvar parquet.
     Converte colunas object com tipos mistos (strings e números) para string.
@@ -189,22 +264,42 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     
     log("📊 Lendo dados KE5Z...")
     # Célula 1: Ler dados Sapiens
-    df_KE5Z = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Sapiens', header=1, usecols=range(20))
+    df_KE5Z = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Sapiens', header=1)
+    df_KE5Z = limpar_colunas_duplicadas(df_KE5Z)  # 🔧 Limpar colunas duplicadas
     df_KE5Z['Valor'] = pd.to_numeric(df_KE5Z['Valor'], errors='coerce').fillna(0)
     df_KE5Z['QTD'] = pd.to_numeric(df_KE5Z['QTD'], errors='coerce').fillna(0)
     df_KE5Z = df_KE5Z[df_KE5Z['Nºconta'].notna() & (df_KE5Z['Valor'] != 0)]
+
+    # 🔧 Garantir consistência de Período (janeiro vs Janeiro) antes de qualquer merge
+    df_KE5Z = normalizar_coluna_periodo(df_KE5Z, 'Período')
     
     log("🔗 Fazendo merge com Base Conso...")
     # Célula 2: Merge com Base Conso
     df_base_conso = pd.read_excel(config['CAMINHO_SAPIENS'], sheet_name='Base conso')
+    df_base_conso = limpar_colunas_duplicadas(df_base_conso)  # 🔧 Limpar colunas duplicadas
     if 'Type 04' in df_base_conso.columns:
         df_base_conso = df_base_conso.rename(columns={'Type 04': 'Custo'})
     df_base_conso = df_base_conso[['Custo', 'Type 07']].rename(columns={'Type 07': 'Account'})
-    df_KE5Z = pd.merge(df_KE5Z, df_base_conso[['Custo', 'Account']], on='Account', how='left')
+    df_KE5Z = pd.merge(
+        df_KE5Z,
+        df_base_conso[['Custo', 'Account']],
+        on='Account',
+        how='left',
+        suffixes=('', '_conso')
+    )
+
+    # 🔧 Alguns anos trazem uma coluna "Custo" na aba Sapiens; preferir a Base Conso quando existir
+    if 'Custo_conso' in df_KE5Z.columns:
+        if 'Custo' in df_KE5Z.columns:
+            df_KE5Z['Custo'] = df_KE5Z['Custo_conso'].combine_first(df_KE5Z['Custo'])
+            df_KE5Z = df_KE5Z.drop(columns=['Custo_conso'])
+        else:
+            df_KE5Z = df_KE5Z.rename(columns={'Custo_conso': 'Custo'})
     
     log("📊 Processando rateio...")
     # Célula 3: Processar Rateio
     df_raw = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Rateio', header=None)
+    df_raw = limpar_colunas_duplicadas(df_raw)  # 🔧 Limpar colunas duplicadas
     df = df_raw.iloc[1:].reset_index(drop=True)
     df.columns = df.iloc[0]
     df = df.iloc[1:].reset_index(drop=True)
@@ -220,12 +315,19 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     df = df.melt(id_vars=colunas_id, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
     df['Rateio'] = pd.to_numeric(df['Rateio'], errors='coerce').fillna(0)
     df = df.rename(columns={'Mês': 'Período'})
+    df = normalizar_coluna_periodo(df, 'Período')
+    if 'Veículo' in df.columns:
+        df['Veículo'] = df['Veículo'].astype(str).str.strip()
     df = df[df['Oficina'] != 'Veículos']
     df = df[df['Oficina'].notna()]
     
     log("🔄 Fazendo merge KE5Z ↔ Rateio...")
     # Célula 4: Merge KE5Z ↔ Rateio e cálculo por veículo
     df_merge = pd.merge(df_KE5Z, df, on=['Oficina', 'Período'], how='left', suffixes=('', '_df'))
+
+    if 'Veículo' not in df_merge.columns:
+        raise KeyError("Coluna 'Veículo' não encontrada após leitura da aba Rateio.")
+
     df_pivot = df_merge.pivot_table(
         index=['Oficina', 'Período'],
         columns='Veículo',
@@ -233,40 +335,46 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         aggfunc='mean'
     ).reset_index()
     df_pivot.columns.name = None
-    
-    df_final = pd.merge(df_KE5Z, df_pivot, on=['Oficina', 'Período'], how='left')
-    
-    veiculos_cols = [col for col in df_final.columns if col not in df_KE5Z.columns and col not in ['Oficina', 'Período']]
-    rename_dict = {col: f"{col}%" for col in veiculos_cols}
+
+    veiculos_pivot = [col for col in df_pivot.columns if col not in ['Oficina', 'Período']]
+
+    # 🔧 Evitar colunas _x/_y quando a aba Sapiens já traz colunas com nomes iguais aos veículos
+    df_KE5Z_sem_conflito = df_KE5Z.drop(columns=[c for c in veiculos_pivot if c in df_KE5Z.columns], errors='ignore')
+    df_final = pd.merge(df_KE5Z_sem_conflito, df_pivot, on=['Oficina', 'Período'], how='left')
+
+    # Renomear colunas de rateio para sufixo % e converter para numérico
+    rename_dict = {col: f"{col}%" for col in veiculos_pivot if col in df_final.columns}
     df_final = df_final.rename(columns=rename_dict)
-    
-    veiculos_cols_pct = [f"{col}%" for col in veiculos_cols]
-    veiculos_cols = [col for col in veiculos_cols_pct if col in df_final.columns]
-    
-    for col in veiculos_cols:
-        if df_final[col].dtype == "object":
-            df_final[col] = df_final[col].astype(str).str.replace('%', '', regex=False).str.strip()
-        df_final[col] = pd.to_numeric(df_final[col], errors='coerce').astype(np.float64).fillna(0.0)
+    veiculos_cols_pct = [f"{col}%" for col in veiculos_pivot if f"{col}%" in df_final.columns]
+
+    for col_pct in veiculos_cols_pct:
+        if df_final[col_pct].dtype == 'object':
+            df_final[col_pct] = df_final[col_pct].astype(str).str.replace('%', '', regex=False).str.strip()
+        df_final[col_pct] = pd.to_numeric(df_final[col_pct], errors='coerce').astype(np.float64).fillna(0.0)
+
+        # Se vier como 32.3 (percentual em 0-100), converter para 0-1
+        try:
+            amostra_max = float(df_final[col_pct].dropna().head(1000).max()) if len(df_final) else 0.0
+        except Exception:
+            amostra_max = 0.0
+        if amostra_max > 1.5:
+            df_final[col_pct] = df_final[col_pct] / 100.0
     
     log("💾 Calculando valores por veículo...")
     # Célula 5: Criar colunas calculadas
     df_final['Valor'] = pd.to_numeric(df_final['Valor'], errors='coerce').fillna(0)
-    veiculos_cols_pct = ['CC21%', 'CC22%', 'CC24%', 'CC24 5L%', 'CC24 7L%', 'J516%']
-    
     for col_pct in veiculos_cols_pct:
-        if col_pct in df_final.columns:
-            col_nome = col_pct.replace('%', '')
-            df_final[col_nome] = df_final[col_pct] * df_final['Valor']
+        col_nome = col_pct[:-1]  # remove '%'
+        df_final[col_nome] = df_final[col_pct] * df_final['Valor']
     
     # Célula 6: Análise de soma dos percentuais (opcional, para diagnóstico)
-    veiculos_cols_pct_analise = ['CC21%', 'CC22%', 'CC24%', 'CC24 5L%', 'CC24 7L%', 'J516%']
-    if all(col in df_final.columns for col in veiculos_cols_pct_analise):
-        df_final['Soma_Percentuais'] = df_final[veiculos_cols_pct_analise].sum(axis=1)
+    if len(veiculos_cols_pct) > 0:
+        df_final['Soma_Percentuais'] = df_final[veiculos_cols_pct].sum(axis=1)
         linhas_com_rateio = (df_final['Soma_Percentuais'] > 0).sum()
         log(f"📊 Análise: {linhas_com_rateio:,} linhas com rateios")
     
     # Célula 7: Somatória de cada coluna (opcional, para diagnóstico)
-    colunas_para_somar = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
+    colunas_para_somar = [col[:-1] for col in veiculos_cols_pct]
     soma_total = 0
     for col in colunas_para_somar:
         if col in df_final.columns:
@@ -279,25 +387,32 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         log(f"💾 Excel intermediário salvo: {config['CAMINHO_DF_FINAL_XLSX']}")
     
     # Célula 8: Remover colunas de percentual
-    colunas_para_remover = ['CC21%', 'CC22%', 'CC24%', 'CC24 5L%', 'CC24 7L%', 'J516%']
-    for col in colunas_para_remover:
-        if col in df_final.columns:
-            df_final = df_final.drop(columns=[col])
+    if len(veiculos_cols_pct) > 0:
+        df_final = df_final.drop(columns=[col for col in veiculos_cols_pct if col in df_final.columns])
     
     # Célula 9: Transformar veículos em linhas
-    colunas_veiculos = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
+    colunas_veiculos = [col[:-1] for col in veiculos_cols_pct]
     colunas_veiculos_existentes = [col for col in colunas_veiculos if col in df_final.columns]
     
     if len(colunas_veiculos_existentes) > 0:
+        # Alguns relatórios (ex.: 2026) já trazem uma coluna chamada "Total".
+        # O melt cria uma coluna com value_name='Total', então precisamos evitar conflito.
+        if 'Total' in df_final.columns:
+            df_final = df_final.rename(columns={'Total': 'Total_Original'})
         colunas_id = [col for col in df_final.columns if col not in colunas_veiculos]
         df_final = df_final.melt(id_vars=colunas_id, value_vars=colunas_veiculos_existentes, var_name='Veículo', value_name='Total')
     
     log("📈 Processando volume...")
     # Célula 10: Processar Volume
     df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume', header=50)
+    df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)  # 🔧 Limpar colunas duplicadas
     
-    if 'Unnamed: 14' in df_ke5z_volume.columns:
-        df_ke5z_volume = df_ke5z_volume.drop(columns=['Unnamed: 14'])
+    # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (não apenas Unnamed: 14)
+    # Isso previne colunas vazias do Excel que causam duplicação ao consolidar
+    colunas_unnamed = [col for col in df_ke5z_volume.columns if 'Unnamed:' in str(col)]
+    if colunas_unnamed:
+        log(f"⚠️ Removendo {len(colunas_unnamed)} colunas 'Unnamed:' vazias do Excel")
+        df_ke5z_volume = df_ke5z_volume.drop(columns=colunas_unnamed)
     
     mapeamento_meses = {
         'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
@@ -467,6 +582,23 @@ def salvar_e_consolidar(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5z_gr
             if os.path.exists(caminho_ano):
                 try:
                     df_ano = pd.read_parquet(caminho_ano)
+                    # 🔧 CORREÇÃO CRÍTICA: Remover colunas duplicadas (com sufixos .1, .2, etc)
+                    # Isso previne a propagação de colunas duplicadas ao consolidar múltiplos anos
+                    colunas_originais = []
+                    colunas_para_remover = []
+                    for col in df_ano.columns:
+                        # Remover sufixos .1, .2, etc de nomes de colunas duplicadas
+                        col_base = col.split('.')[0] if '.' in str(col) and str(col).split('.')[-1].isdigit() else col
+                        if col_base not in colunas_originais:
+                            colunas_originais.append(col_base)
+                        else:
+                            # Coluna duplicada, marcar para remoção
+                            colunas_para_remover.append(col)
+                    
+                    if colunas_para_remover:
+                        log(f"⚠️ Removendo {len(colunas_para_remover)} colunas duplicadas do ano {ano}: {colunas_para_remover[:5]}")
+                        df_ano = df_ano.drop(columns=colunas_para_remover)
+                    
                     if 'Volume' in df_ano.columns:
                         df_ano['Volume'] = pd.to_numeric(df_ano['Volume'], errors='coerce').fillna(0).astype('float64')
                     if 'Ano' not in df_ano.columns:

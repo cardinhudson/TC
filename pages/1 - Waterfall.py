@@ -47,9 +47,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Isso evita que o app.py renderize conteúdo quando importado
 st.session_state.is_waterfall_page = True
 
-# Importar funções necessárias do app.py
-# NOTA: O app.py será executado, mas a verificação is_main_page deve evitar renderização
-from app import (
+# Importar API estável (evita executar o app.py ao carregar a página)
+from tc_exports import (
     load_data, load_volume_data, load_budget_data, load_budget_volume_data,
     formatar_periodo_abreviado, formatar_ratio_com_barra, criar_tabela_html_com_barra,
     calcular_resumo_tabela_flex, exibir_caixas_resumo_dinamico, exibir_caixas_resumo,
@@ -243,13 +242,13 @@ with col_moeda1:
             st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio_waterfall
     
     moeda_selecionada = st.radio(
-        "",
+        "Moeda",
         opcoes_moeda,
         index=index_moeda,
         horizontal=True,
         help="Selecione a moeda para exibição nos gráficos",
         key="moeda_selecionada_radio_waterfall",
-        label_visibility="visible",
+        label_visibility="collapsed",
         on_change=atualizar_moeda
     )
     
@@ -285,7 +284,7 @@ col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
 with col_taxa1:
     st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
     taxa_usd_para_brl = st.number_input(
-        "",
+        "Taxa USD para BRL",
         min_value=0.01,
         max_value=100.0,
         value=float(taxa_usd_para_brl_padrao),
@@ -299,7 +298,7 @@ with col_taxa1:
 with col_taxa2:
     st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
     taxa_eur_para_brl = st.number_input(
-        "",
+        "Taxa EUR para BRL",
         min_value=0.01,
         max_value=100.0,
         value=float(taxa_eur_para_brl_padrao),

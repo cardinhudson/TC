@@ -14,7 +14,8 @@ Modificar o sistema para mostrar o **Flex Bud para o ano completo** (todos os 12
 **AGORA:**
 - ✅ Gráficos mostram todos os 12 meses do ano
 - ✅ Flex Bud calculado para o ano completo
-- ✅ Meses sem dados reais usam valores do Budget
+- ✅ Meses sem dados reais exibem **Realizado = 0** (não “puxa” Budget para o Real)
+- ✅ Meses sem dados reais continuam permitindo cálculo/visualização de **Budget e Flex Bud**
 - ✅ Comparação anual completa e consistente
 
 ## 🔧 Alterações Técnicas
@@ -32,7 +33,7 @@ volumes['Volume_real'] = volumes['Volume_real'].fillna(volumes['Volume_budget'])
 volumes = volumes[(volumes['Volume_real'] > 0) | (volumes['Volume_budget'] > 0)]
 ```
 
-**Resultado:** Períodos sem volume real agora usam o volume do Budget
+**Resultado:** Períodos sem volume real podem usar o volume do Budget como base para manter o ano completo.
 
 ### 2. Filtro de Períodos nos Gráficos
 **Arquivo:** `app.py` (linhas ~3607-3642)
@@ -83,9 +84,10 @@ for periodo in ORDEM_MESES
    - Budget ajustado pelo volume
 
 2. **Meses sem dados reais:** O sistema usa:
-   - Volume do Budget
+   - Realizado exibido como **0**
+   - Volume base do Budget (quando necessário para cálculo)
    - Custos do Budget
-   - Flex Bud = Budget (pois não há ajuste de volume)
+   - Flex Bud tende a ficar igual ao Budget (pois não há ajuste por volume real)
 
 3. **Visualização:** Todos os 12 meses aparecem no gráfico, permitindo:
    - Visão completa do ano
@@ -118,7 +120,8 @@ Quando você tiver dados dos meses faltantes:
 
 ## 📝 Notas Importantes
 
-- ⚠️ Meses sem dados reais mostrarão valores iguais ao Budget (pois não há ajuste de volume)
+- ⚠️ Meses sem dados reais mostram **Realizado = 0**; Budget/Flex Bud podem permanecer > 0
+- ⚠️ Flex Bud pode ficar igual ao Budget (pois não há ajuste de volume real)
 - ⚠️ Isso é esperado e correto - representa o planejamento para aquele período
 - ⚠️ Quando dados reais forem adicionados, o Flex Bud será recalculado automaticamente
 

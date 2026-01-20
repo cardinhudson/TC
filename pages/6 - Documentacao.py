@@ -101,6 +101,17 @@ st.markdown("""
 
 st.title("📚 Documentação Completa do Sistema TC")
 
+st.info(
+    "📌 **Fonte única (single source of truth):** mantenha as regras e o comportamento do sistema "
+    "atualizados no arquivo `DOCUMENTACAO_SISTEMA_TC.md` (menu: **🧾 Especificação Técnica**). "
+    "As demais seções desta página podem conter detalhes complementares/legados."
+)
+
+
+def _ir_para_especificacao_tecnica() -> None:
+    st.session_state["indice_documentacao"] = "🧾 Especificação Técnica (Reescrita com IA)"
+    st.rerun()
+
 # Função para detectar caminho base correto
 def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados"""
@@ -174,10 +185,23 @@ def carregar_foto_base64(foto_base64):
 st.sidebar.markdown("## 📑 Índice")
 st.sidebar.markdown("---")
 
+st.sidebar.caption(
+    "📌 Fonte única: `DOCUMENTACAO_SISTEMA_TC.md` (seção 🧾 Especificação Técnica)."
+)
+
 # Criar quatro índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
-    ["👥 Equipe do Projeto", "📐 Regras e Cálculo", "🏗️ Arquitetura e Estrutura", "📥 Guia de Extração de Dados", "🔮 Guia de Best Estimate", "📊 Apresentação Visual", "💬 Chatbot de Documentação"],
+    [
+        "👥 Equipe do Projeto",
+        "📐 Regras e Cálculo",
+        "🏗️ Arquitetura e Estrutura",
+        "🧾 Especificação Técnica (Reescrita com IA)",
+        "📥 Guia de Extração de Dados",
+        "🔮 Guia de Best Estimate",
+        "📊 Apresentação Visual",
+        "💬 Chatbot de Documentação",
+    ],
     key="indice_documentacao"
 )
 
@@ -398,6 +422,18 @@ if indice_selecionado == "👥 Equipe do Projeto":
 # ==========================================
 elif indice_selecionado == "📐 Regras e Cálculo":
     st.header("📐 Regras e Cálculo")
+
+    st.warning(
+        "⚠️ **Seção legada/complementar:** a referência oficial e atualizada de regras de cálculo "
+        "(CPU/Flex Bud/ordem de conversões/contratos de dados) está em `DOCUMENTACAO_SISTEMA_TC.md` "
+        "na seção **🧾 Especificação Técnica**."
+    )
+    st.button(
+        "➡️ Ir para a Especificação Técnica",
+        key="btn_ir_especificacao_regras",
+        use_container_width=True,
+        on_click=_ir_para_especificacao_tecnica,
+    )
     
     st.markdown("""
     Esta seção documenta todas as regras de cálculo, filtros e metodologias utilizadas no projeto.
@@ -999,8 +1035,7 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             valores como filtros ao budget. Isso garante que o perímetro de análise seja idêntico para ambos os
             conjuntos de dados, permitindo comparações precisas e significativas.
             """)
-    
-    
+
     # EXPANDER 3: Volumes
     with st.expander("📊 **Cálculo de Volumes**", expanded=False):
         with st.expander("📁 **Fonte de Dados de Volume**", expanded=False):
@@ -1864,6 +1899,18 @@ elif indice_selecionado == "📐 Regras e Cálculo":
 # ==========================================
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
     st.header("🏗️ Arquitetura e Estrutura do Projeto")
+
+    st.warning(
+        "⚠️ **Seção legada/complementar:** a arquitetura e contratos canônicos (estrutura do projeto, "
+        "pipelines, schemas e critérios de aceite) estão em `DOCUMENTACAO_SISTEMA_TC.md` na seção "
+        "**🧾 Especificação Técnica**."
+    )
+    st.button(
+        "➡️ Ir para a Especificação Técnica",
+        key="btn_ir_especificacao_arquitetura",
+        use_container_width=True,
+        on_click=_ir_para_especificacao_tecnica,
+    )
     
     st.markdown("""
     Esta seção documenta a arquitetura, estrutura de arquivos, tecnologias utilizadas
@@ -1938,7 +1985,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         - Forecast: `Forecast/` (dados processados para previsões)
         - Formato: Parquet para performance otimizada
         """)
-        
+
         st.markdown("---")
         
         st.subheader("📄 Arquivos Principais")
@@ -2306,6 +2353,45 @@ plotly>=5.0.0
             - Plotly (versão instalada)
             - OpenPyXL (versão instalada)
             """)
+
+# ==========================================
+# SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
+# ==========================================
+elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)":
+    st.header("🧾 Especificação Técnica (Reescrita com IA)")
+
+    st.markdown(
+        """
+        Esta seção consolida uma **especificação técnica completa** em formato Markdown.
+        O objetivo é permitir que você reescreva o projeto com IA preservando:
+        - funcionalidades
+        - regras de cálculo (CPU/Flex Bud)
+        - fontes de dados e contratos (schemas)
+        - comportamento de filtros e gráficos
+        """
+    )
+
+    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+
+    if not os.path.exists(caminho_doc):
+        st.error(f"Arquivo não encontrado: {caminho_doc}")
+    else:
+        try:
+            with open(caminho_doc, "r", encoding="utf-8") as f:
+                conteudo = f.read()
+
+            st.download_button(
+                label="📥 Baixar especificação (Markdown)",
+                data=conteudo.encode("utf-8"),
+                file_name="DOCUMENTACAO_SISTEMA_TC.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+
+            st.markdown("---")
+            st.markdown(conteudo)
+        except Exception as e:
+            st.error(f"Erro ao carregar especificação: {e}")
 
 # ==========================================
 # SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS

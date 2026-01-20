@@ -40,25 +40,41 @@ def carregar_documentacao() -> str:
         str: Conteúdo completo da documentação
     """
     base_path = os.path.dirname(os.path.abspath(__file__))
-    
-    # Carregar APENAS a documentação completa (NÃO incluir apresentações)
-    arquivo_doc_completa = os.path.join(base_path, "pages", "6 - Documentacao.py")
-    
-    conteudo_completo = ""
-    
-    # Carregar apenas documentação completa
-    if os.path.exists(arquivo_doc_completa):
+
+    # Fontes de documentação (priorizar especificação técnica e docs completas;
+    # NÃO incluir apresentações curtas)
+    fontes = [
+        ("python", os.path.join(base_path, "pages", "6 - Documentacao.py")),
+        ("md", os.path.join(base_path, "DOCUMENTACAO_SISTEMA_TC.md")),
+        ("md", os.path.join(base_path, "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")),
+        ("md", os.path.join(base_path, "INSTRUCOES_AMBIENTE_VIRTUAL.md")),
+        ("md", os.path.join(base_path, "INSTRUCOES_CHATBOT.md")),
+        ("md", os.path.join(base_path, "SELECIONAR_AMBIENTE_VIRTUAL.md")),
+        ("md", os.path.join(base_path, "INSTRUCOES_SINCRONIZACAO.md")),
+    ]
+
+    conteudos: List[str] = []
+
+    for tipo, caminho in fontes:
+        if not os.path.exists(caminho):
+            continue
+
         try:
-            with open(arquivo_doc_completa, 'r', encoding='utf-8') as f:
-                conteudo = f.read()
-                # Extrair TODO o conteúdo markdown da documentação
-                conteudo_extraido = extrair_texto_documentacao(conteudo)
-                if conteudo_extraido:
-                    conteudo_completo = conteudo_extraido
+            with open(caminho, "r", encoding="utf-8") as f:
+                bruto = f.read()
         except Exception as e:
-            print(f"Erro ao carregar documentação completa: {e}")
-    
-    return conteudo_completo
+            print(f"Erro ao carregar documentação ({caminho}): {e}")
+            continue
+
+        if tipo == "python":
+            extraido = extrair_texto_documentacao(bruto)
+            if extraido:
+                conteudos.append(extraido)
+        else:
+            # Markdown: usar conteúdo integral
+            conteudos.append(bruto)
+
+    return "\n\n".join([c for c in conteudos if c and c.strip()])
 
 
 def extrair_texto_documentacao(codigo_python: str) -> str:

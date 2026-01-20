@@ -9,6 +9,78 @@ import os
 import shutil
 from datetime import datetime
 from typing import Tuple, Dict, Optional
+import re
+
+
+def limpar_periodo_sufixos(df):
+    """Remove sufixos .1, .2, .3 da coluna Período"""
+    if 'Período' not in df.columns:
+        return df
+    
+    df = df.copy()
+    
+    # Remover sufixos .1, .2, .3, etc da coluna Período
+    df['Período'] = df['Período'].astype(str).str.replace(r'\.\d+$', '', regex=True)
+    
+    return df
+
+
+def limpar_colunas_duplicadas(df):
+    """Remove colunas duplicadas e inválidas do DataFrame (mesma lógica do app.py)"""
+    if df is None or df.empty:
+        return df
+    
+    colunas_originais = list(df.columns)
+    colunas_duplicadas = []
+    
+    # 1. Remover colunas Unnamed
+    colunas_unnamed = [col for col in df.columns if isinstance(col, str) and 'Unnamed:' in col]
+    if colunas_unnamed:
+        df = df.drop(columns=colunas_unnamed)
+        colunas_duplicadas.extend(colunas_unnamed)
+    
+    # 2. Remover colunas com sufixo .1, .2, etc (EXCETO coluna Período!)
+    colunas_sufixo = []
+    for col in df.columns:
+        if col == 'Período':
+            continue
+        if isinstance(col, str) and re.search(r'\.\d+$', col):
+            colunas_sufixo.append(col)
+    
+    if colunas_sufixo:
+        df = df.drop(columns=colunas_sufixo)
+        colunas_duplicadas.extend(colunas_sufixo)
+    
+    # 3. Remover colunas completamente vazias
+    colunas_vazias = [col for col in df.columns if df[col].isna().all()]
+    if colunas_vazias:
+        df = df.drop(columns=colunas_vazias)
+        colunas_duplicadas.extend(colunas_vazias)
+    
+    # 4. Remover duplicatas baseadas em nome e conteúdo
+    colunas_vistas = {}
+    colunas_remover = []
+    
+    for col in df.columns:
+        if col == 'Período':
+            continue
+        col_base = re.sub(r'\.\d+$', '', str(col))
+        if col_base in colunas_vistas:
+            col_original = colunas_vistas[col_base]
+            if df[col].equals(df[col_original]):
+                colunas_remover.append(col)
+        else:
+            colunas_vistas[col_base] = col
+    
+    if colunas_remover:
+        df = df.drop(columns=colunas_remover)
+        colunas_duplicadas.extend(colunas_remover)
+    
+    if colunas_duplicadas:
+        print(f"⚠️ Limpeza automática: {len(colunas_duplicadas)} colunas duplicadas/inválidas removidas")
+        print(f"   Colunas removidas: {colunas_duplicadas}")
+    
+    return df
 
 
 def normalizar_tipos_para_parquet(df):
@@ -169,6 +241,8 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     log("📊 Lendo dados KE5Z (BUD)...")
     # Célula 1: Ler guia "Voz de custo BDG"
     df_KE5Z = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Voz de custo BDG')
+    df_KE5Z = limpar_colunas_duplicadas(df_KE5Z)
+    df_KE5Z = limpar_periodo_sufixos(df_KE5Z)
     
     meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
              'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -211,6 +285,8 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     # Célula 2: Merge com Base Conso
     if os.path.exists(config['CAMINHO_SAPIENS']):
         df_base_conso = pd.read_excel(config['CAMINHO_SAPIENS'], sheet_name='Base conso')
+        df_base_conso = limpar_colunas_duplicadas(df_base_conso)
+        df_base_conso = limpar_periodo_sufixos(df_base_conso)
         if 'Type 04' in df_base_conso.columns:
             df_base_conso = df_base_conso.rename(columns={'Type 04': 'Custo'})
         if 'Custo' in df_base_conso.columns and 'Type 07' in df_base_conso.columns:
@@ -223,12 +299,16 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     # Célula 3: Processar Rateio BDG
     try:
         df_raw = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Rateio BDG', header=None)
+        df_raw = limpar_colunas_duplicadas(df_raw)
+        df_raw = limpar_periodo_sufixos(df_raw)
     except ValueError as e:
         if "Worksheet named 'Rateio BDG' not found" in str(e):
             xl_file = pd.ExcelFile(config['CAMINHO_RATEIO'])
             guias_similares = [s for s in xl_file.sheet_names if 'rateio' in s.lower() or 'bdg' in s.lower()]
             if guias_similares:
                 df_raw = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=None)
+                df_raw = limpar_colunas_duplicadas(df_raw)
+                df_raw = limpar_periodo_sufixos(df_raw)
             else:
                 raise
     
@@ -333,17 +413,28 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     # Célula 10: Processar Volume BDG
     try:
         df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=50)
+        df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
+        df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
     except ValueError as e:
         if "Worksheet named 'Volume BDG' not found" in str(e):
             xl_file = pd.ExcelFile(config['CAMINHO_RATEIO'])
             guias_similares = [s for s in xl_file.sheet_names if 'volume' in s.lower() or 'bdg' in s.lower()]
             if guias_similares:
                 df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=50)
+                df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
+                df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
             else:
                 raise
     
     df_ke5z_volume = df_ke5z_volume.dropna(axis=1, how='all')
     df_ke5z_volume = df_ke5z_volume.loc[:, [col for col in df_ke5z_volume.columns if (not (pd.isna(col) or str(col).strip() == ""))]]
+    
+    # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (colunas vazias do Excel)
+    # Isso previne colunas vazias que causam duplicação ao consolidar
+    colunas_unnamed = [col for col in df_ke5z_volume.columns if 'Unnamed:' in str(col)]
+    if colunas_unnamed:
+        log(f"⚠️ Removendo {len(colunas_unnamed)} colunas 'Unnamed:' vazias do Excel")
+        df_ke5z_volume = df_ke5z_volume.drop(columns=colunas_unnamed)
     
     colunas_meses_minusculas = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
     colunas_meses_encontradas = []
@@ -491,6 +582,23 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
             if os.path.exists(caminho_ano):
                 try:
                     df_ano = pd.read_parquet(caminho_ano)
+                    # 🔧 CORREÇÃO CRÍTICA: Remover colunas duplicadas (com sufixos .1, .2, etc)
+                    # Isso previne a propagação de colunas duplicadas ao consolidar múltiplos anos
+                    colunas_originais = []
+                    colunas_para_remover = []
+                    for col in df_ano.columns:
+                        # Remover sufixos .1, .2, etc de nomes de colunas duplicadas
+                        col_base = col.split('.')[0] if '.' in str(col) and str(col).split('.')[-1].isdigit() else col
+                        if col_base not in colunas_originais:
+                            colunas_originais.append(col_base)
+                        else:
+                            # Coluna duplicada, marcar para remoção
+                            colunas_para_remover.append(col)
+                    
+                    if colunas_para_remover:
+                        log(f"⚠️ Removendo {len(colunas_para_remover)} colunas duplicadas do ano {ano}: {colunas_para_remover[:5]}")
+                        df_ano = df_ano.drop(columns=colunas_para_remover)
+                    
                     if 'Ano' not in df_ano.columns:
                         df_ano['Ano'] = ano
                     dfs_todos_anos.append(df_ano)
