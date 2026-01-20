@@ -2,9 +2,6 @@
 
 from tc_principal.pages.home_tc import render as render_home_tc
 from tc_principal.pages.waterfall_tc import render as render_waterfall_tc
-from tc_principal.pages.waterfall_analysis_tc import (
-    render as render_waterfall_analysis_tc,
-)
 from tc_principal.pages.best_estimate_simulador_tc import (
     render as render_best_estimate_simulador_tc,
 )
@@ -39,11 +36,6 @@ PAGES = {
             url_path="tc-ext-waterfall",
         ),
         st.Page(
-            "pages/4 - Waterfall_Analysis.py",
-            title="Waterfall (Análise)",
-            url_path="tc-ext-waterfall-analise",
-        ),
-        st.Page(
             "pages/2 - Best Estimate - Simulador.py",
             title="Best Estimate (Simulador)",
             url_path="tc-ext-best-estimate-simulador",
@@ -65,11 +57,6 @@ PAGES = {
             render_waterfall_tc,
             title="Waterfall",
             url_path="tc-waterfall",
-        ),
-        st.Page(
-            render_waterfall_analysis_tc,
-            title="Waterfall (Análise)",
-            url_path="tc-waterfall-analise",
         ),
         st.Page(
             render_best_estimate_simulador_tc,

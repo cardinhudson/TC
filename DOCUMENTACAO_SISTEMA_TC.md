@@ -55,7 +55,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 - `pages/1 - Waterfall.py`: análise Waterfall.
 - `pages/2 - Best Estimate - Simulador.py`: simulador.
 - `pages/3 - Best Estimate - Análise.py`: análise BE.
-- `pages/4 - Waterfall_Analysis.py`: variações/derivações de waterfall.
+- *(removido)* `pages/4 - Waterfall_Analysis.py`: página duplicada removida.
 - `pages/5 - Extração de Dados.py`: guia/rotinas para extração.
 - `pages/6 - Documentacao.py`: documentação dentro do Streamlit.
 
@@ -139,7 +139,12 @@ Os filtros refinam `df_total` em `df_filtrado` nesta ordem:
 5) filtros principais: `Type 05`, `Type 06`, `Account`, `Fornecedor`, `Fornec.`, `Tipo`
 6) filtros avançados (expander): `Custo`, `Type 07`, `Texto breve`, `Material`, `Pedido`, `Ordem`, `CtAtvFixo`, etc.
 
-Regra crítica: **o perímetro de filtros aplicado ao custo deve ser replicado no volume** (para CPU e para Flex Bud).
+Regra crítica: **o perímetro de filtros aplicado ao custo deve ser replicado no volume** (para CPU e para Flex Bud),
+porém **o volume não pode ser recortado pela “existência de custo”**.
+
+Em termos práticos:
+- ao combinar custo e volume, manter chaves que existam apenas no volume (custo = 0) — ex.: `merge how='outer'`.
+- nunca “intersectar” volume com o conjunto de chaves que aparece no Real.
 
 ### 5.3 Modos de visualização
 - **Custo Total**: trabalha com `Total` (ou `Valor` quando necessário).
@@ -203,13 +208,13 @@ Tratamento de zeros:
 ### 8.1 Conceito
 Flex Bud ajusta o budget ao volume real, distinguindo:
 - **Custo Fixo**: não varia com volume
-- **Custo Variável**: varia proporcionalmente ao volume
+- **Custo Não‑Fixo**: tudo que **não** é Fixo (engloba Variável e demais classificações não-fixas)
 
 ### 8.2 Fórmulas base
 Para um período/dimensão:
 - Flex Fixo: $$Flex_{fixo} = BUD_{fixo}$$
-- Flex Variável: $$Flex_{var} = BUD_{var} \times \frac{Volume_{real}}{Volume_{bud}}$$
-- Flex Total: $$Flex_{total} = Flex_{fixo} + Flex_{var}$$
+- Flex Não‑Fixo: $$Flex_{naofixo} = BUD_{naofixo} \times \frac{Volume_{real}}{Volume_{bud}}$$
+- Flex Total: $$Flex_{total} = Flex_{fixo} + Flex_{naofixo}$$
 
 ### 8.3 Contexto TC Ext (Real x Budget)
 Dimensões típicas (dependem do gráfico/tabela):
@@ -223,6 +228,10 @@ Algoritmo (alto nível):
 3) Agregar Budget por dimensão + `Custo` somando `Total`.
 4) Agregar Volume Budget por dimensão somando `Volume`.
 5) Para cada chave (dimensão), calcular Flex Bud via fórmulas.
+
+Observação importante (UI):
+- Filtros locais de alguns gráficos (ex.: "Filtrar por Oficina" / "Filtrar por Veículo" dentro do gráfico) **não devem alterar** os filtros do sidebar.
+- O sidebar define o perímetro global; filtros locais afetam apenas aquela visualização.
 
 ### 8.4 Flex Bud no modo CPU
 Regra crítica: **não somar CPUs**.

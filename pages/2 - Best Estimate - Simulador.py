@@ -670,6 +670,60 @@ def get_filter_options(df, column_name):
         return ["Todos"] + opcoes
     return ["Todos"]
 
+
+@st.cache_data(ttl=1800, max_entries=5)
+def get_oficinas_budget_opcoes(ano_selecionado_param):
+    """Obtém lista de oficinas presentes no Budget (custos e volume) (histórico consolidado BUD)."""
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        caminho_budget_custo = os.path.join(
+            project_root, "dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"
+        )
+        caminho_budget_vol = os.path.join(
+            project_root, "dados", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+        )
+
+        oficinas_set = set()
+
+        if os.path.exists(caminho_budget_custo):
+            try:
+                df_budget = pd.read_parquet(caminho_budget_custo, columns=["Oficina", "Ano"])
+            except Exception:
+                df_budget = pd.read_parquet(caminho_budget_custo)
+
+            if df_budget is not None and not df_budget.empty and 'Oficina' in df_budget.columns:
+                if (
+                    ano_selecionado_param is not None
+                    and ano_selecionado_param != "Todos"
+                    and 'Ano' in df_budget.columns
+                ):
+                    try:
+                        df_budget = df_budget[df_budget['Ano'] == int(ano_selecionado_param)].copy()
+                    except Exception:
+                        pass
+                oficinas_set.update(df_budget['Oficina'].dropna().astype(str).unique().tolist())
+
+        if os.path.exists(caminho_budget_vol):
+            try:
+                df_vol = pd.read_parquet(caminho_budget_vol, columns=["Oficina", "Ano"])
+            except Exception:
+                df_vol = pd.read_parquet(caminho_budget_vol)
+
+            if df_vol is not None and not df_vol.empty and 'Oficina' in df_vol.columns:
+                if (
+                    ano_selecionado_param is not None
+                    and ano_selecionado_param != "Todos"
+                    and 'Ano' in df_vol.columns
+                ):
+                    try:
+                        df_vol = df_vol[df_vol['Ano'] == int(ano_selecionado_param)].copy()
+                    except Exception:
+                        pass
+                oficinas_set.update(df_vol['Oficina'].dropna().astype(str).unique().tolist())
+        return sorted(oficinas_set)
+    except Exception:
+        return []
+
 # Botão de atualizar dados na sidebar (após definir todas as funções com cache)
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
@@ -769,7 +823,9 @@ if 'filtro_periodo_simulador' not in st.session_state:
 # Filtro 1: Oficina
 oficina_selecionadas = ["Todos"]
 if df_total is not None and 'Oficina' in df_total.columns:
-    oficina_opcoes = get_filter_options(df_total, 'Oficina')
+    oficinas_set = set(df_total['Oficina'].dropna().astype(str).unique().tolist())
+    oficinas_set.update(get_oficinas_budget_opcoes(ano_selecionado))
+    oficina_opcoes = ["Todos"] + sorted(oficinas_set)
     default_oficina = st.session_state.filtro_oficina_simulador if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_simulador) else ["Todos"]
     oficina_selecionadas = st.sidebar.multiselect(
         "Selecione a Oficina:", oficina_opcoes, default=default_oficina, key="filtro_oficina_simulador_multiselect"

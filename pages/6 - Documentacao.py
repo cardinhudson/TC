@@ -679,7 +679,7 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             ### Conceito
             
             **Flex Bud** (Budget Flexível) é um valor ajustado que considera a variação de volume,
-            aplicando regras diferentes para custos fixos e variáveis.
+            aplicando regras diferentes para custos fixos e **não‑fixos**.
             
             **IMPORTANTE:** Existem dois contextos diferentes de cálculo:
             1. **Real x Real** (Waterfall): Compara dois períodos reais (Mês 1 vs Mês 2)
@@ -688,7 +688,7 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             
             st.markdown("---")
             
-            st.markdown("## 📋 Regras Fundamentais: Fixo vs Variável")
+            st.markdown("## 📋 Regras Fundamentais: Fixo vs Não‑Fixo")
             
             st.markdown("""
             ### Regra Geral para Custos Fixos
@@ -709,19 +709,19 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             st.markdown("---")
             
             st.markdown("""
-            ### Regra Geral para Custos Variáveis
+            ### Regra Geral para Custos Não‑Fixos
             
-            **Princípio:** Custos variáveis variam PROPORCIONALMENTE ao volume de produção.
+            **Princípio:** Custos **não‑fixos** variam PROPORCIONALMENTE ao volume de produção.
             
             **Fórmula Geral:**
             ```
-            Flex_Variável = Valor_Original_Variável * (Volume_Novo / Volume_Original)
+            Flex_NãoFixo = Valor_Original_NãoFixo * (Volume_Novo / Volume_Original)
             ```
             
             **Explicação:**
-            - Se o volume dobra, o custo variável dobra
-            - Se o volume reduz pela metade, o custo variável reduz pela metade
-            - Exemplos: Matéria-prima, energia variável, comissões
+            - Se o volume dobra, o custo **não‑fixo** escala proporcionalmente
+            - Se o volume reduz pela metade, o custo **não‑fixo** escala proporcionalmente
+            - Exemplos: componentes variáveis e demais classificações que não sejam Fixo
             - Sensibilidade ao volume: **100%** (cem por cento)
             """)
         
@@ -1114,7 +1114,7 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     
     st.markdown("---")
     
-    st.markdown("## 📋 Regras Fundamentais: Fixo vs Variável")
+    st.markdown("## 📋 Regras Fundamentais: Fixo vs Não‑Fixo")
     
     st.markdown("""
     ### Regra Geral para Custos Fixos
@@ -1147,7 +1147,7 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     
     **Fórmula Geral:**
     ```
-    Flex_Variável = Valor_Original_Variável * (Volume_Novo / Volume_Original)
+    Flex_NãoFixo = Valor_Original_NãoFixo * (Volume_Novo / Volume_Original)
     ```
     
     **Explicação:**
@@ -1948,7 +1948,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         │   ├── 1 - Waterfall.py                     # Análise waterfall (~4.000 linhas)
         │   ├── 2 - Best Estimate - Simulador.py     # Simulador de Best Estimate (~4.300 linhas)
         │   ├── 3 - Best Estimate - Análise.py       # Análise de Best Estimate (~7.400 linhas)
-        │   ├── 4 - Waterfall_Analysis.py            # Análise waterfall (legado) (~2.900 linhas)
+        │   ├── (removido) Waterfall_Analysis.py     # Página duplicada removida
         │   ├── 5 - Extração de Dados.py             # Extração e processamento de dados (~600 linhas)
         │   └── 6 - Documentacao.py                  # Documentação (este arquivo) (~3.900 linhas)
         ├── dados\\
@@ -2023,7 +2023,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             - Aplicação de sensibilidade e inflação
             - Visualizações e tabelas detalhadas
             
-            **pages/4 - Waterfall_Analysis.py** (~2.900 linhas)
+            **(removido) pages/4 - Waterfall_Analysis.py** (página duplicada removida)
             - Análise waterfall entre períodos (legado)
             - Cálculo Flex Mês 1
             - Gráficos waterfall interativos
@@ -2334,7 +2334,7 @@ plotly>=5.0.0
             - `1 - Waterfall.py` - Análise waterfall (~4.000 linhas)
             - `2 - Best Estimate - Simulador.py` - Simulação (~4.300 linhas)
             - `3 - Best Estimate - Análise.py` - Análise (~7.400 linhas)
-            - `4 - Waterfall_Analysis.py` - Análise waterfall (legado) (~2.900 linhas)
+            - `4 - Waterfall_Analysis.py` - (removido) página duplicada
             - `5 - Extração de Dados.py` - Extração e processamento (~600 linhas)
             - `6 - Documentacao.py` - Documentação (~3.900 linhas)
             

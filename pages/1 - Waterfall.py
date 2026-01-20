@@ -445,7 +445,14 @@ if 'filtro_oficina_waterfall' not in st.session_state:
 
 # Filtro 1: Oficina (com cache otimizado)
 if 'Oficina' in df_total.columns:
-    oficina_opcoes = get_filter_options(df_total, 'Oficina')
+    # 🔧 Ajuste: incluir também oficinas disponíveis no Budget (união Real + Budget)
+    oficinas_set = set(df_total['Oficina'].dropna().astype(str).unique().tolist())
+    if df_budget is not None and 'Oficina' in df_budget.columns:
+        oficinas_set.update(df_budget['Oficina'].dropna().astype(str).unique().tolist())
+    # Incluir também oficinas disponíveis no Budget de Volume
+    if df_budget_vol is not None and 'Oficina' in df_budget_vol.columns:
+        oficinas_set.update(df_budget_vol['Oficina'].dropna().astype(str).unique().tolist())
+    oficina_opcoes = ["Todos"] + sorted(oficinas_set)
     # Validar valores salvos
     default_oficina = st.session_state.filtro_oficina_waterfall if all(x in oficina_opcoes for x in st.session_state.filtro_oficina_waterfall) else ["Todos"]
     oficina_selecionadas = st.sidebar.multiselect(
