@@ -196,6 +196,11 @@ Ex.: para CPU por Oficina e Período:
 1) agrupar por (`Oficina`, `Período`, `Ano` opcional) somando `Total` e `Volume`
 2) CPU = Total_agregado / Volume_agregado
 
+Importante:
+- Em uma linha "Oficina X" (ou qualquer outra dimensão), o denominador **tem que ser o Volume agregado daquela mesma chave** (ex.: Volume da Oficina X no Período).
+- Para a linha **Total**, aí sim: $$CPU_{total} = \frac{\sum Total}{\sum Volume}$$ usando o **Volume total** (somado) do mesmo recorte de filtros.
+- Evitar calcular CPU a partir de um merge de Volume em dados de custo muito detalhados (ex.: por conta/material), porque isso **duplica Volume** e distorce o resultado. O correto é agregar custo e volume separadamente no mesmo nível e só então dividir.
+
 Nunca calcular CPU linha a linha e depois tirar média/soma.
 
 Tratamento de zeros:

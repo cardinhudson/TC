@@ -1803,6 +1803,157 @@ ORDEM_MESES = [
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
 ]
 
+
+def _formatar_num_ptbr(valor, casas=2):
+    """Formata número no padrão pt-BR (1.234,56)."""
+    try:
+        if pd.isna(valor):
+            return "-"
+        v = float(valor)
+        s = f"{v:,.{casas}f}"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "-"
+
+
+def _normalizar_mes_lower(periodo):
+    if pd.isna(periodo):
+        return periodo
+    p = str(periodo).strip()
+    if not p:
+        return p
+    pl = p.lower()
+    mapeamento = {
+        'janeiro': 'janeiro',
+        'fevereiro': 'fevereiro',
+        'março': 'março',
+        'marco': 'março',
+        'abril': 'abril',
+        'maio': 'maio',
+        'junho': 'junho',
+        'julho': 'julho',
+        'agosto': 'agosto',
+        'setembro': 'setembro',
+        'outubro': 'outubro',
+        'novembro': 'novembro',
+        'dezembro': 'dezembro',
+    }
+    return mapeamento.get(pl, pl)
+
+
+def _montar_tabela_resumo_oficinas(
+    df_valores,
+    tipo_visualizacao,
+    index_name,
+    coluna_valor_preferida=None,
+    df_volume=None,
+):
+    """Gera tabela (Oficina x mês + Ano) alinhada aos filtros e ao modo CPU."""
+    try:
+        if df_valores is None or getattr(df_valores, "empty", True):
+            return None
+
+        if 'Oficina' not in df_valores.columns or 'Período' not in df_valores.columns:
+            return None
+
+        base = df_valores.copy()
+        base['Oficina'] = base['Oficina'].astype(str).str.strip()
+        base['Período'] = base['Período'].apply(_normalizar_mes_lower)
+
+        # Para CPU precisamos de Total (custo) e Volume no MESMO nível da linha.
+        # Regra: CPU sempre é calculado como soma(Total)/soma(Volume) no nível desejado.
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            if 'Total' not in base.columns:
+                return None
+
+            if df_volume is None or getattr(df_volume, "empty", True) or 'Volume' not in df_volume.columns:
+                return None
+
+            # 1) Numerador: custo agregado por Oficina+Período
+            custo = base[['Oficina', 'Período', 'Total']].copy()
+            custo['Total'] = pd.to_numeric(custo['Total'], errors='coerce').fillna(0)
+            custo_mes = custo.groupby(['Oficina', 'Período'], as_index=False)['Total'].sum()
+            custo_ano = custo.groupby(['Oficina'], as_index=False)['Total'].sum().rename(columns={'Total': 'Total_Ano'})
+
+            # 2) Denominador: volume agregado por Oficina+Período (NÃO mergear volume na granularidade de custo)
+            vol = df_volume.copy()
+            if 'Oficina' not in vol.columns or 'Período' not in vol.columns:
+                return None
+            vol['Oficina'] = vol['Oficina'].astype(str).str.strip()
+            vol['Período'] = vol['Período'].apply(_normalizar_mes_lower)
+            vol['Volume'] = pd.to_numeric(vol['Volume'], errors='coerce').fillna(0)
+            vol_mes = vol.groupby(['Oficina', 'Período'], as_index=False)['Volume'].sum()
+            vol_ano = vol.groupby(['Oficina'], as_index=False)['Volume'].sum().rename(columns={'Volume': 'Volume_Ano'})
+
+            # 3) Juntar no nível correto e calcular CPU por célula
+            agr_mes = custo_mes.merge(vol_mes, on=['Oficina', 'Período'], how='outer')
+            agr_mes['Total'] = pd.to_numeric(agr_mes.get('Total'), errors='coerce').fillna(0)
+            agr_mes['Volume'] = pd.to_numeric(agr_mes.get('Volume'), errors='coerce').fillna(0)
+            agr_mes['Metrica'] = np.where(agr_mes['Volume'] != 0, agr_mes['Total'] / agr_mes['Volume'], np.nan)
+
+            agr_ano = custo_ano.merge(vol_ano, on=['Oficina'], how='outer')
+            agr_ano['Total_Ano'] = pd.to_numeric(agr_ano.get('Total_Ano'), errors='coerce').fillna(0)
+            agr_ano['Volume_Ano'] = pd.to_numeric(agr_ano.get('Volume_Ano'), errors='coerce').fillna(0)
+            agr_ano['Ano'] = np.where(agr_ano['Volume_Ano'] != 0, agr_ano['Total_Ano'] / agr_ano['Volume_Ano'], np.nan)
+
+            piv = agr_mes.pivot_table(index='Oficina', columns='Período', values='Metrica', aggfunc='sum')
+            piv['Ano'] = piv.index.to_series().map(dict(zip(agr_ano['Oficina'], agr_ano['Ano'])))
+
+            # Linha Total (CPU total = soma(Total)/soma(Volume) por Período e no Ano)
+            tot_mes = agr_mes.groupby('Período', as_index=False).agg({'Total': 'sum', 'Volume': 'sum'})
+            tot_mes['CPU'] = np.where(tot_mes['Volume'] != 0, tot_mes['Total'] / tot_mes['Volume'], np.nan)
+            total_row = {str(p): np.nan for p in ORDEM_MESES}
+            for _, r in tot_mes.iterrows():
+                p = r.get('Período')
+                if pd.notna(p):
+                    total_row[str(p)] = r.get('CPU')
+            total_total = float(pd.to_numeric(agr_mes['Total'], errors='coerce').fillna(0).sum())
+            total_volume = float(pd.to_numeric(agr_mes['Volume'], errors='coerce').fillna(0).sum())
+            total_row['Ano'] = (total_total / total_volume) if total_volume != 0 else np.nan
+            piv.loc['Total'] = pd.Series(total_row)
+        else:
+            col_valor = coluna_valor_preferida if coluna_valor_preferida in base.columns else None
+            if col_valor is None:
+                col_valor = 'Total' if 'Total' in base.columns else None
+            if col_valor is None:
+                return None
+
+            base[col_valor] = pd.to_numeric(base[col_valor], errors='coerce')
+            agr_mes = base.groupby(['Oficina', 'Período'], as_index=False)[col_valor].sum()
+            agr_ano = base.groupby(['Oficina'], as_index=False)[col_valor].sum().rename(columns={col_valor: 'Ano'})
+            piv = agr_mes.pivot_table(index='Oficina', columns='Período', values=col_valor, aggfunc='sum')
+            piv['Ano'] = piv.index.to_series().map(dict(zip(agr_ano['Oficina'], agr_ano['Ano'])))
+
+            # Linha Total
+            tot_mes = agr_mes.groupby('Período', as_index=False)[col_valor].sum()
+            total_row = {str(p): np.nan for p in ORDEM_MESES}
+            for _, r in tot_mes.iterrows():
+                p = r.get('Período')
+                if pd.notna(p):
+                    total_row[str(p)] = r.get(col_valor)
+            total_row['Ano'] = float(pd.to_numeric(agr_ano['Ano'], errors='coerce').fillna(0).sum()) if 'Ano' in agr_ano.columns else np.nan
+            piv.loc['Total'] = pd.Series(total_row)
+
+        # Ordenar colunas (sempre exibir os 12 meses + Ano)
+        cols = [c for c in piv.columns if isinstance(c, str)]
+        outros = [c for c in cols if c not in ORDEM_MESES and c != 'Ano']
+        ordem_final = list(ORDEM_MESES) + outros
+        if 'Ano' in piv.columns:
+            ordem_final += ['Ano']
+        piv = piv.reindex(columns=ordem_final)
+
+        # Ordenar oficinas alfabeticamente e manter "Total" no final
+        if 'Total' in piv.index:
+            idx = [i for i in piv.index.tolist() if i != 'Total']
+            idx_sorted = sorted(idx)
+            piv = piv.reindex(idx_sorted + ['Total'])
+        else:
+            piv = piv.sort_index()
+        piv.index.name = index_name
+        return piv
+    except Exception:
+        return None
+
 # (Código de filtros movido para dentro do bloco if is_main_page:)
 
 
@@ -5132,6 +5283,62 @@ if is_main_page:
         
         # Observação: meses faltantes são tratados no create_period_chart
         # (períodos do budget entram apenas no eixo; realizado fica vazio/zero)
+
+        # =============================
+        # Resumo (tabelas) Budget x Real por Oficina
+        # =============================
+        with st.expander("📋 Resumo Budget e Real Oficinas", expanded=False):
+            # Base Real (usar df_filtrado + filtros do gráfico para consistência)
+            df_real_resumo_tab1 = None
+            try:
+                if 'df_filtrado' in locals() and df_filtrado is not None:
+                    df_real_resumo_tab1 = df_filtrado.copy()
+                    if 'Oficina' in df_real_resumo_tab1.columns:
+                        if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
+                            df_real_resumo_tab1 = df_real_resumo_tab1[
+                                df_real_resumo_tab1['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
+                            ].copy()
+                    if 'Veículo' in df_real_resumo_tab1.columns:
+                        if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
+                            df_real_resumo_tab1 = df_real_resumo_tab1[
+                                df_real_resumo_tab1['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
+                            ].copy()
+            except Exception:
+                df_real_resumo_tab1 = None
+
+            # Budget (BDG)
+            df_tab_budget = _montar_tabela_resumo_oficinas(
+                df_budget_filtrado,
+                tipo_visualizacao,
+                index_name="BDG",
+                coluna_valor_preferida="Total",
+                df_volume=df_budget_vol_filtrado,
+            )
+            if df_tab_budget is None or df_tab_budget.empty:
+                st.info("ℹ️ Sem dados de Budget para exibir no resumo.")
+            else:
+                st.markdown("**Budget (BDG)**")
+                st.dataframe(
+                    df_tab_budget.style.format(lambda x: _formatar_num_ptbr(x, 2)),
+                    use_container_width=True,
+                )
+
+            # Real
+            df_tab_real = _montar_tabela_resumo_oficinas(
+                df_real_resumo_tab1,
+                tipo_visualizacao,
+                index_name="REAL",
+                coluna_valor_preferida="Total",
+                df_volume=df_volume_real_filtrado,
+            )
+            if df_tab_real is None or df_tab_real.empty:
+                st.info("ℹ️ Sem dados de Real para exibir no resumo.")
+            else:
+                st.markdown("**Real (Realizado)**")
+                st.dataframe(
+                    df_tab_real.style.format(lambda x: _formatar_num_ptbr(x, 2)),
+                    use_container_width=True,
+                )
         
         # Exibir título do gráfico após os filtros para evitar sobreposição
         st.markdown("<br>", unsafe_allow_html=True)
@@ -5140,12 +5347,6 @@ if is_main_page:
         else:
             st.subheader("📊 Soma do Valor por Período")
 
-        debug_flex_tc_ext = st.checkbox(
-            "🛠️ Debug Flex/Volume (mostrar auditoria)",
-            value=False,
-            key="debug_flex_volume_tc_ext"
-        )
-        
         # Validar dados antes de criar gráfico
         if df_grafico_periodo is None or df_grafico_periodo.empty:
             st.warning("⚠️ Dados do gráfico estão vazios. Verifique os filtros aplicados.")
@@ -5168,8 +5369,8 @@ if is_main_page:
                         df_budget_filtrado, df_budget_vol_filtrado, df_volume_real_filtrado,
                         df_real_original_grafico,  # Dados originais com 'Custo' para calcular FLEX
                         moeda_simbolo,  # Passar símbolo da moeda para o gráfico
-                        debug=debug_flex_tc_ext,
-                        debug_context="(TC Ext - por Período)"
+                        debug=False,
+                        debug_context=""
                     )
                     if grafico_periodo is not None:
                         # Exibir gráfico no placeholder (renderização imediata)
@@ -5955,7 +6156,6 @@ if is_main_page:
                                 linha_resumo_geral_formatado['_Volume_Real_Calculo'] = f"{float(volume_real_para_resumo):,.0f}"
                                 linha_resumo_geral_formatado['_Volume_Budget_Calculo'] = f"{float(volume_budget_para_resumo):,.0f}"
                             
-                            st.markdown("---")
                             st.markdown("### 📊 Resumo Geral")
                             # Exibir caixas de resumo com volumes
                             exibir_caixas_resumo(linha_resumo_geral, linha_resumo_geral_formatado, tipo_visualizacao, mostrar_volumes=True)
@@ -6455,7 +6655,6 @@ if is_main_page:
                             
                             # 🔧 ADICIONAR: Exibir Resumo Geral no modo Total
                             if len(df_tabela_total_agrupado) > 0:
-                                st.markdown("---")
                                 st.markdown("### 📊 Resumo Geral")
                                 
                                 # Usar df_tabela_flex_para_resumo (salvo ANTES da transformação em colunas por período)
@@ -6805,7 +7004,6 @@ if is_main_page:
                                 st.markdown(html_table, unsafe_allow_html=True)
                         
                         # Botão de download da tabela Flex Bud
-                        st.markdown("---")
                         if st.button(
                             "📥 Baixar Tabela Flex Bud (Excel)",
                             width="stretch",
@@ -6834,6 +7032,70 @@ if is_main_page:
                                         df_download['Total / Flex Bud'] = df_download['Total / Flex Bud'].apply(
                                             lambda x: x * 100 if pd.notnull(x) and x <= 1 else x
                                         )
+
+                                    # ============================
+                                    # Aba 2: Realizado (no mesmo arquivo)
+                                    # ============================
+                                    df_real_download = None
+                                    try:
+                                        # Preferir a base real usada no cálculo da tabela Flex
+                                        if 'df_real_tabela' in locals() and df_real_tabela is not None and len(df_real_tabela) > 0:
+                                            df_real_download = df_real_tabela.copy()
+                                        elif 'df_real_original_grafico' in locals() and df_real_original_grafico is not None and len(df_real_original_grafico) > 0:
+                                            df_real_download = df_real_original_grafico.copy()
+                                        elif 'df_filtrado' in locals() and df_filtrado is not None and len(df_filtrado) > 0:
+                                            df_real_download = df_filtrado.copy()
+
+                                        # Aplicar filtro de período (se existir na tela)
+                                        if df_real_download is not None and 'Período' in df_real_download.columns and 'periodos_tabela' in locals() and periodos_tabela:
+                                            df_real_download = df_real_download.copy()
+                                            df_real_download['Período'] = df_real_download['Período'].apply(_normalizar_mes_lower)
+                                            periodos_norm = [
+                                                _normalizar_mes_lower(p)
+                                                for p in periodos_tabela
+                                                if p is not None and str(p).strip() != ''
+                                            ]
+                                            if periodos_norm:
+                                                df_real_download = df_real_download[
+                                                    df_real_download['Período'].isin(periodos_norm)
+                                                ].copy()
+
+                                        # Agregar Realizado no mesmo nível da visualização (Fixo/Variável vs Total)
+                                        if df_real_download is not None and 'Total' in df_real_download.columns:
+                                            df_real_download['Total'] = pd.to_numeric(df_real_download['Total'], errors='coerce').fillna(0)
+                                            group_cols = []
+                                            if 'modo_tabela_flex' in locals() and modo_tabela_flex == "Fixo/Variável" and 'Custo' in df_real_download.columns:
+                                                group_cols.append('Custo')
+                                            for col in ['Type 05', 'Type 06', 'Account']:
+                                                if col in df_real_download.columns:
+                                                    group_cols.append(col)
+
+                                            if group_cols:
+                                                df_real_aggr = df_real_download.groupby(group_cols, as_index=False)['Total'].sum()
+                                            else:
+                                                df_real_aggr = pd.DataFrame({'Total': [df_real_download['Total'].sum()]})
+
+                                            # No modo CPU, exportar também CPU do Realizado (Total/Volume total do recorte)
+                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                volume_real_total = 0.0
+                                                if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None and 'Volume' in df_volume_real_filtrado.columns:
+                                                    vol_tmp = df_volume_real_filtrado.copy()
+                                                    if 'Período' in vol_tmp.columns:
+                                                        vol_tmp['Período'] = vol_tmp['Período'].apply(_normalizar_mes_lower)
+                                                        if 'periodos_tabela' in locals() and periodos_tabela:
+                                                            vol_tmp = vol_tmp[vol_tmp['Período'].isin(periodos_norm)].copy() if 'periodos_norm' in locals() else vol_tmp
+                                                    volume_real_total = float(pd.to_numeric(vol_tmp['Volume'], errors='coerce').fillna(0).sum())
+
+                                                df_real_aggr = df_real_aggr.rename(columns={'Total': 'Total_Custo'})
+                                                df_real_aggr['Volume_Real_Total'] = volume_real_total
+                                                df_real_aggr['CPU'] = (
+                                                    df_real_aggr['Total_Custo'] / volume_real_total
+                                                    if volume_real_total not in (0, None) else 0.0
+                                                )
+
+                                            df_real_download = df_real_aggr
+                                    except Exception:
+                                        df_real_download = None
                                     
                                     # Obter pasta Downloads do usuário
                                     downloads_path = os.path.join(
@@ -6851,6 +7113,12 @@ if is_main_page:
                                         df_download.to_excel(
                                             writer, index=False, sheet_name='Flex_Bud'
                                         )
+
+                                        # Adicionar segunda aba com Realizado (se disponível)
+                                        if df_real_download is not None and hasattr(df_real_download, 'empty') and not df_real_download.empty:
+                                            df_real_download.to_excel(
+                                                writer, index=False, sheet_name='Realizado'
+                                            )
                                     
                                     st.success(
                                         f"✅ Arquivo salvo com sucesso em: {file_path}"
@@ -8768,13 +9036,6 @@ if is_main_page:
                     df_tmp[col] = df_tmp[col].astype(str)
             return df_tmp
 
-        debug_param = st.query_params.get('debug', '0')
-        debug_default = str(debug_param).lower() in ['1', 'true', 'yes', 'on']
-        debug_tab3 = st.sidebar.toggle(
-            "Debug (TC Ext)",
-            value=debug_default,
-            key="debug_tc_ext_tab3",
-        )
         # Carregar dados de budget e volume para esta aba também
         df_budget_filtrado_tab3 = None
         df_budget_vol_filtrado_tab3 = None
@@ -8979,59 +9240,6 @@ if is_main_page:
                                 0
                             )
 
-                    # Diagnóstico sempre que CPU estiver selecionado
-                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                        try:
-                            vol_diag = pd.to_numeric(df_grafico_oficina.get('Volume'), errors='coerce')
-                            tot_diag = pd.to_numeric(df_grafico_oficina.get('Total'), errors='coerce')
-                            oficinas_diag = df_grafico_oficina.get('Oficina')
-                            filtros_ativos = _resumir_filtros_ativos()
-                            detalhes = "; ".join(filtros_ativos) if filtros_ativos else "(nenhum filtro ativo)"
-
-                            with st.expander("🔎 Diagnóstico (CPU por Oficina)", expanded=False):
-                                st.write({
-                                    "linhas": int(df_grafico_oficina.shape[0]),
-                                    "oficinas_unicas": int(oficinas_diag.nunique()) if oficinas_diag is not None else 0,
-                                    "total_soma": float(tot_diag.fillna(0).sum()) if tot_diag is not None else 0.0,
-                                    "volume_soma": float(vol_diag.fillna(0).sum()) if vol_diag is not None else 0.0,
-                                    "vol_nao_nulo": int(vol_diag.notna().sum()) if vol_diag is not None else 0,
-                                    "vol_maior_zero": int((vol_diag.fillna(0) > 0).sum()) if vol_diag is not None else 0,
-                                    "filtros": detalhes,
-                                })
-                                try:
-                                    if 'Total' in df_grafico_oficina.columns and 'Volume' in df_grafico_oficina.columns:
-                                        cpu_dbg = df_grafico_oficina.groupby('Oficina').agg(
-                                            Total=('Total', 'sum'),
-                                            Volume=('Volume', 'sum')
-                                        ).reset_index()
-                                        cpu_dbg['CPU_calc'] = np.where(
-                                            cpu_dbg['Volume'] != 0,
-                                            cpu_dbg['Total'] / cpu_dbg['Volume'],
-                                            0
-                                        )
-                                        st.dataframe(cpu_dbg)
-                                except Exception:
-                                    pass
-                        except Exception:
-                            pass
-
-                    if debug_tab3:
-                        st.write("🧪 Debug — DF gráfico por Oficina")
-                        st.write({
-                            "shape": df_grafico_oficina.shape,
-                            "coluna_metrica": coluna_grafico_oficina,
-                            "tipo_visualizacao": tipo_visualizacao,
-                        })
-                        st.write("Colunas:", list(df_grafico_oficina.columns))
-                        st.write("Dtypes:")
-                        st.write(df_grafico_oficina.dtypes)
-                        st.write("Amostra (head):")
-                        st.dataframe(df_grafico_oficina.head(10))
-                        st.code(
-                            f"groupby(['Oficina']).sum({coluna_grafico_oficina})",
-                            language="text",
-                        )
-
                     try:
                         df_hash_base = df_grafico_oficina[['Oficina', coluna_grafico_oficina]].copy()
                         df_hash_base = df_hash_base.fillna(0)
@@ -9070,21 +9278,6 @@ if is_main_page:
                             "ℹ️ Sem dados para renderizar o gráfico. "
                             f"Verifique filtros. Filtros: {detalhes}"
                         )
-                        # Diagnóstico adicional quando o gráfico não renderiza
-                        try:
-                            vol_diag = pd.to_numeric(df_grafico_oficina.get('Volume'), errors='coerce')
-                            tot_diag = pd.to_numeric(df_grafico_oficina.get('Total'), errors='coerce')
-                            with st.expander("🧪 Diagnóstico (gráfico não renderizou)", expanded=True):
-                                st.write({
-                                    "linhas": int(df_grafico_oficina.shape[0]),
-                                    "coluna_metrica": coluna_grafico_oficina,
-                                    "total_soma": float(tot_diag.fillna(0).sum()) if tot_diag is not None else 0.0,
-                                    "volume_soma": float(vol_diag.fillna(0).sum()) if vol_diag is not None else 0.0,
-                                    "volume_coluna_existe": 'Volume' in df_grafico_oficina.columns,
-                                    "total_coluna_existe": 'Total' in df_grafico_oficina.columns,
-                                })
-                        except Exception:
-                            pass
             except Exception as e:
                 import traceback
                 st.error(f"❌ Erro ao criar gráfico de Oficina: {e}")
