@@ -1350,18 +1350,22 @@ st.sidebar.write(f"**Linhas:** {df_visualizacao.shape[0]:,}")
 
 # Calcular totais se as colunas existirem
 if tipo_visualizacao == "CPU (Custo por Unidade)":
-    if 'CPU' in df_visualizacao.columns:
-        # Para CPU, mostrar média ponderada ou total
-        cpu_medio = df_visualizacao['CPU'].mean()
-        cpu_medio_convertido = converter_moeda(cpu_medio, moeda_codigo, taxas_cambio)
-        st.sidebar.write(f"**CPU Médio:** {moeda_simbolo} {cpu_medio_convertido:,.2f}")
+    # Regra: CPU SEMPRE é ponderado (Total/Volume). Nunca usar média simples.
     if 'Total' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
-        total_sum = df_visualizacao['Total'].sum()
-        volume_sum = df_visualizacao['Volume'].sum()
-        if volume_sum > 0:
-            cpu_geral = total_sum / volume_sum
-            cpu_geral_convertido = converter_moeda(cpu_geral, moeda_codigo, taxas_cambio)
-            st.sidebar.write(f"**CPU Geral:** {moeda_simbolo} {cpu_geral_convertido:,.2f}")
+        total_sum = pd.to_numeric(df_visualizacao['Total'], errors='coerce').fillna(0).sum()
+        volume_sum = pd.to_numeric(df_visualizacao['Volume'], errors='coerce').fillna(0).sum()
+        cpu_geral = (total_sum / volume_sum) if volume_sum > 0 else 0
+        cpu_geral_convertido = converter_moeda(cpu_geral, moeda_codigo, taxas_cambio)
+        st.sidebar.write(f"**CPU Geral:** {moeda_simbolo} {cpu_geral_convertido:,.2f}")
+    elif 'CPU' in df_visualizacao.columns and 'Volume' in df_visualizacao.columns:
+        cpu_series = pd.to_numeric(df_visualizacao['CPU'], errors='coerce').fillna(0)
+        vol_series = pd.to_numeric(df_visualizacao['Volume'], errors='coerce').fillna(0)
+        vol_total = vol_series.sum()
+        cpu_ponderado = ((cpu_series * vol_series).sum() / vol_total) if vol_total > 0 else 0
+        cpu_ponderado_convertido = converter_moeda(cpu_ponderado, moeda_codigo, taxas_cambio)
+        st.sidebar.write(f"**CPU Geral:** {moeda_simbolo} {cpu_ponderado_convertido:,.2f}")
+    else:
+        st.sidebar.info("CPU indisponível: faltam colunas Total/Volume.")
 else:
     if 'Valor' in df_visualizacao.columns:
         # Converter para numérico caso seja categórico
@@ -1571,17 +1575,56 @@ with col_config1:
         indice_ultimo_mes = 0
     
     # 2. Quantos meses prever
-    meses_disponiveis_para_prever = len(meses_ano) - (indice_ultimo_mes + 1)
-    if meses_disponiveis_para_prever <= 0:
-        meses_disponiveis_para_prever = 12  # Se já passou dezembro, permitir prever o próximo ano
+    # Por padrão, permitir pelo menos 12 meses.
+    # Se houver volume futuro no arquivo do Forecast (df_vol_historico), permitir prever mais meses.
+    max_meses_prever = 12
+    try:
+        df_vol_ref = None
+        if 'load_volume_historico_data' in globals():
+            df_vol_ref = load_volume_historico_data()
+
+        # Extrair ano do último período selecionado (para calcular a posição temporal)
+        ano_ultimo_sel = None
+        if ' ' in str(ultimo_periodo_dados):
+            partes_ultimo = str(ultimo_periodo_dados).split(' ', 1)
+            if len(partes_ultimo) > 1 and partes_ultimo[1].strip().isdigit():
+                ano_ultimo_sel = int(partes_ultimo[1].strip())
+        if ano_ultimo_sel is None:
+            if tem_anos and 'Ano' in df_filtrado.columns:
+                ano_ultimo_sel = int(df_filtrado['Ano'].max())
+            else:
+                ano_ultimo_sel = datetime.now().year
+
+        if df_vol_ref is not None and not df_vol_ref.empty and 'Ano' in df_vol_ref.columns and 'Período' in df_vol_ref.columns:
+            mes_para_indice = {str(m).strip().lower(): (i + 1) for i, m in enumerate(meses_ano)}
+            vol_tmp = df_vol_ref[['Ano', 'Período']].copy()
+            vol_tmp['Ano'] = pd.to_numeric(vol_tmp['Ano'], errors='coerce')
+
+            # Normalizar mês (remover ano se vier junto no Período)
+            vol_tmp['Mes_Nome'] = vol_tmp['Período'].astype(str).str.strip().str.split(' ', n=1).str[0].str.lower()
+            vol_tmp['Mes_Idx'] = vol_tmp['Mes_Nome'].map(mes_para_indice)
+            vol_tmp = vol_tmp.dropna(subset=['Ano', 'Mes_Idx'])
+            vol_tmp['Chave'] = (vol_tmp['Ano'].astype(int) * 12) + vol_tmp['Mes_Idx'].astype(int)
+
+            # Chave do último período selecionado
+            chave_ultimo = (int(ano_ultimo_sel) * 12) + int(indice_ultimo_mes + 1)
+            meses_futuros_com_volume = int(vol_tmp.loc[vol_tmp['Chave'] > chave_ultimo, 'Chave'].nunique())
+
+            # Se existir volume para meses futuros além de 12, liberar mais meses
+            if meses_futuros_com_volume > 12:
+                max_meses_prever = min(meses_futuros_com_volume, 60)
+    except Exception:
+        max_meses_prever = 12
+
+    meses_disponiveis_para_prever = max_meses_prever
     
     num_meses_prever = st.number_input(
         "🔮 Quantos meses prever:",
         min_value=1,
-        max_value=12,
-        value=min(meses_disponiveis_para_prever, 6),
+        max_value=int(max_meses_prever),
+        value=min(int(meses_disponiveis_para_prever), 6),
         step=1,
-        help="Número de meses futuros para prever"
+        help=f"Número de meses futuros para prever (máximo: {int(max_meses_prever)} com base no volume disponível no Forecast)"
     )
 
 with col_config2:
@@ -1597,20 +1640,8 @@ with col_config2:
     # Filtrar apenas os períodos disponíveis até o período selecionado (inclusive)
     periodos_disponiveis_ate_selecionado = periodos_disponiveis[:indice_periodo_selecionado + 1]
     
-    # 🔧 CORREÇÃO: Filtrar apenas períodos do mesmo ano do período selecionado
-    # Extrair ano do período selecionado
-    ano_periodo_selecionado = None
-    if ' ' in str(ultimo_periodo_dados):
-        partes = str(ultimo_periodo_dados).split(' ', 1)
-        if len(partes) > 1 and partes[1].isdigit():
-            ano_periodo_selecionado = int(partes[1])
-    
-    # Filtrar apenas períodos do mesmo ano
-    if ano_periodo_selecionado is not None:
-        periodos_disponiveis_ate_selecionado = [
-            p for p in periodos_disponiveis_ate_selecionado
-            if ' ' in str(p) and str(p).split(' ', 1)[1].isdigit() and int(str(p).split(' ', 1)[1]) == ano_periodo_selecionado
-        ]
+    # IMPORTANTE: NÃO restringir ao mesmo ano.
+    # Ex.: se o último período é "Janeiro 2026", permitir usar meses de 2025 para média.
     
     # Contar quantos períodos existem até o período selecionado (inclusive)
     # Isso considera apenas os períodos disponíveis no filtro do mesmo ano
@@ -1736,8 +1767,12 @@ meses_para_media = []
 
 # Usar os períodos disponíveis até o período selecionado (já calculado acima)
 if 'periodos_disponiveis_ate_selecionado' in locals() and periodos_disponiveis_ate_selecionado:
-    # Filtrar períodos excluídos
-    periodos_considerados = [p for p in periodos_disponiveis_ate_selecionado if p not in meses_excluir_media]
+    # Filtrar períodos excluídos (comparando pelo nome do mês)
+    meses_excluir_set = {str(m).split(' ', 1)[0].strip().capitalize() for m in (meses_excluir_media or [])}
+    def _mes_nome(periodo_val):
+        periodo_str = str(periodo_val).strip()
+        return periodo_str.split(' ', 1)[0].strip().capitalize() if ' ' in periodo_str else periodo_str.capitalize()
+    periodos_considerados = [p for p in periodos_disponiveis_ate_selecionado if _mes_nome(p) not in meses_excluir_set]
     
     # Pegar os últimos N períodos (após excluir)
     if periodos_considerados:
@@ -1838,6 +1873,9 @@ if 'Type 06' in df_filtrado.columns:
             ["🌐 Global (Fixo/Variável)", "🎯 Detalhado (por Type 06)"],
             horizontal=True
         )
+
+        # Persistir o modo selecionado para uso no cálculo e no botão de aplicar
+        st.session_state.modo_config_sensibilidade = 'global' if modo_config == "🌐 Global (Fixo/Variável)" else 'detalhado'
         
         if modo_config == "🌐 Global (Fixo/Variável)":
             # Modo global (original)
@@ -3162,6 +3200,16 @@ if aplicar_config_forecast:
         st.session_state.sensibilidades_aplicadas = config_sensibilidade_temp['sensibilidades_type06']
     if config_sensibilidade_temp['inflacao_type06'] is not None:
         st.session_state.inflacao_aplicada = config_sensibilidade_temp['inflacao_type06']
+
+    # 🔧 CORREÇÃO: Evitar que configurações detalhadas antigas interfiram no modo Global.
+    # Se o usuário aplicou no modo Global, forçar o uso dos sliders globais limpando os dicts por Type 06.
+    modo_sel = st.session_state.get('modo_config_sensibilidade', None)
+    if modo_sel == 'global':
+        st.session_state.sensibilidades_aplicadas = None
+        st.session_state.inflacao_aplicada = None
+
+    # Registrar o modo efetivamente aplicado
+    st.session_state.modo_sensibilidade_aplicado = modo_sel or st.session_state.get('modo_sensibilidade_aplicado', 'global')
     
     # 🔧 OTIMIZAÇÃO: Sincronizar Excel/Parquet apenas quando aplicar configurações
     # Ambos os arquivos são gerados juntos neste momento
@@ -4220,14 +4268,15 @@ if aplicar_config_forecast:
             # 🔧 CORREÇÃO CRÍTICA: Usar valores APLICADOS do session_state (não variáveis temporárias)
             # Converter sensibilidades e inflação para dict se necessário
             sensibilidades_type06_dict = None
-            if sensibilidades_aplicadas is not None:
+            modo_sens_aplicado = st.session_state.get('modo_sensibilidade_aplicado', st.session_state.get('modo_config_sensibilidade', 'global'))
+            if modo_sens_aplicado == 'detalhado' and sensibilidades_aplicadas is not None:
                 if isinstance(sensibilidades_aplicadas, dict):
                     sensibilidades_type06_dict = sensibilidades_aplicadas
                 elif isinstance(sensibilidades_aplicadas, tuple):
                     sensibilidades_type06_dict = dict(sensibilidades_aplicadas)
             
             inflacao_type06_dict = None
-            if inflacao_aplicada is not None:
+            if modo_sens_aplicado == 'detalhado' and inflacao_aplicada is not None:
                 if isinstance(inflacao_aplicada, dict):
                     inflacao_type06_dict = inflacao_aplicada
                 elif isinstance(inflacao_aplicada, tuple):
@@ -4255,25 +4304,6 @@ if aplicar_config_forecast:
                 if 'Período' in df_vol_historico.columns and 'Volume' in df_vol_historico.columns:
                     # Volume por mês (incluindo meses futuros)
                     df_vol_para_por_mes = df_vol_historico.copy()
-
-                    # 🔧 AJUSTE: respeitar ano selecionado quando existir, para evitar filtros indevidos
-                    if 'Ano' in df_vol_para_por_mes.columns:
-                        if ano_selecionado != "Todos":
-                            try:
-                                df_vol_para_por_mes = df_vol_para_por_mes[
-                                    df_vol_para_por_mes['Ano'] == int(ano_selecionado)
-                                ].copy()
-                                adicionar_mensagem("info", f"📊 Volume: Filtrado por ano selecionado: {ano_selecionado}")
-                            except Exception:
-                                pass
-                        else:
-                            anos_unicos = df_vol_para_por_mes['Ano'].dropna().unique()
-                            if len(anos_unicos) > 1:
-                                ano_mais_recente = df_vol_para_por_mes['Ano'].max()
-                                df_vol_para_por_mes = df_vol_para_por_mes[
-                                    df_vol_para_por_mes['Ano'] == ano_mais_recente
-                                ].copy()
-                                adicionar_mensagem("info", f"📊 Volume: Filtrado para ano mais recente: {ano_mais_recente}")
 
                     colunas_groupby_vol_por_mes = ['Oficina', 'Veículo', 'Período']
                     if 'Ano' in df_vol_para_por_mes.columns:
@@ -5412,7 +5442,7 @@ if aplicar_config_forecast:
     
     # 🔧 CORREÇÃO: Armazenar mensagens no session_state para exibir após rerun
     st.session_state.forecast_mensagem_sucesso = "✅ **Configurações aplicadas com sucesso!**"
-    st.session_state.forecast_mensagem_info = "📊 **Arquivos de Best Estimate gerados!** Acesse a página '3 - Best Estimate - Análise' para visualizar os gráficos e tabelas."
+    st.session_state.forecast_mensagem_info = "📊 **Arquivos de Best Estimate gerados!** Acesse a página 'Best Estimate (Análise)' para visualizar os gráficos e tabelas."
     
     # 🔧 CORREÇÃO: Fazer rerun para atualizar a página
     # As mensagens serão exibidas no início da próxima execução também

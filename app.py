@@ -41,7 +41,7 @@ PAGES = {
             url_path="tc-ext-best-estimate-simulador",
         ),
         st.Page(
-            "pages/3 - Best Estimate - Análise.py",
+            "tc_ext/pages/be_analise_ext.py",
             title="Best Estimate (Análise)",
             url_path="tc-ext-best-estimate-analise",
         ),

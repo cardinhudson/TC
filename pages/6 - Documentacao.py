@@ -107,6 +107,19 @@ st.info(
     "As demais seções desta página podem conter detalhes complementares/legados."
 )
 
+with st.expander("🆕 Mudanças recentes (Jan/2026)", expanded=True):
+        st.markdown(
+                """
+                - **Best Estimate (Análise) no TC Ext:** substituição da análise legacy por uma página baseada na Home
+                    (`tc_ext/pages/be_analise_ext.py`), lendo os outputs do simulador em `dados/Forecast/`.
+                - **Regra crítica de CPU reforçada:** em qualquer total/agrupamento, CPU é sempre `CPU = sum(Total) / sum(Volume)`.
+                    (Nunca somar/média de CPU diretamente.)
+                - **Gráficos por período:** removido o corte por “mês atual” quando há Forecast, evitando esconder Fev–Dez.
+                - **Diagnósticos e sanidade:** expanders para provar fonte de dados (paths/mtimes/contagens) e checar CPU (Total/Volume).
+                - **Tabelas detalhadas (CPU):** adicionada a visão “Volume por período” para explicar variações do TOTAL mês a mês.
+                """
+        )
+
 
 def _ir_para_especificacao_tecnica() -> None:
     st.session_state["indice_documentacao"] = "🧾 Especificação Técnica (Reescrita com IA)"
@@ -1943,14 +1956,18 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         
         ```
         C:\\GIT\\TC\\
-        ├── app.py                                    # Aplicação principal - Dashboard TC Ext (~10.000 linhas)
+        ├── app.py                                    # Portal / Router (menu via st.navigation)
         ├── pages\\
         │   ├── 1 - Waterfall.py                     # Análise waterfall (~4.000 linhas)
         │   ├── 2 - Best Estimate - Simulador.py     # Simulador de Best Estimate (~4.300 linhas)
-        │   ├── 3 - Best Estimate - Análise.py       # Análise de Best Estimate (~7.400 linhas)
+        │   ├── (removido) 3 - Best Estimate - Análise.py  # Análise legacy (substituída pela BE (Análise) baseada na Home)
         │   ├── (removido) Waterfall_Analysis.py     # Página duplicada removida
         │   ├── 5 - Extração de Dados.py             # Extração e processamento de dados (~600 linhas)
         │   └── 6 - Documentacao.py                  # Documentação (este arquivo) (~3.900 linhas)
+        ├── tc_ext\\
+        │   └── pages\\
+        │       ├── home_ext.py                      # Home (TC Ext)
+        │       └── be_analise_ext.py                # Best Estimate (Análise) (base Home; lê dados/Forecast)
         ├── dados\\
         │   ├── historico_consolidado\\
         │   │   ├── df_final_historico.parquet
@@ -2017,11 +2034,11 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         
         with col2:
             st.markdown("""
-            **pages/3 - Best Estimate - Análise.py** (~7.400 linhas)
-            - Sistema completo de Best Estimate
-            - Cálculo baseado em média histórica
-            - Aplicação de sensibilidade e inflação
-            - Visualizações e tabelas detalhadas
+            **tc_ext/pages/be_analise_ext.py**
+            - Best Estimate (Análise) no TC Ext (substitui a análise legacy)
+            - Mesma base visual e de cálculo da Home (TC Ext)
+            - Lê os outputs do simulador em `dados/Forecast/`
+            - Regra de CPU aplicada de forma consistente (Total/Volume)
             
             **(removido) pages/4 - Waterfall_Analysis.py** (página duplicada removida)
             - Análise waterfall entre períodos (legado)
@@ -2330,10 +2347,10 @@ plotly>=5.0.0
             ### 📊 Páginas do Sistema
             
             **📄 Páginas Disponíveis:**
-            - `app.py` - Dashboard principal TC Ext (~10.000 linhas)
+            - `app.py` - Portal / Router (menu via st.navigation)
             - `1 - Waterfall.py` - Análise waterfall (~4.000 linhas)
             - `2 - Best Estimate - Simulador.py` - Simulação (~4.300 linhas)
-            - `3 - Best Estimate - Análise.py` - Análise (~7.400 linhas)
+            - `tc_ext/pages/be_analise_ext.py` - Best Estimate (Análise) (base Home)
             - `4 - Waterfall_Analysis.py` - (removido) página duplicada
             - `5 - Extração de Dados.py` - Extração e processamento (~600 linhas)
             - `6 - Documentacao.py` - Documentação (~3.900 linhas)
@@ -4094,7 +4111,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
     1. [Estrutura de Pastas do Forecast](#estrutura-forecast)
     2. [Ordem Cronológica de Atualização](#ordem-cronologica-forecast)
     3. [Página 2 - Best Estimate Simulador](#pagina-simulador)
-    4. [Página 3 - Best Estimate Análise](#pagina-analise)
+    4. [Página - Best Estimate (Análise)](#pagina-analise)
     5. [Fluxo de Dados e Processamento](#fluxo-dados-forecast)
     6. [Arquivos Gerados](#arquivos-gerados-forecast)
     7. [Cenários de Uso](#cenarios-uso-forecast)
@@ -4768,47 +4785,42 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         st.markdown("---")
         
-        # Seção 4: Página 3 - Best Estimate Análise
-        st.markdown("## 📊 PÁGINA 3 - BEST ESTIMATE ANÁLISE {#pagina-analise}")
+        # Seção 4: Página - Best Estimate (Análise)
+        st.markdown("## 📊 PÁGINA - BEST ESTIMATE (ANÁLISE) {#pagina-analise}")
         
         st.markdown("""
         ### Funcionalidades Principais
         
         **Objetivo:**
-        A página 3 (Best Estimate - Análise) fornece **análises completas e visualizações detalhadas**
-        dos forecasts gerados, incluindo gráficos, tabelas hierárquicas e comparações.
+        A página **Best Estimate (Análise)** no menu **TC Ext** substitui a análise legacy e entrega:
+        - as **mesmas tabelas/visuais** da Home (TC Ext),
+        - porém alimentadas pelos **arquivos de Forecast** gerados pelo simulador.
         
         **Funcionalidades:**
         
-        **1. Carregamento de Forecast Existente:**
-        - Carrega `forecast_completo.parquet` se existir
-        - Permite análise de forecasts previamente gerados
-        - Mostra data de última atualização
+        **1. Fonte de dados (Forecast):**
+        - Lê `dados/Forecast/forecast_completo.parquet` (custos) e `dados/Forecast/df_vol_historico.parquet` (volume)
+        - Permite analisar previsões (BE) e histórico no mesmo layout
+        - Expander de diagnóstico mostra paths, mtimes e contagens
         
-        **2. Visualizações Avançadas:**
-        - Gráficos de linha mostrando evolução temporal
-        - Gráficos de barras comparando períodos
-        - Tabelas hierárquicas com drill-down
-        - Gráficos de distribuição por Type 05, Type 06, etc.
+        **2. Visualizações (mesma base da Home):**
+        - Gráficos e tabelas por período, oficina, veículo
+        - Mesmo padrão de filtros e formatação
+        - Sem “corte” de meses futuros quando houver Forecast
         
-        **3. Tabelas Detalhadas:**
-        - Tabelas com todas as linhas do forecast
-        - Agrupamento por múltiplas dimensões
-        - Exportação para Excel
-        - Filtros avançados
+        **3. Tabelas detalhadas (com TOTAL coerente):**
+        - No modo CPU, totais são sempre `CPU = sum(Total) / sum(Volume)` (ponderado)
+        - Expander opcional “Volume por período” ajuda a explicar variações do TOTAL mês a mês
         
-        **4. Análise Comparativa:**
-        - Compara forecast vs histórico
-        - Compara forecast vs budget
-        - Mostra variações e diferenças
-        - Identifica outliers e anomalias
+        **4. Comparações:**
+        - Permite comparar BE vs histórico dentro do mesmo layout de análise
+        - Facilita validar premissas (sensibilidade/inflação) pela variação temporal
         
-        **5. Geração de Forecast:**
-        - Permite gerar novo forecast (mesma lógica da página 2)
-        - Salva automaticamente após geração
-        - Atualiza visualizações imediatamente
+        **5. Integração com o simulador:**
+        - O simulador gera/salva os arquivos em `dados/Forecast/`
+        - A análise lê esses arquivos e atualiza as visualizações
         
-        **6. Modos de Visualização:**
+        **6. Modos de visualização:**
         - **Custo Total:** Valores absolutos em R$
         - **CPU (Custo por Unidade):** Valores por unidade produzida
         - Permite alternar entre modos para diferentes análises
@@ -5095,47 +5107,78 @@ elif indice_selecionado == "📊 Apresentação Visual":
         </p>
     </div>
     """, unsafe_allow_html=True)
+
+    tab_roteiro, tab_slides = st.tabs(["🎤 Roteiro (5 min)", "🧩 Slides (Markdown)"])
+
+    with tab_roteiro:
+        st.subheader("🎤 Roteiro sugerido (objetivo: clareza em 5 minutos)")
+        st.markdown(
+            """
+            **0:00–0:30 — Contexto**
+            - O que é o Portal TC e o objetivo (decisão rápida com dados de custo/volume).
+
+            **0:30–1:30 — TC Ext (Home)**
+            - Mostrar filtros (Ano/Período/Oficina/Veículo) e alternância **Custo Total ↔ CPU**.
+            - Reforçar a regra: em CPU, o total é **ponderado por volume** (`sum(Total)/sum(Volume)`).
+
+            **1:30–2:30 — Waterfall**
+            - Explicar “o que mudou” entre dois períodos e como o Flex Bud separa efeito volume/custo.
+
+            **2:30–4:00 — Best Estimate**
+            - **Simulador**: define premissas (sensibilidade/inflação) e gera arquivos em `dados/Forecast/`.
+            - **Best Estimate (Análise)**: usa o layout da Home, mas alimentado por Forecast; ideal para validar coerência.
+
+            **4:00–5:00 — Encerramento**
+            - Exportação (Excel) + rastreabilidade (diagnósticos de fonte de dados / atualização).
+            - Próximos passos: padronizar/expandir para TC (Planta Principal) conforme necessário.
+            """
+        )
+        st.info(
+            "Dica: quando alguém questionar variações de TOTAL em CPU por mês, abra o expander "
+            "‘Volume por período’ para mostrar que a diferença vem do denominador (volume)."
+        )
     
-    # Carregar e exibir apresentação
-    try:
-        # Caminho relativo à raiz do projeto
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        caminho_apresentacao = os.path.join(base_path, "APRESENTACAO_5_MINUTOS_VISUAL.md")
-        if os.path.exists(caminho_apresentacao):
-            with open(caminho_apresentacao, 'r', encoding='utf-8') as f:
-                conteudo_apresentacao = f.read()
-            
-            # Limpar espaços extras no final das linhas e linhas vazias desnecessárias
-            linhas = conteudo_apresentacao.split('\n')
-            linhas_limpas = []
-            linha_anterior_vazia = False
-            
-            for linha in linhas:
-                # Remover espaços no final da linha
-                linha_limpa = linha.rstrip()
-                # Remover linhas vazias consecutivas (máximo 1)
-                if not linha_limpa:
-                    if not linha_anterior_vazia:
-                        linhas_limpas.append('')
-                    linha_anterior_vazia = True
-                else:
-                    linhas_limpas.append(linha_limpa)
-                    linha_anterior_vazia = False
-            
-            # Remover linhas vazias no início e fim
-            while linhas_limpas and not linhas_limpas[0]:
-                linhas_limpas.pop(0)
-            while linhas_limpas and not linhas_limpas[-1]:
-                linhas_limpas.pop()
-            
-            conteudo_limpo = '\n'.join(linhas_limpas)
-            
-            # Exibir apresentação usando st.markdown
-            st.markdown(conteudo_limpo, unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Arquivo de apresentação não encontrado. Verifique se o arquivo APRESENTACAO_5_MINUTOS_VISUAL.md existe na raiz do projeto.")
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar apresentação: {str(e)}")
+    with tab_slides:
+        # Carregar e exibir apresentação
+        try:
+            # Caminho relativo à raiz do projeto
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            caminho_apresentacao = os.path.join(base_path, "APRESENTACAO_5_MINUTOS_VISUAL.md")
+            if os.path.exists(caminho_apresentacao):
+                with open(caminho_apresentacao, 'r', encoding='utf-8') as f:
+                    conteudo_apresentacao = f.read()
+
+                # Limpar espaços extras no final das linhas e linhas vazias desnecessárias
+                linhas = conteudo_apresentacao.split('\n')
+                linhas_limpas = []
+                linha_anterior_vazia = False
+
+                for linha in linhas:
+                    # Remover espaços no final da linha
+                    linha_limpa = linha.rstrip()
+                    # Remover linhas vazias consecutivas (máximo 1)
+                    if not linha_limpa:
+                        if not linha_anterior_vazia:
+                            linhas_limpas.append('')
+                        linha_anterior_vazia = True
+                    else:
+                        linhas_limpas.append(linha_limpa)
+                        linha_anterior_vazia = False
+
+                # Remover linhas vazias no início e fim
+                while linhas_limpas and not linhas_limpas[0]:
+                    linhas_limpas.pop(0)
+                while linhas_limpas and not linhas_limpas[-1]:
+                    linhas_limpas.pop()
+
+                conteudo_limpo = '\n'.join(linhas_limpas)
+
+                # Exibir apresentação usando st.markdown
+                st.markdown(conteudo_limpo, unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ Arquivo de apresentação não encontrado. Verifique se o arquivo APRESENTACAO_5_MINUTOS_VISUAL.md existe na raiz do projeto.")
+        except Exception as e:
+            st.error(f"❌ Erro ao carregar apresentação: {str(e)}")
 
 # ==========================================
 # SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO

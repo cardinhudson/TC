@@ -22,6 +22,17 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 
 ---
 
+## 1.1) Mudanças recentes (Jan/2026)
+
+- TC Ext: criada uma nova página de análise de Best Estimate baseada na Home (mantém o “jeito certo” de calcular/formatar).
+  - Fonte: lê os outputs do simulador em `dados/Forecast/` (ex.: `forecast_completo.parquet` e `df_vol_historico.parquet`).
+  - Objetivo: substituir a análise legada e reduzir divergências entre tabelas/gráficos.
+- CPU: regra reforçada em pontos críticos — **nunca somar/média de CPU**; sempre recalcular como $CPU = \sum Total / \sum Volume$ no nível de agrupamento.
+- Gráficos por período: removido o corte por “mês atual” quando existem valores futuros (Forecast), evitando esconder Fev–Dez no ano corrente.
+- Diagnósticos: adicionados expanders com prova da fonte de dados (paths/mtimes/shapes) e checagens de sanidade de CPU.
+
+---
+
 ## 2) Stack, execução e ambiente
 
 ### Tecnologias
@@ -54,7 +65,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 - `tc_ext/pages/home_ext.py`: **Home do TC Ext** (código que antes estava no `app.py`).
 - `pages/1 - Waterfall.py`: análise Waterfall.
 - `pages/2 - Best Estimate - Simulador.py`: simulador.
-- `pages/3 - Best Estimate - Análise.py`: análise BE.
+- `tc_ext/pages/be_analise_ext.py`: **Best Estimate (Análise)** no TC Ext (baseada na Home; usa `dados/Forecast/`).
 - *(removido)* `pages/4 - Waterfall_Analysis.py`: página duplicada removida.
 - `pages/5 - Extração de Dados.py`: guia/rotinas para extração.
 - `pages/6 - Documentacao.py`: documentação dentro do Streamlit.

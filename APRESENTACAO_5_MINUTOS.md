@@ -2,7 +2,7 @@
 
 **Desenvolvido por:** Hudson Cardin e Lauro Paiva  
 **Versão:** Sistema completo com versionamento automático  
-**Data:** 2025
+**Data:** 2026
 
 ---
 

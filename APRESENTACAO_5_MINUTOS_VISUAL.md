@@ -5,7 +5,7 @@
 
 **Desenvolvido por:** Hudson Cardin e Lauro Paiva  
 **Versão:** Sistema completo com versionamento automático  
-**Data:** 2025
+**Data:** 2026
 
 ---
 
@@ -123,20 +123,21 @@
 
 ---
 
-### 📐 Estrutura do Sistema
+### 📐 Estrutura do Sistema (Portal TC)
 
 ```
                     ┌─────────────────────┐
-                    │   📊 app.py          │
-                    │   Portal / Router    │
+                    │   📊 app.py         │
+                    │   Portal / Router   │
+                    │   (st.navigation)   │
                     └──────────┬──────────┘
                                │
                 ┌──────────────┼───────────────┬──────────────┐
                 │              │               │              │
-        ┌───────▼────────┐ ┌───▼─────────┐ ┌──▼──────────┐ ┌─▼──────────────┐
-        │ 🧩 TC Ext       │ │ 🏭 TC (PP)   │ │ 📚 Doc      │ │ (Legado) Pages  │
-        │ Home + análises │ │ (stubs)      │ │ Única       │ │ Waterfall/BE/...│
-        └─────────────────┘ └─────────────┘ └─────────────┘ └────────────────┘
+        ┌───────▼────────┐ ┌───▼─────────┐ ┌──▼──────────┐
+        │ 🧩 TC Ext       │ │ 🏭 TC (PP)   │ │ 📚 Doc      │
+        │ Home + análises │ │ (stubs)      │ │ Única       │
+        └─────────────────┘ └─────────────┘ └─────────────┘
 ```
 
 ---
@@ -258,7 +259,9 @@
 │                                                    │
 │  ⭐ Destaques:                                     │
 │     🔮 Simulador: Testa cenários "what-if"         │
-│     📊 Análise: Visualizações detalhadas           │
+│        → gera `dados/Forecast/*.parquet`           │
+│     📊 Análise: layout da Home + dados Forecast    │
+│        → total em CPU é ponderado por Volume       │
 │                                                    │
 └────────────────────────────────────────────────────┘
 ```

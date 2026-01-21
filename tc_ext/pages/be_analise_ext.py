@@ -53,6 +53,9 @@ def obter_data_atualizacao_dados():
             os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
             os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            # Caminhos do Best Estimate (arquivos gerados)
+            os.path.join("dados", "Forecast", "forecast_completo.parquet"),
+            os.path.join("dados", "Forecast", "df_vol_historico.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
             os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
@@ -536,46 +539,15 @@ st.markdown("""
         }
 """, unsafe_allow_html=True)
 
-# Verificar se estamos na página principal (app.py) e não em uma página separada
-# IMPORTANTE: Verificar ANTES de renderizar qualquer conteúdo do dashboard
+# Esta página é uma "page" do Streamlit (registrada em app.py via st.navigation).
+# O arquivo original (Home) tinha um gate `is_main_page` para evitar renderização
+# quando usado fora do roteador. Aqui isso causava "tela em branco".
+# Portanto, nesta página BE (Análise), sempre renderizamos o conteúdo.
 is_main_page = True
-try:
-    import os
-    # Verificar pelo nome do arquivo diretamente (mais confiável)
-    current_file_name = os.path.basename(__file__)
-    if current_file_name in ('app.py', 'home_ext.py'):
-        is_main_page = True
-    else:
-        # Verificar pelo caminho completo
-        current_file = os.path.abspath(__file__)
-        # Verificar se o arquivo atual está na pasta pages
-        if current_file and ('pages' in current_file.replace('\\', '/') or 'pages/' in current_file.replace('\\', '/')):
-            is_main_page = False
-        # Verificar se há flag no session_state indicando página separada (ex: Waterfall)
-        if 'is_waterfall_page' in st.session_state and st.session_state.is_waterfall_page:
-            is_main_page = False
-except Exception as e:
-    # Em caso de erro, assumir que estamos na página principal
-    is_main_page = True
-
-# Verificação adicional: garantir que no app.py sempre seja True
-try:
-    import os
-    current_file_name = os.path.basename(__file__)
-    if current_file_name in ('app.py', 'home_ext.py'):
-        is_main_page = True
-    # Se não estamos em pages, forçar is_main_page = True
-    elif not is_main_page:
-        current_file_check = os.path.abspath(__file__)
-        if current_file_check and 'pages' not in current_file_check.replace('\\', '/'):
-            is_main_page = True
-except:
-    # Em caso de erro, assumir página principal
-    is_main_page = True
 
 if is_main_page:
     # Título - Movido para o topo da página
-    st.title("🏭 Dashboard TC Extendido Porto Real")
+    st.title("🔮 BE (Análise) — Base Home (TC Ext)")
     st.subheader("Análise de dados agrupados por Oficina e Período")
 
     st.markdown("---")
@@ -811,21 +783,20 @@ st.session_state.filtro_ano_tc_ext = ano_selecionado
     max_entries=10,  # Aumentar para cachear diferentes anos
     show_spinner=True
 )
-def load_data(ano_selecionado_param):
-    """Carrega os dados do arquivo parquet - SEMPRE do histórico consolidado"""
+def load_data(ano_selecionado_param, mtime_forecast=None):
+    """Carrega os dados do arquivo parquet - SEMPRE da pasta Forecast (BE Análise)."""
     try:
-        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
-        # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
-        caminho_absoluto = os.path.abspath(caminho_historico)
-        
-        if os.path.exists(caminho_historico):
-            df = pd.read_parquet(caminho_historico)
-        else:
-            st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
-            st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
+        caminho_forecast = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        if not os.path.exists(caminho_forecast):
+            st.error(f"❌ Arquivo não encontrado: {caminho_forecast}")
+            st.info("💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'.")
             st.stop()
-            return None
+
+        mtime_atual = os.path.getmtime(caminho_forecast) if os.path.exists(caminho_forecast) else 0
+        if mtime_forecast is not None and mtime_forecast != mtime_atual:
+            load_data.clear()
+
+        df = pd.read_parquet(caminho_forecast)
 
         # Se um ano específico foi selecionado, filtrar após carregar
         # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
@@ -834,7 +805,6 @@ def load_data(ano_selecionado_param):
             try:
                 df = df[df['Ano'] == int(ano_selecionado_param)].copy()
             except (ValueError, TypeError):
-                # Se não conseguir converter para int, não filtrar por ano
                 pass
 
         # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
@@ -885,6 +855,7 @@ def load_data(ano_selecionado_param):
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
         st.stop()
+
 
 # Função auxiliar para obter opções de filtro (disponível para todas as páginas - deve estar antes do uso)
 @st.cache_data(ttl=1800, max_entries=5)
@@ -1046,9 +1017,38 @@ if is_main_page:
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔍 Filtros**")
 
+    # Alinhar com o comportamento esperado da análise de Best Estimate (página legacy removida):
+    # - garantir que os mesmos arquivos do simulador existem
+    # - invalidar cache quando os parquets são atualizados (mtime)
+    caminho_forecast_check = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+    caminho_vol_check = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+    arquivos_existem = os.path.exists(caminho_forecast_check) and os.path.exists(caminho_vol_check)
+    if not arquivos_existem:
+        st.warning("⚠️ Arquivos de forecast não encontrados.")
+        st.info("ℹ️ Por favor, gere os arquivos de Best Estimate na página **2 - Best Estimate - Simulador**.")
+        st.info("📁 Arquivos esperados:")
+        st.info(f"   - {caminho_forecast_check}")
+        st.info(f"   - {caminho_vol_check}")
+        st.stop()
+
+    mtime_forecast_atual = os.path.getmtime(caminho_forecast_check) if os.path.exists(caminho_forecast_check) else 0
+    mtime_vol_atual = os.path.getmtime(caminho_vol_check) if os.path.exists(caminho_vol_check) else 0
+    try:
+        if st.session_state.get('mtime_forecast_anterior_be_analise_home') != mtime_forecast_atual:
+            load_data.clear()
+            # load_volume_data ainda pode não estar definido nesta altura do arquivo
+            try:
+                load_volume_data.clear()
+            except Exception:
+                pass
+        st.session_state['mtime_forecast_anterior_be_analise_home'] = mtime_forecast_atual
+        st.session_state['mtime_vol_anterior_be_analise_home'] = mtime_vol_atual
+    except Exception:
+        pass
+
     # Carregar dados com o ano selecionado
     try:
-        df_total = load_data(ano_selecionado)
+        df_total = load_data(ano_selecionado, mtime_forecast_atual)
         # Evitar mutações no cache
         if df_total is not None:
             df_total = df_total.copy()
@@ -1066,6 +1066,47 @@ if is_main_page:
         import traceback
         st.error(f"Detalhes: {traceback.format_exc()}")
         st.stop()
+
+    # 🔎 Diagnóstico: confirmar fonte Forecast + presença de BE
+    with st.expander("🔎 Diagnóstico — Fonte de Dados (Forecast)", expanded=False):
+        try:
+            from datetime import datetime
+
+            st.write(f"Página (__file__): {os.path.abspath(__file__)}")
+            st.write(f"Diretório de trabalho (cwd): {os.getcwd()}")
+
+            st.write(f"Custos (parquet): {caminho_forecast_check}")
+            st.write(f"Custos (parquet absoluto): {os.path.abspath(caminho_forecast_check)}")
+            st.write(f"Volume (parquet): {caminho_vol_check}")
+            st.write(f"Volume (parquet absoluto): {os.path.abspath(caminho_vol_check)}")
+            st.write(
+                "mtime custos: "
+                + (datetime.fromtimestamp(mtime_forecast_atual).strftime('%Y-%m-%d %H:%M:%S') if mtime_forecast_atual else "N/A")
+            )
+            st.write(
+                "mtime volume: "
+                + (datetime.fromtimestamp(mtime_vol_atual).strftime('%Y-%m-%d %H:%M:%S') if mtime_vol_atual else "N/A")
+            )
+            st.write(f"df_total: {len(df_total):,} linhas | {len(df_total.columns)} colunas")
+            if 'Ano' in df_total.columns:
+                st.write(f"Ano (min/max): {df_total['Ano'].min()} / {df_total['Ano'].max()}")
+            if 'Tipo' in df_total.columns:
+                vc = df_total['Tipo'].astype(str).value_counts(dropna=False)
+                st.write("Tipo (contagem):")
+                st.dataframe(vc, use_container_width=True)
+            st.caption("Dica: para ver apenas as previsões do simulador, filtre Tipo = BE.")
+        except Exception as _e:
+            st.write("Diagnóstico indisponível.")
+
+    # Default: quando existir coluna Tipo, iniciar mostrando BE (sem sobrescrever escolhas do usuário)
+    # Objetivo: deixar evidente a previsão gerada pelo simulador.
+    if 'Tipo' in df_total.columns and 'filtro_Tipo_tc_ext' not in st.session_state:
+        try:
+            tipos_disponiveis = set(df_total['Tipo'].dropna().astype(str).unique().tolist())
+            if 'BE' in tipos_disponiveis and ano_selecionado != "Todos":
+                st.session_state['filtro_Tipo_tc_ext'] = ["BE"]
+        except Exception:
+            pass
 
     # Aplicar fator de conversão nas colunas Total e BUD (antes de qualquer processamento)
     # Isso simplifica os cálculos pois o fator é aplicado uma única vez na origem
@@ -1315,86 +1356,7 @@ def obter_simbolo_moeda(moeda_codigo):
     """Retorna o símbolo da moeda."""
     return _core_obter_simbolo_moeda(moeda_codigo)
 
-# Função para carregar dados com cache (disponível para todas as páginas)
-@st.cache_data(
-    ttl=3600,
-    max_entries=10,  # Aumentar para cachear diferentes anos
-    show_spinner=True
-)
-def load_data(ano_selecionado_param):
-    """Carrega os dados do arquivo parquet - SEMPRE do histórico consolidado"""
-    try:
-        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
-        # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
-        caminho_absoluto = os.path.abspath(caminho_historico)
-        
-        if os.path.exists(caminho_historico):
-            df = pd.read_parquet(caminho_historico)
-        else:
-            st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
-            st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
-            st.stop()
-            return None
-
-        # Se um ano específico foi selecionado, filtrar após carregar
-        # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
-        # e apenas filtramos pelo ano, mantendo consistência
-        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
-            try:
-                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
-            except (ValueError, TypeError):
-                # Se não conseguir converter para int, não filtrar por ano
-                pass
-
-        # 🔧 CORREÇÃO CRÍTICA: Normalizar períodos para formato capitalizado (primeira letra maiúscula)
-        # Isso garante consistência com o resto do código que espera períodos capitalizados
-        if 'Período' in df.columns:
-            mapeamento_meses = {
-                'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
-                'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
-                'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
-                'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
-            }
-            
-            def normalizar_periodo(periodo):
-                """Normaliza período para formato capitalizado"""
-                if pd.isna(periodo):
-                    return periodo
-                periodo_str = str(periodo).strip()
-                periodo_lower = periodo_str.lower()
-                if periodo_lower in mapeamento_meses:
-                    return mapeamento_meses[periodo_lower]
-                return periodo_str  # Retornar original se não for um mês conhecido
-            
-            df['Período'] = df['Período'].apply(normalizar_periodo)
-
-        # Converter colunas numéricas conhecidas para numérico ANTES da otimização
-        # Isso evita que sejam convertidas para categorical
-        colunas_numericas = ['Valor', 'Total', 'Volume', 'CPU']
-        for col in colunas_numericas:
-            if col in df.columns and df[col].dtype == 'object':
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        # Otimizar tipos de dados
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                unique_ratio = df[col].nunique() / len(df)
-                if unique_ratio < 0.5:
-                    df[col] = df[col].astype('category')
-
-        # Converter floats para tipos menores
-        for col in df.select_dtypes(include=['float64']).columns:
-            df[col] = pd.to_numeric(df[col], downcast='float')
-
-        # Converter ints para tipos menores
-        for col in df.select_dtypes(include=['int64']).columns:
-            df[col] = pd.to_numeric(df[col], downcast='integer')
-
-        return df
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar dados: {str(e)}")
-        st.stop()
+## load_data: definição única fica acima (com mtime), alinhada com a BE Análise.
 
 
 # Função para carregar dados de volume com cache
@@ -1404,19 +1366,30 @@ def load_data(ano_selecionado_param):
     show_spinner=True
 )
 def load_volume_data(ano_selecionado_param):
-    """Carrega os dados de volume do arquivo parquet - SEMPRE do histórico consolidado"""
+    """Carrega os dados de volume do arquivo parquet - SEMPRE do Best Estimate consolidado"""
     try:
-        # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
+        # IMPORTANTE: Sempre carregar do Best Estimate consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
+        caminho_historico = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
         
+        if not os.path.exists(caminho_historico):
+            return None
+
+        # Invalidar cache se o arquivo foi atualizado (mesma ideia da BE Análise)
+        try:
+            mtime_atual = os.path.getmtime(caminho_historico) if os.path.exists(caminho_historico) else 0
+            mtime_anterior = st.session_state.get('mtime_vol_anterior_be_analise_home')
+            if mtime_anterior is not None and mtime_anterior != mtime_atual:
+                load_volume_data.clear()
+            st.session_state['mtime_vol_anterior_be_analise_home'] = mtime_atual
+        except Exception:
+            pass
+
         if os.path.exists(caminho_historico):
             # 🔧 CORREÇÃO: Garantir que Volume seja sempre numérico ao carregar
             df = pd.read_parquet(caminho_historico)
             if 'Volume' in df.columns:
                 df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0).astype('float64')
-        else:
-            return None
 
         # Se um ano específico foi selecionado, filtrar após carregar
         # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
@@ -4741,6 +4714,26 @@ if is_main_page:
             df_vol_filtrado_sidebar = filtrar_volume_com_sidebar(df_vol_base, df_total)
     except Exception:
         df_vol_filtrado_sidebar = None
+
+    # 🧪 Sanidade CPU: CPU_total deve ser Total/Volume (média ponderada), nunca soma de CPUs
+    with st.expander("🧪 Sanidade — CPU (Total/Volume)", expanded=False):
+        try:
+            if 'df_filtrado' not in locals() or df_filtrado is None:
+                st.write("df_filtrado indisponível para validação.")
+            elif tipo_visualizacao != "CPU (Custo por Unidade)":
+                st.write("Ative o modo CPU para ver a validação.")
+            else:
+                total_custo = pd.to_numeric(df_filtrado.get('Total'), errors='coerce').fillna(0).sum() if 'Total' in df_filtrado.columns else 0
+                if df_vol_filtrado_sidebar is None or 'Volume' not in getattr(df_vol_filtrado_sidebar, 'columns', []):
+                    st.write("Volume filtrado indisponível (df_vol_filtrado_sidebar).")
+                else:
+                    vol_total = pd.to_numeric(df_vol_filtrado_sidebar.get('Volume'), errors='coerce').fillna(0).sum()
+                    cpu_total = (total_custo / vol_total) if vol_total not in (0, None) else None
+                    st.write(f"Total custo (numerador): {total_custo:,.2f}")
+                    st.write(f"Volume total (denominador): {vol_total:,.2f}")
+                    st.write(f"CPU total esperado (Total/Volume): {cpu_total:,.6f}" if cpu_total is not None else "CPU total esperado: N/A (volume=0)")
+        except Exception as _e:
+            st.write("Validação de CPU indisponível.")
 
     # Criar df_visualizacao a partir de df_filtrado antes de usar nas tabs
     if 'df_filtrado' in locals() and df_filtrado is not None:
