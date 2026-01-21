@@ -375,6 +375,72 @@ def load_volume_historico_data(mtime_vol=None):
     except Exception:
         return None
 
+
+@st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
+def load_volume_realizado_ano(ano_selecionado_param, mtime_vol=None):
+    """Carrega o volume do Realizado do ano (dados/{ANO}/df_vol.parquet), quando existir.
+
+    Regra do Best Estimate: para análises do ano selecionado, usar o volume fornecido no arquivo
+    do Realizado daquele ano (ex.: 2026). O histórico (Forecast/df_vol_historico.parquet) fica
+    como fallback.
+    """
+    try:
+        if ano_selecionado_param is None or ano_selecionado_param == "Todos":
+            return None
+
+        ano_int = int(ano_selecionado_param)
+        caminho_realizado = os.path.join("dados", str(ano_int), "df_vol.parquet")
+        if not os.path.exists(caminho_realizado):
+            return None
+
+        df = pd.read_parquet(caminho_realizado)
+        if df is None or df.empty:
+            return None
+
+        df = df.copy()
+
+        if 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0).astype('float64')
+
+        if 'Período' in df.columns:
+            df['Período'] = df['Período'].astype(str)
+
+            def _parse_mes_ano(periodo_str: str):
+                periodo_str = str(periodo_str).strip()
+                if ' ' in periodo_str:
+                    partes = periodo_str.split(' ', 1)
+                    mes_nome = partes[0].strip().capitalize()
+                    ano_val = None
+                    if len(partes) > 1 and partes[1].strip().isdigit():
+                        ano_val = int(partes[1].strip())
+                    return mes_nome, ano_val
+                return periodo_str.capitalize(), None
+
+            parsed = df['Período'].apply(_parse_mes_ano)
+            df['Período'] = parsed.apply(lambda x: x[0])
+            anos_extraidos = parsed.apply(lambda x: x[1])
+
+            if 'Ano' not in df.columns:
+                df['Ano'] = ano_int
+            else:
+                df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce')
+                if anos_extraidos.notna().any():
+                    mask_ano_extraido = anos_extraidos.notna()
+                    df.loc[mask_ano_extraido, 'Ano'] = anos_extraidos[mask_ano_extraido].astype(int)
+
+            df = df[df['Ano'] == ano_int].copy()
+        else:
+            if 'Ano' not in df.columns:
+                df['Ano'] = ano_int
+            else:
+                df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce')
+                df = df[df['Ano'] == ano_int].copy()
+
+        df = otimizar_tipos_dados(df)
+        return df
+    except Exception:
+        return None
+
 # 🔧 CORREÇÃO: Verificar se os arquivos existem ANTES de qualquer verificação de configuração
 # Se os arquivos existirem, carregar normalmente e limpar cache se necessário
 caminho_forecast_check = os.path.join("dados", "Forecast", "forecast_completo.parquet")
@@ -803,7 +869,9 @@ if config_forecast_disponivel:
     # 🔧 MODO CPU: Preparar dados para visualização (mesma lógica do TC_Ext)
     if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
         # 🔧 OTIMIZAÇÃO: Usar função com cache em vez de carregar diretamente
-        df_vol_calc = load_volume_historico_data()
+        df_vol_calc = load_volume_realizado_ano(ano_selecionado, mtime_vol_atual) if ano_selecionado != "Todos" else None
+        if df_vol_calc is None:
+            df_vol_calc = load_volume_historico_data(mtime_vol_atual)
         
         if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
             # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
