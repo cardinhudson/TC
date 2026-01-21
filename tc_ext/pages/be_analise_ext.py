@@ -1067,37 +1067,6 @@ if is_main_page:
         st.error(f"Detalhes: {traceback.format_exc()}")
         st.stop()
 
-    # 🔎 Diagnóstico: confirmar fonte Forecast + presença de BE
-    with st.expander("🔎 Diagnóstico — Fonte de Dados (Forecast)", expanded=False):
-        try:
-            from datetime import datetime
-
-            st.write(f"Página (__file__): {os.path.abspath(__file__)}")
-            st.write(f"Diretório de trabalho (cwd): {os.getcwd()}")
-
-            st.write(f"Custos (parquet): {caminho_forecast_check}")
-            st.write(f"Custos (parquet absoluto): {os.path.abspath(caminho_forecast_check)}")
-            st.write(f"Volume (parquet): {caminho_vol_check}")
-            st.write(f"Volume (parquet absoluto): {os.path.abspath(caminho_vol_check)}")
-            st.write(
-                "mtime custos: "
-                + (datetime.fromtimestamp(mtime_forecast_atual).strftime('%Y-%m-%d %H:%M:%S') if mtime_forecast_atual else "N/A")
-            )
-            st.write(
-                "mtime volume: "
-                + (datetime.fromtimestamp(mtime_vol_atual).strftime('%Y-%m-%d %H:%M:%S') if mtime_vol_atual else "N/A")
-            )
-            st.write(f"df_total: {len(df_total):,} linhas | {len(df_total.columns)} colunas")
-            if 'Ano' in df_total.columns:
-                st.write(f"Ano (min/max): {df_total['Ano'].min()} / {df_total['Ano'].max()}")
-            if 'Tipo' in df_total.columns:
-                vc = df_total['Tipo'].astype(str).value_counts(dropna=False)
-                st.write("Tipo (contagem):")
-                st.dataframe(vc, use_container_width=True)
-            st.caption("Dica: para ver apenas as previsões do simulador, filtre Tipo = BE.")
-        except Exception as _e:
-            st.write("Diagnóstico indisponível.")
-
     # Default: quando existir coluna Tipo, iniciar mostrando BE (sem sobrescrever escolhas do usuário)
     # Objetivo: deixar evidente a previsão gerada pelo simulador.
     if 'Tipo' in df_total.columns and 'filtro_Tipo_tc_ext' not in st.session_state:
@@ -4714,26 +4683,6 @@ if is_main_page:
             df_vol_filtrado_sidebar = filtrar_volume_com_sidebar(df_vol_base, df_total)
     except Exception:
         df_vol_filtrado_sidebar = None
-
-    # 🧪 Sanidade CPU: CPU_total deve ser Total/Volume (média ponderada), nunca soma de CPUs
-    with st.expander("🧪 Sanidade — CPU (Total/Volume)", expanded=False):
-        try:
-            if 'df_filtrado' not in locals() or df_filtrado is None:
-                st.write("df_filtrado indisponível para validação.")
-            elif tipo_visualizacao != "CPU (Custo por Unidade)":
-                st.write("Ative o modo CPU para ver a validação.")
-            else:
-                total_custo = pd.to_numeric(df_filtrado.get('Total'), errors='coerce').fillna(0).sum() if 'Total' in df_filtrado.columns else 0
-                if df_vol_filtrado_sidebar is None or 'Volume' not in getattr(df_vol_filtrado_sidebar, 'columns', []):
-                    st.write("Volume filtrado indisponível (df_vol_filtrado_sidebar).")
-                else:
-                    vol_total = pd.to_numeric(df_vol_filtrado_sidebar.get('Volume'), errors='coerce').fillna(0).sum()
-                    cpu_total = (total_custo / vol_total) if vol_total not in (0, None) else None
-                    st.write(f"Total custo (numerador): {total_custo:,.2f}")
-                    st.write(f"Volume total (denominador): {vol_total:,.2f}")
-                    st.write(f"CPU total esperado (Total/Volume): {cpu_total:,.6f}" if cpu_total is not None else "CPU total esperado: N/A (volume=0)")
-        except Exception as _e:
-            st.write("Validação de CPU indisponível.")
 
     # Criar df_visualizacao a partir de df_filtrado antes de usar nas tabs
     if 'df_filtrado' in locals() and df_filtrado is not None:
