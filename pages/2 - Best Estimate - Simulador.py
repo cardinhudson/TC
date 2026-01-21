@@ -646,79 +646,6 @@ def load_volume_historico_data():
         return None
 
 
-@st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
-def load_volume_realizado_ano(ano_selecionado_param):
-    """Carrega o volume do Realizado do ano (dados/{ANO}/df_vol.parquet), quando existir.
-
-    Regra do Best Estimate: para projetar o ano selecionado, usar o volume fornecido no arquivo
-    do Realizado daquele ano (ex.: 2026). O histórico (Forecast/df_vol_historico.parquet) é
-    mantido apenas para cálculos de médias/fallback.
-    """
-    try:
-        if ano_selecionado_param is None or ano_selecionado_param == "Todos":
-            return None
-
-        ano_int = int(ano_selecionado_param)
-        caminho_realizado = os.path.join("dados", str(ano_int), "df_vol.parquet")
-        if not os.path.exists(caminho_realizado):
-            return None
-
-        df = pd.read_parquet(caminho_realizado)
-        if df is None or df.empty:
-            return None
-
-        df = df.copy()
-
-        if 'Volume' in df.columns:
-            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0).astype('float64')
-
-        # Normalizar Período e garantir coluna Ano, para compatibilidade com merges/groupbys
-        if 'Período' in df.columns:
-            df['Período'] = df['Período'].astype(str)
-
-            def _parse_mes_ano(periodo_str: str):
-                periodo_str = str(periodo_str).strip()
-                if ' ' in periodo_str:
-                    partes = periodo_str.split(' ', 1)
-                    mes_nome = partes[0].strip().capitalize()
-                    ano_val = None
-                    if len(partes) > 1 and partes[1].strip().isdigit():
-                        ano_val = int(partes[1].strip())
-                    return mes_nome, ano_val
-                return periodo_str.capitalize(), None
-
-            parsed = df['Período'].apply(_parse_mes_ano)
-            df['Período'] = parsed.apply(lambda x: x[0])
-            anos_extraidos = parsed.apply(lambda x: x[1])
-
-            if 'Ano' not in df.columns:
-                # Se o arquivo não traz Ano, assumir o ano selecionado
-                df['Ano'] = ano_int
-            else:
-                df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce')
-                # Se conseguimos extrair ano do Período, priorizar onde existir
-                if anos_extraidos.notna().any():
-                    mask_ano_extraido = anos_extraidos.notna()
-                    df.loc[mask_ano_extraido, 'Ano'] = anos_extraidos[mask_ano_extraido].astype(int)
-
-            # Filtrar pelo ano selecionado (caso venha misturado)
-            df = df[df['Ano'] == ano_int].copy()
-        else:
-            # Sem Período, ao menos garantir Ano para consistência
-            if 'Ano' not in df.columns:
-                df['Ano'] = ano_int
-            else:
-                df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce')
-                df = df[df['Ano'] == ano_int].copy()
-
-        # Otimizar tipos (mantém padrão do projeto)
-        df = otimizar_tipos_dados(df)
-
-        return df
-    except Exception:
-        return None
-
-
 # 🔧 OTIMIZAÇÃO: Lazy loading - carregar dados apenas quando necessário
 # Remover mensagens de sidebar para reduzir overhead de renderização
 df_total = None
@@ -1010,9 +937,7 @@ if df_total is not None:
 # 🔧 OTIMIZAÇÃO: Verificar se df_filtrado está disponível antes de processar
 if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
     # 🔧 OTIMIZAÇÃO: Usar função com cache em vez de carregar diretamente
-    df_vol_calc = load_volume_realizado_ano(ano_selecionado) if ano_selecionado != "Todos" else None
-    if df_vol_calc is None:
-        df_vol_calc = load_volume_historico_data()
+    df_vol_calc = load_volume_historico_data()
     
     if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
         # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de normalizar
@@ -1284,9 +1209,7 @@ if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.column
     # que calcula o forecast linha a linha. Garantir que o volume seja o mesmo garante que
     # quando sensibilidade = 1 e inflação = 0, o CPU seja constante (igual à média)
     # 🔧 OTIMIZAÇÃO: Usar função com cache em vez de carregar diretamente
-    df_vol_calc = load_volume_realizado_ano(ano_selecionado) if ano_selecionado != "Todos" else None
-    if df_vol_calc is None:
-        df_vol_calc = load_volume_historico_data()
+    df_vol_calc = load_volume_historico_data()
     
     if df_vol_calc is not None and 'Volume' in df_vol_calc.columns:
         # 🔧 CORREÇÃO CRÍTICA: Aplicar filtro de ano ANTES de processar (mesma lógica do modo CPU e do forecast)
@@ -4328,31 +4251,36 @@ if aplicar_config_forecast:
             # Calcular forecast para cada período linha a linha
             # Carregar volume por mês (MESMA LÓGICA DO FORECAST COPY linha 5596-5615)
             df_vol_por_mes = None
-            # ✅ Regra: para projetar o ano selecionado, usar volume do Realizado do ano (dados/{ANO}/df_vol.parquet)
-            df_vol_referencia_forecast = load_volume_realizado_ano(ano_selecionado) if ano_selecionado != "Todos" else None
+            if df_vol_historico is not None and not df_vol_historico.empty:
+                if 'Período' in df_vol_historico.columns and 'Volume' in df_vol_historico.columns:
+                    # Volume por mês (incluindo meses futuros)
+                    df_vol_para_por_mes = df_vol_historico.copy()
 
-            df_vol_fonte_por_mes = None
-            if df_vol_referencia_forecast is not None and not df_vol_referencia_forecast.empty:
-                df_vol_fonte_por_mes = df_vol_referencia_forecast
-            elif df_vol_historico is not None and not df_vol_historico.empty:
-                df_vol_fonte_por_mes = df_vol_historico
-
-            if df_vol_fonte_por_mes is not None and not df_vol_fonte_por_mes.empty:
-                if 'Período' in df_vol_fonte_por_mes.columns and 'Volume' in df_vol_fonte_por_mes.columns:
-                    df_vol_para_por_mes = df_vol_fonte_por_mes.copy()
-
-                    # Se estamos usando histórico como fallback, filtrar para o ano do forecast quando possível
-                    if df_vol_referencia_forecast is None and ano_selecionado != "Todos" and 'Ano' in df_vol_para_por_mes.columns:
-                        try:
-                            df_vol_para_por_mes = df_vol_para_por_mes[df_vol_para_por_mes['Ano'] == int(ano_selecionado)].copy()
-                            adicionar_mensagem("info", f"📊 Volume (fallback histórico): filtrado por ano {ano_selecionado}")
-                        except Exception:
-                            pass
+                    # 🔧 AJUSTE: respeitar ano selecionado quando existir, para evitar filtros indevidos
+                    if 'Ano' in df_vol_para_por_mes.columns:
+                        if ano_selecionado != "Todos":
+                            try:
+                                df_vol_para_por_mes = df_vol_para_por_mes[
+                                    df_vol_para_por_mes['Ano'] == int(ano_selecionado)
+                                ].copy()
+                                adicionar_mensagem("info", f"📊 Volume: Filtrado por ano selecionado: {ano_selecionado}")
+                            except Exception:
+                                pass
+                        else:
+                            anos_unicos = df_vol_para_por_mes['Ano'].dropna().unique()
+                            if len(anos_unicos) > 1:
+                                ano_mais_recente = df_vol_para_por_mes['Ano'].max()
+                                df_vol_para_por_mes = df_vol_para_por_mes[
+                                    df_vol_para_por_mes['Ano'] == ano_mais_recente
+                                ].copy()
+                                adicionar_mensagem("info", f"📊 Volume: Filtrado para ano mais recente: {ano_mais_recente}")
 
                     colunas_groupby_vol_por_mes = ['Oficina', 'Veículo', 'Período']
                     if 'Ano' in df_vol_para_por_mes.columns:
                         colunas_groupby_vol_por_mes.append('Ano')
-                    df_vol_por_mes = df_vol_para_por_mes.groupby(colunas_groupby_vol_por_mes, as_index=False)['Volume'].sum()
+                    df_vol_por_mes = df_vol_para_por_mes.groupby(
+                        colunas_groupby_vol_por_mes, as_index=False
+                    )['Volume'].sum()
                     
                     # 🔧 DEBUG: Mostrar períodos disponíveis no volume
                     if 'Período' in df_vol_por_mes.columns:
