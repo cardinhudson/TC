@@ -55,7 +55,7 @@ if os.path.exists(arquivo_historico):
         print(f"  - O Flex Bud será calculado para o ano completo")
         print(f"\n  ⚠️ Para ter dados completos de 2026, você precisa:")
         print(f"     1. Adicionar dados dos meses faltantes nos arquivos Excel de origem")
-        print(f"     2. Reprocessar os dados executando o notebook dados.ipynb")
+        print(f"     2. Reprocessar os dados executando o notebook tc_ext/notebooks/dados.ipynb")
     else:
         print("⚠️ Coluna 'Ano' não encontrada no arquivo")
 else:

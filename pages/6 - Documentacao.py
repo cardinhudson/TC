@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import numpy as np
 import json
@@ -101,25 +101,6 @@ st.markdown("""
 
 st.title("📚 Documentação Completa do Sistema TC")
 
-st.info(
-    "📌 **Fonte única (single source of truth):** mantenha as regras e o comportamento do sistema "
-    "atualizados no arquivo `DOCUMENTACAO_SISTEMA_TC.md` (menu: **🧾 Especificação Técnica**). "
-    "As demais seções desta página podem conter detalhes complementares/legados."
-)
-
-with st.expander("🆕 Mudanças recentes (Jan/2026)", expanded=True):
-        st.markdown(
-                """
-                - **Best Estimate (Análise) no TC Ext:** substituição da análise legacy por uma página baseada na Home
-                    (`tc_ext/pages/be_analise_ext.py`), lendo os outputs do simulador em `dados/Forecast/`.
-                - **Regra crítica de CPU reforçada:** em qualquer total/agrupamento, CPU é sempre `CPU = sum(Total) / sum(Volume)`.
-                    (Nunca somar/média de CPU diretamente.)
-                - **Gráficos por período:** removido o corte por “mês atual” quando há Forecast, evitando esconder Fev–Dez.
-                - **Diagnósticos e sanidade:** expanders para provar fonte de dados (paths/mtimes/contagens) e checar CPU (Total/Volume).
-                - **Tabelas detalhadas (CPU):** adicionada a visão “Volume por período” para explicar variações do TOTAL mês a mês.
-                """
-        )
-
 
 def _ir_para_especificacao_tecnica() -> None:
     st.session_state["indice_documentacao"] = "🧾 Especificação Técnica (Reescrita com IA)"
@@ -198,22 +179,20 @@ def carregar_foto_base64(foto_base64):
 st.sidebar.markdown("## 📑 Índice")
 st.sidebar.markdown("---")
 
-st.sidebar.caption(
-    "📌 Fonte única: `DOCUMENTACAO_SISTEMA_TC.md` (seção 🧾 Especificação Técnica)."
-)
-
 # Criar quatro índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
     [
         "👥 Equipe do Projeto",
         "📐 Regras e Cálculo",
+        "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
         "🏗️ Arquitetura e Estrutura",
         "🧾 Especificação Técnica (Reescrita com IA)",
         "📥 Guia de Extração de Dados",
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
+        "🆕 Mudanças recentes / Changelog",
     ],
     key="indice_documentacao"
 )
@@ -1908,6 +1887,50 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         """)
 
 # ==========================================
+# SEÇÃO 2: CÁLCULO POR TABELAS/GRÁFICOS
+# ==========================================
+elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
+    st.header("🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)")
+
+    st.info(
+        "Consulta rápida para evitar divergências entre gráfico e tabela. "
+        "A referência completa está em `DOCUMENTACAO_SISTEMA_TC.md` (aba 🧾 Especificação Técnica)."
+    )
+    st.button(
+        "➡️ Abrir a Especificação Técnica completa",
+        key="btn_ir_especificacao_calculos_por_visualizacao",
+        use_container_width=True,
+        on_click=_ir_para_especificacao_tecnica,
+    )
+
+    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    if not os.path.exists(caminho_doc):
+        st.error(f"Arquivo não encontrado: {caminho_doc}")
+    else:
+        try:
+            with open(caminho_doc, "r", encoding="utf-8") as f:
+                conteudo = f.read()
+
+            def _extrair_trecho(md: str) -> str:
+                start_token = "### 9.6 Guia de cálculo por visualização"
+                start = md.find(start_token)
+                if start == -1:
+                    start_token = "## 9) Gráficos e tabelas"
+                    start = md.find(start_token)
+                if start == -1:
+                    return "⚠️ Não encontrei a seção de cálculos no arquivo de especificação."
+
+                end = md.find("\n## ", start + 1)
+                if end == -1:
+                    end = len(md)
+                return md[start:end].strip()
+
+            st.markdown("---")
+            st.markdown(_extrair_trecho(conteudo))
+        except Exception as e:
+            st.error(f"Erro ao carregar/parsear especificação: {e}")
+
+# ==========================================
 # SEÇÃO 2: ARQUITETURA E ESTRUTURA
 # ==========================================
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
@@ -1993,7 +2016,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         │       ├── forecast_completo.parquet
         │       ├── forecast_historico.parquet
         │       └── forecast_previsao.parquet
-        └── dados.ipynb                               # Notebook para processar dados
+        └── tc_ext/notebooks/dados.ipynb                               # Notebook para processar dados
         ```
         
         **Observações:**
@@ -2114,7 +2137,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             o sistema verifica e cria automaticamente as pastas necessárias:
             
             ```python
-            # Exemplo de criação de pastas (dados.ipynb)
+            # Exemplo de criação de pastas (tc_ext/notebooks/dados.ipynb)
             PASTA_ANO = f'dados/{ANO_ATUAL}'  # Ex: dados/2025
             PASTA_HISTORICO = 'dados/historico_consolidado'
             PASTA_BUD = f'dados/{ANO_ATUAL}/BUD'
@@ -2129,7 +2152,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             
             **a) Processamento de Dados do Ano:**
             - Os arquivos Excel (`Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`) são colocados na pasta do ano (ex: `dados/2025/`)
-            - O notebook `dados.ipynb` processa esses arquivos e gera os arquivos Parquet
+            - O notebook `tc_ext/notebooks/dados.ipynb` processa esses arquivos e gera os arquivos Parquet
             - Os arquivos Parquet são salvos na mesma pasta do ano
             - **Simultaneamente**, os dados são consolidados no histórico
             
@@ -2139,8 +2162,9 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             - Isso permite que o sistema tenha acesso a **todos os dados históricos** em um único lugar
             
             **c) Processamento de Budget:**
-            - Similar ao processo de dados do ano, mas os arquivos são processados pelo `dados_BUD.ipynb`
-            - Os dados de Budget são salvos em `dados/{ANO}/BUD/`
+            - Similar ao processo de dados do ano, mas os arquivos são processados pelo `tc_ext/notebooks/dados_BUD.ipynb`
+            - Os **outputs** de Budget (parquets/diagnósticos) são salvos em `dados/{ANO}/BUD/`
+            - Os **inputs** (Excels) são os mesmos do Real e ficam em `dados/{ANO}/`
             - O histórico de Budget é consolidado em `historico_consolidado/BUD/`
             
             **d) Processamento de Forecast:**
@@ -2178,7 +2202,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             ```
             Arquivos Excel (entrada)
                 │
-                ├──> Processamento (dados.ipynb)
+                ├──> Processamento (tc_ext/notebooks/dados.ipynb)
                 │       │
                 │       ├──> Salva em dados/{ANO}/ (dados do ano)
                 │       │
@@ -2190,8 +2214,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             **3. Separação de Budget:**
             
             - **Dados Reais:** `dados/{ANO}/` e `historico_consolidado/`
-            - **Dados Budget:** `dados/{ANO}/BUD/` e `historico_consolidado/BUD/`
-            - Esta separação permite comparações **Real vs Budget** sem misturar os dados
+            - **Dados Budget (outputs):** `dados/{ANO}/BUD/` e `historico_consolidado/BUD/`
+            - Esta separação evita misturar outputs de Budget com Real
             
             **4. Forecast como Dados Derivados:**
             
@@ -2430,8 +2454,8 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
     st.markdown("""
     ### 📖 Capítulo 1: Estrutura e Processamento dos Notebooks
     1. [Visão Geral](#visao-geral)
-    2. [Notebook dados.ipynb - Dados REAIS](#dados-reais)
-    3. [Notebook dados_BUD.ipynb - Dados BUDGET](#dados-budget)
+    2. [Notebook tc_ext/notebooks/dados.ipynb - Dados REAIS](#dados-reais)
+    3. [Notebook tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET](#dados-budget)
     4. [Estrutura de Arquivos de Entrada](#estrutura-entrada)
     5. [Relacionamentos e Merges](#relacionamentos)
     6. [Colunas e Estrutura Final](#colunas-finais)
@@ -2472,7 +2496,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         st.markdown("### Objetivo dos Notebooks")
         st.markdown("""
-        Os notebooks `dados.ipynb` e `dados_BUD.ipynb` são responsáveis por:
+        Os notebooks `tc_ext/notebooks/dados.ipynb` e `tc_ext/notebooks/dados_BUD.ipynb` são responsáveis por:
         - **Carregar** dados de múltiplas fontes (Excel: SAPIENS, Reporting fluxo anexo)
         - **Processar** e **normalizar** dados de diferentes formatos e guias
         - **Unificar** informações através de merges por chaves comuns
@@ -2481,13 +2505,13 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         - **Consolidar** dados históricos para análises multi-anos
         """)
         
-        st.markdown("### Diferença entre dados.ipynb e dados_BUD.ipynb")
+        st.markdown("### Diferença entre tc_ext/notebooks/dados.ipynb e tc_ext/notebooks/dados_BUD.ipynb")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("""
-            **📊 dados.ipynb - Dados REAIS**
+            **📊 tc_ext/notebooks/dados.ipynb - Dados REAIS**
         - Processa dados de custos **reais** (executados)
         - Lê guia **"Sapiens"** do Reporting fluxo anexo.xlsx
         - Lê guia **"Rateio"** para rateio por veículo
@@ -2498,7 +2522,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         with col2:
             st.markdown("""
-            **📈 dados_BUD.ipynb - Dados BUDGET**
+            **📈 tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET**
         - Processa dados de **orçamento/planejamento** (Budget)
         - Lê guia **"Voz de custo BDG"** do Reporting fluxo anexo.xlsx
         - Lê guia **"Rateio BDG"** para rateio por veículo
@@ -2511,14 +2535,14 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         st.code("""
         Arquivos Excel (Entrada)
             │
-            ├──> dados.ipynb (REAL)
+            ├──> tc_ext/notebooks/dados.ipynb (REAL)
             │       ├──> Processamento
             │       ├──> Merges (Account, Nº conta, Centro cst, Oficina+Período)
             │       ├──> Cálculo Rateio por Veículo
             │       ├──> Merge com Volume
             │       └──> Salvar Parquet + Consolidar Histórico
             │
-            └──> dados_BUD.ipynb (BUDGET)
+            └──> tc_ext/notebooks/dados_BUD.ipynb (BUDGET)
                     ├──> Processamento (mesma lógica)
                     ├──> Merges (mesmas chaves)
                     ├──> Cálculo Rateio por Veículo
@@ -2528,8 +2552,8 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         st.markdown("---")
         
-        # Seção 2: dados.ipynb - Dados REAIS
-        st.markdown("## 📊 NOTEBOOK dados.ipynb - DADOS REAIS {#dados-reais}")
+        # Seção 2: tc_ext/notebooks/dados.ipynb - Dados REAIS
+        st.markdown("## 📊 NOTEBOOK tc_ext/notebooks/dados.ipynb - DADOS REAIS {#dados-reais}")
         
         st.markdown("### Estrutura do Processamento")
         
@@ -2705,10 +2729,10 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         st.markdown("---")
         
-        # Seção 3: dados_BUD.ipynb - Dados BUDGET
-        st.markdown("## 📈 NOTEBOOK dados_BUD.ipynb - DADOS BUDGET {#dados-budget}")
+        # Seção 3: tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET
+        st.markdown("## 📈 NOTEBOOK tc_ext/notebooks/dados_BUD.ipynb - DADOS BUDGET {#dados-budget}")
         
-        st.markdown("### Diferenças Principais em Relação a dados.ipynb")
+        st.markdown("### Diferenças Principais em Relação a tc_ext/notebooks/dados.ipynb")
         
         diferencas_bud = {
             "Aspecto": [
@@ -2719,7 +2743,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                 "Sufixo dos Arquivos",
                 "Pasta de Histórico"
             ],
-            "dados.ipynb (REAL)": [
+            "tc_ext/notebooks/dados.ipynb (REAL)": [
                 '"Sapiens"',
                 '"Rateio"',
                 '"Volume"',
@@ -2727,7 +2751,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                 "Sem sufixo",
                 "dados/historico_consolidado/"
             ],
-            "dados_BUD.ipynb (BUDGET)": [
+            "tc_ext/notebooks/dados_BUD.ipynb (BUDGET)": [
                 '"Voz de custo BDG"',
                 '"Rateio BDG"',
                 '"Volume BDG"',
@@ -2742,7 +2766,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         st.markdown("### Processo Idêntico")
         st.info("""
         **IMPORTANTE**: O processo de processamento, merges, cálculos e consolidação
-        é **IDÊNTICO** ao `dados.ipynb`. A única diferença são as guias lidas e os
+        é **IDÊNTICO** ao `tc_ext/notebooks/dados.ipynb`. A única diferença são as guias lidas e os
         caminhos de saída. Todas as transformações, relacionamentos e cálculos seguem
         a mesma lógica.
         """)
@@ -2758,7 +2782,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             st.markdown("""
             **Localização**: `dados/{ANO}/Reporting fluxo anexo.xlsx` ou raiz do projeto
             
-            **Guias Utilizadas (dados.ipynb - REAL)**:
+            **Guias Utilizadas (tc_ext/notebooks/dados.ipynb - REAL)**:
             1. **"Sapiens"** (Célula 1)
                - Cabeçalho: Linha 1
                - Colunas: A até T (20 colunas)
@@ -2774,7 +2798,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                - Colunas de meses: Janeiro a Dezembro
                - Dados: Volumes por Oficina, Veículo e Período
             
-            **Guias Utilizadas (dados_BUD.ipynb - BUDGET)**:
+            **Guias Utilizadas (tc_ext/notebooks/dados_BUD.ipynb - BUDGET)**:
             1. **"Voz de custo BDG"** (equivalente a "Sapiens")
             2. **"Rateio BDG"** (equivalente a "Rateio")
             3. **"Volume BDG"** (equivalente a "Volume")
@@ -2790,7 +2814,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                - Propósito: Mapear Account para tipo de custo (Variável/Fixo)
                - Chave de merge: `Account` (Type 07)
             
-            **Observação**: Este arquivo é usado tanto em `dados.ipynb` quanto em `dados_BUD.ipynb`
+            **Observação**: Este arquivo é usado tanto em `tc_ext/notebooks/dados.ipynb` quanto em `tc_ext/notebooks/dados_BUD.ipynb`
             """)
         
         st.markdown("---")
@@ -3045,7 +3069,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         # Seção 8: Arquivos de Saída
         st.markdown("## 💾 ARQUIVOS DE SAÍDA {#arquivos-saida}")
         
-        st.markdown("### Arquivos Gerados por dados.ipynb (REAL)")
+        st.markdown("### Arquivos Gerados por tc_ext/notebooks/dados.ipynb (REAL)")
         
         arquivos_saida_real = {
             "Arquivo": [
@@ -3084,7 +3108,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         st.dataframe(pd.DataFrame(arquivos_saida_real), use_container_width=True, hide_index=True)
         
-        st.markdown("### Arquivos Gerados por dados_BUD.ipynb (BUDGET)")
+        st.markdown("### Arquivos Gerados por tc_ext/notebooks/dados_BUD.ipynb (BUDGET)")
         
         arquivos_saida_bud = {
             "Arquivo": [
@@ -3128,7 +3152,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         # Seção 9: Fluxo Completo
         st.markdown("## 🔄 FLUXO COMPLETO {#fluxo-completo}")
         
-        st.markdown("### Diagrama de Fluxo - dados.ipynb")
+        st.markdown("### Diagrama de Fluxo - tc_ext/notebooks/dados.ipynb")
         
         st.code("""
         ┌─────────────────────────────────────┐
@@ -3239,8 +3263,8 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Soluções**:
             - Verificar nomes exatos das guias (case-sensitive):
-              - `dados.ipynb`: "Sapiens", "Rateio", "Volume"
-              - `dados_BUD.ipynb`: "Voz de custo BDG", "Rateio BDG", "Volume BDG"
+              - `tc_ext/notebooks/dados.ipynb`: "Sapiens", "Rateio", "Volume"
+              - `tc_ext/notebooks/dados_BUD.ipynb`: "Voz de custo BDG", "Rateio BDG", "Volume BDG"
             - Verificar se guias existem no arquivo Excel
             """)
         
@@ -3394,7 +3418,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         2. **Mantenha backups**: Faça backup dos arquivos Parquet antes de modificar
         3. **Valide resultados**: Verifique se Volume, valores por veículo e histórico estão corretos
         4. **Documente mudanças**: Adicione comentários explicando alterações
-        5. **Mantenha consistência**: Se alterar `dados.ipynb`, altere `dados_BUD.ipynb` da mesma forma
+        5. **Mantenha consistência**: Se alterar `tc_ext/notebooks/dados.ipynb`, altere `tc_ext/notebooks/dados_BUD.ipynb` da mesma forma
         6. **Valide merges**: Sempre verifique se chaves de merge existem antes de fazer merge
         7. **Valide tipos**: Sempre verifique tipos de dados após transformações
         """)
@@ -3402,7 +3426,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         st.markdown("### Estrutura de Dependências")
         
         st.code("""
-        dados.ipynb depende de:
+        tc_ext/notebooks/dados.ipynb depende de:
         ├── Reporting fluxo anexo.xlsx
         │   ├── Guia "Sapiens" (dados principais)
         │   ├── Guia "Rateio" (percentuais por veículo)
@@ -3410,7 +3434,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         └── Dados SAPIENS.xlsx
             └── Guia "Base conso" (mapeamento Custo)
         
-        dados_BUD.ipynb depende de:
+        tc_ext/notebooks/dados_BUD.ipynb depende de:
         ├── Reporting fluxo anexo.xlsx
         │   ├── Guia "Voz de custo BDG" (dados principais)
         │   ├── Guia "Rateio BDG" (percentuais por veículo)
@@ -3472,8 +3496,8 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Processo**:
             1. Usuário seleciona o **ano** que deseja processar (ex: 2024, 2025, 2026)
             2. Usuário seleciona o **tipo de extração**:
-               - 📊 **Dados REAIS** (dados.ipynb) - Processa custos reais executados
-               - 💰 **Dados BUDGET** (dados_BUD.ipynb) - Processa dados de orçamento
+               - 📊 **Dados REAIS** (tc_ext/notebooks/dados.ipynb) - Processa custos reais executados
+               - 💰 **Dados BUDGET** (tc_ext/notebooks/dados_BUD.ipynb) - Processa dados de orçamento
                - 🔄 **Ambos** - Processa REAIS e BUDGET sequencialmente
             
             **Resultado**: Sistema sabe qual ano processar e quais notebooks executar
@@ -3532,7 +3556,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             2. **Para dados REAIS**: Cria apenas `dados/{ANO}/`
             
             3. **Para dados BUDGET**: Cria também `dados/{ANO}/BUD/`
-               - Estrutura: `dados/2024/BUD/` para dados de Budget
+                    - Estrutura: `dados/2024/BUD/` para **outputs** de Budget
             
             4. **Cria pastas de histórico** (se não existirem):
                - `dados/historico_consolidado/` - Para dados REAIS
@@ -3562,11 +3586,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Para Dados BUDGET**:
             1. **Primeira opção**: `dados/{ANO}/Nome_do_Arquivo.xlsx`
                - Exemplo: `dados/2024/Dados SAPIENS.xlsx`
-            
-            2. **Segunda opção**: `dados/{ANO}/BUD/Nome_do_Arquivo.xlsx`
-               - Exemplo: `dados/2024/BUD/Dados SAPIENS.xlsx`
-            
-            3. **Terceira opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
+
+                2. **Segunda opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
+
+                *(Compatibilidade/legado)*: se existir arquivo em `dados/{ANO}/BUD/`, ele pode ser **copiado** para `dados/{ANO}/`.
             
             **Comportamento**:
             - Sistema busca na ordem acima e usa o **primeiro arquivo encontrado**
@@ -3589,8 +3612,8 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Processo**:
             1. Usuário clica em botão de execução:
-               - "🚀 Executar dados.ipynb" (para REAIS)
-               - "🚀 Executar dados_BUD.ipynb" (para BUDGET)
+               - "🚀 Executar tc_ext/notebooks/dados.ipynb" (para REAIS)
+               - "🚀 Executar tc_ext/notebooks/dados_BUD.ipynb" (para BUDGET)
                - "🚀 Executar Ambos" (para REAIS e BUDGET)
             
             2. Sistema chama função de processamento correspondente:
@@ -3682,12 +3705,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **💰 Dados BUDGET - Ordem de Busca:**
             
             1. `dados/{ANO}/Dados SAPIENS.xlsx`
-            2. `dados/{ANO}/BUD/Dados SAPIENS.xlsx`
-            3. `./Dados SAPIENS.xlsx` (raiz)
+            2. `./Dados SAPIENS.xlsx` (raiz)
             
             1. `dados/{ANO}/Reporting fluxo anexo.xlsx`
-            2. `dados/{ANO}/BUD/Reporting fluxo anexo.xlsx`
-            3. `./Reporting fluxo anexo.xlsx` (raiz)
+            2. `./Reporting fluxo anexo.xlsx` (raiz)
             """)
         
         st.markdown("### Exemplos Práticos de Busca")
@@ -3779,7 +3800,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Pastas criadas automaticamente**:
             - `dados/{ANO}/` - Sempre criada, mesmo que vazia
-            - `dados/{ANO}/BUD/` - Criada apenas para processamento BUDGET
+            - `dados/{ANO}/BUD/` - Criada apenas para **outputs** do processamento BUDGET
             - `dados/historico_consolidado/` - Criada se não existir
             - `dados/historico_consolidado/BUD/` - Criada se não existir (para BUDGET)
             
@@ -3979,7 +4000,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                - Sistema buscará automaticamente na raiz se não encontrar na pasta do ano
             
             4. **Executar processamento**:
-               - Clicar em "🚀 Executar dados.ipynb"
+               - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
                - Sistema cria `dados/2026/` automaticamente
                - Sistema busca arquivos (encontra na raiz ou na pasta do ano)
                - Processa e salva em `dados/2026/`
@@ -4011,7 +4032,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                - Arquivo é salvo substituindo o anterior
             
             4. **Executar processamento**:
-               - Clicar em "🚀 Executar dados.ipynb"
+               - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
                - Sistema usa arquivo atualizado de `dados/2024/`
                - Processa e atualiza arquivos Parquet
                - Atualiza histórico (concatena, não substitui)
@@ -4059,7 +4080,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             2. **Executar processamento BUDGET**:
                - Selecionar tipo: "💰 Dados BUDGET"
-               - Clicar em "🚀 Executar dados_BUD.ipynb"
+               - Clicar em "🚀 Executar tc_ext/notebooks/dados_BUD.ipynb"
                - Sistema cria `dados/2024/BUD/` automaticamente
                - Processa e salva em `dados/2024/BUD/`
                - Consolida histórico BUDGET
@@ -5314,6 +5335,33 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         st.error(f"❌ Erro no chatbot: {str(e)}")
         import traceback
         st.code(traceback.format_exc())
+
+# ==========================================
+# SEÇÃO 8: MUDANÇAS RECENTES / CHANGELOG
+# ==========================================
+elif indice_selecionado == "🆕 Mudanças recentes / Changelog":
+        st.header("🆕 Mudanças recentes / Changelog")
+
+        st.info(
+                "📌 **Fonte única (single source of truth):** mantenha as regras e o comportamento do sistema "
+                "atualizados no arquivo `DOCUMENTACAO_SISTEMA_TC.md` (menu: **🧾 Especificação Técnica**). "
+                "As demais seções desta página podem conter detalhes complementares/legados."
+        )
+
+        with st.expander("🆕 Mudanças recentes (Jan/2026)", expanded=True):
+                st.markdown(
+                        """
+                        - **Best Estimate (Análise) no TC Ext:** substituição da análise legacy por uma página baseada na Home
+                            (`tc_ext/pages/be_analise_ext.py`), lendo os outputs do simulador em `dados/Forecast/`.
+                        - **Regra crítica de CPU reforçada:** em qualquer total/agrupamento, CPU é sempre `CPU = sum(Total) / sum(Volume)`.
+                            (Nunca somar/média de CPU diretamente.)
+                        - **Budget CPU por Veículo:** quando o volume do Budget não tem a dimensão `Veículo`, é necessário rateio
+                            (alocação por share de volume real) para estimar denominador por veículo.
+                        - **Gráficos por período:** removido o corte por “mês atual” quando há Forecast, evitando esconder Fev–Dez.
+                        - **Diagnósticos e sanidade:** expanders para provar fonte de dados (paths/mtimes/contagens) e checar CPU (Total/Volume).
+                        - **Tabelas detalhadas (CPU):** visão de volume/total por período para explicar variações do TOTAL mês a mês.
+                        """
+                )
 
 # Função para obter mês atual em português
 def obter_mes_atual():

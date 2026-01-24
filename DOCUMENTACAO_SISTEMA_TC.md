@@ -28,8 +28,11 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
   - Fonte: lê os outputs do simulador em `dados/Forecast/` (ex.: `forecast_completo.parquet` e `df_vol_historico.parquet`).
   - Objetivo: substituir a análise legada e reduzir divergências entre tabelas/gráficos.
 - CPU: regra reforçada em pontos críticos — **nunca somar/média de CPU**; sempre recalcular como $CPU = \sum Total / \sum Volume$ no nível de agrupamento.
+  - Padronização por helper: `tc_ext/metricas_tc_ext.py::cpu_por_chaves()` (agrega custo+volume e faz merge `outer`).
 - Gráficos por período: removido o corte por “mês atual” quando existem valores futuros (Forecast), evitando esconder Fev–Dez no ano corrente.
 - Diagnósticos: adicionados expanders com prova da fonte de dados (paths/mtimes/shapes) e checagens de sanidade de CPU.
+- Governança (Budget): **Volume BUDGET deve conter `Veículo`**. Se não existir `Veículo`, isso é **erro de extração** (o app não faz mais rateio/fallback).
+- Extração (inputs): arquivos de entrada ficam **apenas** em `dados/{ano}/` (mesma fonte para REAIS e BUDGET); outputs de Budget seguem em `dados/{ano}/BUD/`.
 
 ---
 
@@ -92,7 +95,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 ### Processamento de dados
 - `processamento_dados.py`: processamento de dados **reais** (convertido de notebook).
 - `processamento_dados_BUD.py`: processamento de dados **budget** (convertido de notebook).
-- Notebooks: `dados.ipynb`, `dados_BUD.ipynb` (fontes originais de lógica).
+- Notebooks: `tc_ext/notebooks/dados.ipynb`, `tc_ext/notebooks/dados_BUD.ipynb` (fontes originais de lógica).
 
 ### Chatbot
 - `chatbot_documentacao.py`: busca semântica local sobre documentação.
@@ -291,6 +294,105 @@ Regras:
 - Tabelas pivot por Oficina/Veículo/Período.
 - Para CPU, colunas totais devem ser recalculadas a partir de Total e Volume agregados.
 
+### 9.6 Guia de cálculo por visualização (Normal vs CPU)
+
+Esta seção existe para consulta rápida e para evitar regressões (principalmente em CPU).
+
+#### 9.6.1 Regras globais (valem para qualquer gráfico/tabela)
+
+- **CPU sempre depois de agregar**:
+
+$$CPU = \frac{\sum Total}{\sum Volume}$$
+
+- **Nunca** somar/média de CPU (inclusive em totais).
+- **Custo e Volume precisam do mesmo recorte de filtros**, mas:
+  - o volume **não pode** ser recortado pela “existência de custo”;
+  - ao combinar custo e volume, preservar chaves que existam apenas no volume (custo = 0) → `merge how='outer'`.
+- **Normalização de colunas**: usar `padronizar_colunas()` antes de merges (evita `Veículo`/`Veiculo`/`Perdodo`/`Per
+3odo` etc.).
+- **Conversões**:
+  - K/M apenas em Custo Total;
+  - conversão de moeda antes dos cálculos;
+  - CPU não recebe fator K/M diretamente.
+
+Helper recomendado:
+- `tc_ext/metricas_tc_ext.py::cpu_por_chaves(df_custo, df_volume, chaves_preferidas, ...)`.
+
+#### 9.6.2 Gráfico por Período (Real)
+
+- **Modo Custo Total**
+  - Real(periodo) = $\sum Total$ agrupado por (`Ano`, `Período`) quando existir `Ano`, senão por `Período`.
+- **Modo CPU**
+  - Real_CPU(periodo) = $\sum Total / \sum Volume$ no grão (`Ano`, `Período`).
+  - Implementação recomendada: `cpu_por_chaves(base_custo, base_vol, chaves_preferidas=("Ano","Período"))`.
+
+#### 9.6.3 Gráfico por Oficina (Real)
+
+- **Modo Custo Total**
+  - Real(oficina) = $\sum Total$ agrupado por `Oficina`.
+- **Modo CPU**
+  - Real_CPU(oficina) = $\sum Total / \sum Volume$ no mesmo recorte de filtros.
+  - Cálculo recomendado em 2 etapas:
+    1) calcular base por (`Ano`, `Período`, `Oficina`) via `cpu_por_chaves()`;
+    2) para exibição “por oficina”, agregar somando `Total` e `Volume` e dividir novamente.
+
+#### 9.6.4 Gráfico por Veículo (Real)
+
+- **Modo Custo Total**
+  - Real(veiculo) = $\sum Total$ agrupado por `Veículo`.
+- **Modo CPU**
+  - Real_CPU(veiculo) = $\sum Total / \sum Volume$ no grão (`Ano`, `Período`, `Veículo`).
+  - Implementação recomendada: `cpu_por_chaves(base_custo, base_vol, chaves_preferidas=("Ano","Período","Veículo"))`.
+
+#### 9.6.5 Tabela detalhada (Oficina x Veículo x Período)
+
+- **Modo Custo Total**
+  - Célula = $\sum Total$ no grão (`Oficina`, `Veículo`, `Período`, `Ano` opcional).
+  - Total da linha = soma das colunas.
+- **Modo CPU**
+  - Célula = $\sum Total / \sum Volume$ no mesmo grão.
+  - **Total da linha e Total geral**: recalcular como razão ponderada:
+
+$$CPU_{total} = \frac{\sum Total}{\sum Volume}$$
+
+  - Nunca somar as CPUs dos meses.
+
+#### 9.6.6 Linhas de comparação (Budget / Flex Bud / Forecast)
+
+**Budget (BUD)**
+- Custo Budget vem de `df_final_historico_BUD.parquet` (ou equivalente filtrado).
+- Volume Budget vem de `df_vol_historico_BUD.parquet`.
+- Para CPU:
+  - BUD_CPU(chave) = $BUD_{Total}(chave) / Volume_{Budget}(chave)$.
+
+**Flex Bud**
+- Flex Bud ajusta Budget ao volume real, separando **Fixo** e **Não-Fixo**.
+- Para CPU:
+  - FlexBud_CPU(chave) = $FlexBud_{Total}(chave) / Volume_{Real}(chave)$.
+
+**Budget CPU por Veículo (quando o Volume Budget não tem `Veículo`)**
+
+Limitação: em alguns conjuntos, o volume do Budget não tem `Veículo`. Nesse caso, não existe denominador direto por veículo.
+
+Abordagem recomendada (rateio):
+1) Calcular o share de volume real por veículo no grão (`Ano`, `Período`, `Veículo`) dentro do recorte.
+2) Alocar o volume Budget do período para cada veículo:
+
+$$VolBud_{alocado}(veiculo,periodo) = VolBud(periodo) \times \frac{VolReal(veiculo,periodo)}{\sum_{v} VolReal(v,periodo)}$$
+
+3) Calcular Budget_CPU por veículo:
+
+$$BUD\_CPU(veiculo) = \frac{\sum BUD\_Total(veiculo)}{\sum VolBud_{alocado}(veiculo)}$$
+
+Observações:
+- Se $\sum_v VolReal(v,periodo)=0$, não há base para rateio; o comportamento deve ser definido (ex.: CPU=0 ou não exibir).
+- O rateio deve respeitar o mesmo recorte de filtros do gráfico.
+
+**Forecast / Best Estimate**
+- O Forecast (Best Estimate) usa custo projetado (outputs do simulador em `dados/Forecast/`).
+- Para comparação “Forecast vs Budget”, a regra é a mesma: alinhar o grão e calcular CPU como razão ponderada.
+- Recomendação: expor um seletor de baseline (Budget vs Flex Bud) mantendo as mesmas fórmulas acima.
+
 ---
 
 ## 10) Processamento de dados (ETL)
@@ -351,4 +453,4 @@ Uma reescrita deve passar nos seguintes critérios:
 
 ---
 
-**Última atualização:** 2026-01-20
+**Última atualização:** 2026-01-23

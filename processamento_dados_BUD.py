@@ -10,6 +10,7 @@ import shutil
 from datetime import datetime
 from typing import Tuple, Dict, Optional
 import re
+import unicodedata
 
 
 def limpar_periodo_sufixos(df):
@@ -23,6 +24,59 @@ def limpar_periodo_sufixos(df):
     df['Período'] = df['Período'].astype(str).str.replace(r'\.\d+$', '', regex=True)
     
     return df
+
+
+def _normalizar_nome_coluna(col: object) -> str:
+    s = '' if col is None else str(col)
+    s = s.strip()
+    s = unicodedata.normalize('NFKD', s)
+    s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.lower()
+    s = ''.join(ch for ch in s if ch.isalnum())
+    return s
+
+
+def _aplicar_alias_colunas(df: pd.DataFrame, aliases: Dict[str, list[str]]) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    mapeamento = {}
+    colunas_norm = {_normalizar_nome_coluna(c): c for c in df.columns}
+    for desejada, alternativas in aliases.items():
+        if desejada in df.columns:
+            continue
+        for alt in alternativas:
+            col_real = colunas_norm.get(_normalizar_nome_coluna(alt))
+            if col_real is not None:
+                mapeamento[col_real] = desejada
+                break
+    if mapeamento:
+        df = df.rename(columns=mapeamento)
+    return df
+
+
+def _exigir_colunas(df: pd.DataFrame, obrigatorias: list[str], contexto: str) -> None:
+    faltando = [c for c in obrigatorias if c not in df.columns]
+    if faltando:
+        disponiveis = ', '.join([str(c) for c in df.columns[:80]])
+        raise ValueError(
+            f"❌ Estrutura inesperada em {contexto}. Faltando colunas: {faltando}. "
+            f"Colunas disponíveis (parcial): {disponiveis}"
+        )
+
+
+def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: str) -> None:
+    try:
+        xl = pd.ExcelFile(caminho)
+        abas = xl.sheet_names
+    except Exception as e:
+        raise ValueError(f"❌ Não foi possível abrir o Excel ({contexto}): {caminho}. Erro: {e}")
+
+    faltando = [a for a in abas_obrigatorias if a not in abas]
+    if faltando:
+        raise ValueError(
+            f"❌ Abas obrigatórias não encontradas em {contexto}: {faltando}. "
+            f"Abas disponíveis: {abas}"
+        )
 
 
 def limpar_colunas_duplicadas(df):
@@ -77,8 +131,12 @@ def limpar_colunas_duplicadas(df):
         colunas_duplicadas.extend(colunas_remover)
     
     if colunas_duplicadas:
-        print(f"⚠️ Limpeza automática: {len(colunas_duplicadas)} colunas duplicadas/inválidas removidas")
-        print(f"   Colunas removidas: {colunas_duplicadas}")
+        try:
+            print(f"WARNING: Limpeza automática: {len(colunas_duplicadas)} colunas duplicadas/inválidas removidas")
+            print(f"   Colunas removidas: {colunas_duplicadas}")
+        except Exception:
+            # Evitar falhas de encoding no console
+            pass
     
     return df
 
@@ -162,24 +220,43 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
     
     arquivos_ok = []
     arquivos_faltando = []
-    
-    def encontrar_arquivo(nome_arquivo):
-        caminho_ano = os.path.join(pasta_ano, nome_arquivo)
-        caminho_bud = os.path.join(pasta_bud, nome_arquivo)
-        caminho_raiz = os.path.join(pasta_raiz, nome_arquivo)
-        
-        if os.path.exists(caminho_ano):
-            return caminho_ano
-        elif os.path.exists(caminho_bud):
-            return caminho_bud
-        elif os.path.exists(caminho_raiz):
-            return caminho_raiz
-        else:
-            return caminho_ano
-    
+
+    def _resolver_e_copiar_para_pasta_ano(nome_arquivo: str) -> str:
+        """Garante que o arquivo de entrada fique em dados/{ano}/.
+
+        Ordem de busca (compatibilidade):
+        1) dados/{ano}/<arquivo>
+        2) raiz do projeto ./<arquivo>  -> copia para dados/{ano}/
+        3) dados/{ano}/BUD/<arquivo>   -> copia para dados/{ano}/ (legado; BUD deve ser apenas outputs)
+        """
+
+        destino_ano = os.path.join(pasta_ano, nome_arquivo)
+        origem_raiz = os.path.join(pasta_raiz, nome_arquivo)
+        origem_bud = os.path.join(pasta_bud, nome_arquivo)
+
+        if os.path.exists(destino_ano):
+            return destino_ano
+
+        if os.path.exists(origem_raiz):
+            try:
+                shutil.copy2(origem_raiz, destino_ano)
+            except Exception:
+                # Se não conseguir copiar, pelo menos usa o arquivo encontrado
+                return origem_raiz
+            return destino_ano
+
+        if os.path.exists(origem_bud):
+            try:
+                shutil.copy2(origem_bud, destino_ano)
+            except Exception:
+                return origem_bud
+            return destino_ano
+
+        return destino_ano
+
     for arquivo, descricao in arquivos_necessarios.items():
-        caminho = encontrar_arquivo(arquivo)
-        if os.path.exists(caminho):
+        caminho_resolvido = _resolver_e_copiar_para_pasta_ano(arquivo)
+        if os.path.exists(caminho_resolvido):
             arquivos_ok.append(arquivo)
         else:
             arquivos_faltando.append((arquivo, descricao))
@@ -188,8 +265,9 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
         raise Exception(f"❌ Arquivos não encontrados: {[a[0] for a in arquivos_faltando]}")
     
     # Definir caminhos
-    caminho_sapiens = encontrar_arquivo('Dados SAPIENS.xlsx')
-    caminho_rateio = encontrar_arquivo('Reporting fluxo anexo.xlsx')
+    # Entradas padronizadas em dados/{ano}/
+    caminho_sapiens = os.path.join(pasta_ano, 'Dados SAPIENS.xlsx')
+    caminho_rateio = os.path.join(pasta_ano, 'Reporting fluxo anexo.xlsx')
     
     caminho_df_final = os.path.join(pasta_bud, 'df_final_BUD.parquet')
     caminho_df_vol = os.path.join(pasta_bud, 'df_vol_BUD.parquet')
@@ -238,16 +316,34 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
         else:
             print(msg)
     
+    log("📊 Pré-validação dos arquivos (BUD)...")
+    _validar_abas_excel(config['CAMINHO_RATEIO'], ['Voz de custo BDG', 'Rateio BDG', 'Volume BDG'], "Reporting fluxo anexo.xlsx")
+    _validar_abas_excel(config['CAMINHO_SAPIENS'], ['Base conso'], "Dados SAPIENS.xlsx")
+
     log("📊 Lendo dados KE5Z (BUD)...")
     # Célula 1: Ler guia "Voz de custo BDG"
     df_KE5Z = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Voz de custo BDG')
     df_KE5Z = limpar_colunas_duplicadas(df_KE5Z)
     df_KE5Z = limpar_periodo_sufixos(df_KE5Z)
     
-    meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    
-    colunas_meses = [col for col in df_KE5Z.columns if any(mes.lower() in str(col).lower() for mes in meses)]
+    meses_prefixo = {
+        'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'
+    }
+
+    def _mes_prefixo(col):
+        col_low = str(col).strip().lower()
+        # remover caracteres problemáticos (ex.: "mar�o") e manter prefixo
+        try:
+            import unicodedata
+            col_low = unicodedata.normalize('NFKD', col_low)
+            col_low = ''.join(ch for ch in col_low if not unicodedata.combining(ch))
+        except Exception:
+            pass
+        col_low = ''.join(ch for ch in col_low if ch.isalnum())
+        pref = col_low[:3]
+        return pref if pref in meses_prefixo else None
+
+    colunas_meses = [col for col in df_KE5Z.columns if _mes_prefixo(col)]
     colunas_id = [col for col in df_KE5Z.columns if col not in colunas_meses]
     
     df_KE5Z = df_KE5Z.melt(
@@ -256,19 +352,28 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
         var_name='Período',
         value_name='Valor'
     )
+
+    df_KE5Z = _aplicar_alias_colunas(df_KE5Z, {'Veículo': ['Veículo', 'Veiculo']})
+    _exigir_colunas(df_KE5Z, ['Oficina', 'Período', 'Account', 'Valor'], "aba 'Voz de custo BDG' após melt")
     
     df_KE5Z['Valor'] = pd.to_numeric(df_KE5Z['Valor'], errors='coerce').fillna(0)
     
-    mapeamento_meses = {
-        'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
-        'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
-        'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
-        'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
+    mapeamento_meses_prefixo = {
+        'jan': 'Janeiro',
+        'fev': 'Fevereiro',
+        'mar': 'Março',
+        'abr': 'Abril',
+        'mai': 'Maio',
+        'jun': 'Junho',
+        'jul': 'Julho',
+        'ago': 'Agosto',
+        'set': 'Setembro',
+        'out': 'Outubro',
+        'nov': 'Novembro',
+        'dez': 'Dezembro',
     }
     
-    df_KE5Z['Período'] = df_KE5Z['Período'].astype(str).str.strip()
-    for mes_min, mes_cap in mapeamento_meses.items():
-        df_KE5Z['Período'] = df_KE5Z['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
+    df_KE5Z['Período'] = df_KE5Z['Período'].apply(lambda v: mapeamento_meses_prefixo.get(_mes_prefixo(v), str(v).strip().capitalize()))
     
     colunas_para_remover = []
     if 'Var/Fix' in df_KE5Z.columns:
@@ -287,6 +392,13 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
         df_base_conso = pd.read_excel(config['CAMINHO_SAPIENS'], sheet_name='Base conso')
         df_base_conso = limpar_colunas_duplicadas(df_base_conso)
         df_base_conso = limpar_periodo_sufixos(df_base_conso)
+        df_base_conso = _aplicar_alias_colunas(
+            df_base_conso,
+            {
+                'Type 04': ['Type 04', 'Type04', 'Type_04'],
+                'Type 07': ['Type 07', 'Type07', 'Type_07'],
+            },
+        )
         if 'Type 04' in df_base_conso.columns:
             df_base_conso = df_base_conso.rename(columns={'Type 04': 'Custo'})
         if 'Custo' in df_base_conso.columns and 'Type 07' in df_base_conso.columns:
@@ -317,20 +429,26 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     df = df.iloc[1:].reset_index(drop=True)
     df = df.loc[:, df.notna().any(axis=0)]
     df = df.dropna(axis=1, how='all')
+
+    df = _aplicar_alias_colunas(df, {'Veículo': ['Veículo', 'Veiculo']})
+    _exigir_colunas(df, ['Oficina', 'Veículo'], "aba 'Rateio BDG'")
     
-    meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    colunas_meses = [col for col in df.columns if any(mes.lower() in str(col).lower() for mes in meses)]
+    colunas_meses = [col for col in df.columns if _mes_prefixo(col)]
+    if not colunas_meses:
+        raise ValueError(
+            "❌ Não encontrei colunas de meses na aba 'Rateio BDG'. "
+            "Verifique se existem colunas como Janeiro, Fevereiro, ... e se o header está na linha esperada."
+        )
     colunas_id = [col for col in df.columns if col not in colunas_meses and pd.notna(col)]
     df = df.loc[:, df.columns.notna()]
-    
-    df = df.melt(id_vars=colunas_id, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
+
+    # 🔧 Robustez: manter somente o que é usado downstream
+    colunas_id_usadas = [c for c in ['Oficina', 'Veículo'] if c in df.columns]
+    df = df.melt(id_vars=colunas_id_usadas, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
     df['Rateio'] = pd.to_numeric(df['Rateio'], errors='coerce').fillna(0)
     df = df.rename(columns={'Mês': 'Período'})
     
-    df['Período'] = df['Período'].astype(str).str.strip()
-    for mes_min, mes_cap in mapeamento_meses.items():
-        df['Período'] = df['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
+    df['Período'] = df['Período'].apply(lambda v: mapeamento_meses_prefixo.get(_mes_prefixo(v), str(v).strip().capitalize()))
     
     df = df[df['Oficina'] != 'Veículos']
     df = df[df['Oficina'].notna()]
@@ -412,7 +530,11 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     log("📈 Processando volume (BUD)...")
     # Célula 10: Processar Volume BDG
     try:
-        df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=50)
+        try:
+            df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=50)
+        except ValueError:
+            # Novo layout: header na primeira linha
+            df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=0)
         df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
         df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
     except ValueError as e:
@@ -420,7 +542,10 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
             xl_file = pd.ExcelFile(config['CAMINHO_RATEIO'])
             guias_similares = [s for s in xl_file.sheet_names if 'volume' in s.lower() or 'bdg' in s.lower()]
             if guias_similares:
-                df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=50)
+                try:
+                    df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=50)
+                except ValueError:
+                    df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=0)
                 df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
                 df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
             else:
@@ -428,6 +553,9 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     
     df_ke5z_volume = df_ke5z_volume.dropna(axis=1, how='all')
     df_ke5z_volume = df_ke5z_volume.loc[:, [col for col in df_ke5z_volume.columns if (not (pd.isna(col) or str(col).strip() == ""))]]
+
+    # Normalizar alias de coluna (governança: Volume BUD deve ter Veículo)
+    df_ke5z_volume = _aplicar_alias_colunas(df_ke5z_volume, {'Veículo': ['Veículo', 'Veiculo']})
     
     # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (colunas vazias do Excel)
     # Isso previne colunas vazias que causam duplicação ao consolidar
@@ -436,12 +564,13 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
         log(f"⚠️ Removendo {len(colunas_unnamed)} colunas 'Unnamed:' vazias do Excel")
         df_ke5z_volume = df_ke5z_volume.drop(columns=colunas_unnamed)
     
-    colunas_meses_minusculas = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    colunas_meses_encontradas = []
-    for col in df_ke5z_volume.columns:
-        col_lower = str(col).lower().strip()
-        if col_lower in [m.lower() for m in colunas_meses_minusculas]:
-            colunas_meses_encontradas.append(col)
+    colunas_meses_encontradas = [col for col in df_ke5z_volume.columns if _mes_prefixo(col)]
+
+    if not colunas_meses_encontradas:
+        raise ValueError(
+            "❌ Não encontrei colunas de meses na aba 'Volume BDG' (header=50). "
+            "Verifique se as colunas Janeiro..Dezembro existem e se o header está correto."
+        )
     
     df_vol = pd.melt(
         df_ke5z_volume,
@@ -451,13 +580,19 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
         value_name='Volume'
     )
     
-    df_vol['Período'] = df_vol['Período'].astype(str).str.strip()
-    for mes_min, mes_cap in mapeamento_meses.items():
-        df_vol['Período'] = df_vol['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
+    df_vol['Período'] = df_vol['Período'].apply(lambda v: mapeamento_meses_prefixo.get(_mes_prefixo(v), str(v).strip().capitalize()))
     
+    # 🚨 Regra do negócio: Volume BUD *sempre* precisa ter 'Veículo'.
+    # Se não existir, isso é erro de extração e deve ser corrigido na fonte (Excel).
+    _exigir_colunas(df_vol, ['Oficina', 'Veículo', 'Período', 'Volume'], "aba 'Volume BDG' após melt")
     df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0)
-    df_vol = df_vol.drop_duplicates()
-    df_vol = df_vol.dropna()
+    df_vol = df_vol[df_vol['Oficina'].notna() & df_vol['Período'].notna() & df_vol['Veículo'].notna()]
+
+    # 🔧 Robustez: ignorar colunas extras e consolidar no grão correto (Oficina/Veículo/Período)
+    df_vol = df_vol[['Oficina', 'Veículo', 'Período', 'Volume']].drop_duplicates()
+    df_vol['Oficina'] = df_vol['Oficina'].astype(str).str.strip()
+    df_vol['Veículo'] = df_vol['Veículo'].astype(str).str.strip()
+    df_vol = df_vol.groupby(['Oficina', 'Veículo', 'Período'], as_index=False)['Volume'].sum()
     
     log("🔍 Aplicando filtros (BUD)...")
     # Célula 11: Filtrar Account
@@ -484,9 +619,9 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     df_KE5Z['Total'] = pd.to_numeric(df_KE5Z['Total'], errors='coerce').fillna(0)
     
     if 'Período' in df_KE5Z.columns:
-        df_KE5Z['Período'] = df_KE5Z['Período'].astype(str).str.strip()
-        for mes_min, mes_cap in mapeamento_meses.items():
-            df_KE5Z['Período'] = df_KE5Z['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
+        df_KE5Z['Período'] = df_KE5Z['Período'].apply(
+            lambda v: mapeamento_meses_prefixo.get(_mes_prefixo(v), str(v).strip().capitalize())
+        )
     
     df_vol_group = df_vol.groupby(['Oficina', 'Período'], as_index=False)['Volume'].sum()
     
@@ -518,6 +653,9 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
             print(msg)
     
     log("💾 Salvando arquivos BUD...")
+
+    # Governança: Volume BUD deve conter 'Veículo'
+    _exigir_colunas(df_vol, ['Oficina', 'Veículo', 'Período', 'Volume'], "df_vol (BUD) antes de salvar")
     
     # Adicionar coluna Ano
     if 'Ano' not in df_final.columns:
@@ -582,6 +720,14 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
             if os.path.exists(caminho_ano):
                 try:
                     df_ano = pd.read_parquet(caminho_ano)
+
+                    # Governança: todos os anos de volume BUD precisam ter 'Veículo'
+                    if nome_df == 'df_vol' and 'Veículo' not in df_ano.columns:
+                        raise ValueError(
+                            f"❌ ERRO NA EXTRAÇÃO: o volume BUD do ano {ano} não contém a coluna 'Veículo'. "
+                            f"Arquivo: {caminho_ano}. Reextraia/corrija esse ano antes de consolidar."
+                        )
+
                     # 🔧 CORREÇÃO CRÍTICA: Remover colunas duplicadas (com sufixos .1, .2, etc)
                     # Isso previne a propagação de colunas duplicadas ao consolidar múltiplos anos
                     colunas_originais = []

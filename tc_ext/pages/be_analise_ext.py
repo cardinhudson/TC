@@ -27,6 +27,9 @@ from tc_core.finance.currency_db import (
     salvar_taxas_banco as _core_salvar_taxas_banco,
 )
 
+from tc_ext.normalizacao import padronizar_colunas
+from tc_ext.metricas_tc_ext import cpu_por_chaves
+
 # Verificar mudanças nas páginas e incrementar versão se necessário
 verificar_mudancas_paginas()
 
@@ -126,6 +129,8 @@ def get_budget_oficinas_opcoes(ano_selecionado_param):
         except Exception:
             df = pd.read_parquet(caminho_budget)
 
+        df = padronizar_colunas(df)
+
         if df is None or df.empty or 'Oficina' not in df.columns:
             return []
 
@@ -163,6 +168,8 @@ def get_budget_volume_oficinas_opcoes(ano_selecionado_param):
             df = pd.read_parquet(caminho_budget_vol, columns=["Oficina", "Ano"])
         except Exception:
             df = pd.read_parquet(caminho_budget_vol)
+
+        df = padronizar_colunas(df)
 
         if df is None or df.empty or 'Oficina' not in df.columns:
             return []
@@ -797,6 +804,7 @@ def load_data(ano_selecionado_param, mtime_forecast=None):
             load_data.clear()
 
         df = pd.read_parquet(caminho_forecast)
+        df = padronizar_colunas(df)
 
         # Se um ano específico foi selecionado, filtrar após carregar
         # Isso garante que sempre usamos a mesma fonte de dados (histórico consolidado)
@@ -1357,6 +1365,7 @@ def load_volume_data(ano_selecionado_param):
         if os.path.exists(caminho_historico):
             # 🔧 CORREÇÃO: Garantir que Volume seja sempre numérico ao carregar
             df = pd.read_parquet(caminho_historico)
+            df = padronizar_colunas(df)
             if 'Volume' in df.columns:
                 df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0).astype('float64')
 
@@ -1602,6 +1611,7 @@ def load_budget_data(ano_selecionado_param):
         
         if os.path.exists(caminho_budget):
             df = pd.read_parquet(caminho_budget)
+            df = padronizar_colunas(df)
         else:
             return None
 
@@ -1681,8 +1691,16 @@ def load_budget_volume_data(ano_selecionado_param):
         
         if os.path.exists(caminho_budget_vol):
             df = pd.read_parquet(caminho_budget_vol)
+            df = padronizar_colunas(df)
         else:
             return None
+
+        # Governança: Volume BUD precisa ter 'Veículo'. Se não tiver, é erro de extração.
+        if 'Veículo' not in df.columns:
+            raise ValueError(
+                "❌ ERRO NA EXTRAÇÃO: o arquivo 'df_vol_historico_BUD.parquet' não contém a coluna 'Veículo'. "
+                "Refaça a extração do BUDGET e verifique a aba 'Volume BDG'."
+            )
 
         # Se um ano específico foi selecionado, filtrar após carregar
         if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
@@ -1736,7 +1754,10 @@ def load_budget_volume_data(ano_selecionado_param):
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
         return df
-    except Exception:
+    except Exception as e:
+        # Não mascarar erro de governança (Volume BUD sem Veículo)
+        if isinstance(e, ValueError) and "ERRO NA EXTRAÇÃO" in str(e):
+            raise
         return None
 
 # Ordem dos meses para ordenação cronológica (disponível para todas as páginas)
@@ -2953,6 +2974,60 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
         if 'Período' not in df_data.columns:
             st.warning(f"⚠️ Coluna 'Período' não encontrada. Colunas disponíveis: {list(df_data.columns)[:10]}")
             return None
+
+        # 🔧 Padronização (CPU): recomputar a base via custo+volume com merge OUTER.
+        # Assim o gráfico por período não depende de Volume já mergeado (que pode ter sido perdido/duplicado).
+        if tipo_viz == "CPU (Custo por Unidade)" and df_real_vol is not None:
+            try:
+                base_custo = df_real_original if df_real_original is not None else df_data
+                base_vol = df_real_vol
+
+                try:
+                    oficinas_recorte = set(df_data['Oficina'].astype(str).str.strip().dropna().unique().tolist()) if 'Oficina' in df_data.columns else set()
+                except Exception:
+                    oficinas_recorte = set()
+                try:
+                    veiculos_recorte = set(df_data['Veículo'].astype(str).str.strip().dropna().unique().tolist()) if 'Veículo' in df_data.columns else None
+                except Exception:
+                    veiculos_recorte = None
+                try:
+                    anos_recorte = set(pd.to_numeric(df_data['Ano'], errors='coerce').dropna().unique().tolist()) if 'Ano' in df_data.columns else None
+                except Exception:
+                    anos_recorte = None
+                try:
+                    periodos_recorte = set(df_data['Período'].astype(str).str.strip().dropna().unique().tolist()) if 'Período' in df_data.columns else None
+                except Exception:
+                    periodos_recorte = None
+
+                def _recortar(df_in: pd.DataFrame | None) -> pd.DataFrame | None:
+                    if df_in is None:
+                        return None
+                    df_out = df_in
+                    if oficinas_recorte and 'Oficina' in df_out.columns:
+                        df_out = df_out[df_out['Oficina'].astype(str).str.strip().isin(oficinas_recorte)].copy()
+                    if veiculos_recorte is not None and 'Veículo' in df_out.columns:
+                        df_out = df_out[df_out['Veículo'].astype(str).str.strip().isin(veiculos_recorte)].copy()
+                    if periodos_recorte is not None and 'Período' in df_out.columns:
+                        df_out = df_out[df_out['Período'].astype(str).str.strip().isin(periodos_recorte)].copy()
+                    if anos_recorte is not None and 'Ano' in df_out.columns:
+                        ano_num = pd.to_numeric(df_out['Ano'], errors='coerce')
+                        df_out = df_out[ano_num.isin(anos_recorte)].copy()
+                    return df_out
+
+                base_custo = _recortar(base_custo)
+                base_vol = _recortar(base_vol)
+
+                df_cpu_periodo = cpu_por_chaves(
+                    base_custo,
+                    base_vol,
+                    chaves_preferidas=("Ano", "Período"),
+                    coluna_custo="Total",
+                    coluna_volume="Volume",
+                )
+                if df_cpu_periodo is not None and not df_cpu_periodo.empty:
+                    df_data = df_cpu_periodo
+            except Exception:
+                pass
 
         # ==============================
         # DEBUG: auditoria de Flex/Volume
@@ -7310,6 +7385,16 @@ if is_main_page:
 def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None):
     """Cria gráfico de barras por Oficina com linha de Flex Bud opcional"""
     try:
+        # Robustez: garantir nomes/valores canônicos (ex.: Per\uFFFDodo -> Período)
+        try:
+            df_data = padronizar_colunas(df_data)
+            df_budget = padronizar_colunas(df_budget) if df_budget is not None else None
+            df_budget_vol = padronizar_colunas(df_budget_vol) if df_budget_vol is not None else None
+            df_real_vol = padronizar_colunas(df_real_vol) if df_real_vol is not None else None
+            df_real_original = padronizar_colunas(df_real_original) if df_real_original is not None else None
+        except Exception:
+            pass
+
         if 'Oficina' not in df_data.columns:
             return None
         if coluna not in df_data.columns:
@@ -7371,55 +7456,69 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
             return grafico_barras + rotulos
         else:
             # Gráfico normal sem separação por veículo
-            # Para CPU, recalcular a partir de Total e Volume agregados
-            if tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns and 'Volume' in df_data.columns:
-                # Verificar se há múltiplos anos
-                tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
-                
-                if tem_multiplos_anos and 'Período' in df_data.columns:
-                    # Agrupar por Oficina, Período E Ano, somar Total e Volume, calcular CPU
-                    df_agrupado_periodo = df_data.groupby(['Oficina', 'Período', 'Ano']).agg({
-                        'Total': 'sum',
-                        'Volume': 'sum'
-                    }).reset_index()
-                    # Recalcular CPU por Período+Ano (vetorizado)
-                    vol = pd.to_numeric(df_agrupado_periodo['Volume'], errors='coerce').fillna(0)
-                    tot = pd.to_numeric(df_agrupado_periodo['Total'], errors='coerce').fillna(0)
-                    df_agrupado_periodo['CPU_temp'] = np.where(vol != 0, tot / vol, 0)
-                    # Agora agrupar por Oficina, somar Total e Volume de todos os períodos
-                    chart_data = df_agrupado_periodo.groupby('Oficina').agg({
-                        'Total': 'sum',
-                        'Volume': 'sum'
-                    }).reset_index()
-                elif 'Período' in df_data.columns:
-                    # Agrupar por Oficina e Período, somar Total e Volume, calcular CPU
-                    df_agrupado_periodo = df_data.groupby(['Oficina', 'Período']).agg({
-                        'Total': 'sum',
-                        'Volume': 'sum'
-                    }).reset_index()
-                    # Recalcular CPU por Período (vetorizado)
-                    vol = pd.to_numeric(df_agrupado_periodo['Volume'], errors='coerce').fillna(0)
-                    tot = pd.to_numeric(df_agrupado_periodo['Total'], errors='coerce').fillna(0)
-                    df_agrupado_periodo['CPU_temp'] = np.where(vol != 0, tot / vol, 0)
-                    # Agora agrupar por Oficina, somar Total e Volume de todos os períodos
-                    chart_data = df_agrupado_periodo.groupby('Oficina').agg({
-                        'Total': 'sum',
-                        'Volume': 'sum'
-                    }).reset_index()
-                else:
-                    # Se não tiver Período, agrupar apenas por Oficina
-                    chart_data = df_data.groupby('Oficina').agg({
-                        'Total': 'sum',
-                        'Volume': 'sum'
-                    }).reset_index()
-                
-                # Recalcular CPU final (Total agregado / Volume agregado)
-                vol = pd.to_numeric(chart_data['Volume'], errors='coerce').fillna(0)
-                tot = pd.to_numeric(chart_data['Total'], errors='coerce').fillna(0)
-                chart_data[coluna] = np.where(vol != 0, tot / vol, 0)
-                chart_data = chart_data[['Oficina', coluna]]
+            # Para CPU, calcular SEM depender de Volume já mergeado em df_data.
+            # Regra: CPU = soma(Total) / soma(Volume) no mesmo recorte/filtros.
+            if tipo_viz == "CPU (Custo por Unidade)" and df_real_vol is not None:
+                try:
+                    df_custo_base = df_real_original if df_real_original is not None else df_data
+
+                    try:
+                        oficinas_recorte = set(df_data['Oficina'].astype(str).str.strip().dropna().unique().tolist()) if 'Oficina' in df_data.columns else set()
+                    except Exception:
+                        oficinas_recorte = set()
+                    try:
+                        periodos_recorte = set(df_data['Período'].astype(str).str.strip().dropna().unique().tolist()) if 'Período' in df_data.columns else None
+                    except Exception:
+                        periodos_recorte = None
+                    try:
+                        anos_recorte = set(pd.to_numeric(df_data['Ano'], errors='coerce').dropna().unique().tolist()) if 'Ano' in df_data.columns else None
+                    except Exception:
+                        anos_recorte = None
+                    try:
+                        veiculos_recorte = set(df_data['Veículo'].astype(str).str.strip().dropna().unique().tolist()) if 'Veículo' in df_data.columns else None
+                    except Exception:
+                        veiculos_recorte = None
+
+                    def _recortar(df_in: pd.DataFrame | None) -> pd.DataFrame | None:
+                        if df_in is None:
+                            return None
+                        df_out = df_in
+                        if oficinas_recorte and 'Oficina' in df_out.columns:
+                            df_out = df_out[df_out['Oficina'].astype(str).str.strip().isin(oficinas_recorte)].copy()
+                        if periodos_recorte is not None and 'Período' in df_out.columns:
+                            df_out = df_out[df_out['Período'].astype(str).str.strip().isin(periodos_recorte)].copy()
+                        if anos_recorte is not None and 'Ano' in df_out.columns:
+                            ano_num = pd.to_numeric(df_out['Ano'], errors='coerce')
+                            df_out = df_out[ano_num.isin(anos_recorte)].copy()
+                        if veiculos_recorte is not None and 'Veículo' in df_out.columns:
+                            df_out = df_out[df_out['Veículo'].astype(str).str.strip().isin(veiculos_recorte)].copy()
+                        return df_out
+
+                    df_custo_base = _recortar(df_custo_base)
+                    df_vol_base = _recortar(df_real_vol)
+
+                    df_cpu = cpu_por_chaves(
+                        df_custo_base,
+                        df_vol_base,
+                        chaves_preferidas=("Ano", "Período", "Oficina"),
+                        coluna_custo="Total",
+                        coluna_volume="Volume",
+                    )
+                    if df_cpu is not None and not df_cpu.empty:
+                        chart_data = (
+                            df_cpu.groupby('Oficina', as_index=False)
+                            .agg({'Total': 'sum', 'Volume': 'sum'})
+                        )
+                        vol = pd.to_numeric(chart_data['Volume'], errors='coerce').fillna(0)
+                        tot = pd.to_numeric(chart_data['Total'], errors='coerce').fillna(0)
+                        chart_data[coluna] = np.where(vol != 0, tot / vol, 0)
+                        chart_data = chart_data[['Oficina', coluna]]
+                    else:
+                        chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
+                except Exception:
+                    chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
             else:
-                # Caminho quando não tem Total/Volume ou não tem Veículo
+                # Caminho quando não tem Total/Volume ou não é CPU
                 chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
 
             # Sanitização mínima para evitar gráficos vazios/legendas NaN
@@ -7519,6 +7618,45 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         if df_budget_vol is not None and 'Período' in df_budget_vol.columns:
                             df_budget_vol = df_budget_vol.copy()
                             df_budget_vol['Período'] = df_budget_vol['Período'].apply(normalizar_periodo)
+
+                        # 🔧 CORREÇÃO CRÍTICA: o Flex Bud/Delta DEVEM respeitar o mesmo recorte do gráfico (Ano/Período/Oficina).
+                        # Sem isso, com filtro em um mês (ex.: Agosto/2026), a linha/delta pode acabar somando o ano inteiro.
+                        try:
+                            oficinas_recorte = set(chart_data['Oficina'].astype(str).str.strip().unique().tolist())
+                        except Exception:
+                            oficinas_recorte = set()
+
+                        anos_recorte = None
+                        if 'Ano' in df_data.columns:
+                            try:
+                                anos_recorte = set(pd.to_numeric(df_data['Ano'], errors='coerce').dropna().unique().tolist())
+                            except Exception:
+                                anos_recorte = None
+
+                        periodos_recorte = None
+                        if 'Período' in df_data.columns:
+                            try:
+                                periodos_recorte = set(df_data['Período'].astype(str).str.strip().unique().tolist())
+                            except Exception:
+                                periodos_recorte = None
+
+                        def _aplicar_recorte(df_in: pd.DataFrame | None) -> pd.DataFrame | None:
+                            if df_in is None:
+                                return None
+                            df_out = df_in
+                            if oficinas_recorte and 'Oficina' in df_out.columns:
+                                df_out = df_out[df_out['Oficina'].astype(str).str.strip().isin(oficinas_recorte)].copy()
+                            if periodos_recorte is not None and 'Período' in df_out.columns:
+                                df_out = df_out[df_out['Período'].astype(str).str.strip().isin(periodos_recorte)].copy()
+                            if anos_recorte is not None and 'Ano' in df_out.columns:
+                                ano_num = pd.to_numeric(df_out['Ano'], errors='coerce')
+                                df_out = df_out[ano_num.isin(anos_recorte)].copy()
+                            return df_out
+
+                        df_real_para_flex = _aplicar_recorte(df_real_para_flex)
+                        df_real_vol = _aplicar_recorte(df_real_vol)
+                        df_budget = _aplicar_recorte(df_budget)
+                        df_budget_vol = _aplicar_recorte(df_budget_vol)
                         
                         # Calcular FLEX agrupado por Oficina seguindo a mesma lógica do gráfico por Período
                         # Primeiro calcular FLEX por Período e Oficina, depois agrupar por Oficina
@@ -8032,6 +8170,22 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
 def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None, df_visualizacao_volume=None, df_total_completo=None, df_despesas=None, df_total_filtrado=None, df_volume_filtrado_grafico=None):
     """Cria gráfico de barras de Total/CPU por Veículo com linha de Flex Bud opcional"""
     try:
+        # Robustez: garantir nomes/valores canônicos (ex.: Per\uFFFDodo -> Período)
+        try:
+            df_data = padronizar_colunas(df_data)
+            df_budget = padronizar_colunas(df_budget) if df_budget is not None else None
+            df_budget_vol = padronizar_colunas(df_budget_vol) if df_budget_vol is not None else None
+            df_real_vol = padronizar_colunas(df_real_vol) if df_real_vol is not None else None
+            df_real_original = padronizar_colunas(df_real_original) if df_real_original is not None else None
+            df_total_filtrado = padronizar_colunas(df_total_filtrado) if df_total_filtrado is not None else None
+            df_volume_filtrado_grafico = (
+                padronizar_colunas(df_volume_filtrado_grafico)
+                if df_volume_filtrado_grafico is not None
+                else None
+            )
+        except Exception:
+            pass
+
         if coluna not in df_data.columns:
             if not (tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns and 'Volume' in df_data.columns):
                 return None
@@ -8058,221 +8212,56 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
             # 🔧 CORREÇÃO CRÍTICA: No modo CPU, df_data (df_visualizacao) tem Total e Volume já agregados por Oficina+Período+Veículo
             # Quando agrupamos apenas por Veículo, estamos somando valores que podem estar duplicados
             # Precisamos usar o Total DIRETO de df_real_original (dados originais) e Volume DIRETO de df_real_vol (arquivo original)
-            if tipo_viz == "CPU (Custo por Unidade)" and 'Total' in df_data.columns:
-                # 🔧 CORREÇÃO: Usar EXATAMENTE os mesmos DataFrames dos gráficos
-                # Total: usar df_total_filtrado (mesmo usado no gráfico "Total por Veículo" modo Custo Total)
-                # Volume: usar df_volume_filtrado_grafico (mesmo usado no gráfico "Volume por Veículo")
-                
-                # PRIORIDADE 1: Usar df_total_filtrado e df_volume_filtrado_grafico se disponíveis
-                if df_total_filtrado is not None and 'Total' in df_total_filtrado.columns and 'Veículo' in df_total_filtrado.columns:
-                    # Calcular Total EXATAMENTE como no gráfico "Total por Veículo" (modo Custo Total)
-                    df_total_agrupado_final = df_total_filtrado.groupby('Veículo')['Total'].sum().reset_index()
-                else:
-                    df_total_agrupado_final = None
-                
-                # PRIORIDADE 1: Usar df_volume_filtrado_grafico se disponível (mesmo usado no gráfico "Volume por Veículo")
-                if df_volume_filtrado_grafico is not None and 'Volume' in df_volume_filtrado_grafico.columns and 'Veículo' in df_volume_filtrado_grafico.columns:
-                    # Volume deve respeitar apenas filtros explícitos (sidebar/período selecionado).
-                    df_volume_processado = df_volume_filtrado_grafico.copy()
-                    df_volume_processado = df_volume_processado[
-                        df_volume_processado['Volume'].notna() & df_volume_processado['Veículo'].notna()
-                    ].copy()
+            if tipo_viz == "CPU (Custo por Unidade)":
+                base_custo = df_total_filtrado if df_total_filtrado is not None else (df_real_original if df_real_original is not None else df_data)
+                base_vol = df_volume_filtrado_grafico if df_volume_filtrado_grafico is not None else (df_real_vol if df_real_vol is not None else df_visualizacao_volume)
 
-                    tem_multiplos_anos_vol = 'Ano' in df_volume_processado.columns and df_volume_processado['Ano'].nunique() > 1
-                    
-                    if tem_multiplos_anos_vol and 'Período' in df_volume_processado.columns:
-                        df_agrupado_periodo_vol = df_volume_processado.groupby(['Veículo', 'Período', 'Ano']).agg({
-                            'Volume': 'sum'
-                        }).reset_index()
-                        df_volume_agrupado = df_agrupado_periodo_vol.groupby('Veículo').agg({
-                            'Volume': 'sum'
-                        }).reset_index()
-                    elif 'Período' in df_volume_processado.columns:
-                        df_agrupado_periodo_vol = df_volume_processado.groupby(['Veículo', 'Período']).agg({
-                            'Volume': 'sum'
-                        }).reset_index()
-                        df_volume_agrupado = df_agrupado_periodo_vol.groupby('Veículo').agg({
-                            'Volume': 'sum'
-                        }).reset_index()
-                    else:
-                        df_volume_agrupado = df_volume_processado.groupby('Veículo').agg({
-                            'Volume': 'sum'
-                        }).reset_index()
-                    
-                else:
-                    df_volume_agrupado = None
-                
-                # Se temos ambos, fazer o merge e calcular CPU
-                if df_total_agrupado_final is not None and df_volume_agrupado is not None:
-                    chart_data = pd.merge(
-                        df_total_agrupado_final,
-                        df_volume_agrupado,
-                        on='Veículo',
-                        how='left'
-                    )
-                    chart_data['Volume'] = chart_data['Volume'].fillna(0)
-                    
-                    # Calcular CPU
-                    chart_data[coluna] = chart_data.apply(
-                        lambda row: (
-                            row['Total'] / row['Volume']
-                            if pd.notnull(row['Volume']) and row['Volume'] != 0
-                            else 0
-                        ),
-                        axis=1
-                    )
-                    
-                    chart_data = chart_data[['Veículo', coluna]]
-                    # ✅ SUCESSO: Usamos os mesmos valores dos gráficos, não precisamos continuar com a lógica antiga
-                    # Pular toda a lógica antiga e ir direto para criar o gráfico
-                    # Definir uma flag para pular a lógica antiga
-                    usar_logica_antiga = False
-                else:
-                    # Fallback: usar lógica antiga
-                    usar_logica_antiga = True
-                    # Continuar com a lógica antiga (código abaixo)
-                    df_total_para_calculo = None
-                    df_volume_para_calculo = None
-                
-                # Só executar a lógica antiga se não tivermos calculado com os DataFrames corretos
-                if usar_logica_antiga:
-                    if df_total_completo is not None and 'Total' in df_total_completo.columns and 'Veículo' in df_total_completo.columns:
-                        df_total_para_calculo = df_total_completo.copy()
-                        # Aplicar apenas filtros de Ano e Oficina (se houver), mas NÃO filtro de Veículo
-                        # Os filtros de Ano e Oficina já devem estar aplicados em df_real_original
-                        if df_real_original is not None:
-                            # Aplicar filtro de Ano se houver
-                            if 'Ano' in df_real_original.columns and 'Ano' in df_total_para_calculo.columns:
-                                anos_em_real = df_real_original['Ano'].unique()
-                                if len(anos_em_real) > 0:
-                                    df_total_para_calculo = df_total_para_calculo[
-                                        df_total_para_calculo['Ano'].isin(anos_em_real)
-                                    ].copy()
-                            # Aplicar filtro de Oficina se houver
-                            if 'Oficina' in df_real_original.columns and 'Oficina' in df_total_para_calculo.columns:
-                                oficinas_em_real = df_real_original['Oficina'].unique()
-                                if len(oficinas_em_real) > 0:
-                                    df_total_para_calculo = df_total_para_calculo[
-                                        df_total_para_calculo['Oficina'].isin(oficinas_em_real)
-                                    ].copy()
-                    
-                    # Fallback: usar df_real_original se df_total_completo não estiver disponível
-                    if df_total_para_calculo is None:
-                        if df_real_original is not None and 'Total' in df_real_original.columns and 'Veículo' in df_real_original.columns:
-                            df_total_para_calculo = df_real_original
-                        else:
-                            # Último fallback: usar df_data
-                            df_total_para_calculo = df_data
-                    
-                    # Para Volume: usar df_real_vol (arquivo original)
-                    if df_real_vol is not None and 'Volume' in df_real_vol.columns and 'Veículo' in df_real_vol.columns:
-                        df_volume_para_calculo = df_real_vol
-                    elif df_visualizacao_volume is not None and 'Volume' in df_visualizacao_volume.columns and 'Veículo' in df_visualizacao_volume.columns:
-                        df_volume_para_calculo = df_visualizacao_volume
-                    
-                    if df_total_para_calculo is not None and df_volume_para_calculo is not None:
-                        # 🔧 CORREÇÃO CRÍTICA: Para calcular o Total por Veículo, precisamos de TODOS os dados de cada veículo
-                        # NÃO devemos aplicar o filtro de Veículo aqui, porque queremos somar TODOS os dados de cada veículo
-                        # Apenas aplicamos filtros de Ano e Oficina (se houver), mas NÃO o filtro de Veículo
-                        # O filtro de Veículo será aplicado DEPOIS, quando formos exibir apenas os veículos selecionados
-                        
-                        # Filtrar linhas com Volume e Veículo não nulos
-                        df_volume_filtrado = df_volume_para_calculo[
-                            df_volume_para_calculo['Volume'].notna() & df_volume_para_calculo['Veículo'].notna()
-                        ].copy()
+                if base_custo is None or base_vol is None:
+                    return None
+                if 'Total' not in base_custo.columns or 'Veículo' not in base_custo.columns:
+                    return None
+                if 'Volume' not in base_vol.columns or 'Veículo' not in base_vol.columns:
+                    return None
 
-                        # 🔧 IMPORTANTE: NÃO aplicar filtro de Veículo aqui - queremos TODOS os dados de cada veículo
-                        # Apenas aplicar filtros de Ano e Oficina se necessário (mas esses já devem estar aplicados em df_real_original)
-                        # O filtro de Veículo será aplicado DEPOIS, quando formos filtrar o resultado final
-                        
-                        # Verificar se há múltiplos anos (mesma lógica do gráfico de volume)
-                        tem_multiplos_anos_vol = 'Ano' in df_volume_filtrado.columns and df_volume_filtrado['Ano'].nunique() > 1
-                        tem_multiplos_anos_total = 'Ano' in df_total_para_calculo.columns and df_total_para_calculo['Ano'].nunique() > 1
-                        
-                        if tem_multiplos_anos_vol and 'Período' in df_volume_filtrado.columns and tem_multiplos_anos_total and 'Período' in df_total_para_calculo.columns:
-                            # Agrupar Total por Veículo, Período e Ano (usando dados originais)
-                            df_total_agrupado = df_total_para_calculo.groupby(['Veículo', 'Período', 'Ano'])['Total'].sum().reset_index()
-                            # Agrupar Volume por Veículo, Período e Ano (MESMA LÓGICA do gráfico de volume)
-                            df_agrupado_periodo_vol = df_volume_filtrado.groupby(['Veículo', 'Período', 'Ano']).agg({
-                                'Volume': 'sum'
-                            }).reset_index()
-                            # Agora agrupar por Veículo, somar Total e Volume de todos os períodos
-                            df_total_agrupado_final = df_total_agrupado.groupby('Veículo')['Total'].sum().reset_index()
-                            df_volume_agrupado = df_agrupado_periodo_vol.groupby('Veículo').agg({
-                                'Volume': 'sum'
-                            }).reset_index()
-                        elif 'Período' in df_volume_filtrado.columns and 'Período' in df_total_para_calculo.columns:
-                            # Agrupar Total por Veículo e Período (usando dados originais)
-                            df_total_agrupado = df_total_para_calculo.groupby(['Veículo', 'Período'])['Total'].sum().reset_index()
-                            # Agrupar Volume por Veículo e Período (MESMA LÓGICA do gráfico de volume)
-                            df_agrupado_periodo_vol = df_volume_filtrado.groupby(['Veículo', 'Período']).agg({
-                                'Volume': 'sum'
-                            }).reset_index()
-                            # Agora agrupar por Veículo, somar Total e Volume de todos os períodos
-                            df_total_agrupado_final = df_total_agrupado.groupby('Veículo')['Total'].sum().reset_index()
-                            df_volume_agrupado = df_agrupado_periodo_vol.groupby('Veículo').agg({
-                                'Volume': 'sum'
-                            }).reset_index()
-                        else:
-                            # Agrupar Total por Veículo (usando dados originais)
-                            df_total_agrupado_final = df_total_para_calculo.groupby('Veículo')['Total'].sum().reset_index()
-                            # Agrupar Volume por Veículo (MESMA LÓGICA do gráfico de volume)
-                            df_volume_agrupado = df_volume_filtrado.groupby('Veículo').agg({
-                                'Volume': 'sum'
-                            }).reset_index()
-                        
-                        # Fazer merge
-                        chart_data = pd.merge(
-                            df_total_agrupado_final,
-                            df_volume_agrupado,
-                            on='Veículo',
-                            how='left'
-                        )
-                        
-                        # Preencher Volume faltante com 0
-                        chart_data['Volume'] = chart_data['Volume'].fillna(0)
-                    elif 'Volume' in df_data.columns:
-                        # Fallback: usar Volume de df_data se df_real_vol não estiver disponível
-                        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
-                        
-                        if tem_multiplos_anos:
-                            df_agrupado_periodo = df_data.groupby(['Veículo', 'Período', 'Ano']).agg({
-                                'Total': 'sum',
-                                'Volume': 'sum'
-                            }).reset_index()
-                            chart_data = df_agrupado_periodo.groupby('Veículo').agg({
-                                'Total': 'sum',
-                                'Volume': 'sum'
-                            }).reset_index()
-                        elif 'Período' in df_data.columns:
-                            df_agrupado_periodo = df_data.groupby(['Veículo', 'Período']).agg({
-                                'Total': 'sum',
-                                'Volume': 'sum'
-                            }).reset_index()
-                            chart_data = df_agrupado_periodo.groupby('Veículo').agg({
-                                'Total': 'sum',
-                                'Volume': 'sum'
-                            }).reset_index()
-                        else:
-                            chart_data = df_data.groupby('Veículo').agg({
-                                'Total': 'sum',
-                                'Volume': 'sum'
-                            }).reset_index()
-                    else:
-                        # Se não tiver Volume, não pode calcular CPU
-                        return None
-                    
-                    # Recalcular CPU final (Total agregado / Volume agregado)
-                    chart_data[coluna] = chart_data.apply(
-                        lambda row: (
-                            row['Total'] / row['Volume']
-                            if pd.notnull(row['Volume']) and row['Volume'] != 0
-                            else 0
-                        ),
-                        axis=1
-                    )
-                    chart_data = chart_data[['Veículo', coluna]]
-                # Fim do bloco if usar_logica_antiga
+                # Respeitar recorte Ano/Período para evitar somar fora do filtro.
+                try:
+                    periodos_recorte = set(df_data['Período'].astype(str).str.strip().dropna().unique().tolist()) if 'Período' in df_data.columns else None
+                except Exception:
+                    periodos_recorte = None
+                try:
+                    anos_recorte = set(pd.to_numeric(df_data['Ano'], errors='coerce').dropna().unique().tolist()) if 'Ano' in df_data.columns else None
+                except Exception:
+                    anos_recorte = None
+
+                if periodos_recorte is not None and 'Período' in base_custo.columns:
+                    base_custo = base_custo[base_custo['Período'].astype(str).str.strip().isin(periodos_recorte)].copy()
+                if periodos_recorte is not None and 'Período' in base_vol.columns:
+                    base_vol = base_vol[base_vol['Período'].astype(str).str.strip().isin(periodos_recorte)].copy()
+                if anos_recorte is not None and 'Ano' in base_custo.columns:
+                    ano_num = pd.to_numeric(base_custo['Ano'], errors='coerce')
+                    base_custo = base_custo[ano_num.isin(anos_recorte)].copy()
+                if anos_recorte is not None and 'Ano' in base_vol.columns:
+                    ano_num = pd.to_numeric(base_vol['Ano'], errors='coerce')
+                    base_vol = base_vol[ano_num.isin(anos_recorte)].copy()
+
+                df_cpu = cpu_por_chaves(
+                    base_custo,
+                    base_vol,
+                    chaves_preferidas=("Ano", "Período", "Veículo"),
+                    coluna_custo="Total",
+                    coluna_volume="Volume",
+                )
+                if df_cpu is None or df_cpu.empty:
+                    return None
+
+                chart_data = (
+                    df_cpu.groupby('Veículo', as_index=False)
+                    .agg({'Total': 'sum', 'Volume': 'sum'})
+                )
+                vol = pd.to_numeric(chart_data['Volume'], errors='coerce').fillna(0)
+                tot = pd.to_numeric(chart_data['Total'], errors='coerce').fillna(0)
+                chart_data[coluna] = np.where(vol != 0, tot / vol, 0)
+                chart_data = chart_data[['Veículo', coluna]]
             else:
                 chart_data = (
                     df_data.groupby('Veículo')[coluna].sum().reset_index()
@@ -8997,6 +8986,7 @@ if is_main_page:
                 df_in = _aplicar_filtro_state(df_in, 'Oficina', 'filtro_oficina_tc_ext')
                 df_in = _aplicar_filtro_state(df_in, 'Veículo', 'filtro_veiculo_tc_ext')
                 df_in = _aplicar_filtro_state(df_in, 'USI', 'filtro_usi_tc_ext')
+                df_in = _aplicar_filtro_state(df_in, 'Período', 'filtro_periodo_tc_ext')
 
                 for col_filtro in ['Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
                     df_in = _aplicar_filtro_state(df_in, col_filtro, f'filtro_{col_filtro}_tc_ext')
@@ -9052,27 +9042,56 @@ if is_main_page:
             df_visualizacao_tab3 = df_filtrado.copy()
             if tipo_visualizacao == "CPU (Custo por Unidade)":
                 coluna_visualizacao_tab3 = 'CPU'
-                if 'Volume' not in df_visualizacao_tab3.columns:
-                    df_vol_merge_tab3 = df_volume_real_filtrado_tab3
-                    if df_vol_merge_tab3 is None:
-                        df_vol_merge_tab3 = df_vol_filtrado_sidebar
-                    if df_vol_merge_tab3 is not None:
-                        chaves_merge = [
-                            col for col in ['Oficina', 'Veículo', 'Período', 'Ano']
-                            if col in df_visualizacao_tab3.columns and col in df_vol_merge_tab3.columns
-                        ]
-                        if chaves_merge:
-                            df_visualizacao_tab3 = df_visualizacao_tab3.merge(
-                                df_vol_merge_tab3[chaves_merge + ['Volume']],
-                                on=chaves_merge,
-                                how='left'
-                            )
-                if 'Total' in df_visualizacao_tab3.columns and 'Volume' in df_visualizacao_tab3.columns:
-                    df_visualizacao_tab3['CPU'] = np.where(
-                        (df_visualizacao_tab3['Volume'].notna()) & (df_visualizacao_tab3['Volume'] != 0),
-                        df_visualizacao_tab3['Total'] / df_visualizacao_tab3['Volume'],
-                        0
-                    )
+
+                # Regra crítica (robustez): CPU = sum(Total) / sum(Volume) no grão compatível com o volume.
+                df_vol_merge_tab3 = df_volume_real_filtrado_tab3
+                if df_vol_merge_tab3 is None:
+                    df_vol_merge_tab3 = df_vol_filtrado_sidebar
+
+                # 🔧 CRÍTICO: padronizar nomes (ex.: "Ve�culo" -> "Veículo")
+                # Se não padronizar, o merge pode cair para (Oficina/Período/Ano) e repetir Volume por Veículo.
+                df_vol_merge_tab3 = padronizar_colunas(df_vol_merge_tab3) if df_vol_merge_tab3 is not None else None
+
+                if 'Total' in df_visualizacao_tab3.columns:
+                    df_visualizacao_tab3['Total'] = pd.to_numeric(df_visualizacao_tab3['Total'], errors='coerce').fillna(0)
+
+                chaves_cpu = [c for c in ['Oficina', 'Veículo', 'Período', 'Ano'] if c in df_visualizacao_tab3.columns]
+                df_custo_agr = (
+                    df_visualizacao_tab3
+                    .groupby(chaves_cpu, dropna=False)
+                    .agg({'Total': 'sum'})
+                    .reset_index()
+                )
+
+                if df_vol_merge_tab3 is not None and 'Volume' in df_vol_merge_tab3.columns:
+                    df_vol_merge_tab3 = df_vol_merge_tab3.copy()
+                    df_vol_merge_tab3['Volume'] = pd.to_numeric(df_vol_merge_tab3['Volume'], errors='coerce').fillna(0)
+                    vol_keys = [k for k in chaves_cpu if k in df_vol_merge_tab3.columns]
+                    if vol_keys:
+                        df_vol_agr = (
+                            df_vol_merge_tab3
+                            .groupby(vol_keys, dropna=False)
+                            .agg({'Volume': 'sum'})
+                            .reset_index()
+                        )
+                        df_cpu_agr = df_custo_agr.merge(df_vol_agr, on=vol_keys, how='outer')
+                    else:
+                        df_cpu_agr = df_custo_agr.copy()
+                        df_cpu_agr['Volume'] = 0
+                else:
+                    df_cpu_agr = df_custo_agr.copy()
+                    df_cpu_agr['Volume'] = 0
+
+                if 'Total' in df_cpu_agr.columns:
+                    df_cpu_agr['Total'] = pd.to_numeric(df_cpu_agr['Total'], errors='coerce').fillna(0)
+                df_cpu_agr['Volume'] = pd.to_numeric(df_cpu_agr['Volume'], errors='coerce').fillna(0)
+                df_cpu_agr['CPU'] = np.where(
+                    (df_cpu_agr['Volume'].notna()) & (df_cpu_agr['Volume'] != 0),
+                    df_cpu_agr['Total'] / df_cpu_agr['Volume'],
+                    0
+                )
+
+                df_visualizacao_tab3 = df_cpu_agr
             else:
                 coluna_visualizacao_tab3 = 'Total' if 'Total' in df_visualizacao_tab3.columns else 'Valor'
         else:
@@ -9081,9 +9100,32 @@ if is_main_page:
         
         # Exibir gráfico por Oficina
         if 'Oficina' in df_visualizacao_tab3.columns:
-            st.subheader("📊 Soma do Valor por Oficina")
+            titulo_grafico_oficina = (
+                "📊 CPU por Oficina"
+                if tipo_visualizacao == "CPU (Custo por Unidade)"
+                else "📊 Soma do Valor por Oficina"
+            )
+            st.subheader(titulo_grafico_oficina)
             try:
                 df_grafico_oficina = df_visualizacao_tab3.copy()
+
+                # 🔧 Robustez (CPU): calcular no mesmo grão do volume (Ano/Período/Oficina)
+                # para evitar duplicação de Volume quando custo tem dimensão Veículo.
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    try:
+                        df_base_custo = df_filtrado.copy() if 'df_filtrado' in locals() and df_filtrado is not None else df_grafico_oficina
+                        df_base_vol = df_volume_real_filtrado_tab3
+                        df_cpu_graf_of = cpu_por_chaves(
+                            df_base_custo,
+                            df_base_vol,
+                            chaves_preferidas=("Ano", "Período", "Oficina"),
+                            coluna_custo="Total",
+                            coluna_volume="Volume",
+                        )
+                        if df_cpu_graf_of is not None and not df_cpu_graf_of.empty:
+                            df_grafico_oficina = df_cpu_graf_of
+                    except Exception:
+                        pass
 
                 # Padronizar coluna Veículo localmente (sem alterar a UI)
                 if 'Veículo' not in df_grafico_oficina.columns:
@@ -9327,7 +9369,7 @@ if is_main_page:
                             df_vol_agr = df_custo_agr[chaves_agr].copy()
                             df_vol_agr['Volume'] = 0
 
-                        df_real_agr = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='left')
+                        df_real_agr = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='outer')
                         df_real_agr['Volume'] = pd.to_numeric(df_real_agr['Volume'], errors='coerce').fillna(0)
                         df_real_agr['Total'] = pd.to_numeric(df_real_agr['Total'], errors='coerce').fillna(0)
                         df_real_agr['CPU'] = np.where(
@@ -9435,7 +9477,7 @@ if is_main_page:
                         df_vol_agr = df_custo_agr[chaves_agr].copy()
                         df_vol_agr['Volume'] = 0
 
-                    df_real_agr_cpu = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='left')
+                    df_real_agr_cpu = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='outer')
                     df_real_agr_cpu['Volume'] = pd.to_numeric(df_real_agr_cpu['Volume'], errors='coerce').fillna(0)
                     df_real_agr_cpu['Total'] = pd.to_numeric(df_real_agr_cpu['Total'], errors='coerce').fillna(0)
                     df_real_agr_cpu['CPU'] = np.where(
@@ -10596,17 +10638,50 @@ if is_main_page:
                     if tipo_visualizacao == "CPU (Custo por Unidade)":
                         df_custo_agr = df_budget_pivot.groupby(chaves_agr_budget, dropna=False).agg({'Total': 'sum'}).reset_index()
 
-                        if (
+                        # Volume Budget pode não ter Veículo.
+                        # Se NÃO tiver Veículo, ratear o Volume do Budget por veículo usando a participação do volume Real
+                        # (mesmos filtros). Isso evita dividir custo de um veículo pelo volume total da oficina.
+                        bud_vol_tem_veiculo = (
                             df_budget_vol_base is not None
-                            and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
-                            and all(k in df_budget_vol_base.columns for k in chaves_agr_budget)
-                        ):
-                            df_vol_agr = df_budget_vol_base.groupby(chaves_agr_budget, dropna=False).agg({'Volume': 'sum'}).reset_index()
-                        else:
-                            df_vol_agr = df_custo_agr[chaves_agr_budget].copy()
-                            df_vol_agr['Volume'] = 0
+                            and hasattr(df_budget_vol_base, 'columns')
+                            and 'Veículo' in df_budget_vol_base.columns
+                        )
 
-                        df_budget_agr = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr_budget, how='left')
+                        if (
+                            (not bud_vol_tem_veiculo)
+                            and df_budget_vol_base is not None
+                            and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
+                        ):
+                            st.error(
+                                "❌ ERRO NA EXTRAÇÃO: o Volume do Budget precisa conter a coluna 'Veículo'. "
+                                "Não é mais permitido rateio/fallback no app."
+                            )
+                            st.info(
+                                "💡 Refaça a extração do BUDGET (página 'Extração de Dados') e corrija a aba 'Volume BDG' no Excel."
+                            )
+                            st.stop()
+                        else:
+                            # Volume Budget tem Veículo (ou não existe volume): usar merge direto no mesmo grão
+                            vol_keys = []
+                            if df_budget_vol_base is not None and hasattr(df_budget_vol_base, 'columns'):
+                                vol_keys = [k for k in chaves_agr_budget if k in df_budget_vol_base.columns]
+
+                            if (
+                                df_budget_vol_base is not None
+                                and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
+                                and vol_keys
+                            ):
+                                df_vol_agr = (
+                                    df_budget_vol_base
+                                    .groupby(vol_keys, dropna=False)
+                                    .agg({'Volume': 'sum'})
+                                    .reset_index()
+                                )
+                                df_budget_agr = pd.merge(df_custo_agr, df_vol_agr, on=vol_keys, how='left')
+                            else:
+                                df_budget_agr = df_custo_agr.copy()
+                                df_budget_agr['Volume'] = 0
+
                         df_budget_agr['Volume'] = pd.to_numeric(df_budget_agr['Volume'], errors='coerce').fillna(0)
 
                         df_budget_agr['CPU'] = np.where(
@@ -10793,17 +10868,26 @@ if is_main_page:
                     if tipo_visualizacao == "CPU (Custo por Unidade)":
                         df_custo_of = df_pivot_budget.groupby(chaves_of, dropna=False).agg({'Total': 'sum'}).reset_index()
 
+                        vol_keys_of = []
+                        if df_budget_vol_base is not None and hasattr(df_budget_vol_base, 'columns'):
+                            vol_keys_of = [k for k in chaves_of if k in df_budget_vol_base.columns]
+
                         if (
                             df_budget_vol_base is not None
                             and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
-                            and all(k in df_budget_vol_base.columns for k in chaves_of)
+                            and vol_keys_of
                         ):
-                            df_vol_of = df_budget_vol_base.groupby(chaves_of, dropna=False).agg({'Volume': 'sum'}).reset_index()
+                            df_vol_of = (
+                                df_budget_vol_base
+                                .groupby(vol_keys_of, dropna=False)
+                                .agg({'Volume': 'sum'})
+                                .reset_index()
+                            )
+                            df_cpu_agr = pd.merge(df_custo_of, df_vol_of, on=vol_keys_of, how='left')
                         else:
-                            df_vol_of = df_custo_of[chaves_of].copy()
-                            df_vol_of['Volume'] = 0
+                            df_cpu_agr = df_custo_of.copy()
+                            df_cpu_agr['Volume'] = 0
 
-                        df_cpu_agr = pd.merge(df_custo_of, df_vol_of, on=chaves_of, how='left')
                         df_cpu_agr['Volume'] = pd.to_numeric(df_cpu_agr['Volume'], errors='coerce').fillna(0)
                         df_cpu_agr['CPU'] = np.where(
                             (df_cpu_agr['Volume'].notna()) & (df_cpu_agr['Volume'] != 0),
@@ -10893,14 +10977,49 @@ if is_main_page:
 
                     df_custo_agr = df_budget_total.groupby(chaves, dropna=False).agg({'Total': 'sum'}).reset_index()
 
-                    # Volume agregado (somando sobre oficinas)
-                    if df_budget_vol_base is not None and 'Volume' in df_budget_vol_base.columns and all(k in df_budget_vol_base.columns for k in chaves):
-                        df_volume_agr = df_budget_vol_base.groupby(chaves, dropna=False).agg({'Volume': 'sum'}).reset_index()
-                    else:
-                        df_volume_agr = df_custo_agr[chaves].copy()
-                        df_volume_agr['Volume'] = 0
+                    # Volume agregado
+                    bud_vol_tem_veiculo = (
+                        df_budget_vol_base is not None
+                        and hasattr(df_budget_vol_base, 'columns')
+                        and 'Veículo' in df_budget_vol_base.columns
+                    )
 
-                    df_total_agr = pd.merge(df_custo_agr, df_volume_agr, on=chaves, how='left')
+                    if (
+                        tipo_visualizacao == "CPU (Custo por Unidade)"
+                        and (not bud_vol_tem_veiculo)
+                        and df_budget_vol_base is not None
+                        and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
+                    ):
+                        st.error(
+                            "❌ ERRO NA EXTRAÇÃO: o Volume do Budget precisa conter a coluna 'Veículo'. "
+                            "Não é mais permitido rateio/fallback no app."
+                        )
+                        st.info(
+                            "💡 Refaça a extração do BUDGET (página 'Extração de Dados') e corrija a aba 'Volume BDG' no Excel."
+                        )
+                        st.stop()
+                    else:
+                        # Volume agregado direto no grão disponível
+                        vol_keys_tot = []
+                        if df_budget_vol_base is not None and hasattr(df_budget_vol_base, 'columns'):
+                            vol_keys_tot = [k for k in chaves if k in df_budget_vol_base.columns]
+
+                        if (
+                            df_budget_vol_base is not None
+                            and 'Volume' in getattr(df_budget_vol_base, 'columns', [])
+                            and vol_keys_tot
+                        ):
+                            df_volume_agr = (
+                                df_budget_vol_base
+                                .groupby(vol_keys_tot, dropna=False)
+                                .agg({'Volume': 'sum'})
+                                .reset_index()
+                            )
+                            df_total_agr = pd.merge(df_custo_agr, df_volume_agr, on=vol_keys_tot, how='left')
+                        else:
+                            df_total_agr = df_custo_agr.copy()
+                            df_total_agr['Volume'] = 0
+
                     df_total_agr['Volume'] = pd.to_numeric(df_total_agr['Volume'], errors='coerce').fillna(0)
 
                     # Coluna de pivot

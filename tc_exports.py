@@ -54,7 +54,7 @@ def load_data(ano_selecionado_param):
 
     if not os.path.exists(caminho_historico):
         st.error(f"❌ Arquivo de histórico consolidado não encontrado: {caminho_absoluto}")
-        st.info("💡 Execute o dados.ipynb para gerar o histórico consolidado")
+        st.info("💡 Execute tc_ext/notebooks/dados.ipynb para gerar o histórico consolidado")
         st.stop()
 
     df = pd.read_parquet(caminho_historico)
@@ -130,6 +130,17 @@ def load_budget_volume_data(ano_selecionado_param):
 
     df = pd.read_parquet(caminho_budget_vol)
     df = normalize_common_column_mojibake(df)
+
+    # Governança: Volume BUD *precisa* ter Veículo; ausência indica erro na extração.
+    if "Veículo" not in df.columns:
+        st.error(
+            "❌ ERRO NA EXTRAÇÃO: o arquivo de volume do Budget não contém a coluna 'Veículo'."
+        )
+        st.info(
+            "💡 Refaça a extração do BUDGET (página 'Extração de Dados') e corrija a aba 'Volume BDG' "
+            "no Excel para incluir 'Veículo'."
+        )
+        st.stop()
 
     if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
         try:

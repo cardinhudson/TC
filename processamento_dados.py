@@ -9,6 +9,7 @@ import os
 import shutil
 from datetime import datetime
 from typing import Tuple, Dict, Optional
+import unicodedata
 
 
 MAPEAMENTO_MESES = {
@@ -17,6 +18,165 @@ MAPEAMENTO_MESES = {
     'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
     'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
 }
+
+# Prefixos para identificação de meses mesmo com variações/encoding (ex.: "mar�o")
+MAPEAMENTO_MESES_PREFIXO = {
+    'jan': 'Janeiro',
+    'fev': 'Fevereiro',
+    'mar': 'Março',
+    'abr': 'Abril',
+    'mai': 'Maio',
+    'jun': 'Junho',
+    'jul': 'Julho',
+    'ago': 'Agosto',
+    'set': 'Setembro',
+    'out': 'Outubro',
+    'nov': 'Novembro',
+    'dez': 'Dezembro',
+}
+
+
+def _mes_prefixo_de_coluna(col: object) -> str | None:
+    norm = _normalizar_nome_coluna(col)
+    if not norm:
+        return None
+    pref = norm[:3]
+    return pref if pref in MAPEAMENTO_MESES_PREFIXO else None
+
+
+def _encontrar_colunas_meses(df: pd.DataFrame) -> list[str]:
+    if df is None or df.empty:
+        return []
+    cols = []
+    for c in df.columns:
+        if _mes_prefixo_de_coluna(c):
+            cols.append(c)
+    return cols
+
+
+def _normalizar_nome_mes(mes: object) -> str:
+    pref = _mes_prefixo_de_coluna(mes)
+    if pref:
+        return MAPEAMENTO_MESES_PREFIXO[pref]
+    # fallback: tentar lógica antiga por substituição
+    s = '' if mes is None else str(mes)
+    s = s.strip()
+    s_low = s.lower()
+    for mes_min, mes_cap in MAPEAMENTO_MESES.items():
+        if mes_min in s_low:
+            return mes_cap
+    return s.strip().capitalize() if s else ''
+
+
+def _detectar_header_por_rotulos(caminho: str, sheet_name: str, rotulos: list[str], max_linhas: int = 80) -> int | None:
+    try:
+        df_preview = pd.read_excel(caminho, sheet_name=sheet_name, header=None, nrows=max_linhas)
+    except Exception:
+        return None
+
+    rot_norm = {_normalizar_nome_coluna(r) for r in rotulos}
+    for i in range(len(df_preview)):
+        row_vals = df_preview.iloc[i].tolist()
+        row_norm = {_normalizar_nome_coluna(v) for v in row_vals if v is not None and str(v).strip()}
+        if rot_norm.issubset(row_norm):
+            return int(i)
+    return None
+
+
+def _ler_aba_volume_auto(caminho: str, sheet_name: str) -> pd.DataFrame:
+    """Lê aba de Volume suportando layout antigo (header=50) e novo (header=0/linha detectada)."""
+    # 1) tentativa: layout antigo
+    for header in (50, 0, 1, 2):
+        try:
+            df = pd.read_excel(caminho, sheet_name=sheet_name, header=header)
+        except ValueError:
+            continue
+        except Exception:
+            continue
+
+        df = limpar_colunas_duplicadas(df)
+        df = _aplicar_alias_colunas(
+            df,
+            {
+                'Veículo': ['Veículo', 'Veiculo', 'Veculo'],
+                'Oficina': ['Oficina'],
+            },
+        )
+        # se encontrou meses + oficina, consideramos válido
+        if 'Oficina' in df.columns and _encontrar_colunas_meses(df):
+            return df
+
+    # 2) tentativa: detectar header por rótulos
+    header_detectado = _detectar_header_por_rotulos(caminho, sheet_name, ['Oficina', 'Veículo'])
+    if header_detectado is None:
+        header_detectado = _detectar_header_por_rotulos(caminho, sheet_name, ['Oficina'])
+    if header_detectado is not None:
+        df = pd.read_excel(caminho, sheet_name=sheet_name, header=header_detectado)
+        df = limpar_colunas_duplicadas(df)
+        df = _aplicar_alias_colunas(
+            df,
+            {
+                'Veículo': ['Veículo', 'Veiculo', 'Veculo'],
+                'Oficina': ['Oficina'],
+            },
+        )
+        return df
+
+    # fallback final: manter erro original para facilitar diagnóstico
+    return pd.read_excel(caminho, sheet_name=sheet_name, header=50)
+
+
+def _normalizar_nome_coluna(col: object) -> str:
+    s = '' if col is None else str(col)
+    s = s.strip()
+    s = unicodedata.normalize('NFKD', s)
+    s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.lower()
+    s = ''.join(ch for ch in s if ch.isalnum())
+    return s
+
+
+def _aplicar_alias_colunas(df: pd.DataFrame, aliases: Dict[str, list[str]]) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    mapeamento = {}
+    colunas_norm = {_normalizar_nome_coluna(c): c for c in df.columns}
+    for desejada, alternativas in aliases.items():
+        if desejada in df.columns:
+            continue
+        for alt in alternativas:
+            col_real = colunas_norm.get(_normalizar_nome_coluna(alt))
+            if col_real is not None:
+                mapeamento[col_real] = desejada
+                break
+    if mapeamento:
+        df = df.rename(columns=mapeamento)
+    return df
+
+
+def _exigir_colunas(df: pd.DataFrame, obrigatorias: list[str], contexto: str) -> None:
+    faltando = [c for c in obrigatorias if c not in df.columns]
+    if faltando:
+        disponiveis = ', '.join([str(c) for c in df.columns[:80]])
+        raise ValueError(
+            f"❌ Estrutura inesperada em {contexto}. Faltando colunas: {faltando}. "
+            f"Colunas disponíveis (parcial): {disponiveis}"
+        )
+
+
+def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: str) -> None:
+    try:
+        xl = pd.ExcelFile(caminho)
+        abas = xl.sheet_names
+    except Exception as e:
+        raise ValueError(f"❌ Não foi possível abrir o Excel ({contexto}): {caminho}. Erro: {e}")
+
+    faltando = [a for a in abas_obrigatorias if a not in abas]
+    if faltando:
+        raise ValueError(
+            f"❌ Abas obrigatórias não encontradas em {contexto}: {faltando}. "
+            f"Abas disponíveis: {abas}"
+        )
 
 
 def normalizar_coluna_periodo(df: pd.DataFrame, coluna: str = 'Período') -> pd.DataFrame:
@@ -262,10 +422,23 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         else:
             print(msg)
     
+    log("📊 Pré-validação dos arquivos...")
+    _validar_abas_excel(config['CAMINHO_RATEIO'], ['Sapiens', 'Rateio', 'Volume'], "Reporting fluxo anexo.xlsx")
+    _validar_abas_excel(config['CAMINHO_SAPIENS'], ['Base conso'], "Dados SAPIENS.xlsx")
+
     log("📊 Lendo dados KE5Z...")
     # Célula 1: Ler dados Sapiens
     df_KE5Z = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Sapiens', header=1)
     df_KE5Z = limpar_colunas_duplicadas(df_KE5Z)  # 🔧 Limpar colunas duplicadas
+    df_KE5Z = _aplicar_alias_colunas(
+        df_KE5Z,
+        {
+            'Nºconta': ['Nºconta', 'N°conta', 'Nº conta', 'N° conta', 'No conta', 'Noconta'],
+            'Período': ['Período', 'Periodo'],
+            'Veículo': ['Veículo', 'Veiculo', 'Veculo'],
+        },
+    )
+    _exigir_colunas(df_KE5Z, ['Valor', 'QTD', 'Nºconta', 'Oficina', 'Período', 'Account', 'USI'], "aba 'Sapiens'")
     df_KE5Z['Valor'] = pd.to_numeric(df_KE5Z['Valor'], errors='coerce').fillna(0)
     df_KE5Z['QTD'] = pd.to_numeric(df_KE5Z['QTD'], errors='coerce').fillna(0)
     df_KE5Z = df_KE5Z[df_KE5Z['Nºconta'].notna() & (df_KE5Z['Valor'] != 0)]
@@ -277,8 +450,16 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     # Célula 2: Merge com Base Conso
     df_base_conso = pd.read_excel(config['CAMINHO_SAPIENS'], sheet_name='Base conso')
     df_base_conso = limpar_colunas_duplicadas(df_base_conso)  # 🔧 Limpar colunas duplicadas
+    df_base_conso = _aplicar_alias_colunas(
+        df_base_conso,
+        {
+            'Type 04': ['Type 04', 'Type04', 'Type_04'],
+            'Type 07': ['Type 07', 'Type07', 'Type_07'],
+        },
+    )
     if 'Type 04' in df_base_conso.columns:
         df_base_conso = df_base_conso.rename(columns={'Type 04': 'Custo'})
+    _exigir_colunas(df_base_conso, ['Custo', 'Type 07'], "aba 'Base conso'")
     df_base_conso = df_base_conso[['Custo', 'Type 07']].rename(columns={'Type 07': 'Account'})
     df_KE5Z = pd.merge(
         df_KE5Z,
@@ -305,17 +486,28 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     df = df.iloc[1:].reset_index(drop=True)
     df = df.loc[:, df.notna().any(axis=0)]
     df = df.dropna(axis=1, how='all')
+
+    df = _aplicar_alias_colunas(df, {'Veículo': ['Veículo', 'Veiculo']})
+    _exigir_colunas(df, ['Oficina', 'Veículo'], "aba 'Rateio'")
     
     meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    colunas_meses = [col for col in df.columns if any(mes.lower() in str(col).lower() for mes in meses)]
+    colunas_meses = _encontrar_colunas_meses(df)
+    if not colunas_meses:
+        raise ValueError(
+            "❌ Não encontrei colunas de meses na aba 'Rateio'. "
+            "Verifique se existem colunas como Janeiro, Fevereiro, ... e se o header está na linha esperada."
+        )
     colunas_id = [col for col in df.columns if col not in colunas_meses and pd.notna(col)]
     df = df.loc[:, df.columns.notna()]
-    
-    df = df.melt(id_vars=colunas_id, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
+
+    # 🔧 Robustez: manter somente o que é usado downstream
+    colunas_id_usadas = [c for c in ['Oficina', 'Veículo'] if c in df.columns]
+    df = df.melt(id_vars=colunas_id_usadas, value_vars=colunas_meses, var_name='Mês', value_name='Rateio')
     df['Rateio'] = pd.to_numeric(df['Rateio'], errors='coerce').fillna(0)
     df = df.rename(columns={'Mês': 'Período'})
-    df = normalizar_coluna_periodo(df, 'Período')
+    # Meses da aba Rateio são apenas nomes (sem ano) -> normalizar por prefixo, robusto a encoding
+    df['Período'] = df['Período'].apply(_normalizar_nome_mes)
     if 'Veículo' in df.columns:
         df['Veículo'] = df['Veículo'].astype(str).str.strip()
     df = df[df['Oficina'] != 'Veículos']
@@ -404,8 +596,16 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     
     log("📈 Processando volume...")
     # Célula 10: Processar Volume
-    df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume', header=50)
+    df_ke5z_volume = _ler_aba_volume_auto(config['CAMINHO_RATEIO'], sheet_name='Volume')
     df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)  # 🔧 Limpar colunas duplicadas
+
+    # 🔧 Robustez: normalizar nome da coluna Veículo (há anos que vêm como "Veiculo")
+    df_ke5z_volume = _aplicar_alias_colunas(
+        df_ke5z_volume,
+        {
+            'Veículo': ['Veículo', 'Veiculo', 'Veculo'],
+        },
+    )
     
     # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (não apenas Unnamed: 14)
     # Isso previne colunas vazias do Excel que causam duplicação ao consolidar
@@ -421,30 +621,45 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro'
     }
     
-    colunas_meses_minusculas = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    colunas_meses_encontradas = []
-    for col in df_ke5z_volume.columns:
-        col_lower = str(col).lower().strip()
-        if col_lower in [m.lower() for m in colunas_meses_minusculas]:
-            colunas_meses_encontradas.append(col)
+    colunas_meses_encontradas = _encontrar_colunas_meses(df_ke5z_volume)
+
+    if not colunas_meses_encontradas:
+        raise ValueError(
+            "❌ Não encontrei colunas de meses na aba 'Volume' (header=50). "
+            "Verifique se as colunas Janeiro..Dezembro existem e se o header está correto."
+        )
     
+    # 🔧 Robustez: manter apenas dimensões necessárias (evita colunas extras causarem duplicação)
+    colunas_id_vol = [c for c in ['Oficina', 'Veículo'] if c in df_ke5z_volume.columns]
+    if not colunas_id_vol:
+        colunas_id_vol = [c for c in ['Oficina'] if c in df_ke5z_volume.columns]
     df_vol = pd.melt(
         df_ke5z_volume,
-        id_vars=[col for col in df_ke5z_volume.columns if col not in colunas_meses_encontradas],
+        id_vars=colunas_id_vol,
         value_vars=colunas_meses_encontradas,
         var_name='Período',
         value_name='Volume'
     )
     
-    df_vol['Período'] = df_vol['Período'].astype(str).str.strip()
-    for mes_min, mes_cap in mapeamento_meses.items():
-        df_vol['Período'] = df_vol['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
+    df_vol['Período'] = df_vol['Período'].apply(_normalizar_nome_mes)
     
-    df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce')
+    _exigir_colunas(df_vol, ['Oficina', 'Período', 'Volume'], "aba 'Volume' após melt")
+    df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0)
     df_vol = df_vol[df_vol['Oficina'].notna() & df_vol['Período'].notna()]
-    df_vol['Volume'] = df_vol['Volume'].fillna(0)
-    df_vol = df_vol.drop_duplicates()
-    df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0).astype('float64')
+
+    # 🔧 Robustez: preservar Veículo quando existir (ex.: 2025) e consolidar com a granularidade correta
+    usar_veiculo_no_vol = 'Veículo' in df_vol.columns and df_vol['Veículo'].notna().any()
+    if usar_veiculo_no_vol:
+        df_vol = df_vol[df_vol['Veículo'].notna()].copy()
+        df_vol['Veículo'] = df_vol['Veículo'].astype(str).str.strip()
+        colunas_chave_vol = ['Oficina', 'Veículo', 'Período']
+        df_vol = df_vol[colunas_chave_vol + ['Volume']].drop_duplicates()
+        df_vol = df_vol.groupby(colunas_chave_vol, as_index=False, dropna=False)['Volume'].sum()
+    else:
+        colunas_chave_vol = ['Oficina', 'Período']
+        df_vol = df_vol[colunas_chave_vol + ['Volume']].drop_duplicates()
+        df_vol = df_vol.groupby(colunas_chave_vol, as_index=False, dropna=False)['Volume'].sum()
+    df_vol['Volume'] = df_vol['Volume'].astype('float64')
     
     log("🔍 Aplicando filtros...")
     # Célula 11: Diagnóstico antes do filtro de Account
@@ -485,12 +700,16 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         for mes_min, mes_cap in mapeamento_meses.items():
             df_KE5Z['Período'] = df_KE5Z['Período'].str.replace(mes_min, mes_cap, case=False, regex=False)
     
-    df_vol_group = df_vol.groupby(['Oficina', 'Período'], as_index=False)['Volume'].sum()
+    # Célula 12: Agrupar Volume e fazer merge final (usar Veículo quando houver)
+    colunas_merge_ke5z_vol = ['Oficina', 'Período']
+    if 'Veículo' in df_KE5Z.columns and 'Veículo' in df_vol.columns and df_vol['Veículo'].notna().any():
+        colunas_merge_ke5z_vol.append('Veículo')
+    df_vol_group = df_vol.groupby(colunas_merge_ke5z_vol, as_index=False, dropna=False)['Volume'].sum()
     
     df_ke5z_group = pd.merge(
         df_KE5Z.drop(columns=[col for col in df_KE5Z.columns if col.lower() == 'volume']),
         df_vol_group,
-        on=['Oficina', 'Período'],
+        on=colunas_merge_ke5z_vol,
         how='left'
     )
     

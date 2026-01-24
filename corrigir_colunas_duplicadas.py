@@ -156,7 +156,7 @@ def main():
     
     if arquivos_corrigidos > 0:
         print("\n💡 PRÓXIMOS PASSOS:")
-        print("   1. Execute novamente o processamento de dados (dados.ipynb ou dados_BUD.ipynb)")
+        print("   1. Execute novamente o processamento de dados (tc_ext/notebooks/dados.ipynb ou tc_ext/notebooks/dados_BUD.ipynb)")
         print("   2. Isso irá recriar o histórico consolidado sem colunas duplicadas")
         print("   3. Recarregue a aplicação Streamlit para ver as correções")
     

@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import os
-import shutil
 import subprocess
 from datetime import datetime
 from versionamento import obter_versao_atual
 import sys
+import re
 
 # Adicionar o diretório raiz ao path para importar os módulos de processamento
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -135,7 +135,7 @@ col_config1, col_config2 = st.columns(2)
 with col_config1:
     tipo_extracao = st.radio(
         "📊 Selecione o tipo de extração:",
-        ["📊 Dados REAIS (dados.ipynb)", "💰 Dados BUDGET (dados_BUD.ipynb)", "🔄 Ambos"],
+        ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"],
         horizontal=True
     )
 
@@ -169,6 +169,249 @@ Use o botão na página principal para verificar se estão atualizados.
 # FUNÇÕES DE VALIDAÇÃO
 # ==========================================
 
+MESES_PT = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+]
+
+
+def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: str) -> tuple[bool, list[str]]:
+    msgs: list[str] = []
+    try:
+        xl = pd.ExcelFile(caminho)
+        abas = xl.sheet_names
+    except Exception as e:
+        return False, [f"❌ Não foi possível abrir o Excel ({contexto}): {caminho}. Erro: {e}"]
+
+    faltando = [a for a in abas_obrigatorias if a not in abas]
+    if faltando:
+        msgs.append(f"❌ Abas faltando em {contexto}: {faltando}")
+        msgs.append(f"   Abas disponíveis: {abas}")
+        return False, msgs
+
+    msgs.append(f"✅ Abas OK em {contexto}: {abas_obrigatorias}")
+    return True, msgs
+
+
+def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False) -> str | None:
+    candidatos = [
+        os.path.join('dados', str(ano), nome_arquivo),
+        os.path.join('.', nome_arquivo),
+    ]
+    if incluir_bud:
+        candidatos.insert(1, os.path.join('dados', str(ano), 'BUD', nome_arquivo))
+    for c in candidatos:
+        if os.path.exists(c):
+            return c
+    return None
+
+
+def _extrair_colunas_rateio_like(caminho: str, sheet_name: str) -> tuple[list[str], list[str]]:
+    """Tenta reproduzir a leitura do rateio (header em células) e retorna (colunas, colunas_mes)."""
+    df_raw = pd.read_excel(caminho, sheet_name=sheet_name, header=None)
+
+    # Igual ao processamento: pula primeira linha, pega a próxima como header
+    df = df_raw.iloc[1:].reset_index(drop=True)
+    if df.empty:
+        return [], []
+    df.columns = df.iloc[0]
+    df = df.iloc[1:].reset_index(drop=True)
+    df = df.loc[:, df.notna().any(axis=0)]
+    df = df.dropna(axis=1, how='all')
+    colunas = [str(c) for c in df.columns if pd.notna(c)]
+
+    colunas_meses = []
+    for c in colunas:
+        c_lower = str(c).lower().strip()
+        # robusto a variações/encoding (ex.: "mar�o") usando prefixos
+        c_norm = re.sub(r'[^a-z0-9]', '', c_lower)
+        pref = c_norm[:3]
+        if pref in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}:
+            colunas_meses.append(c)
+    return colunas, colunas_meses
+
+
+def _ler_volume_para_validacao(caminho: str, sheet_name: str) -> tuple[pd.DataFrame | None, str | None]:
+    """Tenta ler a aba de Volume em múltiplos headers (layout antigo e novo)."""
+    headers = [50, 0, 1, 2]
+    last_err = None
+    for h in headers:
+        try:
+            df = pd.read_excel(caminho, sheet_name=sheet_name, header=h, nrows=5)
+            return df, f"header={h}"
+        except Exception as e:
+            last_err = e
+            continue
+    return None, str(last_err) if last_err else None
+
+
+def _validar_pre_extracao_reais(ano: int) -> tuple[bool, list[str]]:
+    msgs: list[str] = []
+    ok = True
+
+    caminho_sapiens = _encontrar_arquivo(ano, 'Dados SAPIENS.xlsx', incluir_bud=False)
+    caminho_rateio = _encontrar_arquivo(ano, 'Reporting fluxo anexo.xlsx', incluir_bud=False)
+    if not caminho_sapiens or not caminho_rateio:
+        return False, [
+            "❌ Arquivos obrigatórios não encontrados para REAIS.",
+            f"   Dados SAPIENS.xlsx: {caminho_sapiens}",
+            f"   Reporting fluxo anexo.xlsx: {caminho_rateio}",
+        ]
+
+    ok_abas_rateio, m = _validar_abas_excel(caminho_rateio, ['Sapiens', 'Rateio', 'Volume'], 'Reporting fluxo anexo.xlsx')
+    msgs.extend(m)
+    ok &= ok_abas_rateio
+
+    ok_abas_sapiens, m = _validar_abas_excel(caminho_sapiens, ['Base conso'], 'Dados SAPIENS.xlsx')
+    msgs.extend(m)
+    ok &= ok_abas_sapiens
+
+    if ok_abas_rateio:
+        # Sapiens
+        try:
+            df = pd.read_excel(caminho_rateio, sheet_name='Sapiens', header=1, nrows=5)
+            cols = set([str(c) for c in df.columns])
+            obrig = {'Valor', 'QTD', 'Oficina', 'Período', 'Account', 'USI'}
+            if not obrig.issubset(cols):
+                ok = False
+                msgs.append(f"❌ Aba 'Sapiens': colunas faltando (mínimo esperado): {sorted(list(obrig - cols))}")
+            else:
+                msgs.append("✅ Aba 'Sapiens': colunas mínimas OK")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao ler aba 'Sapiens' (header=1): {e}")
+
+        # Rateio
+        try:
+            colunas, colunas_meses = _extrair_colunas_rateio_like(caminho_rateio, 'Rateio')
+            norm = {re.sub(r'\s+', '', c.lower()): c for c in colunas}
+            tem_oficina = 'oficina' in norm
+            tem_veiculo = ('veículo' in norm) or ('veiculo' in norm)
+            if not tem_oficina or not tem_veiculo:
+                ok = False
+                falt = []
+                if not tem_oficina:
+                    falt.append('Oficina')
+                if not tem_veiculo:
+                    falt.append('Veículo/Veiculo')
+                msgs.append(f"❌ Aba 'Rateio': colunas faltando: {falt}")
+            if len(colunas_meses) == 0:
+                ok = False
+                msgs.append("❌ Aba 'Rateio': não encontrei colunas de meses (Janeiro..Dezembro)")
+            else:
+                msgs.append(f"✅ Aba 'Rateio': meses detectados: {len(colunas_meses)}")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao validar aba 'Rateio': {e}")
+
+        # Volume
+        try:
+            dfv, info = _ler_volume_para_validacao(caminho_rateio, 'Volume')
+            if dfv is None:
+                ok = False
+                msgs.append(f"❌ Falha ao ler aba 'Volume' (tentativas header=50/0/1/2): {info}")
+            else:
+                colunas = [str(c).lower().strip() for c in dfv.columns]
+                colunas_norm = [re.sub(r'[^a-z0-9]', '', c) for c in colunas]
+                pref_cols = [c[:3] for c in colunas_norm if c]
+                meses = [p for p in pref_cols if p in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}]
+                if 'oficina' not in colunas_norm:
+                    ok = False
+                    msgs.append(f"❌ Aba 'Volume': coluna 'Oficina' não encontrada ({info})")
+                if len(meses) == 0:
+                    ok = False
+                    msgs.append(f"❌ Aba 'Volume': não encontrei colunas de meses ({info})")
+                else:
+                    msgs.append(f"✅ Aba 'Volume': meses detectados: {len(set(meses))} ({info})")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao validar aba 'Volume': {e}")
+
+    return ok, msgs
+
+
+def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
+    msgs: list[str] = []
+    ok = True
+
+    # Padronização: arquivos de entrada ficam em dados/{ano}/ (mesma fonte para REAIS e BUDGET)
+    caminho_sapiens = _encontrar_arquivo(ano, 'Dados SAPIENS.xlsx', incluir_bud=False)
+    caminho_rateio = _encontrar_arquivo(ano, 'Reporting fluxo anexo.xlsx', incluir_bud=False)
+    if not caminho_sapiens or not caminho_rateio:
+        return False, [
+            "❌ Arquivos obrigatórios não encontrados para BUDGET.",
+            f"   Dados SAPIENS.xlsx: {caminho_sapiens}",
+            f"   Reporting fluxo anexo.xlsx: {caminho_rateio}",
+        ]
+
+    ok_abas_rateio, m = _validar_abas_excel(caminho_rateio, ['Voz de custo BDG', 'Rateio BDG', 'Volume BDG'], 'Reporting fluxo anexo.xlsx')
+    msgs.extend(m)
+    ok &= ok_abas_rateio
+
+    ok_abas_sapiens, m = _validar_abas_excel(caminho_sapiens, ['Base conso'], 'Dados SAPIENS.xlsx')
+    msgs.extend(m)
+    ok &= ok_abas_sapiens
+
+    if ok_abas_rateio:
+        try:
+            df = pd.read_excel(caminho_rateio, sheet_name='Voz de custo BDG', nrows=5)
+            cols = set([str(c) for c in df.columns])
+            obrig = {'Oficina', 'Account'}
+            if not obrig.issubset(cols):
+                ok = False
+                msgs.append(f"❌ Aba 'Voz de custo BDG': colunas faltando (mínimo esperado): {sorted(list(obrig - cols))}")
+            else:
+                msgs.append("✅ Aba 'Voz de custo BDG': colunas mínimas OK")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao ler aba 'Voz de custo BDG': {e}")
+
+        try:
+            colunas, colunas_meses = _extrair_colunas_rateio_like(caminho_rateio, 'Rateio BDG')
+            norm = {re.sub(r'\s+', '', c.lower()): c for c in colunas}
+            tem_oficina = 'oficina' in norm
+            tem_veiculo = ('veículo' in norm) or ('veiculo' in norm)
+            if not tem_oficina or not tem_veiculo:
+                ok = False
+                falt = []
+                if not tem_oficina:
+                    falt.append('Oficina')
+                if not tem_veiculo:
+                    falt.append('Veículo/Veiculo')
+                msgs.append(f"❌ Aba 'Rateio BDG': colunas faltando: {falt}")
+            if len(colunas_meses) == 0:
+                ok = False
+                msgs.append("❌ Aba 'Rateio BDG': não encontrei colunas de meses (Janeiro..Dezembro)")
+            else:
+                msgs.append(f"✅ Aba 'Rateio BDG': meses detectados: {len(colunas_meses)}")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao validar aba 'Rateio BDG': {e}")
+
+        try:
+            dfv, info = _ler_volume_para_validacao(caminho_rateio, 'Volume BDG')
+            if dfv is None:
+                ok = False
+                msgs.append(f"❌ Falha ao ler aba 'Volume BDG' (tentativas header=50/0/1/2): {info}")
+            else:
+                colunas = [str(c).lower().strip() for c in dfv.columns]
+                colunas_norm = [re.sub(r'[^a-z0-9]', '', c) for c in colunas]
+                pref_cols = [c[:3] for c in colunas_norm if c]
+                meses = [p for p in pref_cols if p in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}]
+                if 'oficina' not in colunas_norm:
+                    ok = False
+                    msgs.append(f"❌ Aba 'Volume BDG': coluna 'Oficina' não encontrada ({info})")
+                if len(meses) == 0:
+                    ok = False
+                    msgs.append(f"❌ Aba 'Volume BDG': não encontrei colunas de meses ({info})")
+                else:
+                    msgs.append(f"✅ Aba 'Volume BDG': meses detectados: {len(set(meses))} ({info})")
+        except Exception as e:
+            ok = False
+            msgs.append(f"❌ Falha ao validar aba 'Volume BDG': {e}")
+
+    return ok, msgs
+
 def verificar_arquivos_reais(ano):
     """Verifica arquivos necessários para dados REAIS"""
     pasta_ano = f'dados/{ano}'
@@ -196,7 +439,6 @@ def verificar_arquivos_reais(ano):
 def verificar_arquivos_budget(ano):
     """Verifica arquivos necessários para dados BUDGET"""
     pasta_ano = f'dados/{ano}'
-    pasta_bud = f'dados/{ano}/BUD'
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume'
@@ -207,13 +449,10 @@ def verificar_arquivos_budget(ano):
     
     for arquivo, descricao in arquivos_necessarios.items():
         caminho_ano = os.path.join(pasta_ano, arquivo)
-        caminho_bud = os.path.join(pasta_bud, arquivo)
         caminho_raiz = os.path.join('.', arquivo)
         
         if os.path.exists(caminho_ano):
             arquivos_ok.append((arquivo, caminho_ano, 'pasta_ano'))
-        elif os.path.exists(caminho_bud):
-            arquivos_ok.append((arquivo, caminho_bud, 'pasta_bud'))
         elif os.path.exists(caminho_raiz):
             arquivos_ok.append((arquivo, caminho_raiz, 'raiz'))
         else:
@@ -275,156 +514,83 @@ with tab1:
     **💡 Dica:** Se os arquivos não estiverem na pasta `dados/{ano_selecionado}/` ou na raiz do projeto,
     você pode fazer upload diretamente aqui. Os arquivos serão salvos automaticamente na pasta do ano.
     """)
+
+    def _salvar_upload_unificado(
+        *,
+        label: str,
+        nome_arquivo: str,
+        key_uploader: str,
+        help_text: str,
+    ) -> None:
+        """Renderiza 1 uploader e salva em um único local por ano.
+
+        Padrão do projeto: os Excels de entrada (REAIS + BUDGET) ficam em:
+        - dados/{ano}/<arquivo>
+
+        (Os outputs de BUDGET continuam indo para dados/{ano}/BUD/ como antes.)
+        """
+
+        pasta_ano = f"dados/{ano_selecionado}"
+        destino = os.path.join(pasta_ano, nome_arquivo)
+
+        arquivo_upload = st.file_uploader(
+            label,
+            type=["xlsx"],
+            key=key_uploader,
+            help=help_text,
+        )
+
+        if os.path.exists(destino):
+            st.warning(f"⚠️ Já existe: `{destino}`")
+        else:
+            st.caption(f"📁 Destino: `{destino}`")
+
+        if arquivo_upload is None:
+            return
+
+        precisa_confirmar = os.path.exists(destino)
+        confirmar = True
+        if precisa_confirmar:
+            confirmar = st.checkbox(
+                f"Confirmar sobrescrita de `{nome_arquivo}`",
+                value=False,
+                key=f"{key_uploader}_confirm_overwrite",
+            )
+
+        if st.button(
+            f"💾 Salvar {nome_arquivo}",
+            key=f"{key_uploader}_btn_save",
+            use_container_width=False,
+            type="primary",
+            disabled=precisa_confirmar and not confirmar,
+        ):
+            os.makedirs(pasta_ano, exist_ok=True)
+            with open(destino, "wb") as f:
+                f.write(arquivo_upload.getbuffer())
+            st.success(f"✅ Arquivo salvo em: `{destino}`")
+            st.rerun()
+
+    st.markdown("#### 📄 Arquivos (usados por REAIS e/ou BUDGET)")
+    st.caption(
+        "Os processamentos de REAIS e BUDGET usam os mesmos arquivos de entrada. "
+        "Padrão: manter os Excels em `dados/{ano}/`."
+    )
+
+    _salvar_upload_unificado(
+        label="📄 Upload: Dados SAPIENS.xlsx",
+        nome_arquivo="Dados SAPIENS.xlsx",
+        key_uploader="upload_sapiens_unificado",
+        help_text="Arquivo 'Dados SAPIENS.xlsx' (pode ser usado em REAIS e/ou BUDGET)",
+    )
+
+    _salvar_upload_unificado(
+        label="📄 Upload: Reporting fluxo anexo.xlsx",
+        nome_arquivo="Reporting fluxo anexo.xlsx",
+        key_uploader="upload_rateio_unificado",
+        help_text="Arquivo 'Reporting fluxo anexo.xlsx' (contém abas para REAIS e/ou BUDGET)",
+    )
     
-    if tipo_extracao in ["📊 Dados REAIS (dados.ipynb)", "🔄 Ambos"]:
-        st.markdown("#### 📊 Upload para Dados REAIS")
-        
-        col_upload1, col_upload2 = st.columns(2)
-        
-        with col_upload1:
-            pasta_ano = f'dados/{ano_selecionado}'
-            caminho_destino = os.path.join(pasta_ano, 'Dados SAPIENS.xlsx')
-            
-            # Verificar se arquivo já existe ANTES do upload
-            if os.path.exists(caminho_destino):
-                st.warning(f"⚠️ O arquivo `Dados SAPIENS.xlsx` já existe em `{caminho_destino}`")
-                st.info("💡 Se você fizer upload de um novo arquivo, o existente será sobrescrito.")
-            
-            arquivo_sapiens_upload = st.file_uploader(
-                "📄 Upload: Dados SAPIENS.xlsx",
-                type=['xlsx'],
-                key="upload_sapiens_reais",
-                help="Faça upload do arquivo Dados SAPIENS.xlsx para dados REAIS"
-            )
-            
-            if arquivo_sapiens_upload is not None:
-                os.makedirs(pasta_ano, exist_ok=True)
-                
-                # Se arquivo existe, pedir confirmação
-                if os.path.exists(caminho_destino):
-                    st.warning(f"⚠️ O arquivo `Dados SAPIENS.xlsx` já existe e será sobrescrito!")
-                    
-                    if st.button("🔄 Confirmar Sobrescrita", key="btn_confirmar_sapiens_reais"):
-                        with open(caminho_destino, 'wb') as f:
-                            f.write(arquivo_sapiens_upload.getbuffer())
-                        st.success(f"✅ Arquivo sobrescrito em: `{caminho_destino}`")
-                        st.rerun()
-                else:
-                    with open(caminho_destino, 'wb') as f:
-                        f.write(arquivo_sapiens_upload.getbuffer())
-                    st.success(f"✅ Arquivo salvo em: `{caminho_destino}`")
-                    st.rerun()
-        
-        with col_upload2:
-            pasta_ano = f'dados/{ano_selecionado}'
-            caminho_destino = os.path.join(pasta_ano, 'Reporting fluxo anexo.xlsx')
-            
-            # Verificar se arquivo já existe ANTES do upload
-            if os.path.exists(caminho_destino):
-                st.warning(f"⚠️ O arquivo `Reporting fluxo anexo.xlsx` já existe em `{caminho_destino}`")
-                st.info("💡 Se você fizer upload de um novo arquivo, o existente será sobrescrito.")
-            
-            arquivo_rateio_upload = st.file_uploader(
-                "📄 Upload: Reporting fluxo anexo.xlsx",
-                type=['xlsx'],
-                key="upload_rateio_reais",
-                help="Faça upload do arquivo Reporting fluxo anexo.xlsx para dados REAIS"
-            )
-            
-            if arquivo_rateio_upload is not None:
-                os.makedirs(pasta_ano, exist_ok=True)
-                
-                # Se arquivo existe, pedir confirmação
-                if os.path.exists(caminho_destino):
-                    st.warning(f"⚠️ O arquivo `Reporting fluxo anexo.xlsx` já existe e será sobrescrito!")
-                    
-                    if st.button("🔄 Confirmar Sobrescrita", key="btn_confirmar_rateio_reais"):
-                        with open(caminho_destino, 'wb') as f:
-                            f.write(arquivo_rateio_upload.getbuffer())
-                        st.success(f"✅ Arquivo sobrescrito em: `{caminho_destino}`")
-                        st.rerun()
-                else:
-                    with open(caminho_destino, 'wb') as f:
-                        f.write(arquivo_rateio_upload.getbuffer())
-                    st.success(f"✅ Arquivo salvo em: `{caminho_destino}`")
-                    st.rerun()
-        
-        st.markdown("---")
-    
-    if tipo_extracao in ["💰 Dados BUDGET (dados_BUD.ipynb)", "🔄 Ambos"]:
-        st.markdown("#### 💰 Upload para Dados BUDGET")
-        
-        col_upload_bud1, col_upload_bud2 = st.columns(2)
-        
-        with col_upload_bud1:
-            pasta_ano = f'dados/{ano_selecionado}'
-            caminho_destino = os.path.join(pasta_ano, 'Dados SAPIENS.xlsx')
-            
-            # Verificar se arquivo já existe ANTES do upload
-            if os.path.exists(caminho_destino):
-                st.warning(f"⚠️ O arquivo `Dados SAPIENS.xlsx` já existe em `{caminho_destino}`")
-                st.info("💡 Se você fizer upload de um novo arquivo, o existente será sobrescrito.")
-            
-            arquivo_sapiens_bud_upload = st.file_uploader(
-                "📄 Upload: Dados SAPIENS.xlsx (BUD)",
-                type=['xlsx'],
-                key="upload_sapiens_budget",
-                help="Faça upload do arquivo Dados SAPIENS.xlsx para dados BUDGET"
-            )
-            
-            if arquivo_sapiens_bud_upload is not None:
-                os.makedirs(pasta_ano, exist_ok=True)
-                
-                # Se arquivo existe, pedir confirmação
-                if os.path.exists(caminho_destino):
-                    st.warning(f"⚠️ O arquivo `Dados SAPIENS.xlsx` já existe e será sobrescrito!")
-                    
-                    if st.button("🔄 Confirmar Sobrescrita", key="btn_confirmar_sapiens_budget"):
-                        with open(caminho_destino, 'wb') as f:
-                            f.write(arquivo_sapiens_bud_upload.getbuffer())
-                        st.success(f"✅ Arquivo sobrescrito em: `{caminho_destino}`")
-                        st.rerun()
-                else:
-                    with open(caminho_destino, 'wb') as f:
-                        f.write(arquivo_sapiens_bud_upload.getbuffer())
-                    st.success(f"✅ Arquivo salvo em: `{caminho_destino}`")
-                    st.rerun()
-        
-        with col_upload_bud2:
-            pasta_ano = f'dados/{ano_selecionado}'
-            caminho_destino = os.path.join(pasta_ano, 'Reporting fluxo anexo.xlsx')
-            
-            # Verificar se arquivo já existe ANTES do upload
-            if os.path.exists(caminho_destino):
-                st.warning(f"⚠️ O arquivo `Reporting fluxo anexo.xlsx` já existe em `{caminho_destino}`")
-                st.info("💡 Se você fizer upload de um novo arquivo, o existente será sobrescrito.")
-            
-            arquivo_rateio_bud_upload = st.file_uploader(
-                "📄 Upload: Reporting fluxo anexo.xlsx (BUD)",
-                type=['xlsx'],
-                key="upload_rateio_budget",
-                help="Faça upload do arquivo Reporting fluxo anexo.xlsx para dados BUDGET"
-            )
-            
-            if arquivo_rateio_bud_upload is not None:
-                os.makedirs(pasta_ano, exist_ok=True)
-                
-                # Se arquivo existe, pedir confirmação
-                if os.path.exists(caminho_destino):
-                    st.warning(f"⚠️ O arquivo `Reporting fluxo anexo.xlsx` já existe e será sobrescrito!")
-                    
-                    if st.button("🔄 Confirmar Sobrescrita", key="btn_confirmar_rateio_budget"):
-                        with open(caminho_destino, 'wb') as f:
-                            f.write(arquivo_rateio_bud_upload.getbuffer())
-                        st.success(f"✅ Arquivo sobrescrito em: `{caminho_destino}`")
-                        st.rerun()
-                else:
-                    with open(caminho_destino, 'wb') as f:
-                        f.write(arquivo_rateio_bud_upload.getbuffer())
-                    st.success(f"✅ Arquivo salvo em: `{caminho_destino}`")
-                    st.rerun()
-        
-        st.markdown("---")
+
 
 # TAB 2: Executar Processamento
 with tab2:
@@ -437,6 +603,46 @@ with tab2:
     - Não feche a página durante a execução
     """)
     
+    st.markdown("### 🔎 Pré-validação (recomendado)")
+    colv1, colv2 = st.columns([1, 3])
+    with colv1:
+        btn_prevalidar = st.button(
+            "🔎 Pré-validar estrutura dos Excel",
+            use_container_width=True,
+            type="secondary",
+        )
+    with colv2:
+        st.caption(
+            "Checa abas/colunas esperadas e aponta problemas antes de rodar a extração. "
+            "Não executa o processamento nem grava parquets."
+        )
+
+    if btn_prevalidar:
+        relatorio: list[str] = []
+        ok_total = True
+
+        if tipo_extracao in ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "🔄 Ambos"]:
+            ok_reais, msgs = _validar_pre_extracao_reais(int(ano_selecionado))
+            ok_total &= ok_reais
+            relatorio.append("📊 REAIS")
+            relatorio.extend(msgs)
+
+        if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
+            ok_bud, msgs = _validar_pre_extracao_budget(int(ano_selecionado))
+            ok_total &= ok_bud
+            relatorio.append("💰 BUDGET")
+            relatorio.extend(msgs)
+
+        with st.expander("📋 Relatório de Pré-validação", expanded=True):
+            st.code("\n".join(relatorio), language="text")
+
+        if ok_total:
+            st.success("✅ Pré-validação OK. Pode executar a extração.")
+        else:
+            st.error("❌ Pré-validação falhou. Corrija os itens acima antes de executar.")
+
+    st.markdown("---")
+
     col1, col2, col3 = st.columns(3)
     
     executar_reais = False
@@ -444,17 +650,17 @@ with tab2:
     executar_ambos = False
     
     with col1:
-        if tipo_extracao in ["📊 Dados REAIS (dados.ipynb)", "🔄 Ambos"]:
+        if tipo_extracao in ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "🔄 Ambos"]:
             executar_reais = st.button(
-                "🚀 Executar dados.ipynb",
+                "🚀 Executar dados.ipynb (tc_ext/notebooks)",
                 type="primary",
                 use_container_width=True
             )
     
     with col2:
-        if tipo_extracao in ["💰 Dados BUDGET (dados_BUD.ipynb)", "🔄 Ambos"]:
+        if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
             executar_budget = st.button(
-                "🚀 Executar dados_BUD.ipynb",
+                "🚀 Executar dados_BUD.ipynb (tc_ext/notebooks)",
                 type="primary",
                 use_container_width=True
             )

@@ -1,7 +1,7 @@
 """
 Script para sincronizar módulos Python com notebooks .ipynb
 Este script verifica se os módulos processamento_dados.py e processamento_dados_BUD.py
-estão atualizados com os notebooks dados.ipynb e dados_BUD.ipynb
+estão atualizados com os notebooks tc_ext/notebooks/dados.ipynb e tc_ext/notebooks/dados_BUD.ipynb
 
 Uso:
     python sincronizar_notebooks.py
@@ -139,10 +139,10 @@ def gerar_relatorio_sincronizacao():
     print(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
     # Verificar dados.ipynb ↔ processamento_dados.py
-    print("📊 VERIFICANDO: dados.ipynb ↔ processamento_dados.py")
+    print("📊 VERIFICANDO: tc_ext/notebooks/dados.ipynb ↔ processamento_dados.py")
     print("-"*70)
     encontradas_reais, faltando_reais = verificar_funcionalidades_notebook(
-        'dados.ipynb',
+        os.path.join('tc_ext', 'notebooks', 'dados.ipynb'),
         'processamento_dados.py'
     )
     
@@ -161,10 +161,10 @@ def gerar_relatorio_sincronizacao():
     print("\n" + "="*70)
     
     # Verificar dados_BUD.ipynb ↔ processamento_dados_BUD.py
-    print("💰 VERIFICANDO: dados_BUD.ipynb ↔ processamento_dados_BUD.py")
+    print("💰 VERIFICANDO: tc_ext/notebooks/dados_BUD.ipynb ↔ processamento_dados_BUD.py")
     print("-"*70)
     encontradas_bud, faltando_bud = verificar_funcionalidades_notebook(
-        'dados_BUD.ipynb',
+        os.path.join('tc_ext', 'notebooks', 'dados_BUD.ipynb'),
         'processamento_dados_BUD.py'
     )
     
