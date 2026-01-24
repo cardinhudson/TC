@@ -370,23 +370,30 @@ $$CPU_{total} = \frac{\sum Total}{\sum Volume}$$
 - Para CPU:
   - FlexBud_CPU(chave) = $FlexBud_{Total}(chave) / Volume_{Real}(chave)$.
 
-**Budget CPU por Veículo (quando o Volume Budget não tem `Veículo`)**
+**Governança do Volume Budget (`Veículo`)**
+- O Volume Budget **deve** conter `Veículo`.
+- Se `Veículo` estiver ausente no Volume Budget, isso é **erro de extração** (o app não faz mais rateio/fallback).
+- Motivo: evitar comparativos inconsistentes e impedir que linhas “budget-only” sejam perdidas por falta de denominador.
 
-Limitação: em alguns conjuntos, o volume do Budget não tem `Veículo`. Nesse caso, não existe denominador direto por veículo.
+#### 9.6.7 Waterfall (Normal vs CPU)
 
-Abordagem recomendada (rateio):
-1) Calcular o share de volume real por veículo no grão (`Ano`, `Período`, `Veículo`) dentro do recorte.
-2) Alocar o volume Budget do período para cada veículo:
+Regras específicas da página Waterfall (principalmente para evitar divergências Budget/Flex):
 
-$$VolBud_{alocado}(veiculo,periodo) = VolBud(periodo) \times \frac{VolReal(veiculo,periodo)}{\sum_{v} VolReal(v,periodo)}$$
+- **Calcular em Total primeiro**: os efeitos do Waterfall (BUD, Real, Flex Bud, deltas) são calculados em **custo total**; CPU é derivada depois como razão ponderada.
+- **CPU no Waterfall (regra)**: para qualquer barra/tabela exibida em CPU,
 
-3) Calcular Budget_CPU por veículo:
+$$CPU = \frac{\sum Total}{\sum Volume}$$
 
-$$BUD\_CPU(veiculo) = \frac{\sum BUD\_Total(veiculo)}{\sum VolBud_{alocado}(veiculo)}$$
+- **Período com ano (anti-mistura 2025/2026)**: quando houver seleção de ano (ou quando `Ano` existir), filtrar por (`Ano`, `Período`) (ex.: chave `Período_Ano`) e evitar matching “mês-only”.
+- **Filtros (anti-intersection)**: Budget e Volume Budget no Waterfall **não** devem ser filtrados pelo conjunto de valores presentes no Real; aplicar apenas os filtros do sidebar (Oficina/Veículo/USI/Type/...).
+- **Flex Bud no modo Budget (Waterfall)**:
+  - `Fixo` permanece inalterado.
+  - Tudo que **não** for `Fixo` é tratado como flexível (não depender de string exata `Variável`).
+  - Fórmula em custo:
 
-Observações:
-- Se $\sum_v VolReal(v,periodo)=0$, não há base para rateio; o comportamento deve ser definido (ex.: CPU=0 ou não exibir).
-- O rateio deve respeitar o mesmo recorte de filtros do gráfico.
+$$Total_{Flex} = Total_{Fixo} + Total_{NaoFixo} \times \frac{Volume_{Real}}{Volume_{Budget}}$$
+
+  - Em CPU: $CPU_{Flex} = Total_{Flex} / Volume_{Real}$ (com tratamento para volume zero).
 
 **Forecast / Best Estimate**
 - O Forecast (Best Estimate) usa custo projetado (outputs do simulador em `dados/Forecast/`).

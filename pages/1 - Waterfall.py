@@ -2902,6 +2902,17 @@ else:
                     else:
                         # Preparar dados para análise (usar df_filtrado_waterfall)
                         df_analise_budget = df_filtrado_waterfall.copy() if df_filtrado_waterfall is not None and len(df_filtrado_waterfall) > 0 else pd.DataFrame()
+
+                        # 🔒 Budget Waterfall: sempre considerar Mês/Ano quando houver Ano.
+                        # Isso evita somar (ex.: Novembro/2025 + Novembro/2026) quando o usuário quer um mês específico de um ano.
+                        col_mes_budget = col_mes_waterfall
+                        if not df_analise_budget.empty and 'Ano' in df_analise_budget.columns and 'Período' in df_analise_budget.columns:
+                            if 'Período_Ano' not in df_analise_budget.columns:
+                                df_analise_budget['Período_Ano'] = (
+                                    df_analise_budget['Período'].astype(str).str.strip() + ' ' +
+                                    df_analise_budget['Ano'].astype(str).str.strip()
+                                )
+                            col_mes_budget = 'Período_Ano'
                         
                         if df_analise_budget.empty:
                             st.warning("⚠️ Nenhum dado real disponível para comparação.")
@@ -2919,7 +2930,7 @@ else:
                             )
                             
                             # Obter períodos disponíveis
-                            if col_mes_waterfall == 'Período_Ano':
+                            if col_mes_budget == 'Período_Ano':
                                 periodos_disponiveis_budget = sort_mes_unique_waterfall(df_analise_budget['Período_Ano'].dropna().unique().tolist())
                             elif 'Período' in df_analise_budget.columns:
                                 periodos_disponiveis_budget = sort_mes_unique_waterfall(df_analise_budget['Período'].dropna().unique().tolist())
@@ -3007,8 +3018,8 @@ else:
                                     )
                                     
                                     # Filtrar dados pelos períodos selecionados
-                                    if col_mes_waterfall == 'Período_Ano':
-                                        df_temp_budget = df_analise_budget[df_analise_budget[col_mes_waterfall].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                    if col_mes_budget == 'Período_Ano':
+                                        df_temp_budget = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                     elif 'Período' in df_analise_budget.columns:
                                         df_temp_budget = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                     else:
@@ -3171,8 +3182,8 @@ else:
                                     st.markdown("---")
                                     
                                     # Filtrar dados pelos períodos selecionados
-                                    if col_mes_waterfall == 'Período_Ano':
-                                        df_real_periodo = df_analise_budget[df_analise_budget[col_mes_waterfall].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                    if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget.columns:
+                                        df_real_periodo = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                     elif 'Período' in df_analise_budget.columns:
                                         df_real_periodo = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                     else:
@@ -3195,71 +3206,87 @@ else:
                                     # Aplicar TODOS os filtros que existem em df_filtrado_waterfall
                                     df_budget_filtrado = df_budget_work.copy()
                                     df_budget_vol_filtrado = df_budget_vol.copy()
-                                    
-                                    if df_filtrado_waterfall is not None and len(df_filtrado_waterfall) > 0:
-                                        # Aplicar filtro de Veículo
-                                        if 'Veículo' in df_filtrado_waterfall.columns and 'Veículo' in df_budget_filtrado.columns:
-                                            veiculos_filtrados = df_filtrado_waterfall['Veículo'].dropna().unique()
-                                            if len(veiculos_filtrados) > 0:
-                                                df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Veículo'].isin(veiculos_filtrados)].copy()
-                                        
-                                        # Aplicar filtro de Oficina
-                                        if 'Oficina' in df_filtrado_waterfall.columns and 'Oficina' in df_budget_filtrado.columns:
-                                            oficinas_filtradas = df_filtrado_waterfall['Oficina'].dropna().unique()
-                                            if len(oficinas_filtradas) > 0:
-                                                df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].isin(oficinas_filtradas)].copy()
-                                        
-                                        # Aplicar filtro de USI
-                                        if 'USI' in df_filtrado_waterfall.columns and 'USI' in df_budget_filtrado.columns:
-                                            usi_filtradas = df_filtrado_waterfall['USI'].dropna().unique()
-                                            if len(usi_filtradas) > 0:
-                                                df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['USI'].isin(usi_filtradas)].copy()
-                                        
-                                        # Aplicar outros filtros comuns
-                                        colunas_filtro_comuns = ['Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Fornecedor', 'Fornec.', 'Tipo']
-                                        for col_filtro in colunas_filtro_comuns:
-                                            if col_filtro in df_filtrado_waterfall.columns and col_filtro in df_budget_filtrado.columns:
-                                                valores_filtrados = df_filtrado_waterfall[col_filtro].dropna().unique()
-                                                if len(valores_filtrados) > 0:
-                                                    df_budget_filtrado = df_budget_filtrado[df_budget_filtrado[col_filtro].isin(valores_filtrados)].copy()
-                                        
-                                        # Aplicar mesmos filtros ao volume de budget
-                                        if 'Veículo' in df_filtrado_waterfall.columns and 'Veículo' in df_budget_vol_filtrado.columns:
-                                            veiculos_filtrados = df_filtrado_waterfall['Veículo'].dropna().unique()
-                                            if len(veiculos_filtrados) > 0:
-                                                df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Veículo'].isin(veiculos_filtrados)].copy()
-                                        
-                                        if 'Oficina' in df_filtrado_waterfall.columns and 'Oficina' in df_budget_vol_filtrado.columns:
-                                            oficinas_filtradas = df_filtrado_waterfall['Oficina'].dropna().unique()
-                                            if len(oficinas_filtradas) > 0:
-                                                df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Oficina'].isin(oficinas_filtradas)].copy()
-                                        
-                                        if 'USI' in df_filtrado_waterfall.columns and 'USI' in df_budget_vol_filtrado.columns:
-                                            usi_filtradas = df_filtrado_waterfall['USI'].dropna().unique()
-                                            if len(usi_filtradas) > 0:
-                                                df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['USI'].isin(usi_filtradas)].copy()
+
+                                    # Garantir chave Mês/Ano nos dados de Budget e Volume Budget quando possível
+                                    if col_mes_budget == 'Período_Ano':
+                                        for _df_name, _df in [('df_budget_filtrado', df_budget_filtrado), ('df_budget_vol_filtrado', df_budget_vol_filtrado)]:
+                                            if _df is not None and len(_df) > 0 and 'Período_Ano' not in _df.columns and 'Período' in _df.columns and 'Ano' in _df.columns:
+                                                _df['Período_Ano'] = _df['Período'].astype(str).str.strip() + ' ' + _df['Ano'].astype(str).str.strip()
+
+                                    # ✅ Aplicar filtros do usuário (sidebar) ao Budget/Volume Budget sem intersectar com o Real.
+                                    # Se o usuário está em "Todos", NÃO restringir pelo que existe no Real (isso causava 1477 vs 1515).
+                                    def _aplicar_filtro_ms(_df, _col, _state_key):
+                                        if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                            return _df
+                                        sel = st.session_state.get(_state_key, ["Todos"])
+                                        if not sel or "Todos" in sel:
+                                            return _df
+                                        sel_str = [str(x) for x in sel]
+                                        return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                    def _aplicar_filtro_sb(_df, _col, _state_key):
+                                        if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                            return _df
+                                        sel = st.session_state.get(_state_key, "Todos")
+                                        if sel is None or str(sel) == "Todos":
+                                            return _df
+                                        return _df[_df[_col].astype(str) == str(sel)].copy()
+
+                                    def _aplicar_filtro_lista(_df, _col, _state_key):
+                                        if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                            return _df
+                                        sel = st.session_state.get(_state_key, [])
+                                        if not sel:
+                                            return _df
+                                        sel_str = [str(x) for x in sel]
+                                        return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                    for _df_ref, _is_vol in [("df_budget_filtrado", False), ("df_budget_vol_filtrado", True)]:
+                                        _df = df_budget_vol_filtrado if _is_vol else df_budget_filtrado
+
+                                        _df = _aplicar_filtro_ms(_df, 'Oficina', 'filtro_oficina_waterfall')
+                                        _df = _aplicar_filtro_ms(_df, 'Veículo', 'filtro_veiculo_waterfall')
+                                        _df = _aplicar_filtro_ms(_df, 'USI', 'filtro_usi_waterfall')
+                                        _df = _aplicar_filtro_sb(_df, 'Centrocst', 'filtro_centro_cst_waterfall')
+                                        _df = _aplicar_filtro_lista(_df, 'Nºconta', 'filtro_conta_contabil_waterfall')
+
+                                        # Filtros principais (multiselect com "Todos")
+                                        for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
+                                            _df = _aplicar_filtro_ms(_df, _col, f'filtro_{_col}_waterfall')
+
+                                        # Filtros avançados
+                                        for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
+                                            _df = _aplicar_filtro_ms(_df, _col, f'filtro_avancado_{_col}_waterfall')
+
+                                        if _is_vol:
+                                            df_budget_vol_filtrado = _df
+                                        else:
+                                            df_budget_filtrado = _df
                                     
                                     # Filtrar budget pelos períodos selecionados
                                     # IMPORTANTE: Sempre filtrar pelos períodos selecionados para garantir que o BUD seja calculado corretamente
                                     if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                        if col_mes_waterfall == 'Período_Ano' and 'Período_Ano' in df_budget_filtrado.columns:
-                                            df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                        import re
+
+                                        def _periodos_tem_ano(periodos):
+                                            return any(re.search(r"\b20\d{2}\b", str(p)) for p in periodos)
+
+                                        periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                        sel_tem_ano = _periodos_tem_ano(periodos_selecionados_budget)
+
+                                        if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_budget_filtrado.columns:
+                                            df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período_Ano'].astype(str).isin(periodos_str)].copy()
                                         elif 'Período' in df_budget_filtrado.columns:
-                                            # Tentar fazer match com o formato do período (pode ser "Julho 2025" ou "Julho")
-                                            periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                            df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                            
-                                            # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
-                                            if len(df_budget_periodo) == 0:
-                                                meses_periodos = []
-                                                for p in periodos_selecionados_budget:
-                                                    p_str = str(p)
-                                                    # Extrair apenas o mês (primeira palavra)
-                                                    if ' ' in p_str:
-                                                        mes = p_str.split(' ')[0]
-                                                        meses_periodos.append(mes)
-                                                if meses_periodos:
-                                                    df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período'].astype(str).isin(meses_periodos)].copy()
+                                            # Preferir match por "Mês Ano" quando existir a seleção com ano e a coluna Ano estiver presente.
+                                            if sel_tem_ano and 'Ano' in df_budget_filtrado.columns:
+                                                df_tmp = df_budget_filtrado.copy()
+                                                df_tmp['_Período_Ano_tmp'] = (
+                                                    df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
+                                                )
+                                                df_budget_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
+                                            else:
+                                                # Match direto por Período (ex.: "Novembro")
+                                                df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                         else:
                                             df_budget_periodo = pd.DataFrame()  # DataFrame vazio se não há coluna Período
                                     else:
@@ -3270,42 +3297,71 @@ else:
                                     if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
                                         df_volume_real_filtrado = df_volume.copy()
                                         
-                                        # Aplicar mesmos filtros do df_filtrado_waterfall
-                                        if df_filtrado_waterfall is not None and len(df_filtrado_waterfall) > 0:
-                                            colunas_filtro_vol = ['Veículo', 'Oficina', 'USI', 'Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Fornecedor', 'Fornec.', 'Tipo']
-                                            for col_filtro in colunas_filtro_vol:
-                                                if col_filtro in df_filtrado_waterfall.columns and col_filtro in df_volume_real_filtrado.columns:
-                                                    valores_filtrados = df_filtrado_waterfall[col_filtro].dropna().unique()
-                                                    if len(valores_filtrados) > 0:
-                                                        df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado[col_filtro].isin(valores_filtrados)].copy()
+                                        # Aplicar filtros do usuário (sidebar) ao volume real (sem intersectar com o custo).
+                                        # Isso garante que Volume siga o mesmo recorte de filtros, não o "recorte do custo".
+                                        def _aplicar_filtro_ms_vol(_df, _col, _state_key):
+                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                                return _df
+                                            sel = st.session_state.get(_state_key, ["Todos"])
+                                            if not sel or "Todos" in sel:
+                                                return _df
+                                            sel_str = [str(x) for x in sel]
+                                            return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                        def _aplicar_filtro_sb_vol(_df, _col, _state_key):
+                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                                return _df
+                                            sel = st.session_state.get(_state_key, "Todos")
+                                            if sel is None or str(sel) == "Todos":
+                                                return _df
+                                            return _df[_df[_col].astype(str) == str(sel)].copy()
+
+                                        def _aplicar_filtro_lista_vol(_df, _col, _state_key):
+                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                                return _df
+                                            sel = st.session_state.get(_state_key, [])
+                                            if not sel:
+                                                return _df
+                                            sel_str = [str(x) for x in sel]
+                                            return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Oficina', 'filtro_oficina_waterfall')
+                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Veículo', 'filtro_veiculo_waterfall')
+                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'USI', 'filtro_usi_waterfall')
+                                        df_volume_real_filtrado = _aplicar_filtro_sb_vol(df_volume_real_filtrado, 'Centrocst', 'filtro_centro_cst_waterfall')
+                                        df_volume_real_filtrado = _aplicar_filtro_lista_vol(df_volume_real_filtrado, 'Nºconta', 'filtro_conta_contabil_waterfall')
+
+                                        for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
+                                            df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_{_col}_waterfall')
+
+                                        for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
+                                            df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_avancado_{_col}_waterfall')
                                         
                                         # Filtrar pelos períodos selecionados (mesma lógica do budget)
                                         if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                            if col_mes_waterfall == 'Período_Ano' and 'Período_Ano' in df_volume_real_filtrado.columns:
+                                            if col_mes_budget == 'Período_Ano':
+                                                if 'Período_Ano' not in df_volume_real_filtrado.columns and 'Período' in df_volume_real_filtrado.columns and 'Ano' in df_volume_real_filtrado.columns:
+                                                    df_volume_real_filtrado['Período_Ano'] = (
+                                                        df_volume_real_filtrado['Período'].astype(str).str.strip() + ' ' +
+                                                        df_volume_real_filtrado['Ano'].astype(str).str.strip()
+                                                    )
+                                                if 'Período_Ano' in df_volume_real_filtrado.columns:
+                                                    df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                            elif 'Período_Ano' in df_volume_real_filtrado.columns and col_mes_budget == 'Período_Ano':
+                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                            elif col_mes_waterfall == 'Período_Ano' and 'Período_Ano' in df_volume_real_filtrado.columns:
                                                 df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                             elif 'Período' in df_volume_real_filtrado.columns:
                                                 periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                                
-                                                # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
-                                                if len(df_volume_real_filtrado) == 0:
-                                                    meses_periodos = []
-                                                    for p in periodos_selecionados_budget:
-                                                        p_str = str(p)
-                                                        if ' ' in p_str:
-                                                            mes = p_str.split(' ')[0]
-                                                            meses_periodos.append(mes)
-                                                    if meses_periodos:
-                                                        df_volume_real_filtrado = df_volume.copy()
-                                                        # Reaplicar filtros
-                                                        if df_filtrado_waterfall is not None and len(df_filtrado_waterfall) > 0:
-                                                            for col_filtro in colunas_filtro_vol:
-                                                                if col_filtro in df_filtrado_waterfall.columns and col_filtro in df_volume_real_filtrado.columns:
-                                                                    valores_filtrados = df_filtrado_waterfall[col_filtro].dropna().unique()
-                                                                    if len(valores_filtrados) > 0:
-                                                                        df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado[col_filtro].isin(valores_filtrados)].copy()
-                                                        # Filtrar por mês
-                                                        df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(meses_periodos)].copy()
+                                                # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
+                                                if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_volume_real_filtrado.columns:
+                                                    df_tmp = df_volume_real_filtrado.copy()
+                                                    df_tmp['_Período_Ano_tmp'] = (
+                                                        df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
+                                                    )
+                                                    df_volume_real_filtrado = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
+                                                else:
+                                                    df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                     
                                     # Verificar se temos coluna Account
                                     if 'Account' not in df_real_periodo.columns:
@@ -3327,6 +3383,18 @@ else:
                                         
                                         # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall
                                         # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
+
+                                        # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
+                                        # O TC Ext calcula totais sem depender de Account/Type; aqui precisamos preservar essas linhas.
+                                        for _col in colunas_agrupamento:
+                                            if _col in df_real_periodo.columns:
+                                                _s = df_real_periodo[_col]
+                                                if pd.api.types.is_categorical_dtype(_s):
+                                                    if "(Não informado)" not in _s.cat.categories:
+                                                        _s = _s.cat.add_categories(["(Não informado)"])
+                                                    df_real_periodo[_col] = _s.fillna("(Não informado)")
+                                                else:
+                                                    df_real_periodo[_col] = _s.fillna("(Não informado)")
                                         
                                         df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Total'].sum().reset_index()
                                         
@@ -3345,6 +3413,17 @@ else:
                                         # IMPORTANTE: df_budget_periodo já vem de df_budget_work que tem a conversão de moeda aplicada (linha 2743)
                                         # NÃO aplicar conversão novamente aqui para evitar duplicação
                                         if df_budget_periodo is not None and len(df_budget_periodo) > 0:
+                                            # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
+                                            for _col in colunas_agrupamento_budget:
+                                                if _col in df_budget_periodo.columns:
+                                                    _s = df_budget_periodo[_col]
+                                                    if pd.api.types.is_categorical_dtype(_s):
+                                                        if "(Não informado)" not in _s.cat.categories:
+                                                            _s = _s.cat.add_categories(["(Não informado)"])
+                                                        df_budget_periodo[_col] = _s.fillna("(Não informado)")
+                                                    else:
+                                                        df_budget_periodo[_col] = _s.fillna("(Não informado)")
+
                                             df_budget_agrupado = df_budget_periodo.groupby(colunas_agrupamento_budget)['Total'].sum().reset_index()
                                             df_budget_agrupado = df_budget_agrupado.rename(columns={'Total': 'Total_Budget'})
                                         else:
@@ -3364,22 +3443,29 @@ else:
                                         if df_budget_vol_filtrado is not None and not df_budget_vol_filtrado.empty and 'Volume' in df_budget_vol_filtrado.columns:
                                             # Filtrar budget volume pelos períodos selecionados (mesma lógica do budget)
                                             if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                                if col_mes_waterfall == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
+                                                if col_mes_budget == 'Período_Ano':
+                                                    if 'Período_Ano' not in df_budget_vol_filtrado.columns and 'Período' in df_budget_vol_filtrado.columns and 'Ano' in df_budget_vol_filtrado.columns:
+                                                        df_budget_vol_filtrado['Período_Ano'] = (
+                                                            df_budget_vol_filtrado['Período'].astype(str).str.strip() + ' ' +
+                                                            df_budget_vol_filtrado['Ano'].astype(str).str.strip()
+                                                        )
+                                                    if 'Período_Ano' in df_budget_vol_filtrado.columns:
+                                                        df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                                    else:
+                                                        df_budget_vol_periodo = pd.DataFrame()
+                                                elif col_mes_waterfall == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
                                                     df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                                 elif 'Período' in df_budget_vol_filtrado.columns:
                                                     periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                    df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                                    
-                                                    # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
-                                                    if len(df_budget_vol_periodo) == 0:
-                                                        meses_periodos = []
-                                                        for p in periodos_selecionados_budget:
-                                                            p_str = str(p)
-                                                            if ' ' in p_str:
-                                                                mes = p_str.split(' ')[0]
-                                                                meses_periodos.append(mes)
-                                                        if meses_periodos:
-                                                            df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(meses_periodos)].copy()
+                                                    # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
+                                                    if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_budget_vol_filtrado.columns:
+                                                        df_tmp = df_budget_vol_filtrado.copy()
+                                                        df_tmp['_Período_Ano_tmp'] = (
+                                                            df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
+                                                        )
+                                                        df_budget_vol_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
+                                                    else:
+                                                        df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                                 else:
                                                     df_budget_vol_periodo = pd.DataFrame()
                                                 
@@ -3422,9 +3508,12 @@ else:
                                         if tipo_visualizacao == "CPU (Custo por Unidade)":
                                             df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
                                             df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
-                                            
-                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(df_tabela_flex['Custo'] == 'Fixo', 0)
-                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(df_tabela_flex['Custo'] == 'Variável', 0)
+
+                                            # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
+                                            custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
+                                            is_fixo = custo_norm == 'fixo'
+                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
+                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
                                             df_tabela_flex['_Flex_Bud_Total_Custo'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
                                             
                                             df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_Total_Custo'] / df_tabela_flex['Volume_Real'].replace(0, 1)
@@ -3438,9 +3527,12 @@ else:
                                         else:
                                             df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
                                             df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
-                                            
-                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(df_tabela_flex['Custo'] == 'Fixo', 0)
-                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(df_tabela_flex['Custo'] == 'Variável', 0)
+
+                                            # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
+                                            custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
+                                            is_fixo = custo_norm == 'fixo'
+                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
+                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
                                             df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
                                             df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo']
                                         
@@ -3504,11 +3596,11 @@ else:
                                         }).reset_index()
                                         
                                         # Preparar dados para gráfico waterfall
-                                        bud_total = df_grafico['BUD'].sum()
-                                        flex_bud_total = df_grafico['Flex BUD'].sum()
-                                        total_real = df_grafico['Total'].sum()
-                                        flex_bud_menos_bud = flex_bud_total - bud_total
-                                        total_menos_flex_bud = total_real - flex_bud_total
+                                        bud_total = float(pd.to_numeric(df_grafico.get('BUD', 0), errors='coerce').fillna(0).sum())
+                                        flex_bud_total = float(pd.to_numeric(df_grafico.get('Flex BUD', 0), errors='coerce').fillna(0).sum())
+                                        total_real = float(pd.to_numeric(df_grafico.get('Total', 0), errors='coerce').fillna(0).sum())
+                                        flex_bud_menos_bud = float((flex_bud_total - bud_total) if pd.notna(flex_bud_total) and pd.notna(bud_total) else 0.0)
+                                        total_menos_flex_bud = float((total_real - flex_bud_total) if pd.notna(total_real) and pd.notna(flex_bud_total) else 0.0)
                                         
                                         # Calcular variações por Account (Total - Flex Bud)
                                         labels_cats = []
@@ -3538,11 +3630,10 @@ else:
                                         values_waterfall = [bud_total]
                                         measures_waterfall = ["absolute"]
                                         
-                                        # Adicionar Flex Bud - BUD
-                                        if abs(flex_bud_menos_bud) > 1e-10:
-                                            labels_waterfall.append("Flex Bud - BUD")
-                                            values_waterfall.append(flex_bud_menos_bud)
-                                            measures_waterfall.append("relative")
+                                        # Adicionar Flex Bud - BUD (sempre incluir a etapa; é a barra amarela)
+                                        labels_waterfall.append("Flex Bud - BUD")
+                                        values_waterfall.append(flex_bud_menos_bud)
+                                        measures_waterfall.append("relative")
                                         
                                         # Adicionar categorias
                                         labels_waterfall.extend(labels_cats)

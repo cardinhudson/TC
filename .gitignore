@@ -12,10 +12,11 @@ __pycache__/
 .Python
 
 # Arquivos de cache
-*.db
-*.sqlite
-*.sqlite3
 cache/
+
+# Secrets (nunca versionar)
+.env
+.streamlit/secrets.toml
 
 # IDEs
 .vscode/*
@@ -31,11 +32,6 @@ cache/
 .DS_Store
 Thumbs.db
 
-# Arquivos de dados grandes
-*.parquet
-*.xlsx
-*.xls
-
 # Arquivos de log de processamento
 .processamento_log.txt
 .processamento_log_BUD.txt
@@ -46,9 +42,5 @@ dados/**/.processamento_log_BUD.txt
 ~$*.xlsx
 ~$*.xls
 
-# Dados processados
-dados/*/df_*.parquet
-dados/*/df_*.xlsx
-dados/historico_consolidado/*.parquet
-dados/historico_consolidado/**/*.parquet
+
 

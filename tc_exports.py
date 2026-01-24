@@ -9,6 +9,7 @@ This file is a compatibility layer: keep function names/signatures stable.
 """
 
 import os
+import unicodedata
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
@@ -43,6 +44,38 @@ def _otimizar_tipos(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.select_dtypes(include=["int64"]).columns:
         df[col] = pd.to_numeric(df[col], downcast="integer")
 
+    return df
+
+
+def _normalizar_nome_coluna(col: object) -> str:
+    s = "" if col is None else str(col)
+    s = s.strip()
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.lower()
+    s = "".join(ch for ch in s if ch.isalnum())
+    return s
+
+
+def _normalizar_coluna_veiculo(df: pd.DataFrame) -> pd.DataFrame:
+    """Garante que a dimensão de veículo exista como 'Veículo' (com acento).
+
+    Aceita variações comuns vindas de Excel/parquet (ex.: 'Veiculo', 'Veículo ', etc.).
+    """
+
+    if df is None or df.empty:
+        return df
+
+    df = df.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+
+    if "Veículo" in df.columns:
+        return df
+
+    alvo = "veiculo"
+    candidatos = [c for c in df.columns if _normalizar_nome_coluna(c) == alvo]
+    if candidatos:
+        df = df.rename(columns={candidatos[0]: "Veículo"})
     return df
 
 
@@ -120,22 +153,22 @@ def load_budget_data(ano_selecionado_param):
 
 
 @st.cache_data(ttl=3600, max_entries=10, show_spinner=True)
-def load_budget_volume_data(ano_selecionado_param):
-    """Carrega df_vol do histórico consolidado BUD e filtra por ano quando aplicável."""
+def _load_budget_volume_data_cached(ano_selecionado_param, _mtime_cache_key: float | None):
+    """(cacheada) Carrega df_vol do histórico consolidado BUD e filtra por ano."""
     caminho_budget_vol = os.path.join(
         "dados", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
     )
-    if not os.path.exists(caminho_budget_vol):
-        return None
 
     df = pd.read_parquet(caminho_budget_vol)
     df = normalize_common_column_mojibake(df)
+    df = _normalizar_coluna_veiculo(df)
 
     # Governança: Volume BUD *precisa* ter Veículo; ausência indica erro na extração.
     if "Veículo" not in df.columns:
         st.error(
             "❌ ERRO NA EXTRAÇÃO: o arquivo de volume do Budget não contém a coluna 'Veículo'."
         )
+        st.code("Colunas encontradas: " + ", ".join([str(c) for c in df.columns]), language="text")
         st.info(
             "💡 Refaça a extração do BUDGET (página 'Extração de Dados') e corrija a aba 'Volume BDG' "
             "no Excel para incluir 'Veículo'."
@@ -155,6 +188,27 @@ def load_budget_volume_data(ano_selecionado_param):
 
     df = _otimizar_tipos(df)
     return df
+
+
+def load_budget_volume_data(ano_selecionado_param):
+    """Carrega df_vol do histórico consolidado BUD e filtra por ano quando aplicável.
+
+    A chave de cache inclui o mtime do parquet para evitar ficar preso em versões antigas
+    após reprocessar os dados.
+    """
+
+    caminho_budget_vol = os.path.join(
+        "dados", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+    )
+    if not os.path.exists(caminho_budget_vol):
+        return None
+
+    try:
+        mtime = os.path.getmtime(caminho_budget_vol)
+    except OSError:
+        mtime = None
+
+    return _load_budget_volume_data_cached(ano_selecionado_param, mtime)
 
 
 def formatar_ratio_com_barra(valor):

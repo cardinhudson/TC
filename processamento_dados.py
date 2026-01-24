@@ -606,6 +606,15 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
             'Veículo': ['Veículo', 'Veiculo', 'Veculo'],
         },
     )
+
+    # Regra esperada: aba Volume (REAIS) deve conter a dimensão Veículo
+    if 'Veículo' not in df_ke5z_volume.columns:
+        cols = ", ".join([str(c) for c in df_ke5z_volume.columns])
+        raise ValueError(
+            "❌ Aba 'Volume' (REAIS) sem a coluna 'Veículo'. "
+            "Isso indica erro de layout/header ou nome de coluna diferente. "
+            f"Colunas encontradas: {cols}"
+        )
     
     # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (não apenas Unnamed: 14)
     # Isso previne colunas vazias do Excel que causam duplicação ao consolidar
@@ -630,9 +639,7 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
         )
     
     # 🔧 Robustez: manter apenas dimensões necessárias (evita colunas extras causarem duplicação)
-    colunas_id_vol = [c for c in ['Oficina', 'Veículo'] if c in df_ke5z_volume.columns]
-    if not colunas_id_vol:
-        colunas_id_vol = [c for c in ['Oficina'] if c in df_ke5z_volume.columns]
+    colunas_id_vol = ['Oficina', 'Veículo']
     df_vol = pd.melt(
         df_ke5z_volume,
         id_vars=colunas_id_vol,
@@ -643,22 +650,16 @@ def processar_dados_reais(config: Dict[str, any], progress_callback=None) -> Tup
     
     df_vol['Período'] = df_vol['Período'].apply(_normalizar_nome_mes)
     
-    _exigir_colunas(df_vol, ['Oficina', 'Período', 'Volume'], "aba 'Volume' após melt")
+    _exigir_colunas(df_vol, ['Oficina', 'Veículo', 'Período', 'Volume'], "aba 'Volume' após melt")
     df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0)
     df_vol = df_vol[df_vol['Oficina'].notna() & df_vol['Período'].notna()]
 
-    # 🔧 Robustez: preservar Veículo quando existir (ex.: 2025) e consolidar com a granularidade correta
-    usar_veiculo_no_vol = 'Veículo' in df_vol.columns and df_vol['Veículo'].notna().any()
-    if usar_veiculo_no_vol:
-        df_vol = df_vol[df_vol['Veículo'].notna()].copy()
-        df_vol['Veículo'] = df_vol['Veículo'].astype(str).str.strip()
-        colunas_chave_vol = ['Oficina', 'Veículo', 'Período']
-        df_vol = df_vol[colunas_chave_vol + ['Volume']].drop_duplicates()
-        df_vol = df_vol.groupby(colunas_chave_vol, as_index=False, dropna=False)['Volume'].sum()
-    else:
-        colunas_chave_vol = ['Oficina', 'Período']
-        df_vol = df_vol[colunas_chave_vol + ['Volume']].drop_duplicates()
-        df_vol = df_vol.groupby(colunas_chave_vol, as_index=False, dropna=False)['Volume'].sum()
+    # Consolidar no grão correto (Oficina/Veículo/Período)
+    df_vol = df_vol[df_vol['Veículo'].notna()].copy()
+    df_vol['Veículo'] = df_vol['Veículo'].astype(str).str.strip()
+    colunas_chave_vol = ['Oficina', 'Veículo', 'Período']
+    df_vol = df_vol[colunas_chave_vol + ['Volume']].drop_duplicates()
+    df_vol = df_vol.groupby(colunas_chave_vol, as_index=False, dropna=False)['Volume'].sum()
     df_vol['Volume'] = df_vol['Volume'].astype('float64')
     
     log("🔍 Aplicando filtros...")

@@ -530,11 +530,15 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     log("📈 Processando volume (BUD)...")
     # Célula 10: Processar Volume BDG
     try:
+        header_usado_vol_bdg = None
+        sheet_usada_vol_bdg = 'Volume BDG'
         try:
             df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=50)
+            header_usado_vol_bdg = 50
         except ValueError:
             # Novo layout: header na primeira linha
             df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name='Volume BDG', header=0)
+            header_usado_vol_bdg = 0
         df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
         df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
     except ValueError as e:
@@ -544,8 +548,11 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
             if guias_similares:
                 try:
                     df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=50)
+                    header_usado_vol_bdg = 50
                 except ValueError:
                     df_ke5z_volume = pd.read_excel(config['CAMINHO_RATEIO'], sheet_name=guias_similares[0], header=0)
+                    header_usado_vol_bdg = 0
+                sheet_usada_vol_bdg = guias_similares[0]
                 df_ke5z_volume = limpar_colunas_duplicadas(df_ke5z_volume)
                 df_ke5z_volume = limpar_periodo_sufixos(df_ke5z_volume)
             else:
@@ -556,6 +563,15 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
 
     # Normalizar alias de coluna (governança: Volume BUD deve ter Veículo)
     df_ke5z_volume = _aplicar_alias_colunas(df_ke5z_volume, {'Veículo': ['Veículo', 'Veiculo']})
+
+    # Governança: falhar cedo se não existir Veículo no Volume BDG
+    if 'Veículo' not in df_ke5z_volume.columns:
+        cols = ", ".join([str(c) for c in df_ke5z_volume.columns])
+        raise ValueError(
+            "❌ Aba 'Volume BDG' sem a coluna 'Veículo'. "
+            f"Sheet lida: '{sheet_usada_vol_bdg}' | header={header_usado_vol_bdg}. "
+            f"Colunas encontradas: {cols}"
+        )
     
     # 🔧 CORREÇÃO CRÍTICA: Remover TODAS as colunas Unnamed: (colunas vazias do Excel)
     # Isso previne colunas vazias que causam duplicação ao consolidar

@@ -6,6 +6,7 @@ from datetime import datetime
 from versionamento import obter_versao_atual
 import sys
 import re
+import unicodedata
 
 # Adicionar o diretório raiz ao path para importar os módulos de processamento
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -224,11 +225,21 @@ def _extrair_colunas_rateio_like(caminho: str, sheet_name: str) -> tuple[list[st
     for c in colunas:
         c_lower = str(c).lower().strip()
         # robusto a variações/encoding (ex.: "mar�o") usando prefixos
-        c_norm = re.sub(r'[^a-z0-9]', '', c_lower)
+        c_sem_acento = ''.join(
+            ch for ch in unicodedata.normalize('NFKD', c_lower)
+            if not unicodedata.combining(ch)
+        )
+        c_norm = re.sub(r'[^a-z0-9]', '', c_sem_acento)
         pref = c_norm[:3]
         if pref in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}:
             colunas_meses.append(c)
     return colunas, colunas_meses
+
+
+def _normalizar_nome_coluna_debug(v: object) -> str:
+    s = str(v).lower().strip()
+    s = ''.join(ch for ch in unicodedata.normalize('NFKD', s) if not unicodedata.combining(ch))
+    return re.sub(r'[^a-z0-9]', '', s)
 
 
 def _ler_volume_para_validacao(caminho: str, sheet_name: str) -> tuple[pd.DataFrame | None, str | None]:
@@ -311,13 +322,17 @@ def _validar_pre_extracao_reais(ano: int) -> tuple[bool, list[str]]:
                 ok = False
                 msgs.append(f"❌ Falha ao ler aba 'Volume' (tentativas header=50/0/1/2): {info}")
             else:
-                colunas = [str(c).lower().strip() for c in dfv.columns]
-                colunas_norm = [re.sub(r'[^a-z0-9]', '', c) for c in colunas]
+                colunas_norm = [_normalizar_nome_coluna_debug(c) for c in dfv.columns]
                 pref_cols = [c[:3] for c in colunas_norm if c]
                 meses = [p for p in pref_cols if p in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}]
                 if 'oficina' not in colunas_norm:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume': coluna 'Oficina' não encontrada ({info})")
+                # Regra esperada: Volume REAIS deve conter a dimensão Veículo
+                if 'veiculo' not in colunas_norm:
+                    ok = False
+                    cols_preview = ', '.join([str(c) for c in dfv.columns[:30]])
+                    msgs.append(f"❌ Aba 'Volume': coluna 'Veículo' não encontrada ({info}). Colunas (parcial): {cols_preview}")
                 if len(meses) == 0:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume': não encontrei colunas de meses ({info})")
@@ -394,13 +409,17 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
                 ok = False
                 msgs.append(f"❌ Falha ao ler aba 'Volume BDG' (tentativas header=50/0/1/2): {info}")
             else:
-                colunas = [str(c).lower().strip() for c in dfv.columns]
-                colunas_norm = [re.sub(r'[^a-z0-9]', '', c) for c in colunas]
+                colunas_norm = [_normalizar_nome_coluna_debug(c) for c in dfv.columns]
                 pref_cols = [c[:3] for c in colunas_norm if c]
                 meses = [p for p in pref_cols if p in {'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'}]
                 if 'oficina' not in colunas_norm:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume BDG': coluna 'Oficina' não encontrada ({info})")
+                # Governança: Volume BDG deve conter Veículo
+                if 'veiculo' not in colunas_norm:
+                    ok = False
+                    cols_preview = ', '.join([str(c) for c in dfv.columns[:30]])
+                    msgs.append(f"❌ Aba 'Volume BDG': coluna 'Veículo' não encontrada ({info}). Colunas (parcial): {cols_preview}")
                 if len(meses) == 0:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume BDG': não encontrei colunas de meses ({info})")
