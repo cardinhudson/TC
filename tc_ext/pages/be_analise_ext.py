@@ -30,6 +30,60 @@ from tc_core.finance.currency_db import (
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
 
+
+def _normalizar_texto_sem_acento(valor) -> str:
+    if pd.isna(valor):
+        return ""
+    return (
+        unicodedata.normalize('NFKD', str(valor))
+        .encode('ascii', 'ignore')
+        .decode('ascii')
+        .strip()
+        .lower()
+    )
+
+
+def _normalizar_rotulo_custo(valor):
+    texto = _normalizar_texto_sem_acento(valor)
+    if not texto:
+        return valor
+    if texto.startswith('fix'):
+        return 'Fixo'
+    if texto.startswith('var'):
+        return 'Variável'
+    return str(valor).strip()
+
+
+def _mask_custo_fixo(serie: pd.Series) -> pd.Series:
+    return serie.astype(str).map(_normalizar_texto_sem_acento).str.startswith('fix')
+
+
+def _remover_linhas_sem_valores_para_exibicao(
+    df: pd.DataFrame,
+    colunas_ignorar: list[str] | None = None,
+    eps: float = 0.0001,
+) -> pd.DataFrame:
+    """Remove linhas 100% nulas/zeradas APENAS para melhorar a visibilidade.
+
+    Governança: sempre esconder linhas sem impacto (não muda somatórios),
+    e nunca usar esse filtro para cálculos de resumo/totais.
+    """
+    if df is None or df.empty:
+        return df
+
+    colunas_ignorar = colunas_ignorar or []
+    colunas_numericas = [
+        col
+        for col in df.columns
+        if pd.api.types.is_numeric_dtype(df[col]) and col not in colunas_ignorar
+    ]
+    if not colunas_numericas:
+        return df
+
+    df_tmp = df[colunas_numericas].fillna(0)
+    mask_mantem = df_tmp.abs().sum(axis=1) > eps
+    return df.loc[mask_mantem].copy()
+
 # Verificar mudanças nas páginas e incrementar versão se necessário
 verificar_mudancas_paginas()
 
@@ -2701,12 +2755,18 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
         if 'Período' in df_real.columns:
             df_real = df_real.copy()
             df_real['Período'] = df_real['Período'].apply(normalizar_periodo)
+        if 'Custo' in df_real.columns:
+            df_real = df_real.copy()
+            df_real['Custo'] = df_real['Custo'].apply(_normalizar_rotulo_custo)
         if df_real_vol is not None and 'Período' in df_real_vol.columns:
             df_real_vol = df_real_vol.copy()
             df_real_vol['Período'] = df_real_vol['Período'].apply(normalizar_periodo)
         if 'Período' in df_budget.columns:
             df_budget = df_budget.copy()
             df_budget['Período'] = df_budget['Período'].apply(normalizar_periodo)
+        if 'Custo' in df_budget.columns:
+            df_budget = df_budget.copy()
+            df_budget['Custo'] = df_budget['Custo'].apply(_normalizar_rotulo_custo)
         if df_budget_vol is not None and 'Período' in df_budget_vol.columns:
             df_budget_vol = df_budget_vol.copy()
             df_budget_vol['Período'] = df_budget_vol['Período'].apply(normalizar_periodo)
@@ -2795,7 +2855,8 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                     custo_fixo_budget = 0
                 else:
                     budget_total = custos_budget['Total'].sum()
-                    custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
+                    mask_fixo = _mask_custo_fixo(custos_budget['Custo']) if 'Custo' in custos_budget.columns else pd.Series(False, index=custos_budget.index)
+                    custo_fixo_budget = custos_budget.loc[mask_fixo, 'Total'].sum()
 
                 # 🔧 CORREÇÃO CRÍTICA (Flex): Não ignorar categorias fora de 'Variável'.
                 # Regra: tudo que NÃO é Fixo é flexível (escala com Volume Real/Budget).
@@ -2912,7 +2973,8 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
                     custo_fixo_budget = 0
                 else:
                     budget_total = custos_budget['Total'].sum()
-                    custo_fixo_budget = custos_budget[custos_budget['Custo'] == 'Fixo']['Total'].sum()
+                    mask_fixo = _mask_custo_fixo(custos_budget['Custo']) if 'Custo' in custos_budget.columns else pd.Series(False, index=custos_budget.index)
+                    custo_fixo_budget = custos_budget.loc[mask_fixo, 'Total'].sum()
 
                 # 🔧 CORREÇÃO CRÍTICA (Flex): Não ignorar categorias fora de 'Variável'.
                 # Regra: tudo que NÃO é Fixo é flexível (escala com Volume Real/Budget).
@@ -5467,24 +5529,12 @@ if is_main_page:
                         st.error("❌ Erro: df_real_tabela não tem coluna 'Total'. Verifique a origem dos dados.")
                         df_real_agrupado = pd.DataFrame()
                     else:
-                        # Normalizar o rótulo de Custo para evitar perder linhas no Flex (ex: 'Variavel' sem acento)
+                        # Normalizar o rótulo de Custo para garantir governança (Fixo é fixo; Variável 100% variável)
                         df_real_tabela = df_real_tabela.copy()
-                        df_real_tabela['Custo'] = df_real_tabela['Custo'].apply(
-                            lambda v: (
-                                'Fixo' if str(v).strip().lower() == 'fixo'
-                                else ('Variável' if unicodedata.normalize('NFKD', str(v).strip()).encode('ascii', 'ignore').decode('ascii').strip().lower() == 'variavel'
-                                      else v)
-                            ) if pd.notna(v) else v
-                        )
+                        df_real_tabela['Custo'] = df_real_tabela['Custo'].apply(_normalizar_rotulo_custo)
                         df_budget_filtrado = df_budget_filtrado.copy()
                         if 'Custo' in df_budget_filtrado.columns:
-                            df_budget_filtrado['Custo'] = df_budget_filtrado['Custo'].apply(
-                                lambda v: (
-                                    'Fixo' if str(v).strip().lower() == 'fixo'
-                                    else ('Variável' if unicodedata.normalize('NFKD', str(v).strip()).encode('ascii', 'ignore').decode('ascii').strip().lower() == 'variavel'
-                                          else v)
-                                ) if pd.notna(v) else v
-                            )
+                            df_budget_filtrado['Custo'] = df_budget_filtrado['Custo'].apply(_normalizar_rotulo_custo)
                         # Normalizar Período para evitar mismatch (ex: 'janeiro' vs 'Janeiro')
                         mapeamento_meses = {
                             'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
@@ -5612,8 +5662,10 @@ if is_main_page:
                         df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
                         
                         # Usar operações vetorizadas ao invés de apply (muito mais rápido)
-                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(df_tabela_flex['Custo'] == 'Fixo', 0)
-                        df_tabela_flex['_Flex_Bud_NaoFixo'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(df_tabela_flex['Custo'] != 'Fixo', 0)
+                        # 🔒 Governança: Fixo não flexibiliza (robusto a variações de texto)
+                        mask_fixo = _mask_custo_fixo(df_tabela_flex['Custo']) if 'Custo' in df_tabela_flex.columns else pd.Series(False, index=df_tabela_flex.index)
+                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(mask_fixo, 0)
+                        df_tabela_flex['_Flex_Bud_NaoFixo'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~mask_fixo, 0)
                         
                         df_tabela_flex['_Flex_Bud_Total_Custo'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_NaoFixo']
                         
@@ -5639,8 +5691,10 @@ if is_main_page:
                         df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
                         
                         # Usar operações vetorizadas ao invés de apply (muito mais rápido)
-                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(df_tabela_flex['Custo'] == 'Fixo', 0)
-                        df_tabela_flex['_Flex_Bud_NaoFixo'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(df_tabela_flex['Custo'] != 'Fixo', 0)
+                        # 🔒 Governança: Fixo não flexibiliza
+                        mask_fixo = _mask_custo_fixo(df_tabela_flex['Custo']) if 'Custo' in df_tabela_flex.columns else pd.Series(False, index=df_tabela_flex.index)
+                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(mask_fixo, 0)
+                        df_tabela_flex['_Flex_Bud_NaoFixo'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~mask_fixo, 0)
                         
                         df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_NaoFixo']
                         df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo']
@@ -6231,12 +6285,17 @@ if is_main_page:
                                                         if not tem_valores_nao_zerados:
                                                             continue  # Pular Type 05 completamente zerado
                                                     else:
-                                                        if 'Total' in df_type05.columns:
+                                                        if 'Total' in df_type05_para_resumo.columns:
+                                                            if df_type05_para_resumo['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                                continue  # Pular Type 05 completamente zerado
+                                                        elif 'Total' in df_type05.columns:
                                                             if df_type05['Total'].fillna(0).abs().sum() <= 0.0001:
                                                                 continue  # Pular Type 05 completamente zerado
                                                     
                                                     # Verificar se a coluna 'Total' existe antes de acessá-la
-                                                    if 'Total' in df_type05.columns:
+                                                    if 'Total' in df_type05_para_resumo.columns:
+                                                        total_type05 = df_type05_para_resumo['Total'].sum()
+                                                    elif 'Total' in df_type05.columns:
                                                         total_type05 = df_type05['Total'].sum()
                                                     else:
                                                         total_type05 = 0.0
@@ -6263,12 +6322,17 @@ if is_main_page:
                                                                             continue  # Pular Type 06 completamente zerado
                                                                     else:
                                                                         # Se não há colunas numéricas, verificar se Total existe e é zero
-                                                                        if 'Total' in df_type06.columns:
+                                                                        if 'Total' in df_type06_para_resumo.columns:
+                                                                            if df_type06_para_resumo['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                                                continue  # Pular Type 06 completamente zerado
+                                                                        elif 'Total' in df_type06.columns:
                                                                             if df_type06['Total'].fillna(0).abs().sum() <= 0.0001:
                                                                                 continue  # Pular Type 06 completamente zerado
                                                                     
                                                                     # Verificar se a coluna 'Total' existe antes de acessá-la
-                                                                    if 'Total' in df_type06.columns:
+                                                                    if 'Total' in df_type06_para_resumo.columns:
+                                                                        total_type06 = df_type06_para_resumo['Total'].sum()
+                                                                    elif 'Total' in df_type06.columns:
                                                                         total_type06 = df_type06['Total'].sum()
                                                                     else:
                                                                         total_type06 = 0.0
@@ -6316,6 +6380,16 @@ if is_main_page:
                                                                                 
                                                                                 colunas_display = colunas_id + colunas_ordenadas
                                                                                 df_display = df_type06_filtrado[colunas_display].copy()
+
+                                                                                # Exibição: remover coluna 'Ano' (evita manter linhas 0 por conter 2025, e evita formatar como moeda)
+                                                                                if 'Ano' in df_display.columns and 'Ano' not in colunas_id:
+                                                                                    df_display = df_display.drop(columns=['Ano'])
+
+                                                                                # Visibilidade: remover linhas 100% zeradas/nulas somente na exibição
+                                                                                df_display = _remover_linhas_sem_valores_para_exibicao(
+                                                                                    df_display,
+                                                                                    colunas_ignorar=colunas_id,
+                                                                                )
                                                                                 
                                                                                 # Formatar valores (formatar todas as colunas numéricas dinamicamente)
                                                                                 for col in df_display.columns:
@@ -6477,6 +6551,16 @@ if is_main_page:
                                                             
                                                             colunas_display = colunas_id + colunas_ordenadas
                                                             df_display = df_type05[colunas_display].copy()
+
+                                                            # Exibição: remover coluna 'Ano' (evita manter linhas 0 por conter 2025, e evita formatar como moeda)
+                                                            if 'Ano' in df_display.columns and 'Ano' not in colunas_id:
+                                                                df_display = df_display.drop(columns=['Ano'])
+
+                                                            # Visibilidade: remover linhas 100% zeradas/nulas somente na exibição
+                                                            df_display = _remover_linhas_sem_valores_para_exibicao(
+                                                                df_display,
+                                                                colunas_ignorar=colunas_id,
+                                                            )
                                                             
                                                             # Formatar valores
                                                             for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
@@ -6525,6 +6609,16 @@ if is_main_page:
                                             colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
                                             colunas_display = colunas_id + colunas_ordenadas
                                             df_display = df_custo[colunas_display].copy()
+
+                                            # Exibição: remover coluna 'Ano' (evita manter linhas 0 por conter 2025, e evita formatar como moeda)
+                                            if 'Ano' in df_display.columns and 'Ano' not in colunas_id:
+                                                df_display = df_display.drop(columns=['Ano'])
+
+                                            # Visibilidade: remover linhas 100% zeradas/nulas somente na exibição
+                                            df_display = _remover_linhas_sem_valores_para_exibicao(
+                                                df_display,
+                                                colunas_ignorar=colunas_id,
+                                            )
                                             
                                             # Formatar valores (formatar todas as colunas numéricas dinamicamente)
                                             for col in df_display.columns:
@@ -6703,12 +6797,17 @@ if is_main_page:
                                             if not tem_valores_nao_zerados:
                                                 continue  # Pular Type 05 completamente zerado
                                         else:
-                                            if 'Total' in df_type05.columns:
+                                            if 'Total' in df_type05_para_resumo.columns:
+                                                if df_type05_para_resumo['Total'].fillna(0).abs().sum() <= 0.0001:
+                                                    continue  # Pular Type 05 completamente zerado
+                                            elif 'Total' in df_type05.columns:
                                                 if df_type05['Total'].fillna(0).abs().sum() <= 0.0001:
                                                     continue  # Pular Type 05 completamente zerado
                                         
                                         # Verificar se a coluna 'Total' existe antes de acessá-la
-                                        if 'Total' in df_type05.columns:
+                                        if 'Total' in df_type05_para_resumo.columns:
+                                            total_type05 = df_type05_para_resumo['Total'].sum()
+                                        elif 'Total' in df_type05.columns:
                                             total_type05 = df_type05['Total'].sum()
                                         else:
                                             total_type05 = 0.0
@@ -6725,6 +6824,8 @@ if is_main_page:
                                             if 'Type 06' in df_type05.columns:
                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
                                                     df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                    # 🔧 CORREÇÃO: Criar versão para resumo com colunas originais
+                                                    df_type06_para_resumo = df_type05_para_resumo[df_type05_para_resumo['Type 06'] == type06].copy() if 'Type 06' in df_type05_para_resumo.columns else df_type06.copy()
                                                     
                                                     if len(df_type06) > 0:
                                                         # 🔧 FILTRAR: Verificar se Type 06 tem valores não zerados
@@ -6742,7 +6843,9 @@ if is_main_page:
                                                                     continue  # Pular Type 06 completamente zerado
                                                         
                                                         # Verificar se a coluna 'Total' existe antes de acessá-la
-                                                        if 'Total' in df_type06.columns:
+                                                        if 'Total' in df_type06_para_resumo.columns:
+                                                            total_type06 = df_type06_para_resumo['Total'].sum()
+                                                        elif 'Total' in df_type06.columns:
                                                             total_type06 = df_type06['Total'].sum()
                                                         else:
                                                             total_type06 = 0.0
@@ -6864,6 +6967,16 @@ if is_main_page:
                                                                     
                                                                     colunas_display = colunas_id + colunas_ordenadas
                                                                     df_display = df_type06_filtrado[colunas_display].copy()
+
+                                                                    # Exibição: remover coluna 'Ano' (evita manter linhas 0 por conter 2025, e evita formatar como moeda)
+                                                                    if 'Ano' in df_display.columns and 'Ano' not in colunas_id:
+                                                                        df_display = df_display.drop(columns=['Ano'])
+
+                                                                    # Visibilidade: remover linhas 100% zeradas/nulas somente na exibição
+                                                                    df_display = _remover_linhas_sem_valores_para_exibicao(
+                                                                        df_display,
+                                                                        colunas_ignorar=colunas_id,
+                                                                    )
                                                                     
                                                                     # Formatar valores
                                                                     for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
@@ -6979,6 +7092,9 @@ if is_main_page:
                                     colunas_existentes = colunas_numericas if colunas_numericas else df_tabela_total_agrupado.columns.tolist()
                                 
                                 df_display = df_tabela_total_agrupado[colunas_existentes].copy()
+
+                                # Visibilidade: remover linhas 100% zeradas/nulas somente na exibição
+                                df_display = _remover_linhas_sem_valores_para_exibicao(df_display)
                                 
                                 # Formatar valores
                                 for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
@@ -7757,6 +7873,9 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                                     chaves_base = ['Ano'] + chaves_base
 
                                 # Budget: pivot por Custo para obter Fixo e Total
+                                budget_agrupado = budget_agrupado.copy()
+                                if 'Custo' in budget_agrupado.columns:
+                                    budget_agrupado['Custo'] = budget_agrupado['Custo'].apply(_normalizar_rotulo_custo)
                                 budget_piv = budget_agrupado.pivot_table(
                                     index=chaves_base,
                                     columns='Custo',

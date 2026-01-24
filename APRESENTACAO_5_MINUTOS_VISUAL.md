@@ -140,6 +140,32 @@
         └─────────────────┘ └─────────────┘ └─────────────┘
 ```
 
+**Mais um nível (pages/ e módulos):**
+
+```
+TC Ext (Linhas Secundárias)
+        • Home: tc_ext/pages/home_ext.py
+        • Waterfall: pages/1 - Waterfall.py
+        • Best Estimate (Simulador): pages/2 - Best Estimate - Simulador.py
+        • Best Estimate (Análise): tc_ext/pages/be_analise_ext.py
+        • Extração de Dados: pages/5 - Extração de Dados.py
+
+TC (Planta Principal) — páginas espelhadas (stubs)
+        • Home: tc_principal/pages/home_tc.py
+        • Waterfall: tc_principal/pages/waterfall_tc.py
+        • Best Estimate (Simulador): tc_principal/pages/best_estimate_simulador_tc.py
+        • Best Estimate (Análise): tc_principal/pages/best_estimate_analise_tc.py
+        • Extração de Dados: tc_principal/pages/extracao_dados_tc.py
+
+Documentação
+        • Documentação (Projeto): pages/6 - Documentacao.py
+
+Camadas internas
+        • tc_core/: paths + moeda + DB de câmbio + UI
+        • tc_ext/: normalização + métricas (ex.: CPU)
+        • dados/: histórico + BUD + Forecast (outputs do BE)
+```
+
 ---
 
 ### 🔄 Fluxo de Dados
@@ -262,6 +288,9 @@
 │        → gera `dados/Forecast/*.parquet`           │
 │     📊 Análise: layout da Home + dados Forecast    │
 │        → total em CPU é ponderado por Volume       │
+│     🔁 Referência por oficina: Real x Budget        │
+│        → BE pode partir do BUD mês-a-mês            │
+│        → cobre oficinas sem histórico               │
 │                                                    │
 └────────────────────────────────────────────────────┘
 ```
