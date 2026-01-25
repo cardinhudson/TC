@@ -3436,7 +3436,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             ]
         ).properties(
             height=altura_grafico,
-            width='container'
+            width=900
         )
 
         # Adicionar rótulos com valores nas barras
@@ -7739,7 +7739,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         alt.Chart(aviso_df)
                         .mark_text(size=14, color="#666", align="center")
                         .encode(text="msg:N")
-                        .properties(height=80, width="container")
+                        .properties(height=80, width=900)
                     )
             except Exception:
                 pass
@@ -8178,7 +8178,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 ]
             ).properties(
                 height=300,
-                width='container'
+                width=900
                 # Título removido para evitar duplicação com st.subheader
             )
 
@@ -8984,386 +8984,416 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
 # ==========================================
 if is_main_page:
     with tab3:
-        def _gerar_chave_grafico(prefixo):
-            filtros = [
-                ("oficina", st.session_state.get('filtro_oficina_tc_ext', [])),
-                ("veiculo", st.session_state.get('filtro_veiculo_tc_ext', [])),
-                ("usi", st.session_state.get('filtro_usi_tc_ext', [])),
-                ("periodo", st.session_state.get('filtro_periodo_tc_ext', [])),
-                ("type05", st.session_state.get('filtro_Type 05_tc_ext', [])),
-                ("type06", st.session_state.get('filtro_Type 06_tc_ext', [])),
-                ("account", st.session_state.get('filtro_Account_tc_ext', [])),
-                ("fornecedor", st.session_state.get('filtro_Fornecedor_tc_ext', [])),
-                ("fornec", st.session_state.get('filtro_Fornec._tc_ext', [])),
-                ("tipo", st.session_state.get('filtro_Tipo_tc_ext', []))
-            ]
-            partes = [f"{nome}:{'|'.join(map(str, vals))}" for nome, vals in filtros]
-            partes.append(f"viz:{tipo_visualizacao}")
-            partes.append(f"moeda:{moeda_codigo}")
-            partes.append(f"fator:{fator_conversao}")
-            partes.append(f"ano:{ano_selecionado}")
-            return f"{prefixo}_{'_'.join(partes)}"
+        st.subheader("🚗 TC Ext por Veíc")
 
-        def _resumir_filtros_ativos():
-            filtros = []
-            filtros_sidebar = [
-                ("Ano", ano_selecionado),
-                ("Oficina", st.session_state.get('filtro_oficina_tc_ext', [])),
-                ("Veículo", st.session_state.get('filtro_veiculo_tc_ext', [])),
-                ("Período", st.session_state.get('filtro_periodo_tc_ext', [])),
-                ("USI", st.session_state.get('filtro_usi_tc_ext', [])),
-            ]
-            for nome, valor in filtros_sidebar:
-                if isinstance(valor, list):
-                    if valor and "Todos" not in valor:
-                        filtros.append(f"{nome}: {', '.join(map(str, valor))}")
+        # Filtros locais (não impactam outras abas)
+        filtros_col1, filtros_col2 = st.columns([1, 2])
+        with filtros_col1:
+            st.markdown("**📅 Ano**")
+            tab3_ano_opcoes = ["Todos"]
+            try:
+                if 'df_total' in globals() and df_total is not None and 'Ano' in df_total.columns:
+                    tab3_ano_opcoes += sorted(pd.to_numeric(df_total['Ano'], errors='coerce').dropna().unique().tolist())
+            except Exception:
+                pass
+            tab3_ano_selecionado = st.selectbox(
+                "Ano (Tab 3)",
+                options=tab3_ano_opcoes,
+                index=0,
+                key="tab3_filtro_ano"
+                ,
+                label_visibility="collapsed"
+            )
+        with filtros_col2:
+            st.markdown("**🗓️ Período**")
+            tab3_periodo_opcoes = ["Todos"]
+            try:
+                if 'df_total' in globals() and df_total is not None and 'Período' in df_total.columns:
+                    periodos = df_total['Período'].dropna().astype(str).unique().tolist()
+                    tab3_periodo_opcoes += periodos
+            except Exception:
+                pass
+            tab3_periodos_selecionados = st.multiselect(
+                "Período (Tab 3)",
+                options=tab3_periodo_opcoes,
+                default=["Todos"],
+                key="tab3_filtro_periodo"
+                ,
+                label_visibility="collapsed"
+            )
+
+        def _base_real_tab3():
+            try:
+                if df_filtrado is not None:
+                    return df_filtrado
+            except NameError:
+                pass
+            try:
+                if df_total is not None:
+                    return df_total
+            except NameError:
+                pass
+            return None
+
+        def _base_volume_tab3():
+            try:
+                if df_vol_filtrado_sidebar is not None:
+                    return df_vol_filtrado_sidebar
+            except NameError:
+                pass
+            return None
+
+        def _aplicar_filtros_locais(df_in):
+            if df_in is None or df_in.empty:
+                return df_in
+            df_out = df_in.copy()
+            if tab3_ano_selecionado != "Todos" and 'Ano' in df_out.columns:
+                df_out = df_out[pd.to_numeric(df_out['Ano'], errors='coerce') == tab3_ano_selecionado].copy()
+            if tab3_periodos_selecionados and "Todos" not in tab3_periodos_selecionados and 'Período' in df_out.columns:
+                df_out = df_out[df_out['Período'].astype(str).isin([str(x) for x in tab3_periodos_selecionados])].copy()
+            return df_out
+
+        def _carregar_budget_filtrado():
+            try:
+                df_budget = load_budget_data(ano_selecionado)
+                df_budget_vol = load_budget_volume_data(ano_selecionado)
+            except Exception:
+                return None, None
+
+            if df_budget is not None:
+                df_budget = df_budget.copy()
+                if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total" and 'Total' in df_budget.columns:
+                    if fator_conversao == "K (milhares)":
+                        df_budget['Total'] = df_budget['Total'] / 1000
+                    elif fator_conversao == "M (Milhões)":
+                        df_budget['Total'] = df_budget['Total'] / 1000000
+                if moeda_codigo != "BRL" and 'Total' in df_budget.columns:
+                    df_budget = _core_converter_coluna_moeda(df_budget, 'Total', moeda_codigo, taxas_cambio)
+
+            if df_budget_vol is not None:
+                df_budget_vol = df_budget_vol.copy()
+
+            df_budget = _aplicar_filtros_locais(df_budget)
+            df_budget_vol = _aplicar_filtros_locais(df_budget_vol)
+            return df_budget, df_budget_vol
+
+        def _flex_por_categoria(df_budget, df_budget_vol, df_real_vol, categoria, tipo_viz):
+            if df_budget is None or df_budget_vol is None or df_real_vol is None:
+                return None
+            if categoria not in df_budget.columns or categoria not in df_budget_vol.columns or categoria not in df_real_vol.columns:
+                return None
+            if 'Total' not in df_budget.columns or 'Volume' not in df_budget_vol.columns or 'Volume' not in df_real_vol.columns:
+                return None
+            if 'Custo' not in df_budget.columns:
+                return None
+
+            bud = df_budget.copy()
+            bud_vol = df_budget_vol.copy()
+            real_vol = df_real_vol.copy()
+
+            bud['Total'] = pd.to_numeric(bud['Total'], errors='coerce').fillna(0)
+            bud_vol['Volume'] = pd.to_numeric(bud_vol['Volume'], errors='coerce').fillna(0)
+            real_vol['Volume'] = pd.to_numeric(real_vol['Volume'], errors='coerce').fillna(0)
+
+            bud[categoria] = bud[categoria].astype(str)
+            bud_vol[categoria] = bud_vol[categoria].astype(str)
+            real_vol[categoria] = real_vol[categoria].astype(str)
+
+            bud['Custo'] = bud['Custo'].apply(_normalizar_rotulo_custo)
+            mask_fixo = _mask_custo_fixo(bud['Custo'])
+
+            bud_total = bud.groupby(categoria, dropna=False)['Total'].sum().reset_index()
+            bud_fixo = bud.loc[mask_fixo].groupby(categoria, dropna=False)['Total'].sum().reset_index()
+            bud_fixo = bud_fixo.rename(columns={'Total': 'Fixo'})
+
+            bud_base = bud_total.merge(bud_fixo, on=categoria, how='left')
+            bud_base['Fixo'] = bud_base['Fixo'].fillna(0)
+            bud_base['NaoFixo'] = bud_base['Total'] - bud_base['Fixo']
+
+            vol_budget = bud_vol.groupby(categoria, dropna=False)['Volume'].sum().reset_index().rename(columns={'Volume': 'VolBudget'})
+            vol_real = real_vol.groupby(categoria, dropna=False)['Volume'].sum().reset_index().rename(columns={'Volume': 'VolReal'})
+
+            base = bud_base.merge(vol_budget, on=categoria, how='left').merge(vol_real, on=categoria, how='left')
+            base['VolBudget'] = base['VolBudget'].fillna(0)
+            base['VolReal'] = base['VolReal'].fillna(0)
+
+            def _calc_flex(row):
+                if row['VolBudget'] and row['VolBudget'] != 0:
+                    return row['Fixo'] + (row['NaoFixo'] * (row['VolReal'] / row['VolBudget']))
+                return row['Fixo'] + row['NaoFixo']
+
+            base['Flex'] = base.apply(_calc_flex, axis=1)
+
+            if tipo_viz == "CPU (Custo por Unidade)":
+                base['CPU'] = np.where(base['VolReal'] != 0, base['Flex'] / base['VolReal'], 0)
+                return base[[categoria, 'CPU']].rename(columns={categoria: categoria})
+
+            return base[[categoria, 'Flex']].rename(columns={'Flex': 'Valor'})
+
+        def _resumo_tab3(base_real, base_vol, df_budget, df_budget_vol, tipo_viz, moeda):
+            try:
+                if base_real is None or base_real.empty or base_vol is None or base_vol.empty:
+                    return None, None
+                if df_budget is None or df_budget.empty or df_budget_vol is None or df_budget_vol.empty:
+                    return None, None
+
+                real_total = pd.to_numeric(base_real.get('Total', 0), errors='coerce').fillna(0).sum()
+                vol_real = pd.to_numeric(base_vol.get('Volume', 0), errors='coerce').fillna(0).sum()
+
+                bud = df_budget.copy()
+                bud['Total'] = pd.to_numeric(bud.get('Total', 0), errors='coerce').fillna(0)
+                bud['Custo'] = bud.get('Custo', '').apply(_normalizar_rotulo_custo)
+                mask_fixo = _mask_custo_fixo(bud['Custo']) if 'Custo' in bud.columns else pd.Series(False, index=bud.index)
+                bud_total = bud['Total'].sum()
+                bud_fixo = bud.loc[mask_fixo, 'Total'].sum() if 'Custo' in bud.columns else 0
+                bud_nao_fixo = bud_total - bud_fixo
+
+                bud_vol_total = pd.to_numeric(df_budget_vol.get('Volume', 0), errors='coerce').fillna(0).sum()
+
+                if bud_vol_total and bud_vol_total != 0:
+                    flex_total = bud_fixo + (bud_nao_fixo * (vol_real / bud_vol_total))
                 else:
-                    if valor and valor != "Todos":
-                        filtros.append(f"{nome}: {valor}")
-            return filtros
+                    flex_total = bud_total
 
-        def _coerce_dim_cols(df):
-            df_tmp = df.copy()
-            for col in ['Oficina', 'Veículo', 'Período']:
+                if tipo_viz == "CPU (Custo por Unidade)":
+                    total_val = (real_total / vol_real) if vol_real else 0
+                    flex_val = (flex_total / vol_real) if vol_real else 0
+                    bud_val = (bud_total / bud_vol_total) if bud_vol_total else 0
+                else:
+                    total_val = real_total
+                    flex_val = flex_total
+                    bud_val = bud_total
+
+                linha_resumo = {
+                    'BUD': bud_val,
+                    'Flex BUD': flex_val,
+                    'Total': total_val,
+                    'Flex Bud - BUD': flex_val - bud_val,
+                    'Total - Flex Bud': total_val - flex_val,
+                    'Total / Flex Bud': (total_val / flex_val) if flex_val else 0,
+                    '_Volume_Real_Calculo': vol_real,
+                    '_Volume_Budget_Calculo': bud_vol_total,
+                }
+
+                linha_resumo_formatado = {
+                    'BUD': f"{moeda} {_formatar_num_ptbr(bud_val, 2)}",
+                    'Flex BUD': f"{moeda} {_formatar_num_ptbr(flex_val, 2)}",
+                    'Total': f"{moeda} {_formatar_num_ptbr(total_val, 2)}",
+                    'Flex Bud - BUD': f"{moeda} {_formatar_num_ptbr(flex_val - bud_val, 2)}",
+                    'Total - Flex Bud': f"{moeda} {_formatar_num_ptbr(total_val - flex_val, 2)}",
+                    '_Volume_Real_Calculo': _formatar_num_ptbr(vol_real, 0),
+                    '_Volume_Budget_Calculo': _formatar_num_ptbr(bud_vol_total, 0),
+                }
+
+                return linha_resumo, linha_resumo_formatado
+            except Exception:
+                return None, None
+
+        def _agregar_total(base_df, group_cols, coluna_valor):
+            if base_df is None or base_df.empty or coluna_valor not in base_df.columns:
+                return pd.DataFrame()
+            df_tmp = base_df.copy()
+            df_tmp = padronizar_colunas(df_tmp)
+            df_tmp[coluna_valor] = pd.to_numeric(df_tmp[coluna_valor], errors='coerce').fillna(0)
+            for col in group_cols:
                 if col in df_tmp.columns:
                     df_tmp[col] = df_tmp[col].astype(str)
-            return df_tmp
-
-        # Carregar dados de budget e volume para esta aba também
-        df_budget_filtrado_tab3 = None
-        df_budget_vol_filtrado_tab3 = None
-        df_volume_real_filtrado_tab3 = None
-        df_real_original_grafico_tab3 = None
-        
-        try:
-            # Carregar dados de budget
-            df_budget_tab3 = load_budget_data(ano_selecionado)
-            df_budget_vol_tab3 = load_budget_volume_data(ano_selecionado)
-
-            def _aplicar_filtro_state(df_in, coluna_filtro, chave_state):
-                if df_in is None or coluna_filtro not in df_in.columns:
-                    return df_in
-                selecionadas = st.session_state.get(chave_state, ["Todos"])
-                if isinstance(selecionadas, tuple):
-                    selecionadas = list(selecionadas)
-                if selecionadas and "Todos" not in selecionadas:
-                    df_in = df_in[df_in[coluna_filtro].astype(str).isin([str(x) for x in selecionadas])].copy()
-                return df_in
-
-            def _aplicar_filtros_sidebar_tc_ext(df_in):
-                if df_in is None:
-                    return df_in
-                # Filtros principais (mesmos nomes/keys da sidebar TC Ext)
-                df_in = _aplicar_filtro_state(df_in, 'Oficina', 'filtro_oficina_tc_ext')
-                df_in = _aplicar_filtro_state(df_in, 'Veículo', 'filtro_veiculo_tc_ext')
-                df_in = _aplicar_filtro_state(df_in, 'USI', 'filtro_usi_tc_ext')
-                df_in = _aplicar_filtro_state(df_in, 'Período', 'filtro_periodo_tc_ext')
-
-                for col_filtro in ['Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
-                    df_in = _aplicar_filtro_state(df_in, col_filtro, f'filtro_{col_filtro}_tc_ext')
-
-                for col_filtro in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
-                    df_in = _aplicar_filtro_state(df_in, col_filtro, f'filtro_avancado_{col_filtro}_tc_ext')
-                return df_in
-            
-            if df_budget_tab3 is not None:
-                df_budget_tab3 = df_budget_tab3.copy()
-                # Aplicar fator de conversão na coluna Total do budget
-                if (fator_conversao and fator_conversao != "Nenhum" and
-                        tipo_visualizacao == "Custo Total" and 'Total' in df_budget_tab3.columns):
-                    if fator_conversao == "K (milhares)":
-                        df_budget_tab3['Total'] = df_budget_tab3['Total'] / 1000
-                    elif fator_conversao == "M (Milhões)":
-                        df_budget_tab3['Total'] = df_budget_tab3['Total'] / 1000000
-                
-                # Aplicar conversão de moeda
-                if moeda_codigo != "BRL" and 'Total' in df_budget_tab3.columns:
-                    df_budget_tab3 = converter_coluna_moeda(df_budget_tab3, 'Total', moeda_codigo, taxas_cambio)
-
-                # ✅ Importante: filtrar Budget com o mesmo perímetro de filtros da sidebar
-                # (evita calcular Flex com dados muito maiores que o Real filtrado e melhora performance do gráfico)
-                df_budget_filtrado_tab3 = _aplicar_filtros_sidebar_tc_ext(df_budget_tab3.copy())
-            
-            if df_budget_vol_tab3 is not None:
-                df_budget_vol_filtrado_tab3 = _aplicar_filtros_sidebar_tc_ext(df_budget_vol_tab3.copy())
-        except Exception as e:
-            pass  # Silenciar erro
-        
-        # Carregar dados de volume reais
-        try:
-            df_vol_calc_grafico_tab3 = load_volume_data(ano_selecionado)
-            if df_vol_calc_grafico_tab3 is not None and 'Volume' in df_vol_calc_grafico_tab3.columns:
-                try:
-                    df_volume_real_filtrado_tab3 = filtrar_volume_com_sidebar(df_vol_calc_grafico_tab3, df_total)
-                    if df_volume_real_filtrado_tab3 is None or df_volume_real_filtrado_tab3.empty:
-                        df_volume_real_filtrado_tab3 = df_vol_calc_grafico_tab3.copy()
-                except Exception:
-                    df_volume_real_filtrado_tab3 = df_vol_calc_grafico_tab3.copy()
-        except Exception as e:
-            pass  # Silenciar erro
-        
-        # Preparar dados originais para cálculo de FLEX (modo CPU)
-        # IMPORTANTE: usar a mesma base filtrada (df_filtrado) sempre que possível;
-        # df_total completo ignora filtros e pode gerar divergência (tabelas x gráficos).
-        try:
-            if 'df_filtrado' in locals() and df_filtrado is not None:
-                df_real_original_grafico_tab3 = df_filtrado.copy()
-            else:
-                df_real_original_grafico_tab3 = df_total.copy()
-        except Exception:
-            df_real_original_grafico_tab3 = df_total.copy()
-
-        # Recriar df_visualizacao específico do tab3 para garantir atualização imediata
-        if 'df_filtrado' in locals() and df_filtrado is not None:
-            df_visualizacao_tab3 = df_filtrado.copy()
-            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                coluna_visualizacao_tab3 = 'CPU'
-
-                # Regra crítica (robustez): CPU deve ser calculado SEM depender de linhas individuais.
-                # Fazer: CPU = sum(Total) / sum(Volume) no grão compatível com o volume.
-                df_vol_merge_tab3 = df_volume_real_filtrado_tab3
-                if df_vol_merge_tab3 is None:
-                    df_vol_merge_tab3 = df_vol_filtrado_sidebar
-
-                # 🔧 CRÍTICO: padronizar nomes (ex.: "Ve�culo" -> "Veículo")
-                # Se não padronizar, o merge pode cair para (Oficina/Período/Ano) e repetir Volume por Veículo.
-                df_vol_merge_tab3 = padronizar_colunas(df_vol_merge_tab3) if df_vol_merge_tab3 is not None else None
-
-                # Coerção numérica defensiva
-                if 'Total' in df_visualizacao_tab3.columns:
-                    df_visualizacao_tab3['Total'] = pd.to_numeric(df_visualizacao_tab3['Total'], errors='coerce').fillna(0)
-
-                chaves_cpu = [c for c in ['Oficina', 'Veículo', 'Período', 'Ano'] if c in df_visualizacao_tab3.columns]
-                df_custo_agr = (
-                    df_visualizacao_tab3
-                    .groupby(chaves_cpu, dropna=False)
-                    .agg({'Total': 'sum'})
-                    .reset_index()
-                )
-
-                if df_vol_merge_tab3 is not None and 'Volume' in df_vol_merge_tab3.columns:
-                    df_vol_merge_tab3 = df_vol_merge_tab3.copy()
-                    df_vol_merge_tab3['Volume'] = pd.to_numeric(df_vol_merge_tab3['Volume'], errors='coerce').fillna(0)
-                    vol_keys = [k for k in chaves_cpu if k in df_vol_merge_tab3.columns]
-                    if vol_keys:
-                        df_vol_agr = (
-                            df_vol_merge_tab3
-                            .groupby(vol_keys, dropna=False)
-                            .agg({'Volume': 'sum'})
-                            .reset_index()
-                        )
-                        df_cpu_agr = df_custo_agr.merge(df_vol_agr, on=vol_keys, how='left')
-                    else:
-                        df_cpu_agr = df_custo_agr.copy()
-                        df_cpu_agr['Volume'] = 0
-                else:
-                    df_cpu_agr = df_custo_agr.copy()
-                    df_cpu_agr['Volume'] = 0
-
-                df_cpu_agr['Volume'] = pd.to_numeric(df_cpu_agr['Volume'], errors='coerce').fillna(0)
-                df_cpu_agr['CPU'] = np.where(
-                    (df_cpu_agr['Volume'].notna()) & (df_cpu_agr['Volume'] != 0),
-                    df_cpu_agr['Total'] / df_cpu_agr['Volume'],
-                    0
-                )
-
-                df_visualizacao_tab3 = df_cpu_agr
-            else:
-                coluna_visualizacao_tab3 = 'Total' if 'Total' in df_visualizacao_tab3.columns else 'Valor'
-        else:
-            df_visualizacao_tab3 = pd.DataFrame()
-            coluna_visualizacao_tab3 = 'Total'
-        
-        # Exibir gráfico por Oficina
-        if 'Oficina' in df_visualizacao_tab3.columns:
-            titulo_grafico_oficina = (
-                "📊 CPU por Oficina"
-                if tipo_visualizacao == "CPU (Custo por Unidade)"
-                else "📊 Soma do Valor por Oficina"
+            return (
+                df_tmp.groupby(group_cols, dropna=False)[coluna_valor]
+                .sum()
+                .reset_index()
+                .rename(columns={coluna_valor: 'Valor'})
             )
-            st.subheader(titulo_grafico_oficina)
-            try:
-                df_grafico_oficina = df_visualizacao_tab3.copy()
 
-                # Padronizar coluna Veículo localmente (sem alterar a UI)
-                if 'Veículo' not in df_grafico_oficina.columns:
-                    for alias in ['Veiculo', 'Veic', 'Veíc']:
-                        if alias in df_grafico_oficina.columns:
-                            df_grafico_oficina['Veículo'] = df_grafico_oficina[alias]
-                            break
+        def _agregar_cpu(base_df, vol_df, group_cols):
+            if base_df is None or base_df.empty or 'Total' not in base_df.columns:
+                return pd.DataFrame()
+            if vol_df is None or vol_df.empty or 'Volume' not in vol_df.columns:
+                return pd.DataFrame()
 
-                # Definir métrica correta (preferir Total quando em Custo Total)
-                if tipo_visualizacao == "Custo Total" and 'Total' in df_grafico_oficina.columns:
-                    coluna_grafico_oficina = 'Total'
-                elif coluna_visualizacao_tab3 in df_grafico_oficina.columns:
-                    coluna_grafico_oficina = coluna_visualizacao_tab3
-                elif 'Valor' in df_grafico_oficina.columns:
-                    coluna_grafico_oficina = 'Valor'
-                else:
-                    coluna_grafico_oficina = coluna_visualizacao_tab3
+            custo = base_df.copy()
+            vol = vol_df.copy()
+            custo = padronizar_colunas(custo)
+            vol = padronizar_colunas(vol)
 
-                # Coerção de tipos numéricos (sem mutar df de origem)
-                colunas_numericas = [coluna_grafico_oficina, 'Total', 'Volume']
-                for col in colunas_numericas:
-                    if col in df_grafico_oficina.columns:
-                        df_grafico_oficina[col] = pd.to_numeric(df_grafico_oficina[col], errors='coerce')
-                        df_grafico_oficina[col] = df_grafico_oficina[col].replace([np.inf, -np.inf], np.nan)
+            custo['Total'] = pd.to_numeric(custo['Total'], errors='coerce').fillna(0)
+            vol['Volume'] = pd.to_numeric(vol['Volume'], errors='coerce').fillna(0)
 
-                # Normalizar dimensões para evitar problemas de dtype (Altair/groupby)
-                df_grafico_oficina = _coerce_dim_cols(df_grafico_oficina)
+            for col in group_cols:
+                if col in custo.columns:
+                    custo[col] = custo[col].astype(str)
+                if col in vol.columns:
+                    vol[col] = vol[col].astype(str)
 
-                # Validar colunas obrigatórias
-                colunas_obrigatorias = ['Oficina', coluna_grafico_oficina]
-                colunas_faltando = [c for c in colunas_obrigatorias if c not in df_grafico_oficina.columns]
-                if colunas_faltando:
-                    st.warning(
-                        "⚠️ Dados insuficientes para o gráfico. Colunas ausentes: "
-                        + ", ".join(colunas_faltando)
+            custo_agr = custo.groupby(group_cols, dropna=False)['Total'].sum().reset_index()
+            vol_agr = vol.groupby(group_cols, dropna=False)['Volume'].sum().reset_index()
+
+            df_cpu = custo_agr.merge(vol_agr, on=group_cols, how='left')
+            df_cpu['CPU'] = np.where(
+                (df_cpu['Volume'].notna()) & (df_cpu['Volume'] != 0),
+                df_cpu['Total'] / df_cpu['Volume'],
+                0
+            )
+            return df_cpu
+
+        def _plot_rank(df_rank, coluna_valor, titulo, moeda, df_flex_line=None):
+            if df_rank is None or df_rank.empty or coluna_valor not in df_rank.columns:
+                st.info("ℹ️ Sem dados para o gráfico com os filtros atuais.")
+                return
+
+            df_plot = df_rank.copy()
+            df_plot[coluna_valor] = pd.to_numeric(df_plot[coluna_valor], errors='coerce').fillna(0)
+            df_plot = df_plot.sort_values(by=coluna_valor, ascending=False)
+
+            eixo_x = df_plot.columns[0]
+            valores = df_plot[coluna_valor].tolist()
+            fig = go.Figure(
+                data=[
+                    go.Bar(
+                        x=df_plot[eixo_x],
+                        y=valores,
+                        text=[f"{v:,.2f}" for v in valores],
+                        textposition='outside',
+                        marker=dict(
+                            color=valores,
+                            colorscale='Blues',
+                            showscale=False
+                        ),
+                        hovertemplate=(
+                            f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>"
+                        ),
                     )
-                elif df_grafico_oficina.empty:
-                    filtros_ativos = _resumir_filtros_ativos()
-                    detalhes = "; ".join(filtros_ativos) if filtros_ativos else "(nenhum filtro ativo)"
-                    st.info(
-                        "ℹ️ Sem dados após aplicar filtros. "
-                        f"Verifique Ano/Oficina/Veículo/Período. Filtros: {detalhes}"
-                    )
-                else:
-                    # Preencher NaN apenas para a soma exibida no gráfico
-                    if coluna_grafico_oficina in df_grafico_oficina.columns:
-                        df_grafico_oficina[coluna_grafico_oficina] = df_grafico_oficina[
-                            coluna_grafico_oficina
-                        ].fillna(0)
-                    if 'Total' in df_grafico_oficina.columns:
-                        df_grafico_oficina['Total'] = df_grafico_oficina['Total'].fillna(0)
-                    if 'Volume' in df_grafico_oficina.columns:
-                        df_grafico_oficina['Volume'] = df_grafico_oficina['Volume'].fillna(0)
+                ]
+            )
 
-                    # Sanitizar dados auxiliares usados no Flex (sem mutar originais)
-                    df_budget_filtrado_tab3_s = (
-                        _coerce_dim_cols(df_budget_filtrado_tab3)
-                        if df_budget_filtrado_tab3 is not None
-                        else None
+            if df_flex_line is not None and not df_flex_line.empty and coluna_valor in df_flex_line.columns:
+                df_line = df_flex_line.copy()
+                df_line = df_line[df_line[eixo_x].isin(df_plot[eixo_x])]
+                df_line = df_line.set_index(eixo_x).reindex(df_plot[eixo_x]).reset_index()
+                fig.add_trace(
+                    go.Scatter(
+                        x=df_line[eixo_x],
+                        y=df_line[coluna_valor],
+                        mode='lines+markers+text',
+                        name='Flex Bud',
+                        line=dict(color='#FF6B35', width=2, dash='dash'),
+                        marker=dict(size=6),
+                        text=[f"{v:,.2f}" for v in df_line[coluna_valor].fillna(0).tolist()],
+                        textposition='top center',
+                        hovertemplate=(
+                            f"%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra></extra>"
+                        )
                     )
-                    df_budget_vol_filtrado_tab3_s = (
-                        _coerce_dim_cols(df_budget_vol_filtrado_tab3)
-                        if df_budget_vol_filtrado_tab3 is not None
-                        else None
-                    )
-                    df_volume_real_filtrado_tab3_s = (
-                        _coerce_dim_cols(df_volume_real_filtrado_tab3)
-                        if df_volume_real_filtrado_tab3 is not None
-                        else None
-                    )
-                    df_real_original_grafico_tab3_s = (
-                        _coerce_dim_cols(df_real_original_grafico_tab3)
-                        if df_real_original_grafico_tab3 is not None
-                        else None
-                    )
+                )
 
-                    # 🔧 Robustez (CPU): recalcular CPU por (Ano/Período/Oficina) usando a MESMA base das tabelas.
-                    # Isso evita CPU subestimado quando volume é mergeado sem Veículo e repetido por veículo.
-                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+            fig.update_layout(
+                title=titulo,
+                xaxis_title=eixo_x,
+                yaxis_title=f"{coluna_valor} ({moeda})" if coluna_valor != 'CPU' else coluna_valor,
+                margin=dict(l=20, r=20, t=60, b=40),
+                height=460,
+            )
+            fig.update_xaxes(showgrid=False, zeroline=False)
+            fig.update_yaxes(showgrid=False, zeroline=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+        base_real = _aplicar_filtros_locais(_base_real_tab3())
+        base_vol = _aplicar_filtros_locais(_base_volume_tab3())
+        df_budget_tab3, df_budget_vol_tab3 = _carregar_budget_filtrado()
+
+        if base_real is None or base_real.empty:
+            st.warning("⚠️ Sem dados Real para o Tab 3 com os filtros atuais.")
+        else:
+            moeda_label = moeda_simbolo if 'moeda_simbolo' in locals() else "R$"
+
+            # Resumo (estilo Tab 1)
+            linha_resumo_tab3, linha_resumo_tab3_formatado = _resumo_tab3(
+                base_real,
+                base_vol,
+                df_budget_tab3,
+                df_budget_vol_tab3,
+                tipo_visualizacao,
+                moeda_label
+            )
+            if linha_resumo_tab3 and linha_resumo_tab3_formatado:
+                exibir_caixas_resumo(linha_resumo_tab3, linha_resumo_tab3_formatado, tipo_visualizacao, mostrar_volumes=True)
+                st.markdown("---")
+
+            # -----------------------------
+            # Gráfico por Oficina
+            # -----------------------------
+            if 'Oficina' in base_real.columns:
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    df_cpu_of = _agregar_cpu(base_real, base_vol, ['Oficina'])
+                    df_flex_of = None
+                    if df_budget_tab3 is not None and df_budget_vol_tab3 is not None:
                         try:
-                            df_base_custo = (
-                                df_filtrado.copy()
-                                if 'df_filtrado' in locals() and df_filtrado is not None
-                                else df_grafico_oficina
+                            df_flex_of = _flex_por_categoria(
+                                df_budget_tab3,
+                                df_budget_vol_tab3,
+                                base_vol,
+                                'Oficina',
+                                "CPU (Custo por Unidade)"
                             )
-                            df_cpu_graf_of = cpu_por_chaves(
-                                df_base_custo,
-                                df_volume_real_filtrado_tab3_s,
-                                chaves_preferidas=("Ano", "Período", "Oficina"),
-                                coluna_custo="Total",
-                                coluna_volume="Volume",
-                            )
-                            if df_cpu_graf_of is not None and not df_cpu_graf_of.empty:
-                                df_grafico_oficina = df_cpu_graf_of
-                                coluna_grafico_oficina = 'CPU'
                         except Exception:
-                            pass
-
-                    # 🔧 Garantir Volume no modo CPU para evitar gráfico em branco
-                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                        df_grafico_oficina = _merge_volume_com_fallback(
-                            df_grafico_oficina,
-                            df_volume_real_filtrado_tab3_s
-                        )
-                        if 'Volume' in df_grafico_oficina.columns and 'Total' in df_grafico_oficina.columns:
-                            df_grafico_oficina['CPU'] = np.where(
-                                (df_grafico_oficina['Volume'].notna()) & (df_grafico_oficina['Volume'] != 0),
-                                df_grafico_oficina['Total'] / df_grafico_oficina['Volume'],
-                                0
+                            df_flex_of = None
+                    _plot_rank(df_cpu_of, 'CPU', "📊 CPU por Oficina", moeda_label, df_flex_of)
+                else:
+                    coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
+                    df_tot_of = _agregar_total(base_real, ['Oficina'], coluna_valor)
+                    df_flex_of = None
+                    if df_budget_tab3 is not None and df_budget_vol_tab3 is not None:
+                        try:
+                            df_flex_of = _flex_por_categoria(
+                                df_budget_tab3,
+                                df_budget_vol_tab3,
+                                base_vol,
+                                'Oficina',
+                                "Custo Total"
                             )
+                        except Exception:
+                            df_flex_of = None
+                    _plot_rank(df_tot_of, 'Valor', "📊 Custo Total por Oficina", moeda_label, df_flex_of)
+            else:
+                st.info("ℹ️ Coluna 'Oficina' não encontrada para o gráfico por Oficina.")
 
-                    try:
-                        df_hash_base = df_grafico_oficina[['Oficina', coluna_grafico_oficina]].copy()
-                        df_hash_base = df_hash_base.fillna(0)
-                        hash_dados_oficina = int(pd.util.hash_pandas_object(df_hash_base, index=False).sum())
-                    except Exception:
-                        hash_dados_oficina = 0
-
-                    grafico_oficina = create_oficina_chart(
-                        df_grafico_oficina,
-                        coluna_grafico_oficina,
-                        tipo_visualizacao,
-                        moeda_simbolo,
-                        df_budget_filtrado_tab3_s,
-                        df_budget_vol_filtrado_tab3_s,
-                        df_volume_real_filtrado_tab3_s,
-                        df_real_original_grafico_tab3_s,
-                    )
-                    if grafico_oficina is not None:
-                        # Evitar erro de width em VConcatChart
-                        if isinstance(grafico_oficina, alt.VConcatChart):
-                            grafico_oficina_render = grafico_oficina
-                            use_container_width = True
-                        else:
-                            grafico_oficina_render = grafico_oficina.properties(width=900)
-                            use_container_width = False
-                        chave_grafico_oficina = f"{_gerar_chave_grafico('grafico_oficina_tab3')}_{hash_dados_oficina}"
-                        st.altair_chart(
-                            grafico_oficina_render,
-                            use_container_width=use_container_width,
-                            key=chave_grafico_oficina,
-                        )
-                    else:
-                        filtros_ativos = _resumir_filtros_ativos()
-                        detalhes = "; ".join(filtros_ativos) if filtros_ativos else "(nenhum filtro ativo)"
-                        st.info(
-                            "ℹ️ Sem dados para renderizar o gráfico. "
-                            f"Verifique filtros. Filtros: {detalhes}"
-                        )
-            except Exception as e:
-                import traceback
-                st.error(f"❌ Erro ao criar gráfico de Oficina: {e}")
-                st.error(traceback.format_exc())
-        
-        # Exibir gráfico de Total por Veículo
-        if 'Veículo' in df_visualizacao_tab3.columns:
-            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                if coluna_visualizacao_tab3 in df_visualizacao_tab3.columns:
-                    st.subheader("📊 CPU por Veículo")
-                    grafico_total = create_total_chart(
-                        df_visualizacao_tab3, coluna_visualizacao_tab3, tipo_visualizacao, moeda_simbolo,
-                        df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3, df_visualizacao_tab3, df_total, df_visualizacao_tab3,
-                        df_filtrado if 'df_filtrado' in locals() else None,
-                        df_volume_real_filtrado_tab3,
-                        df_vol_filtrado_sidebar_share
-                    )
-                    if grafico_total:
-                        st.altair_chart(grafico_total, use_container_width=True)
-            elif tipo_visualizacao == "Custo Total":
-                if 'df_filtrado' in locals() and df_filtrado is not None and 'Total' in df_filtrado.columns:
-                    st.subheader("📊 Total por Veículo")
-                    grafico_total = create_total_chart(
-                        df_filtrado, 'Total', tipo_visualizacao, moeda_simbolo,
-                        df_budget_filtrado_tab3, df_budget_vol_filtrado_tab3, df_volume_real_filtrado_tab3, df_real_original_grafico_tab3, None, df_total, df_visualizacao,
-                        df_filtrado,
-                        None,
-                        df_vol_filtrado_sidebar_share
-                    )
-                    if grafico_total:
-                        st.altair_chart(grafico_total, use_container_width=True)
+            # -----------------------------
+            # Gráfico por Veículo
+            # -----------------------------
+            if 'Veículo' in base_real.columns:
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    df_cpu_veic = _agregar_cpu(base_real, base_vol, ['Veículo'])
+                    df_flex_veic = None
+                    if df_budget_tab3 is not None and df_budget_vol_tab3 is not None:
+                        try:
+                            df_flex_veic = _flex_por_categoria(
+                                df_budget_tab3,
+                                df_budget_vol_tab3,
+                                base_vol,
+                                'Veículo',
+                                "CPU (Custo por Unidade)"
+                            )
+                        except Exception:
+                            df_flex_veic = None
+                    _plot_rank(df_cpu_veic, 'CPU', "📊 CPU por Veículo", moeda_label, df_flex_veic)
+                else:
+                    coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
+                    df_tot_veic = _agregar_total(base_real, ['Veículo'], coluna_valor)
+                    df_flex_veic = None
+                    if df_budget_tab3 is not None and df_budget_vol_tab3 is not None:
+                        try:
+                            df_flex_veic = _flex_por_categoria(
+                                df_budget_tab3,
+                                df_budget_vol_tab3,
+                                base_vol,
+                                'Veículo',
+                                "Custo Total"
+                            )
+                        except Exception:
+                            df_flex_veic = None
+                    _plot_rank(df_tot_veic, 'Valor', "📊 Custo Total por Veículo", moeda_label, df_flex_veic)
+            else:
+                st.info("ℹ️ Coluna 'Veículo' não encontrada para o gráfico por Veículo.")
 
     # Variáveis necessárias para o tab4 (definidas dentro do bloco is_main_page)
     tem_veiculo = 'Veículo' in df_visualizacao.columns
