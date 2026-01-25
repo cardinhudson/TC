@@ -27,12 +27,18 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 - TC Ext: criada uma nova página de análise de Best Estimate baseada na Home (mantém o “jeito certo” de calcular/formatar).
   - Fonte: lê os outputs do simulador em `dados/Forecast/` (ex.: `forecast_completo.parquet` e `df_vol_historico.parquet`).
   - Objetivo: substituir a análise legada e reduzir divergências entre tabelas/gráficos.
+- TC Ext: aba **“🚗 TC Ext por Veíc”** (Home e Best Estimate) foi reescrita com **Plotly** para evitar problemas de renderização em tabs ocultas (Altair/Vega às vezes não desenha no primeiro carregamento).
+  - Inclui filtros locais (Ano/Período), rótulos, gradientes e linha de **Flex Bud** com labels.
+  - Inclui resumo de volumes por **Oficina** e por **Veículo** com separação **Real x Budget** por categoria.
 - CPU: regra reforçada em pontos críticos — **nunca somar/média de CPU**; sempre recalcular como $CPU = \sum Total / \sum Volume$ no nível de agrupamento.
   - Padronização por helper: `tc_ext/metricas_tc_ext.py::cpu_por_chaves()` (agrega custo+volume e faz merge `outer`).
 - Gráficos por período: removido o corte por “mês atual” quando existem valores futuros (Forecast), evitando esconder Fev–Dez no ano corrente.
 - Diagnósticos: adicionados expanders com prova da fonte de dados (paths/mtimes/shapes) e checagens de sanidade de CPU.
 - Governança (Budget): **Volume BUDGET deve conter `Veículo`**. Se não existir `Veículo`, isso é **erro de extração** (o app não faz mais rateio/fallback).
 - Extração (inputs): arquivos de entrada ficam **apenas** em `dados/{ano}/` (mesma fonte para REAIS e BUDGET); outputs de Budget seguem em `dados/{ano}/BUD/`.
+- Governança (Flex Bud): **Custo Fixo nunca é flexibilizado** fora do contexto de simulação; no comparativo Real x Budget/Flex Bud, Fixo permanece igual ao Budget.
+- Home (Budget): correção de totais (ex.: `Type 05`) para evitar divergência entre base de exibição e base de resumo.
+- UI (exibição): remoção de linhas 100% zero/NaN e remoção da coluna `Ano` **somente para exibição** (não altera cálculos nem totais).
 
 ---
 
@@ -164,6 +170,13 @@ Em termos práticos:
 - **Custo Total**: trabalha com `Total` (ou `Valor` quando necessário).
 - **CPU (Custo por Unidade)**: sempre deriva de `Total / Volume` e deve ser calculado após agregações.
 
+### 5.4 Regras de exibição (sem mudar cálculo)
+Para melhorar legibilidade sem alterar números:
+- Linhas que estão **100% zero/NaN** podem ser removidas **apenas na tabela exibida**.
+- A coluna `Ano` pode ser removida **apenas na exibição** em tabelas que já estão agregadas por período/recorte, para evitar poluição visual.
+
+Regra: totais, gráficos e exportações devem usar os DataFrames de cálculo (sem esses cortes de exibição).
+
 ---
 
 ## 6) Conversões e formatação
@@ -282,6 +295,7 @@ Regras:
 
 ### 9.2 Gráficos de Volume
 - Volume Real e (opcional) Volume Budget.
+- Além do gráfico por período, existe visualização por **Oficina** e por **Veículo** (barras), com linha pontilhada de **Volume Budget**.
 
 ### 9.3 Gráfico por Oficina
 - Agrega por `Oficina`.
@@ -460,4 +474,4 @@ Uma reescrita deve passar nos seguintes critérios:
 
 ---
 
-**Última atualização:** 2026-01-23
+**Última atualização:** 2026-01-25

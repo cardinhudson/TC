@@ -4508,6 +4508,195 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
         return None
 
 
+# Gráfico 4.6: Volume por Oficina
+@st.cache_data(ttl=900, max_entries=2)
+def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
+    """Cria gráfico de barras de Volume por Oficina com linha pontilhada de volume do Budget opcional
+    df_despesas: parâmetro legado (não usado)."""
+    try:
+        if 'Volume' not in df_data.columns or 'Oficina' not in df_data.columns:
+            return None
+
+        df_data = df_data[df_data['Volume'].notna() & df_data['Oficina'].notna()].copy()
+        if len(df_data) == 0:
+            return None
+
+        tem_multiplos_anos = 'Ano' in df_data.columns and df_data['Ano'].nunique() > 1
+        if tem_multiplos_anos and 'Período' in df_data.columns:
+            df_agrupado_periodo = df_data.groupby(['Oficina', 'Período', 'Ano']).agg({'Volume': 'sum'}).reset_index()
+            chart_data = df_agrupado_periodo.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+        elif 'Período' in df_data.columns:
+            df_agrupado_periodo = df_data.groupby(['Oficina', 'Período']).agg({'Volume': 'sum'}).reset_index()
+            chart_data = df_agrupado_periodo.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+        else:
+            chart_data = df_data.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+
+        if len(chart_data) == 0:
+            return None
+
+        chart_data = chart_data[chart_data['Volume'].notna()].copy()
+        if len(chart_data) == 0:
+            return None
+
+        chart_data = chart_data.sort_values('Volume', ascending=False)
+        ordem_oficinas = chart_data['Oficina'].tolist()
+
+        grafico_barras = alt.Chart(chart_data).mark_bar().encode(
+            x=alt.X(
+                'Oficina:N',
+                title='Oficina',
+                sort=ordem_oficinas,
+                scale=alt.Scale(domain=ordem_oficinas),
+                axis=alt.Axis(grid=False, domain=True, ticks=True)
+            ),
+            y=alt.Y('Volume:Q', title='Volume (Unidades)', axis=alt.Axis(grid=False)),
+            color=alt.Color(
+                'Volume:Q',
+                title='Volume',
+                scale=alt.Scale(scheme='greens')
+            ),
+            tooltip=[
+                alt.Tooltip('Oficina:N', title='Oficina'),
+                alt.Tooltip('Volume:Q', title='Volume', format=',.0f')
+            ]
+        ).properties(
+            height=360,
+            width='container'
+        )
+
+        rotulos = grafico_barras.mark_text(
+            align='center',
+            baseline='middle',
+            dy=-10,
+            color='black',
+            fontSize=9
+        ).encode(
+            text=alt.Text('Volume:Q', format=',.0f')
+        )
+
+        linha_budget_vol = None
+        if df_budget_vol is not None and 'Oficina' in df_budget_vol.columns:
+            try:
+                df_budget_vol_filtrado = df_budget_vol[df_budget_vol['Volume'].notna() & df_budget_vol['Oficina'].notna()].copy()
+                if len(df_budget_vol_filtrado) > 0:
+                    tem_multiplos_anos_budget = 'Ano' in df_budget_vol_filtrado.columns and df_budget_vol_filtrado['Ano'].nunique() > 1
+
+                    if tem_multiplos_anos_budget and 'Período' in df_budget_vol_filtrado.columns:
+                        df_agrupado_periodo_budget = df_budget_vol_filtrado.groupby(['Oficina', 'Período', 'Ano']).agg({'Volume': 'sum'}).reset_index()
+                        budget_vol_data = df_agrupado_periodo_budget.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+                    elif 'Período' in df_budget_vol_filtrado.columns:
+                        df_agrupado_periodo_budget = df_budget_vol_filtrado.groupby(['Oficina', 'Período']).agg({'Volume': 'sum'}).reset_index()
+                        budget_vol_data = df_agrupado_periodo_budget.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+                    else:
+                        budget_vol_data = df_budget_vol_filtrado.groupby('Oficina').agg({'Volume': 'sum'}).reset_index()
+
+                    budget_vol_data_completo = pd.DataFrame({'Oficina': ordem_oficinas})
+                    budget_vol_data = budget_vol_data_completo.merge(
+                        budget_vol_data,
+                        on='Oficina',
+                        how='left'
+                    )
+                    budget_vol_data['Volume'] = budget_vol_data['Volume'].fillna(0)
+
+                    if len(budget_vol_data) > 0:
+                        budget_vol_data_legenda = budget_vol_data.copy()
+                        budget_vol_data_legenda['Tipo'] = 'Volume Budget'
+
+                        ordem_dict = {oficina: idx for idx, oficina in enumerate(ordem_oficinas)}
+                        budget_vol_data_legenda['_ordem'] = budget_vol_data_legenda['Oficina'].map(ordem_dict)
+                        budget_vol_data_legenda = budget_vol_data_legenda.sort_values('_ordem')
+                        budget_vol_data_legenda = budget_vol_data_legenda.drop(columns=['_ordem'])
+
+                        ordem_oficinas_budget = ordem_oficinas
+
+                        linha_budget_vol = alt.Chart(budget_vol_data_legenda).mark_line(
+                            strokeDash=[10, 5],
+                            strokeWidth=1.5,
+                            opacity=0.8
+                        ).encode(
+                            x=alt.X(
+                                'Oficina:N',
+                                title='Oficina',
+                                sort=ordem_oficinas_budget,
+                                scale=alt.Scale(domain=ordem_oficinas_budget),
+                                axis=alt.Axis(grid=False, domain=True, ticks=True)
+                            ),
+                            y=alt.Y(
+                                'Volume:Q',
+                                title='Volume (Unidades)',
+                                axis=alt.Axis(grid=False, domain=True, ticks=True)
+                            ),
+                            color=alt.Color(
+                                'Tipo:N',
+                                title='Legenda',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=alt.Legend(
+                                    title='Legenda',
+                                    orient='right',
+                                    titleFontSize=10,
+                                    labelFontSize=9
+                                )
+                            ),
+                            strokeDash=alt.StrokeDash(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=[[10, 5]]),
+                                legend=None
+                            ),
+                            tooltip=[
+                                alt.Tooltip('Oficina:N', title='Oficina'),
+                                alt.Tooltip('Tipo:N', title='Tipo'),
+                                alt.Tooltip('Volume:Q', title='Volume Budget', format=',.0f')
+                            ]
+                        )
+
+                        pontos_budget_vol = alt.Chart(budget_vol_data_legenda).mark_circle(
+                            size=80,
+                            opacity=0.9
+                        ).encode(
+                            x=alt.X('Oficina:N', sort=ordem_oficinas_budget, scale=alt.Scale(domain=ordem_oficinas_budget), title='Oficina'),
+                            y=alt.Y('Volume:Q', title='Volume (Unidades)'),
+                            color=alt.Color(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=None
+                            ),
+                            tooltip=[
+                                alt.Tooltip('Oficina:N', title='Oficina'),
+                                alt.Tooltip('Tipo:N', title='Tipo'),
+                                alt.Tooltip('Volume:Q', title='Volume Budget', format=',.0f')
+                            ]
+                        )
+
+                        rotulos_budget_vol = alt.Chart(budget_vol_data_legenda).mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-15,
+                            fontSize=9,
+                            fontWeight='bold'
+                        ).encode(
+                            x=alt.X('Oficina:N', sort=ordem_oficinas_budget, scale=alt.Scale(domain=ordem_oficinas_budget), title='Oficina'),
+                            y=alt.Y('Volume:Q', title='Volume (Unidades)'),
+                            text=alt.Text('Volume:Q', format=',.0f'),
+                            color=alt.Color(
+                                'Tipo:N',
+                                scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
+                                legend=None
+                            )
+                        )
+
+                        linha_budget_vol = linha_budget_vol + pontos_budget_vol + rotulos_budget_vol
+            except Exception:
+                pass
+
+        if linha_budget_vol is not None:
+            return grafico_barras + rotulos + linha_budget_vol
+        else:
+            return grafico_barras + rotulos
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico de volume por oficina: {e}")
+        return None
+
+
 # Inicializar session_state para manter a tab selecionada
 # Usar uma chave mais específica para evitar conflitos
 if 'tab_selecionada_tc_ext_persistente' not in st.session_state:
@@ -7560,6 +7749,13 @@ if is_main_page:
         # 🔧 CORREÇÃO CRÍTICA: Usar df_vol_filtrado (mesmo DataFrame usado no gráfico "Volume Total")
         # para garantir que os mesmos filtros de Oficina sejam aplicados
         if df_vol is not None and 'Período' in df_vol.columns and 'Volume' in df_vol.columns:
+            if df_vol_filtrado is not None and 'Volume' in df_vol_filtrado.columns and 'Oficina' in df_vol_filtrado.columns:
+                st.subheader("📊 Volume por Oficina")
+                df_budget_vol_para_grafico = df_budget_vol_filtrado_grafico if 'df_budget_vol_filtrado_grafico' in locals() else None
+                grafico_volume_oficina = create_volume_oficina_chart(df_vol_filtrado, df_budget_vol_para_grafico)
+                if grafico_volume_oficina is not None:
+                    st.altair_chart(grafico_volume_oficina, use_container_width=True)
+
             if df_vol_filtrado is not None and 'Volume' in df_vol_filtrado.columns and 'Veículo' in df_vol_filtrado.columns:
                 st.subheader("📊 Volume por Veículo")
                 
@@ -9189,6 +9385,25 @@ if is_main_page:
             except Exception:
                 return None, None
 
+        def _formatar_volume_por_categoria(df_in, categoria):
+            if df_in is None or df_in.empty:
+                return "-"
+            if categoria not in df_in.columns or 'Volume' not in df_in.columns:
+                return "-"
+            df_tmp = df_in[[categoria, 'Volume']].copy()
+            df_tmp = df_tmp[df_tmp[categoria].notna()]
+            if df_tmp.empty:
+                return "-"
+            df_tmp['Volume'] = pd.to_numeric(df_tmp['Volume'], errors='coerce').fillna(0)
+            agg = (
+                df_tmp.groupby(categoria, dropna=False)['Volume']
+                .sum()
+                .reset_index()
+                .sort_values('Volume', ascending=False)
+            )
+            partes = [f"{row[categoria]}: {_formatar_num_ptbr(row['Volume'], 0)}" for _, row in agg.iterrows()]
+            return " | ".join(partes) if partes else "-"
+
         def _agregar_total(base_df, group_cols, coluna_valor):
             if base_df is None or base_df.empty or coluna_valor not in base_df.columns:
                 return pd.DataFrame()
@@ -9323,6 +9538,10 @@ if is_main_page:
             # Gráfico por Oficina
             # -----------------------------
             if 'Oficina' in base_real.columns:
+                st.markdown(
+                    f"**📦 Volume Real (Oficinas):** {_formatar_volume_por_categoria(base_vol, 'Oficina')}")
+                st.markdown(
+                    f"**📦 Volume Budget (Oficinas):** {_formatar_volume_por_categoria(df_budget_vol_tab3, 'Oficina')}")
                 if tipo_visualizacao == "CPU (Custo por Unidade)":
                     df_cpu_of = _agregar_cpu(base_real, base_vol, ['Oficina'])
                     df_flex_of = None
@@ -9361,6 +9580,10 @@ if is_main_page:
             # Gráfico por Veículo
             # -----------------------------
             if 'Veículo' in base_real.columns:
+                st.markdown(
+                    f"**📦 Volume Real (Veículos):** {_formatar_volume_por_categoria(base_vol, 'Veículo')}")
+                st.markdown(
+                    f"**📦 Volume Budget (Veículos):** {_formatar_volume_por_categoria(df_budget_vol_tab3, 'Veículo')}")
                 if tipo_visualizacao == "CPU (Custo por Unidade)":
                     df_cpu_veic = _agregar_cpu(base_real, base_vol, ['Veículo'])
                     df_flex_veic = None

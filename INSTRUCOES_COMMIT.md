@@ -11,6 +11,15 @@ O projeto foi configurado para **excluir arquivos grandes** do Git:
 - ✅ **Cache** (*.db, cache/)
 - ✅ **Arquivos temporários** (~$*.xlsx)
 
+Além disso, o repositório foi configurado com **auto-push após cada commit** via hook:
+- `.githooks/post-commit`
+- `git config core.hooksPath .githooks`
+
+Comportamento do hook:
+- Se houver upstream configurado, executa `git push`.
+- Se não houver upstream, executa `git push -u origin <branch>` (ou primeiro remote disponível).
+- Se não existir remote, ele pula o push.
+
 ## 🚀 Como Fazer o Commit
 
 ### Opção 1: Script Automatizado (Recomendado)
@@ -22,7 +31,7 @@ Este script irá:
 1. Adicionar arquivos importantes
 2. Mostrar o status
 3. Solicitar mensagem do commit
-4. Perguntar se deseja fazer push
+4. Fazer o commit (o push acontece automaticamente via hook)
 
 ### Opção 2: Manual
 ```powershell
@@ -36,9 +45,16 @@ git status
 # 3. Fazer commit
 git commit -m "Feat: Implementação de visualização completa do ano no Flex Bud"
 
-# 4. Fazer push
-git push
+# 4. Push
+# Não é necessário rodar manualmente: após o commit, o hook post-commit executa o push automaticamente.
 ```
+
+## 🛑 Como desabilitar o auto-push (se necessário)
+
+Opções simples:
+- Renomear `.githooks/post-commit` (ex.: `post-commit.disabled`).
+- Ou remover o hook e voltar para o padrão do Git:
+	- `git config --unset core.hooksPath`
 
 ## 📊 Arquivos que Serão Commitados
 
@@ -83,9 +99,8 @@ Feat: Ajustes no portal e documentação
 
 1. Execute `.\fazer_commit.ps1`
 2. Digite a mensagem do commit
-3. Confirme o push
-4. Pronto! Suas alterações estarão no repositório
+3. Pronto! Após o commit, o push é feito automaticamente (via hook)
 
 ---
-**Data:** 20/01/2026  
+**Data:** 25/01/2026  
 **Modificado por:** GitHub Copilot
