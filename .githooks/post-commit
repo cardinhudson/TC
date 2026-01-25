@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -e
+
+# Auto-push after every commit
+# If no upstream is set, push and set upstream to origin/<current-branch>
+
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# Abort if not on a branch (detached HEAD)
+if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+  exit 0
+fi
+
+# Ensure there's at least one remote
+if ! git remote | grep -q .; then
+  echo "[post-commit] No git remote configured. Skipping push." >&2
+  exit 0
+fi
+
+# Check if upstream is set
+if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+  git push
+else
+  # Prefer origin if available, otherwise first remote
+  remote="origin"
+  if ! git remote | grep -q "^origin$"; then
+    remote="$(git remote | head -n 1)"
+  fi
+  git push -u "$remote" "$branch"
+fi
