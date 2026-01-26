@@ -37,6 +37,14 @@
 - Comparações instantâneas
 - Previsões baseadas em dados históricos
 
+### 🆕 Por que adicionamos novas funcionalidades?
+
+- **Cobrir lacunas de dados:** algumas oficinas têm pouco/nenhum realizado, mas possuem **Budget (BUD)** completo.
+- **Melhorar comparabilidade:** permitir previsões e análises coerentes também a partir do **planejado (Budget)**.
+- **Aumentar robustez:** evitar filtros/gráficos vazios quando a oficina só existe no Budget.
+- **Preparar expansão:** Portal único já separa **TC Ext** e **TC (Planta Principal)** com páginas espelhadas.
+- **Padronizar cálculo:** Best Estimate (Análise) segue o padrão visual/lógico da Home e mantém coerência no modo **CPU** (Total/Volume).
+
 ---
 
 ## 🏗️ Slide 3: Arquitetura do Sistema (1 minuto)
@@ -44,20 +52,30 @@
 ### Estrutura Modular
 
 ```
-📊 Portal (app.py)
+📊 Portal (app.py) — Router (st.navigation)
     │
     ├── 🧩 TC Ext (Linhas Secundárias)
-    │     ├── 🏠 Home (tc_ext/pages/home_ext.py)
-    │     ├── 📈 Waterfall (pages/1 - Waterfall.py)
-    │     ├── 🔮 Best Estimate (pages/2 e 3)
-    │     ├── 💧 Waterfall Analysis (pages/4 - legado)
-    │     └── 📥 Extração de Dados (pages/5)
+    │     ├── 🏠 Home: tc_ext/pages/home_ext.py
+    │     ├── 📈 Waterfall: pages/1 - Waterfall.py
+    │     ├── 🔮 Best Estimate (Simulador): pages/2 - Best Estimate - Simulador.py
+    │     ├── 📊 Best Estimate (Análise): tc_ext/pages/be_analise_ext.py
+    │     └── 📥 Extração de Dados: pages/5 - Extração de Dados.py
     │
-    ├── 🏭 TC (Planta Principal)
-    │     └── (stubs em tc_principal/pages/ — implementação futura)
+    ├── 🏭 TC (Planta Principal) — páginas espelhadas (stubs)
+    │     ├── Home: tc_principal/pages/home_tc.py
+    │     ├── Waterfall: tc_principal/pages/waterfall_tc.py
+    │     ├── Best Estimate (Simulador): tc_principal/pages/best_estimate_simulador_tc.py
+    │     ├── Best Estimate (Análise): tc_principal/pages/best_estimate_analise_tc.py
+    │     └── Extração de Dados: tc_principal/pages/extracao_dados_tc.py
     │
-    └── 📚 Documentação (pages/6 - Documentacao.py)
+    └── 📚 Documentação: pages/6 - Documentacao.py
 ```
+
+### Camadas Internas (o que sustenta as páginas)
+
+- **tc_core/**: helpers compartilhados (paths, moeda, DB de câmbio, UI)
+- **tc_ext/**: normalização e métricas (ex.: CPU) + páginas do TC Ext
+- **dados/**: histórico consolidado + Budget (BUD) + outputs do Forecast
 
 ### Fluxo de Dados
 
@@ -106,6 +124,10 @@ Média Histórica × Fator Volume × Fator Inflação = Best Estimate
 **Destaque:** 
 - **Simulador:** Testa cenários "what-if" em tempo real
 - **Análise:** Visualizações detalhadas e comparações
+
+**Novidade importante:**
+- **Referência por oficina (Realizado x Budget):** ao marcar oficinas, o Best Estimate passa a usar **Budget mês-a-mês** como base (jan com jan, etc.).
+- **Cobertura de oficinas só no Budget:** o simulador consegue “semear” dimensões do BUD para gerar Forecast mesmo sem histórico.
 
 ---
 

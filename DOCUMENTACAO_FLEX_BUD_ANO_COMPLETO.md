@@ -1,66 +1,12 @@
-# 📊 Alterações no Sistema - Flex Bud Ano Completo
-
-## 🎯 Objetivo
-
-Modificar o sistema para mostrar o **Flex Bud para o ano completo** (todos os 12 meses), mesmo quando não houver dados realizados para alguns meses.
-
-## ✅ Problema Resolvido
-
-**ANTES:**
-- ❌ Gráficos mostravam apenas meses com dados reais
-- ❌ Flex Bud não era calculado para meses sem realização
-- ❌ Comparação anual incompleta
-
-**AGORA:**
-- ✅ Gráficos mostram todos os 12 meses do ano
-- ✅ Flex Bud calculado para o ano completo
-- ✅ Meses sem dados reais exibem **Realizado = 0** (não “puxa” Budget para o Real)
-- ✅ Meses sem dados reais continuam permitindo cálculo/visualização de **Budget e Flex Bud**
-- ✅ Comparação anual completa e consistente
-
-## 🔧 Alterações Técnicas
-
-### 1. Cálculo do Flex Bud
-**Arquivo:** `app.py` (linhas ~2398-2413 e ~2537-2552)
-
-**Mudança principal:**
-```python
-# ANTES
-volumes = volumes[volumes['Volume_real'].notna() & (volumes['Volume_real'] > 0)]
-
-# AGORA
-volumes['Volume_real'] = volumes['Volume_real'].fillna(volumes['Volume_budget'])
-volumes = volumes[(volumes['Volume_real'] > 0) | (volumes['Volume_budget'] > 0)]
-```
-
-**Resultado:** Períodos sem volume real podem usar o volume do Budget como base para manter o ano completo.
-
-### 2. Filtro de Períodos nos Gráficos
-**Arquivo:** `app.py` (linhas ~3607-3642)
-
-**Mudança principal:**
-```python
-# ANTES: Incluía apenas meses desde o primeiro com despesa
-for periodo in ORDEM_MESES[idx_primeiro:]
-
-# AGORA: Inclui TODOS os 12 meses
-for periodo in ORDEM_MESES
-```
-
-**Resultado:** Todos os meses do ano são incluídos na visualização
-
-### 3. Filtro de Budget
-**Arquivo:** `app.py` (linhas ~3804-3870)
-
-**Mudança principal:** Mesma lógica aplicada aos dados de Budget para garantir consistência
-# 📊 Documentação — Flex Bud (Ano Completo) e Regras de CPU
+# 📊 Documentação — Flex Bud (Ano Completo), Governança e Regras de CPU
 
 ## 🎯 Objetivo
 
 Manter uma referência clara de:
 - como o sistema garante **12 meses** no Flex Bud (ano completo), mesmo com meses sem realizado;
-- quais são as **regras críticas de CPU** que garantem que gráficos e tabelas “fechem” sempre;
-- como evoluir a **previsão (Forecast/Best Estimate)** para comparar também com **Budget**.
+- qual é a governança de **Custo Fixo** (não flexibiliza fora da simulação);
+- quais são as **regras críticas de CPU** para evitar divergências em totais;
+- como o Real/Budget/Flex Bud deve ser combinado sem “contaminar” o Real.
 
 ## 📌 Onde isso está implementado hoje
 
@@ -68,23 +14,40 @@ Manter uma referência clara de:
 - Best Estimate (Análise): `tc_ext/pages/be_analise_ext.py`
 - Helper de CPU (padrão do sistema): `tc_ext/metricas_tc_ext.py::cpu_por_chaves()`
 
-Observação: `app.py` é o portal/roteador (menu), não concentra a regra de cálculo.
+Observação: `app.py` é o portal/roteador (menu) e não concentra as regras de cálculo.
 
 ---
 
-## ✅ Ano completo (12 meses) — como funciona
+## ✅ Ano completo (12 meses) — comportamento esperado
 
-**Problema original**
-- Os gráficos acabavam mostrando apenas meses com dados reais.
-
-**Comportamento esperado**
-- Os gráficos podem exibir os **12 meses do ano**.
+- Os gráficos/tabelas podem exibir os **12 meses do ano**.
 - Meses sem realizado exibem **Real = 0** (o Real nunca “puxa” Budget).
 - Budget e Flex Bud continuam visíveis nesses meses.
 
-**Flex Bud em meses sem realizado**
-- Se não houver volume real, o sistema pode usar o **volume do Budget** como base.
-- Isso faz com que, nesses meses, o **Flex Bud tenda a ser igual ao Budget** (não há ajuste por volume real).
+### Flex Bud em meses sem realizado
+
+- Se não houver volume real no recorte, o sistema pode usar o **volume do Budget** como base de continuidade.
+- Nesses meses, o **Flex Bud tende a ser igual ao Budget** (não há ajuste por volume real).
+
+---
+
+## 🧾 Flex Bud — fórmulas e governança
+
+Para um período/dimensão:
+
+- Flex Fixo: $$Flex_{fixo} = BUD_{fixo}$$
+- Flex Não‑Fixo: $$Flex_{naofixo} = BUD_{naofixo} \times \frac{Volume_{real}}{Volume_{bud}}$$
+- Flex Total: $$Flex_{total} = Flex_{fixo} + Flex_{naofixo}$$
+
+### Governança: Custo Fixo
+
+- **Custo Fixo não flexibiliza** fora do contexto de simulação.
+- Em comparativos Real x Budget/Flex Bud (Home e Best Estimate - Análise), o componente Fixo permanece igual ao Budget.
+
+### Governança: Volume Budget
+
+- O Volume Budget **deve** conter a coluna `Veículo`.
+- Se `Veículo` estiver ausente no Volume Budget, isso é **erro de extração** (o app não faz rateio/fallback).
 
 ---
 
@@ -104,27 +67,14 @@ Helper recomendado:
 
 ---
 
-## 🔮 Previsão (Forecast / Best Estimate) — possibilidade de comparação com Budget
-
-O sistema tem páginas de Forecast/Best Estimate (simulação + análise).
-
-Evolução recomendada (para consulta/planejamento):
-- permitir baseline “**Budget**” além de “**Flex Bud**” nas análises de previsão.
-
-Regras para CPU permanecem as mesmas:
-- sempre $CPU = \sum Total / \sum Volume$ no mesmo grão;
-- se o volume do Budget não tiver `Veículo`, usar **rateio** (alocação) por share de volume real para estimar volume budget por veículo.
-
----
-
 ## ✅ Checklist rápido (para não errar de novo)
 
 - CPU sempre como razão ponderada (nunca soma/média).
 - Volume deve respeitar os mesmos filtros do custo, mas não pode ser “intersectado” pela existência de custo.
 - Ao fazer merge custo×volume: preferir `outer` e preencher custo ausente com 0.
-- Em Budget CPU por Veículo sem volume por veículo: usar rateio por share de volume real.
+- Fixo não flex fora simulação (Flex Bud: fixo = budget fixo).
+- Volume Budget precisa conter `Veículo` (sem rateio/fallback no app).
 
 ---
 
-**Última atualização:** 23/01/2026
-1. ✅ Capitalização dos períodos corrigida (minúsculas → Capitalizadas)
+**Última atualização:** 25/01/2026
