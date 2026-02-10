@@ -11,6 +11,9 @@ from tc_principal.pages.best_estimate_analise_tc import (
 from tc_principal.pages.extracao_dados_tc import (
     render as render_extracao_dados_tc,
 )
+from tc_principal.pages.debug_calculos_tc import (
+    render as render_debug_calculos_tc,
+)
 
 
 st.set_page_config(
@@ -72,6 +75,11 @@ PAGES = {
             render_extracao_dados_tc,
             title="Extração de Dados",
             url_path="tc-extracao",
+        ),
+        st.Page(
+            render_debug_calculos_tc,
+            title="Debug de Cálculos",
+            url_path="tc-debug",
         ),
     ],
     "Documentação": [

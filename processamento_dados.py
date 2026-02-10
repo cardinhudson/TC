@@ -332,8 +332,8 @@ def configurar_ano(ano: Optional[int] = None, continuar_sem_arquivos: bool = Fal
     if ano is None:
         ano = datetime.now().year
     
-    pasta_ano = f'dados/{ano}'
-    pasta_historico = 'dados/historico_consolidado'
+    pasta_ano = f'dados/TC_Ext/{ano}'
+    pasta_historico = 'dados/TC_Ext/historico_consolidado'
     pasta_raiz = '.'
     
     # Criar estrutura de pastas
@@ -777,7 +777,7 @@ def salvar_e_consolidar(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5z_gr
     log("📚 Consolidando histórico...")
     
     # Consolidar histórico
-    pasta_dados = 'dados'
+    pasta_dados = 'dados/TC_Ext'
     anos_disponiveis = []
     if os.path.exists(pasta_dados):
         for item in os.listdir(pasta_dados):
