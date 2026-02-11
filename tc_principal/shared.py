@@ -134,6 +134,55 @@ def load_volume_fa(ano):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  DATA LOADING — Novos parquets de veículos (Fases 13–17)
+# ═══════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_fp_sem_da_veiculos(ano):
+    """Custo FP sem D&A Dedicado (base de rateio)."""
+    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_fp_sem_da_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_percentual_rateio_veiculos(ano):
+    """Percentuais de rateio por veículo."""
+    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_percentual_rateio_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_custo_rateado_veiculos(ano):
+    """Custo rateado por veículo (FP sem Ded × Percentual)."""
+    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_rateado_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_custo_fp_veiculo(ano):
+    """Custo FP final por veículo (rateado + D&A)."""
+    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_fp_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_cpu_veiculo(ano):
+    """CPU (Custo Por Unidade) por modelo de veículo."""
+    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_cpu_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+# ═══════════════════════════════════════════════════════════════
 #  HELPERS DE PERÍODO
 # ═══════════════════════════════════════════════════════════════
 
@@ -277,6 +326,9 @@ def converter_moeda_df(df, colunas, moeda, taxas):
     """Converte colunas monetárias de BRL para moeda selecionada."""
     from tc_core.finance.currency import converter_moeda
     if moeda == 'BRL':
+        return df
+    if taxas is None or moeda not in taxas:
+        # Sem taxa disponível — mantém BRL para não perder dados
         return df
     df = df.copy()
     for col in colunas:

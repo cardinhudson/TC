@@ -198,7 +198,7 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     # Validar abas obrigatórias
     abas_obrigatorias = [
         'massa primária - BDG', 'massa - REDIS', 'Volume e EST PdR - BDG',
-        'Volume BDG', 'Volume actual', 'EST veículos - BDG', 'massa - D&A dedicado'
+        'Volume BDG', 'Volume Actual', 'EST veículos - BDG', 'massa - D&A dedicado'
     ]
     _validar_abas_excel(caminho, abas_obrigatorias)
 
@@ -508,7 +508,7 @@ def fase5_volumes_veiculos(config: Dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     print("── FASE 5: Volumes de Veículos (BDG + Actual) ──")
 
     df_vol_bud = _ler_volume_veiculos(config, 'Volume BDG', 'Volume BDG')
-    df_vol_actual = _ler_volume_veiculos(config, 'Volume actual', 'Volume Actual')
+    df_vol_actual = _ler_volume_veiculos(config, 'Volume Actual', 'Volume Actual')
 
     print()
     return df_vol_bud, df_vol_actual
@@ -865,6 +865,332 @@ def fase11_fp_sem_dedicada(df_principal: pd.DataFrame,
 
 
 # ═══════════════════════════════════════════════════════════════
+#  FASE 13 — Custo FP sem D&A Dedicado (base para rateio)
+# ═══════════════════════════════════════════════════════════════
+
+def fase13_custo_fp_sem_da(df_principal: pd.DataFrame) -> pd.DataFrame:
+    """
+    Gera tabela intermediária com o Custo FP sem D&A Dedicado por Oficina/Account/Período.
+    A coluna 'FP sem Dedicada' já existe no df_principal (calculada na Fase 11).
+    Esta fase apenas isola a base de rateio para rastreabilidade.
+    """
+    print("── FASE 13: Custo FP sem D&A Dedicado ──")
+
+    colunas_base = ['Oficina', 'Account', 'Período']
+    colunas_extras = ['Type 05', 'Type 06', 'Custo']
+    colunas_dim = colunas_base + [c for c in colunas_extras if c in df_principal.columns]
+    colunas_val = ['Custo FP', 'D&A dedicado', 'FP sem Dedicada']
+    colunas_val = [c for c in colunas_val if c in df_principal.columns]
+
+    df_out = df_principal[colunas_dim + colunas_val].copy()
+
+    print(f"  ✅ Shape: {df_out.shape}")
+    print(f"  ∑ Custo FP: {df_out['Custo FP'].sum():,.2f}")
+    print(f"  ∑ D&A dedicado: {df_out['D&A dedicado'].sum():,.2f}")
+    print(f"  ∑ FP sem Dedicada: {df_out['FP sem Dedicada'].sum():,.2f}")
+    print()
+
+    return df_out
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 14 — Percentuais de Rateio por Veículo
+# ═══════════════════════════════════════════════════════════════
+
+def fase14_percentual_rateio_veiculos(df_tempo_veic: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calcula percentuais de rateio por veículo com base nos tempos de produção.
+
+    Percentual = (EST_oficina_veículo × Volume_veículo)
+                 ÷ Σ(EST_oficina × Volume_todos_veículos)
+
+    Que simplifica para:
+    Percentual = Tempo_Veic / Σ(Tempo_Veic por oficina/período)
+    """
+    print("── FASE 14: Percentuais de Rateio por Veículo ──")
+
+    df = df_tempo_veic.copy()
+
+    # Garantir colunas necessárias
+    required = ['Oficina', 'Veículo', 'Período', 'Tempo Veic']
+    for col in required:
+        if col not in df.columns:
+            raise ValueError(f"Coluna '{col}' ausente no df_tempo_veic. Colunas: {df.columns.tolist()}")
+
+    # Total de tempo por (Oficina, Período)
+    total_tempo = df.groupby(['Oficina', 'Período'], as_index=False)['Tempo Veic'].sum()
+    total_tempo = total_tempo.rename(columns={'Tempo Veic': 'Total_Tempo_Oficina'})
+
+    # Merge para calcular percentual
+    df = df.merge(total_tempo, on=['Oficina', 'Período'], how='left')
+    df['Total_Tempo_Oficina'] = df['Total_Tempo_Oficina'].fillna(0)
+
+    # Calcular percentual (protegido contra divisão por zero)
+    df['Percentual'] = np.where(
+        df['Total_Tempo_Oficina'] != 0,
+        df['Tempo Veic'] / df['Total_Tempo_Oficina'],
+        0.0
+    )
+
+    # Validação: soma por (Oficina, Período) deve ser = 1.0
+    validacao = df.groupby(['Oficina', 'Período'])['Percentual'].sum()
+    erros_soma = validacao[(validacao - 1.0).abs() > 0.001]
+    if len(erros_soma) > 0:
+        print(f"  ⚠️ {len(erros_soma)} grupos com soma de percentuais ≠ 1.0:")
+        for idx, val in erros_soma.items():
+            print(f"     {idx}: {val:.6f}")
+    else:
+        n_grupos = len(validacao)
+        print(f"  ✅ Todos os {n_grupos} grupos (Oficina, Período) somam 100%.")
+
+    # Colunas finais
+    cols_saida = ['Oficina', 'Veículo', 'Período']
+    if 'EST' in df.columns:
+        cols_saida.append('EST')
+    if 'Volume' in df.columns:
+        cols_saida.append('Volume')
+    cols_saida.extend(['Tempo Veic', 'Total_Tempo_Oficina', 'Percentual'])
+
+    df_out = df[cols_saida].copy()
+
+    print(f"  ✅ Shape: {df_out.shape}")
+    print(f"  Oficinas: {sorted(df_out['Oficina'].dropna().unique())}")
+    print(f"  Veículos: {sorted(df_out['Veículo'].dropna().unique())}")
+    print(f"  Média percentual: {df_out['Percentual'].mean():.4f}")
+    print()
+
+    return df_out
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 15 — Custo Rateado por Veículo
+# ═══════════════════════════════════════════════════════════════
+
+def fase15_custo_rateado_veiculos(df_principal: pd.DataFrame,
+                                   df_percentual: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aplica rateio: Custo Rateado = FP sem Dedicada × Percentual_do_veículo
+    Expande df_principal (que é por Oficina/Account/Período) para o grão de Veículo.
+    """
+    print("── FASE 15: Custo Rateado por Veículo ──")
+
+    soma_fp_antes = df_principal['FP sem Dedicada'].sum()
+
+    # Colunas dimensão do principal
+    colunas_dim_principal = ['Oficina', 'Account', 'Período']
+    colunas_extras = ['Type 05', 'Type 06', 'Custo']
+    colunas_dim_principal += [c for c in colunas_extras if c in df_principal.columns]
+
+    # Preparar percentuais (somente Oficina, Veículo, Período, Percentual)
+    df_pct = df_percentual[['Oficina', 'Veículo', 'Período', 'Percentual']].copy()
+
+    # Colunas que serão rateadas
+    cols_rateio = ['FP sem Dedicada']
+
+    # Merge: cada linha do principal será expandida para N veículos
+    df_merged = pd.merge(
+        df_principal[colunas_dim_principal + cols_rateio],
+        df_pct,
+        on=['Oficina', 'Período'],
+        how='left'
+    )
+
+    # Se Veículo ficou NaN, significa que aquela oficina/período não tem percentual
+    # Preencher com 'Sem Veículo' e percentual 1.0 (manter custo integral)
+    mask_sem_veiculo = df_merged['Veículo'].isna()
+    if mask_sem_veiculo.any():
+        n_sem = mask_sem_veiculo.sum()
+        print(f"  ⚠️ {n_sem} linhas sem veículo atribuído — mantendo custo integral")
+        df_merged.loc[mask_sem_veiculo, 'Veículo'] = 'Sem Veículo'
+        df_merged.loc[mask_sem_veiculo, 'Percentual'] = 1.0
+
+    # Calcular custo rateado
+    df_merged['Custo Rateado'] = df_merged['FP sem Dedicada'] * df_merged['Percentual']
+
+    soma_rateada = df_merged['Custo Rateado'].sum()
+    diff = abs(soma_fp_antes - soma_rateada)
+    if diff > 0.01:
+        print(f"  ⚠️ DIVERGÊNCIA no rateio: FP sem Ded={soma_fp_antes:,.2f}, Rateado={soma_rateada:,.2f}, Diff={diff:,.2f}")
+    else:
+        print(f"  ✅ Fechamento OK: FP sem Ded={soma_fp_antes:,.2f} ≈ Rateado={soma_rateada:,.2f}")
+
+    # Colunas finais
+    colunas_saida = ['Oficina', 'Veículo'] + \
+                    [c for c in ['Type 05', 'Type 06', 'Custo'] if c in df_merged.columns] + \
+                    ['Account', 'Período', 'FP sem Dedicada', 'Percentual', 'Custo Rateado']
+
+    df_out = df_merged[[c for c in colunas_saida if c in df_merged.columns]].copy()
+
+    print(f"  ✅ Shape: {df_out.shape}")
+    print(f"  ∑ Custo Rateado: {df_out['Custo Rateado'].sum():,.2f}")
+    print()
+
+    return df_out
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 16 — Custo FP Veículo (Rateado + D&A Dedicado)
+# ═══════════════════════════════════════════════════════════════
+
+def fase16_custo_fp_veiculo(df_custo_rateado: pd.DataFrame,
+                            df_dea: pd.DataFrame,
+                            df_principal: pd.DataFrame) -> pd.DataFrame:
+    """
+    Custo FP Veículo = Custo Rateado + D&A dedicado (por veículo)
+    Valida que Σ Custo FP Veículo ≈ Σ Custo FP original.
+    """
+    print("── FASE 16: Custo FP Veículo ──")
+
+    soma_fp_original = df_principal['Custo FP'].sum()
+
+    # D&A dedicado com detalhe por veículo
+    chaves_dea = ['Oficina', 'Account', 'Período']
+    if 'Veículo' in df_dea.columns:
+        chaves_dea = ['Oficina', 'Veículo', 'Account', 'Período']
+        df_dea_veic = df_dea.groupby(chaves_dea, as_index=False)['D&A dedicado'].sum()
+    else:
+        # Se D&A não tem veículo, agregar por (Oficina, Account, Período)
+        df_dea_veic = df_dea.groupby(chaves_dea, as_index=False)['D&A dedicado'].sum()
+
+    # Merge D&A com custo rateado
+    chaves_merge = [c for c in chaves_dea if c in df_custo_rateado.columns]
+    df_merged = pd.merge(
+        df_custo_rateado,
+        df_dea_veic,
+        on=chaves_merge,
+        how='left'
+    )
+    df_merged['D&A dedicado'] = df_merged['D&A dedicado'].fillna(0)
+
+    # Custo FP Veículo = Rateado + D&A dedicado
+    df_merged['Custo FP Veiculo'] = df_merged['Custo Rateado'] + df_merged['D&A dedicado']
+
+    soma_fp_veiculo = df_merged['Custo FP Veiculo'].sum()
+    diff = abs(soma_fp_original - soma_fp_veiculo)
+
+    if diff > 0.01:
+        print(f"  ⚠️ DIVERGÊNCIA: Σ Custo FP original={soma_fp_original:,.2f}, "
+              f"Σ Custo FP Veículo={soma_fp_veiculo:,.2f}, Diff={diff:,.2f}")
+    else:
+        print(f"  ✅ Fechamento OK: Σ Custo FP={soma_fp_original:,.2f} ≈ "
+              f"Σ Custo FP Veículo={soma_fp_veiculo:,.2f}")
+
+    # Colunas finais
+    colunas_saida = ['Oficina', 'Veículo'] + \
+                    [c for c in ['Type 05', 'Type 06', 'Custo'] if c in df_merged.columns] + \
+                    ['Account', 'Período', 'Custo Rateado', 'D&A dedicado', 'Custo FP Veiculo']
+    df_out = df_merged[[c for c in colunas_saida if c in df_merged.columns]].copy()
+
+    print(f"  ✅ Shape: {df_out.shape}")
+    print(f"  ∑ Custo FP Veículo: {df_out['Custo FP Veiculo'].sum():,.2f}")
+    print()
+
+    return df_out
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 17 — CPU (Custo Por Unidade) por Veículo
+# ═══════════════════════════════════════════════════════════════
+
+def fase17_cpu_veiculo(df_custo_fp_veiculo: pd.DataFrame,
+                       df_vol_bud: pd.DataFrame) -> pd.DataFrame:
+    """
+    CPU = Custo FP Veículo / Volume do Veículo
+    Volume é o mesmo usado na tabela de tempos (df_vol_veiculos_BUD).
+    """
+    print("── FASE 17: CPU por Veículo ──")
+
+    # Agregar custo FP veículo por (Veículo, Período) — somar todas oficinas/accounts
+    df_custo_agg = df_custo_fp_veiculo.groupby(
+        ['Veículo', 'Período'], as_index=False
+    )['Custo FP Veiculo'].sum()
+
+    # Merge com volume
+    df_vol = df_vol_bud[['Veículo', 'Período', 'Volume']].copy()
+    df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0)
+
+    df_cpu = pd.merge(df_custo_agg, df_vol, on=['Veículo', 'Período'], how='left')
+    df_cpu['Volume'] = df_cpu['Volume'].fillna(0)
+
+    # Validação: volumes zero
+    zero_vol = df_cpu[df_cpu['Volume'] == 0]
+    if len(zero_vol) > 0:
+        print(f"  ⚠️ {len(zero_vol)} linhas com Volume = 0 (CPU será 0):")
+        for _, row in zero_vol.iterrows():
+            print(f"     {row['Veículo']} / {row['Período']}")
+
+    # CPU = Custo / Volume (protegido)
+    df_cpu['CPU'] = np.where(
+        df_cpu['Volume'] != 0,
+        df_cpu['Custo FP Veiculo'] / df_cpu['Volume'],
+        0.0
+    )
+
+    # Tabela detalhada por (Oficina, Veículo, Período) — para Debug
+    df_detalhe = df_custo_fp_veiculo.copy()
+    df_detalhe = pd.merge(
+        df_detalhe,
+        df_vol[['Veículo', 'Período', 'Volume']],
+        on=['Veículo', 'Período'],
+        how='left'
+    )
+    df_detalhe['Volume'] = df_detalhe['Volume'].fillna(0)
+    df_detalhe['CPU_Detalhe'] = np.where(
+        df_detalhe['Volume'] != 0,
+        df_detalhe['Custo FP Veiculo'] / df_detalhe['Volume'],
+        0.0
+    )
+
+    print(f"  ✅ Shape CPU agregado: {df_cpu.shape}")
+    print(f"  ✅ Shape CPU detalhe: {df_detalhe.shape}")
+    print(f"  Veículos: {sorted(df_cpu['Veículo'].dropna().unique())}")
+    print(f"  CPU médio: {df_cpu['CPU'].mean():,.2f}")
+    print()
+
+    return df_cpu, df_detalhe
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 18 — Salvamento dos Novos Parquets de Veículos
+# ═══════════════════════════════════════════════════════════════
+
+def fase18_salvamento_veiculos(config: Dict,
+                                df_fp_sem_da: pd.DataFrame,
+                                df_percentual: pd.DataFrame,
+                                df_custo_rateado: pd.DataFrame,
+                                df_custo_fp_veiculo: pd.DataFrame,
+                                df_cpu: pd.DataFrame) -> Dict[str, str]:
+    """Salva os 5 novos parquets de cálculo por veículo."""
+    print("── FASE 18: Salvamento Parquets Veículos ──")
+
+    ano = config['ANO_ATUAL']
+    pasta = config['PASTA_SAIDA']
+
+    dfs_para_salvar = {
+        'df_veiculos_fp_sem_da_BUD.parquet': df_fp_sem_da,
+        'df_veiculos_percentual_rateio_BUD.parquet': df_percentual,
+        'df_veiculos_custo_rateado_BUD.parquet': df_custo_rateado,
+        'df_veiculos_custo_fp_BUD.parquet': df_custo_fp_veiculo,
+        'df_veiculos_cpu_BUD.parquet': df_cpu,
+    }
+
+    arquivos_salvos = {}
+
+    for nome, df in dfs_para_salvar.items():
+        df = df.copy()
+        if 'Ano' not in df.columns:
+            df['Ano'] = ano
+        df = normalizar_tipos_para_parquet(df)
+        caminho = os.path.join(pasta, nome)
+        df.to_parquet(caminho, index=False)
+        arquivos_salvos[nome] = caminho
+        print(f"  💾 {nome} — {df.shape[0]} linhas × {df.shape[1]} colunas → {caminho}")
+
+    print()
+    return arquivos_salvos
+
+
+# ═══════════════════════════════════════════════════════════════
 #  FASE 12 — Salvamento
 # ═══════════════════════════════════════════════════════════════
 
@@ -1015,6 +1341,30 @@ def processar_veiculos_budget(ano: Optional[int] = None) -> Dict:
         df_vol_bud, df_vol_actual, df_dea
     )
 
+    # ── Fases 13–18: Cálculo do Custo por Veículo ──
+
+    # Fase 13: Custo FP sem D&A Dedicado (base para rateio)
+    df_fp_sem_da = fase13_custo_fp_sem_da(df_principal)
+
+    # Fase 14: Percentuais de rateio por veículo
+    df_percentual = fase14_percentual_rateio_veiculos(df_tempo_veic)
+
+    # Fase 15: Custo rateado por veículo
+    df_custo_rateado = fase15_custo_rateado_veiculos(df_principal, df_percentual)
+
+    # Fase 16: Custo FP Veículo (rateado + D&A)
+    df_custo_fp_veiculo = fase16_custo_fp_veiculo(df_custo_rateado, df_dea, df_principal)
+
+    # Fase 17: CPU por veículo
+    df_cpu, df_cpu_detalhe = fase17_cpu_veiculo(df_custo_fp_veiculo, df_vol_bud)
+
+    # Fase 18: Salvamento dos novos parquets
+    arquivos_veiculos = fase18_salvamento_veiculos(
+        config, df_fp_sem_da, df_percentual,
+        df_custo_rateado, df_custo_fp_veiculo, df_cpu
+    )
+    arquivos.update(arquivos_veiculos)
+
     # Validação
     validacao_final(config, arquivos)
 
@@ -1031,6 +1381,11 @@ def processar_veiculos_budget(ano: Optional[int] = None) -> Dict:
         'df_vol_bud': df_vol_bud,
         'df_vol_actual': df_vol_actual,
         'df_dea_dedicado': df_dea,
+        'df_fp_sem_da': df_fp_sem_da,
+        'df_percentual_rateio': df_percentual,
+        'df_custo_rateado': df_custo_rateado,
+        'df_custo_fp_veiculo': df_custo_fp_veiculo,
+        'df_cpu': df_cpu,
     }
 
 

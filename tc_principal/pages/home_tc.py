@@ -76,8 +76,8 @@ def render():
     df = aplicar_fator_df(df, cols_val, fator)
     df = converter_moeda_df(df, cols_val, moeda, taxas)
 
-    # ── Budget Flex ──
-    df_flex = calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual)
+    # ── Budget Flex (calculado APÓS filtros para garantir consistência) ──
+    df_flex = calcular_flex_budget(df, df_vol_bud, df_vol_actual)
     if df_flex is not None:
         df_flex = aplicar_fator_df(
             df_flex, ['Custo_Fixo', 'Custo_NaoFixo', 'Custo_Total_Bud', 'Flex_Bud'], fator,
@@ -97,12 +97,10 @@ def render():
     else:
         soma = {c: df[c].sum() for c in cols_val}
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric(f"📦 {label_valor} Desp. Primária", f"{simbolo} {soma.get('Despesa Primaria', 0):,.2f}{sufixo}")
     c2.metric(f"🏭 {label_valor} FA", f"{simbolo} {soma.get('Custo FA', 0):,.2f}{sufixo}")
     c3.metric("💰 Redis", f"{simbolo} {soma.get('Redis', 0):,.2f}{sufixo}")
-
-    c4, c5, c6 = st.columns(3)
     c4.metric(f"🚗 {label_valor} FP", f"{simbolo} {soma.get('Custo FP', 0):,.2f}{sufixo}")
     c5.metric("📉 D&A Dedicada", f"{simbolo} {soma.get('D&A dedicado', 0):,.2f}{sufixo}")
     c6.metric("✅ FP sem Dedicada", f"{simbolo} {soma.get('FP sem Dedicada', 0):,.2f}{sufixo}")
@@ -123,74 +121,78 @@ def render():
         # ════════════════════════════════════════
         st.subheader("📊 Resumo TC Principal")
 
-        if df_flex is not None and not df_flex.empty:
-            bud_total = df_flex['Custo_Total_Bud'].sum()
-            flex_bud_total = df_flex['Flex_Bud'].sum()
-            vol_budget_total = (
-                df_flex['Vol_Budget'].sum()
-                if 'Vol_Budget' in df_flex.columns else 0
-            )
-            vol_actual_total = (
-                df_flex['Vol_Actual'].sum()
-                if 'Vol_Actual' in df_flex.columns else vol_total
-            )
-            proporcao_media = (
-                df_flex['Proporcao'].mean()
-                if 'Proporcao' in df_flex.columns else 1.0
-            )
-
-            # Verificar se volumes são iguais
-            volumes_iguais = abs(vol_budget_total - vol_actual_total) < 1
-
-            # Usar Custo FP como proxy para "Total"
-            total_custo = soma.get('Custo FP', 0)
-
-            # Aplicar CPU se necessário
-            if tipo == 'CPU (Custo por Unidade)' and vol_actual_total > 0:
-                bud_exibir = bud_total / vol_actual_total
-                flex_exibir = flex_bud_total / vol_actual_total
-                total_exibir = total_custo
-            else:
-                bud_exibir = bud_total
-                flex_exibir = flex_bud_total
-                total_exibir = total_custo
-
-            flex_menos_bud = flex_exibir - bud_exibir
-            total_menos_flex = total_exibir - flex_exibir
-            total_div_flex = (
-                (total_exibir / flex_exibir) if flex_exibir != 0 else 0
-            )
-
-            def _fmt_val(v):
-                return f"{simbolo} {v:,.2f}{sufixo}"
-
-            k1, k2, k3, k4, k5, k6 = st.columns(6)
-            with k1:
-                render_kpi("BUD", _fmt_val(bud_exibir))
-            with k2:
-                render_kpi("Flex Bud - BUD", _fmt_val(flex_menos_bud))
-            with k3:
-                render_kpi("Flex BUD", _fmt_val(flex_exibir))
-            with k4:
-                render_kpi("Total - Flex Bud", _fmt_val(total_menos_flex))
-            with k5:
-                render_kpi("Total", _fmt_val(total_exibir))
-            with k6:
-                render_kpi("Total / Flex Bud", f"{total_div_flex:.0%}")
-
-            render_kpi_spacer()
-
-            # Alerta sobre volumes iguais
-            if volumes_iguais:
-                st.warning(
-                    f"⚠️ **Volume Budget ({vol_budget_total:,.0f}) = "
-                    f"Volume Realizado ({vol_actual_total:,.0f})**  \n"
-                    f"Proporção = {proporcao_media:.2%} → Flex BUD = BUD.  \n"
-                    "Verifique os dados de volume na aba **📈 Volume**."
-                )
+        # Calcular BUD e Flex BUD usando mesma lógica do Resumo Geral
+        # Separar em Fixo e Variável
+        df_resumo = df.copy()
+        df_resumo['Custo_str'] = df_resumo['Custo'].astype(str).str.lower()
+        df_resumo['Categoria'] = df_resumo['Custo_str'].apply(
+            lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
+        )
+        
+        # Calcular totais por categoria
+        bud_fixo = df_resumo[df_resumo['Categoria'] == 'Fixo']['Custo FP'].sum()
+        bud_variavel = df_resumo[df_resumo['Categoria'] == 'Variável']['Custo FP'].sum()
+        bud_total = bud_fixo + bud_variavel
+        
+        # Calcular proporção global de volume
+        if df_vol_bud is not None and df_vol_actual is not None:
+            vol_budget_total = df_vol_bud['Volume'].sum()
+            vol_actual_total = df_vol_actual['Volume'].sum()
+            proporcao_global_tc = (vol_actual_total / vol_budget_total) if vol_budget_total > 0 else 1
         else:
-            st.info(
-                "ℹ️ Dados de volume não disponíveis para cálculo de Flex Budget."
+            vol_budget_total = 0
+            vol_actual_total = 0
+            proporcao_global_tc = 1
+        
+        # Calcular Flex BUD: Fixo + (Variável × Proporção Global)
+        flex_bud_total = bud_fixo + (bud_variavel * proporcao_global_tc)
+        
+        # Total = soma de Custo FP (já filtrado)
+        total_custo = soma.get('Custo FP', 0)
+
+        # Aplicar CPU se necessário
+        if tipo == 'CPU (Custo por Unidade)' and vol_actual_total > 0:
+            bud_exibir = bud_total / vol_actual_total
+            flex_exibir = flex_bud_total / vol_actual_total
+            total_exibir = total_custo
+        else:
+            bud_exibir = bud_total
+            flex_exibir = flex_bud_total
+            total_exibir = total_custo
+
+        flex_menos_bud = flex_exibir - bud_exibir
+        total_menos_flex = total_exibir - flex_exibir
+        total_div_flex = (
+            (total_exibir / flex_exibir) if flex_exibir != 0 else 0
+        )
+
+        def _fmt_val(v):
+            return f"{simbolo} {v:,.2f}{sufixo}"
+
+        k1, k2, k3, k4, k5, k6 = st.columns(6)
+        with k1:
+            render_kpi("BUD", _fmt_val(bud_exibir))
+        with k2:
+            render_kpi("Flex Bud - BUD", _fmt_val(flex_menos_bud))
+        with k3:
+            render_kpi("Flex BUD", _fmt_val(flex_exibir))
+        with k4:
+            render_kpi("Total - Flex Bud", _fmt_val(total_menos_flex))
+        with k5:
+            render_kpi("Total", _fmt_val(total_exibir))
+        with k6:
+            render_kpi("Total / Flex Bud", f"{total_div_flex:.0%}")
+
+        render_kpi_spacer()
+
+        # Alerta sobre volumes iguais
+        volumes_iguais = abs(vol_budget_total - vol_actual_total) < 1
+        if volumes_iguais:
+            st.warning(
+                f"⚠️ **Volume Budget ({vol_budget_total:,.0f}) = "
+                f"Volume Realizado ({vol_actual_total:,.0f})**  \n"
+                f"Proporção = {proporcao_global_tc:.2%} → Flex BUD = BUD.  \n"
+                "Verifique os dados de volume na aba **📈 Volume**."
             )
 
         st.divider()
@@ -211,9 +213,9 @@ def render():
                 'Período', as_index=False
             )['Volume'].sum()
             vol_per['Período'] = vol_per['Período'].astype(str)
-            df_periodo = df_periodo.merge(vol_per, on='Período', how='inner')
-            # Usar inner join garante apenas períodos com volume
-            if len(df_periodo) == 0:
+            df_periodo = df_periodo.merge(vol_per, on='Período', how='left')
+            df_periodo['Volume'] = df_periodo['Volume'].fillna(0)
+            if df_periodo['Volume'].sum() == 0:
                 st.warning("⚠️ Sem dados de volume para calcular CPU neste período.")
             else:
                 for c in cols_val:
@@ -223,6 +225,13 @@ def render():
                         )
 
         # Ordenação cronológica usando lista filtrada de ORDEM_MESES
+        # Fallback: se df_periodo vazio após merge CPU, exibir aviso em vez de nada
+        if len(df_periodo) == 0 or df_periodo['Custo FP'].fillna(0).abs().sum() == 0:
+            st.info("ℹ️ Nenhum dado disponível para exibir no gráfico com os filtros atuais.")
+            st.dataframe(df_periodo, use_container_width=True)
+        else:
+            pass  # continua normalmente abaixo
+
         periodos_presentes = df_periodo['Período'].unique().tolist()
         ordem_per = [m for m in ORDEM_MESES if m in periodos_presentes]
 
@@ -538,36 +547,30 @@ def render():
 
             # Preparar dados de volume para cálculo de Flex
             if df_vol_bud is not None and df_vol_actual is not None:
-                df_vol_bud_agg = normalizar_periodo(df_vol_bud.copy()).groupby(
-                    'Período', as_index=False
-                )['Volume'].sum().rename(columns={'Volume': 'Vol_Budget'})
-                df_vol_act_agg = normalizar_periodo(df_vol_actual.copy()).groupby(
-                    'Período', as_index=False
-                )['Volume'].sum().rename(columns={'Volume': 'Vol_Actual'})
+                # Normalizar e filtrar pelos períodos selecionados
+                df_vol_bud_norm = normalizar_periodo(df_vol_bud.copy())
+                df_vol_bud_norm = df_vol_bud_norm[
+                    df_vol_bud_norm['Período'].isin(periodos_filtro)
+                ].copy()
+                
+                df_vol_act_norm = normalizar_periodo(df_vol_actual.copy())
+                df_vol_act_norm = df_vol_act_norm[
+                    df_vol_act_norm['Período'].isin(periodos_filtro)
+                ].copy()
+                
+                # Calcular proporção GLOBAL (não por período)
+                vol_total_budget = df_vol_bud_norm['Volume'].sum()
+                vol_total_actual = df_vol_act_norm['Volume'].sum()
+                proporcao_global = (vol_total_actual / vol_total_budget) if vol_total_budget > 0 else 1
             else:
-                df_vol_bud_agg = pd.DataFrame({'Período': [], 'Vol_Budget': []})
-                df_vol_act_agg = pd.DataFrame({'Período': [], 'Vol_Actual': []})
+                proporcao_global = 1
 
-            # Merge com volumes
-            df_cat_agg['Período'] = df_cat_agg['Período'].astype(str)
-            df_vol_bud_agg['Período'] = df_vol_bud_agg['Período'].astype(str)
-            df_vol_act_agg['Período'] = df_vol_act_agg['Período'].astype(str)
+            # Merge com volumes (remover código antigo de merge por período)
 
-            df_cat_agg = df_cat_agg.merge(
-                df_vol_bud_agg, on='Período', how='left'
-            ).merge(
-                df_vol_act_agg, on='Período', how='left'
-            )
-            df_cat_agg['Vol_Budget'] = df_cat_agg['Vol_Budget'].fillna(1)
-            df_cat_agg['Vol_Actual'] = df_cat_agg['Vol_Actual'].fillna(1)
-
-            # Calcular proporção de volume
-            df_cat_agg['Proporcao'] = (
-                df_cat_agg['Vol_Actual'] / df_cat_agg['Vol_Budget']
-            ).fillna(1)
-
-            # Merge com BUD do df_flex
+            # Merge com BUD do df (com mesmos filtros sidebar que o Total)
             df_bud_cat = df.copy()
+            # Aplicar filtro de período
+            df_bud_cat = df_bud_cat[df_bud_cat['Período'].isin(periodos_filtro)].copy()
             df_bud_cat['Custo_str'] = df_bud_cat['Custo'].astype(str).str.lower()
             df_bud_cat['Categoria'] = df_bud_cat['Custo_str'].apply(
                 lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -582,26 +585,27 @@ def render():
             )
             df_cat_agg['BUD'] = df_cat_agg['BUD'].fillna(0)
 
-            # Calcular Flex BUD:
+            # Calcular Flex BUD usando proporção GLOBAL:
             # Fixo: Flex = BUD (não flexibiliza)
-            # Variável: Flex = BUD * Proporção
+            # Variável: Flex = BUD * Proporção Global
             df_cat_agg['Flex BUD'] = df_cat_agg.apply(
                 lambda r: r['BUD'] if r['Categoria'] == 'Fixo'
-                else r['BUD'] * r['Proporcao'],
+                else r['BUD'] * proporcao_global,
                 axis=1
             )
 
-            # Aplicar CPU se necessário
+            # Aplicar CPU se necessário (usando volumes globais)
             if tipo == 'CPU (Custo por Unidade)':
-                df_cat_agg['Custo FP'] = calcular_cpu(
-                    df_cat_agg['Custo FP'], df_cat_agg['Vol_Actual']
-                )
-                df_cat_agg['BUD'] = calcular_cpu(
-                    df_cat_agg['BUD'], df_cat_agg['Vol_Budget']
-                )
-                df_cat_agg['Flex BUD'] = calcular_cpu(
-                    df_cat_agg['Flex BUD'], df_cat_agg['Vol_Actual']
-                )
+                if 'vol_total_budget' in locals() and 'vol_total_actual' in locals():
+                    df_cat_agg['Custo FP'] = calcular_cpu(
+                        df_cat_agg['Custo FP'], vol_total_actual
+                    )
+                    df_cat_agg['BUD'] = calcular_cpu(
+                        df_cat_agg['BUD'], vol_total_budget
+                    )
+                    df_cat_agg['Flex BUD'] = calcular_cpu(
+                        df_cat_agg['Flex BUD'], vol_total_actual
+                    )
 
             # Renomear para padrão TC Ext
             df_cat_agg = df_cat_agg.rename(columns={'Custo FP': 'Total'})
@@ -704,11 +708,24 @@ def render():
                     ['Categoria', 'Type 05', 'Account'], as_index=False
                 )['Custo FP'].sum()
 
-                # Merge com volumes para cálculo de Flex
-                vol_total_bud = (df_vol_bud['Volume'].sum()
-                                if df_vol_bud is not None else 1)
-                vol_total_act = (df_vol_actual['Volume'].sum()
-                                if df_vol_actual is not None else vol_total_bud)
+                # Merge com volumes para cálculo de Flex (filtrados por período)
+                if df_vol_bud is not None:
+                    df_vol_bud_filt = normalizar_periodo(df_vol_bud.copy())
+                    df_vol_bud_filt = df_vol_bud_filt[
+                        df_vol_bud_filt['Período'].isin(periodos_filtro)
+                    ].copy()
+                    vol_total_bud = df_vol_bud_filt['Volume'].sum()
+                else:
+                    vol_total_bud = 1
+                    
+                if df_vol_actual is not None:
+                    df_vol_act_filt = normalizar_periodo(df_vol_actual.copy())
+                    df_vol_act_filt = df_vol_act_filt[
+                        df_vol_act_filt['Período'].isin(periodos_filtro)
+                    ].copy()
+                    vol_total_act = df_vol_act_filt['Volume'].sum()
+                else:
+                    vol_total_act = vol_total_bud
                 proporcao_global = vol_total_act / vol_total_bud if vol_total_bud > 0 else 1
 
                 # Duplicar para ter BUD (original já tem Total)
@@ -842,11 +859,24 @@ def render():
                     ['Type 05', 'Account'], as_index=False
                 )['Custo FP'].sum()
 
-                # Merge com volumes para cálculo de Flex
-                vol_total_bud = (df_vol_bud['Volume'].sum()
-                                if df_vol_bud is not None else 1)
-                vol_total_act = (df_vol_actual['Volume'].sum()
-                                if df_vol_actual is not None else vol_total_bud)
+                # Merge com volumes para cálculo de Flex (filtrados por período)
+                if df_vol_bud is not None:
+                    df_vol_bud_filt = normalizar_periodo(df_vol_bud.copy())
+                    df_vol_bud_filt = df_vol_bud_filt[
+                        df_vol_bud_filt['Período'].isin(periodos_filtro)
+                    ].copy()
+                    vol_total_bud = df_vol_bud_filt['Volume'].sum()
+                else:
+                    vol_total_bud = 1
+                    
+                if df_vol_actual is not None:
+                    df_vol_act_filt = normalizar_periodo(df_vol_actual.copy())
+                    df_vol_act_filt = df_vol_act_filt[
+                        df_vol_act_filt['Período'].isin(periodos_filtro)
+                    ].copy()
+                    vol_total_act = df_vol_act_filt['Volume'].sum()
+                else:
+                    vol_total_act = vol_total_bud
                 proporcao_global = (vol_total_act / vol_total_bud
                                    if vol_total_bud > 0 else 1)
 

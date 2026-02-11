@@ -251,7 +251,7 @@ def render():
     # ── TAB 2: Processamento ──
     with tab2:
         st.subheader("⚙️ Executar Processamento")
-        st.info("O processamento lê o Excel, aplica rateios e gera os 6 parquets para o TC Principal.")
+        st.info("O processamento lê o Excel, aplica rateios e gera os 11 parquets para o TC Principal (6 básicos + 5 de cálculo por veículo).")
 
         if processar_veiculos_budget is None:
             st.error("❌ Módulo `processamento_dados_veiculos_BUD` não encontrado.")
@@ -297,15 +297,20 @@ def render():
     with tab4:
         st.subheader("📊 Status dos Parquets Gerados")
 
-        pasta_base = os.path.join('dados', str(ano_selecionado), 'BUD')
+        pasta_base = os.path.join('dados', 'TC_Principal', str(ano_selecionado), 'BUD')
 
         parquets_esperados = [
-            'df_final_veiculos_BUD.parquet',
+            'df_principal_BUD.parquet',
             'df_vol_veiculos_BUD.parquet',
-            'df_vol_actual_veiculos_BUD.parquet',
+            'df_vol_veiculos_actual.parquet',
             'df_tempo_veiculos_BUD.parquet',
-            'df_dea_dedicado_veiculos_BUD.parquet',
-            'df_vol_fa_veiculos_BUD.parquet',
+            'df_dea_dedicado_BUD.parquet',
+            'df_volume_fa_BUD.parquet',
+            'df_veiculos_fp_sem_da_BUD.parquet',
+            'df_veiculos_percentual_rateio_BUD.parquet',
+            'df_veiculos_custo_rateado_BUD.parquet',
+            'df_veiculos_custo_fp_BUD.parquet',
+            'df_veiculos_cpu_BUD.parquet',
         ]
 
         for arq in parquets_esperados:

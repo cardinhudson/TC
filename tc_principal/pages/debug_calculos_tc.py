@@ -1,7 +1,8 @@
 """
 TC Principal — Debug de Cálculos
-8 abas de auditoria: integridade, tabela principal, rateio FA, custo FA,
-                     custo FP, D&A, volume/tempo, comparar Excel.
+15 abas de auditoria: integridade, tabela principal, rateio FA, custo FA,
+                     custo FP, D&A, volume/tempo, comparar Excel,
+                     + 7 novas abas de cálculo por veículo.
 """
 
 import streamlit as st
@@ -15,6 +16,8 @@ from tc_principal.shared import (
     _pasta_tc_principal, load_principal,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
+    load_fp_sem_da_veiculos, load_percentual_rateio_veiculos,
+    load_custo_rateado_veiculos, load_custo_fp_veiculo, load_cpu_veiculo,
     normalizar_periodo, ordenar_por_mes,
 )
 from tc_principal.ui_components import (
@@ -76,6 +79,13 @@ def render():
     df_dea = load_dea_dedicado(ano)
     df_vol_fa = load_volume_fa(ano)
 
+    # Novos datasets de veículos
+    df_fp_sem_da = load_fp_sem_da_veiculos(ano)
+    df_pct_rateio = load_percentual_rateio_veiculos(ano)
+    df_custo_rateado = load_custo_rateado_veiculos(ano)
+    df_custo_fp_veic = load_custo_fp_veiculo(ano)
+    df_cpu_veic = load_cpu_veiculo(ano)
+
     if df is None:
         st.error("❌ `df_principal_BUD.parquet` não encontrado. Execute o processamento primeiro.")
         st.stop()
@@ -94,6 +104,13 @@ def render():
         "6️⃣ D&A",
         "7️⃣ Volume/Tempo",
         "8️⃣ Comparar Excel",
+        "9️⃣ % Rateio Veíc",
+        "🔟 FP sem D&A",
+        "1️⃣1️⃣ Custo Rateado",
+        "1️⃣2️⃣ FP Veículo",
+        "1️⃣3️⃣ Antes×Depois",
+        "1️⃣4️⃣ CPU Veículo",
+        "1️⃣5️⃣ Inconsistências",
     ])
 
     # ── 1. INTEGRIDADE ──
@@ -108,6 +125,11 @@ def render():
             ('df_tempo_veiculos_BUD.parquet', df_tempo),
             ('df_dea_dedicado_BUD.parquet', df_dea),
             ('df_vol_fa_veiculos_BUD.parquet', df_vol_fa),
+            ('df_veiculos_fp_sem_da_BUD.parquet', df_fp_sem_da),
+            ('df_veiculos_percentual_rateio_BUD.parquet', df_pct_rateio),
+            ('df_veiculos_custo_rateado_BUD.parquet', df_custo_rateado),
+            ('df_veiculos_custo_fp_BUD.parquet', df_custo_fp_veic),
+            ('df_veiculos_cpu_BUD.parquet', df_cpu_veic),
         ]
         for nome_arq, dados in parquets:
             caminho = os.path.join(pasta, nome_arq)
@@ -381,6 +403,355 @@ def render():
                         st.success(f"Abas: {xl.sheet_names}")
                     except Exception as e:
                         st.error(f"Erro: {e}")
+
+    # ══════════════════════════════════════
+    #  9. PERCENTUAIS DE RATEIO POR VEÍCULO
+    # ══════════════════════════════════════
+    with tabs[8]:
+        st.subheader("Percentuais de Rateio por Veículo")
+        st.caption("Percentual = (EST × Volume) / Σ(EST × Volume por oficina)")
+
+        if df_pct_rateio is not None:
+            _resumo_df(df_pct_rateio, 'df_veiculos_percentual_rateio_BUD')
+
+            # Filtros locais
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                ofi_sel9 = st.multiselect("Oficina", sorted(df_pct_rateio['Oficina'].unique()),
+                                           key='dbg_pct_ofi')
+            with col_f2:
+                per_sel9 = st.multiselect("Período",
+                    [m for m in ORDEM_MESES if m in df_pct_rateio['Período'].values],
+                    key='dbg_pct_per')
+
+            df_pct_f = df_pct_rateio.copy()
+            if ofi_sel9:
+                df_pct_f = df_pct_f[df_pct_f['Oficina'].isin(ofi_sel9)]
+            if per_sel9:
+                df_pct_f = df_pct_f[df_pct_f['Período'].isin(per_sel9)]
+
+            st.dataframe(df_pct_f, use_container_width=True, height=500)
+
+            # Validação: soma por oficina/período = 100%
+            st.divider()
+            st.markdown("**Validação: Σ Percentual por (Oficina, Período) = 100%**")
+            soma_pct = df_pct_rateio.groupby(['Oficina', 'Período'])['Percentual'].sum().reset_index()
+            soma_pct['OK'] = (soma_pct['Percentual'] - 1.0).abs() < 0.001
+            erros_pct = soma_pct[~soma_pct['OK']]
+            if erros_pct.empty:
+                st.success(f"✅ Todos os {len(soma_pct)} grupos somam 100%.")
+            else:
+                st.error(f"❌ {len(erros_pct)} grupos com soma ≠ 100%:")
+                st.dataframe(erros_pct, use_container_width=True)
+
+            # Pivot Oficina × Veículo (média dos percentuais)
+            st.divider()
+            st.markdown("**Percentuais médios: Oficina × Veículo**")
+            pivot_pct = df_pct_rateio.pivot_table(
+                values='Percentual', index='Oficina', columns='Veículo', aggfunc='mean'
+            )
+            st.dataframe(pivot_pct.style.format("{:.4%}"), use_container_width=True)
+        else:
+            st.warning("⚠️ Parquet `df_veiculos_percentual_rateio_BUD.parquet` não encontrado. Execute o processamento.")
+
+    # ══════════════════════════════════════
+    #  10. FP SEM D&A DEDICADO
+    # ══════════════════════════════════════
+    with tabs[9]:
+        st.subheader("Custo FP sem D&A Dedicado")
+        st.caption("Base de rateio = Custo FP − D&A dedicado = FP sem Dedicada")
+
+        if df_fp_sem_da is not None:
+            _resumo_df(df_fp_sem_da, 'df_veiculos_fp_sem_da_BUD')
+
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                ofi_sel10 = st.multiselect("Oficina", sorted(df_fp_sem_da['Oficina'].unique()),
+                                            key='dbg_fpsda_ofi')
+            with col_f2:
+                per_sel10 = st.multiselect("Período",
+                    [m for m in ORDEM_MESES if m in df_fp_sem_da['Período'].values],
+                    key='dbg_fpsda_per')
+
+            df_fpsda_f = df_fp_sem_da.copy()
+            if ofi_sel10:
+                df_fpsda_f = df_fpsda_f[df_fpsda_f['Oficina'].isin(ofi_sel10)]
+            if per_sel10:
+                df_fpsda_f = df_fpsda_f[df_fpsda_f['Período'].isin(per_sel10)]
+
+            st.dataframe(df_fpsda_f, use_container_width=True, height=500)
+
+            st.divider()
+            st.markdown("**Totais:**")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Custo FP", f"R$ {df_fp_sem_da['Custo FP'].sum():,.2f}")
+            c2.metric("D&A Dedicado", f"R$ {df_fp_sem_da['D&A dedicado'].sum():,.2f}")
+            c3.metric("FP sem Dedicada", f"R$ {df_fp_sem_da['FP sem Dedicada'].sum():,.2f}")
+        else:
+            st.warning("⚠️ Parquet `df_veiculos_fp_sem_da_BUD.parquet` não encontrado. Execute o processamento.")
+
+    # ══════════════════════════════════════
+    #  11. CUSTO RATEADO POR VEÍCULO
+    # ══════════════════════════════════════
+    with tabs[10]:
+        st.subheader("Custo Rateado por Veículo")
+        st.caption("Custo Rateado = FP sem Dedicada × Percentual do veículo")
+
+        if df_custo_rateado is not None:
+            _resumo_df(df_custo_rateado, 'df_veiculos_custo_rateado_BUD')
+
+            col_f1, col_f2, col_f3 = st.columns(3)
+            with col_f1:
+                ofi_sel11 = st.multiselect("Oficina", sorted(df_custo_rateado['Oficina'].unique()),
+                                            key='dbg_rat_ofi')
+            with col_f2:
+                veic_sel11 = st.multiselect("Veículo",
+                    sorted(df_custo_rateado['Veículo'].unique()) if 'Veículo' in df_custo_rateado.columns else [],
+                    key='dbg_rat_veic')
+            with col_f3:
+                per_sel11 = st.multiselect("Período",
+                    [m for m in ORDEM_MESES if m in df_custo_rateado['Período'].values],
+                    key='dbg_rat_per')
+
+            df_rat_f = df_custo_rateado.copy()
+            if ofi_sel11:
+                df_rat_f = df_rat_f[df_rat_f['Oficina'].isin(ofi_sel11)]
+            if veic_sel11:
+                df_rat_f = df_rat_f[df_rat_f['Veículo'].isin(veic_sel11)]
+            if per_sel11:
+                df_rat_f = df_rat_f[df_rat_f['Período'].isin(per_sel11)]
+
+            st.dataframe(df_rat_f, use_container_width=True, height=500)
+
+            # Validação: soma rateado = soma FP sem Ded
+            st.divider()
+            st.markdown("**Validação: Σ Custo Rateado ≈ Σ FP sem Dedicada (original)**")
+            soma_rateado = df_custo_rateado['Custo Rateado'].sum()
+            soma_fp_sem = df['FP sem Dedicada'].sum() if 'FP sem Dedicada' in df.columns else 0
+            diff_rat = abs(soma_rateado - soma_fp_sem)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Σ FP sem Ded (original)", f"R$ {soma_fp_sem:,.2f}")
+            c2.metric("Σ Custo Rateado", f"R$ {soma_rateado:,.2f}")
+            c3.metric("Diferença", f"R$ {diff_rat:,.2f}",
+                       delta=f"{'✅ OK' if diff_rat < 0.01 else '❌ DIVERGENTE'}",
+                       delta_color="off" if diff_rat < 0.01 else "inverse")
+        else:
+            st.warning("⚠️ Parquet `df_veiculos_custo_rateado_BUD.parquet` não encontrado.")
+
+    # ══════════════════════════════════════
+    #  12. CUSTO FP VEÍCULO
+    # ══════════════════════════════════════
+    with tabs[11]:
+        st.subheader("Custo FP por Veículo")
+        st.caption("Custo FP Veículo = Custo Rateado + D&A dedicado")
+
+        if df_custo_fp_veic is not None:
+            _resumo_df(df_custo_fp_veic, 'df_veiculos_custo_fp_BUD')
+
+            col_f1, col_f2, col_f3 = st.columns(3)
+            with col_f1:
+                ofi_sel12 = st.multiselect("Oficina", sorted(df_custo_fp_veic['Oficina'].unique()),
+                                            key='dbg_fpv_ofi')
+            with col_f2:
+                veic_sel12 = st.multiselect("Veículo",
+                    sorted(df_custo_fp_veic['Veículo'].unique()) if 'Veículo' in df_custo_fp_veic.columns else [],
+                    key='dbg_fpv_veic')
+            with col_f3:
+                per_sel12 = st.multiselect("Período",
+                    [m for m in ORDEM_MESES if m in df_custo_fp_veic['Período'].values],
+                    key='dbg_fpv_per')
+
+            df_fpv_f = df_custo_fp_veic.copy()
+            if ofi_sel12:
+                df_fpv_f = df_fpv_f[df_fpv_f['Oficina'].isin(ofi_sel12)]
+            if veic_sel12:
+                df_fpv_f = df_fpv_f[df_fpv_f['Veículo'].isin(veic_sel12)]
+            if per_sel12:
+                df_fpv_f = df_fpv_f[df_fpv_f['Período'].isin(per_sel12)]
+
+            st.dataframe(df_fpv_f, use_container_width=True, height=500)
+
+            # Totais por veículo
+            st.divider()
+            st.markdown("**Custo FP Veículo por modelo:**")
+            if 'Custo FP Veiculo' in df_custo_fp_veic.columns:
+                fp_veic = df_custo_fp_veic.groupby('Veículo')['Custo FP Veiculo'].sum().sort_values(ascending=False)
+                st.dataframe(fp_veic.to_frame().style.format("R$ {:,.2f}"), use_container_width=True)
+        else:
+            st.warning("⚠️ Parquet `df_veiculos_custo_fp_BUD.parquet` não encontrado.")
+
+    # ══════════════════════════════════════
+    #  13. ANTES × DEPOIS (FECHAMENTO GERAL)
+    # ══════════════════════════════════════
+    with tabs[12]:
+        st.subheader("Comparação Antes × Depois")
+        st.caption("Validação: Σ Custo FP (original) deve ser igual a Σ Custo FP Veículo")
+
+        # Dados originais
+        soma_fp_original = df['Custo FP'].sum() if 'Custo FP' in df.columns else 0
+        soma_da_original = df['D&A dedicado'].sum() if 'D&A dedicado' in df.columns else 0
+        soma_fp_sem_ded = df['FP sem Dedicada'].sum() if 'FP sem Dedicada' in df.columns else 0
+
+        # Dados calculados
+        soma_fp_veiculo = df_custo_fp_veic['Custo FP Veiculo'].sum() if df_custo_fp_veic is not None and 'Custo FP Veiculo' in df_custo_fp_veic.columns else 0
+        soma_rateado = df_custo_rateado['Custo Rateado'].sum() if df_custo_rateado is not None and 'Custo Rateado' in df_custo_rateado.columns else 0
+        soma_da_veiculo = df_custo_fp_veic['D&A dedicado'].sum() if df_custo_fp_veic is not None and 'D&A dedicado' in df_custo_fp_veic.columns else 0
+
+        # Tabela comparativa
+        comparacao = pd.DataFrame({
+            'Indicador': [
+                'Σ Custo FP (original)',
+                'Σ FP sem Dedicada (original)',
+                'Σ D&A Dedicado (original)',
+                'Σ Custo Rateado (veículos)',
+                'Σ D&A Dedicado (veículos)',
+                'Σ Custo FP Veículo',
+            ],
+            'Valor (R$)': [
+                soma_fp_original,
+                soma_fp_sem_ded,
+                soma_da_original,
+                soma_rateado,
+                soma_da_veiculo,
+                soma_fp_veiculo,
+            ]
+        })
+        st.dataframe(comparacao.style.format({'Valor (R$)': "R$ {:,.2f}"}), use_container_width=True)
+
+        # Alerta principal
+        st.divider()
+        diff_principal = abs(soma_fp_original - soma_fp_veiculo)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Σ Custo FP Original", f"R$ {soma_fp_original:,.2f}")
+        c2.metric("Σ Custo FP Veículo", f"R$ {soma_fp_veiculo:,.2f}")
+        c3.metric("Diferença", f"R$ {diff_principal:,.2f}")
+
+        if diff_principal < 0.01:
+            st.success("✅ **FECHAMENTO OK** — Os valores batem. A soma do Custo FP Veículo é igual ao Custo FP original.")
+        elif soma_fp_veiculo == 0:
+            st.warning("⚠️ Dados de Custo FP Veículo não disponíveis. Execute o processamento primeiro.")
+        else:
+            st.error(f"❌ **DIVERGÊNCIA DETECTADA** — Diferença de R$ {diff_principal:,.2f}. "
+                     "Verifique o processamento das Fases 13–16.")
+
+    # ══════════════════════════════════════
+    #  14. CPU POR VEÍCULO
+    # ══════════════════════════════════════
+    with tabs[13]:
+        st.subheader("CPU (Custo Por Unidade) por Veículo")
+        st.caption("CPU = Custo FP Veículo / Volume do Veículo")
+
+        if df_cpu_veic is not None:
+            _resumo_df(df_cpu_veic, 'df_veiculos_cpu_BUD')
+
+            st.dataframe(df_cpu_veic, use_container_width=True, height=400)
+
+            # Pivot Veículo × Período
+            st.divider()
+            st.markdown("**CPU por Veículo × Período:**")
+            if 'CPU' in df_cpu_veic.columns:
+                pivot_cpu = df_cpu_veic.pivot_table(
+                    values='CPU', index='Veículo', columns='Período', aggfunc='sum'
+                )
+                cols_ord = [m for m in ORDEM_MESES if m in pivot_cpu.columns]
+                if cols_ord:
+                    pivot_cpu = pivot_cpu[cols_ord]
+                st.dataframe(pivot_cpu.style.format("R$ {:,.2f}"), use_container_width=True)
+
+            # Volume usado
+            st.divider()
+            st.markdown("**Volume usado no cálculo:**")
+            if 'Volume' in df_cpu_veic.columns:
+                pivot_vol = df_cpu_veic.pivot_table(
+                    values='Volume', index='Veículo', columns='Período', aggfunc='sum'
+                )
+                cols_ord = [m for m in ORDEM_MESES if m in pivot_vol.columns]
+                if cols_ord:
+                    pivot_vol = pivot_vol[cols_ord]
+                st.dataframe(pivot_vol.style.format("{:,.0f}"), use_container_width=True)
+
+            # Alertas volumes zero
+            if 'Volume' in df_cpu_veic.columns:
+                zeros = df_cpu_veic[df_cpu_veic['Volume'] == 0]
+                if len(zeros) > 0:
+                    st.warning(f"⚠️ {len(zeros)} linhas com Volume = 0 (CPU será 0):")
+                    st.dataframe(zeros[['Veículo', 'Período', 'Volume']], use_container_width=True)
+        else:
+            st.warning("⚠️ Parquet `df_veiculos_cpu_BUD.parquet` não encontrado.")
+
+    # ══════════════════════════════════════
+    #  15. INDICADORES DE INCONSISTÊNCIA
+    # ══════════════════════════════════════
+    with tabs[14]:
+        st.subheader("Dashboard de Inconsistências")
+        st.caption("Consolidação de todas as validações dos cálculos por veículo")
+
+        alertas = []
+
+        # 1. Fechamento geral FP
+        diff_fp = abs(soma_fp_original - soma_fp_veiculo)
+        if soma_fp_veiculo == 0:
+            alertas.append(('⚠️', 'Custo FP Veículo não processado', 'Execute a extração para gerar os dados'))
+        elif diff_fp > 0.01:
+            alertas.append(('❌', f'Fechamento Custo FP: diff = R$ {diff_fp:,.2f}',
+                           'Σ Custo FP ≠ Σ Custo FP Veículo'))
+        else:
+            alertas.append(('✅', 'Fechamento Custo FP OK', f'Diff = R$ {diff_fp:,.6f}'))
+
+        # 2. Percentuais de rateio
+        if df_pct_rateio is not None:
+            soma_pct_check = df_pct_rateio.groupby(['Oficina', 'Período'])['Percentual'].sum()
+            erros_pct_check = soma_pct_check[(soma_pct_check - 1.0).abs() > 0.001]
+            if len(erros_pct_check) > 0:
+                alertas.append(('❌', f'{len(erros_pct_check)} grupos com Σ%≠100%',
+                               'Verificar tempos de veículos'))
+            else:
+                alertas.append(('✅', f'Percentuais de rateio OK ({len(soma_pct_check)} grupos)',
+                               'Todos somam 100%'))
+        else:
+            alertas.append(('⚠️', 'Percentuais de rateio não disponíveis', 'Execute o processamento'))
+
+        # 3. Volumes zerados
+        if df_cpu_veic is not None and 'Volume' in df_cpu_veic.columns:
+            n_vol_zero = (df_cpu_veic['Volume'] == 0).sum()
+            if n_vol_zero > 0:
+                alertas.append(('⚠️', f'{n_vol_zero} linhas com volume = 0 no CPU',
+                               'CPU será 0 nestas linhas'))
+            else:
+                alertas.append(('✅', 'Todos os volumes > 0 no CPU', ''))
+        else:
+            alertas.append(('⚠️', 'CPU não disponível para análise de volume', ''))
+
+        # 4. NaN nos novos parquets
+        for nome, data in [
+            ('Percentual Rateio', df_pct_rateio),
+            ('Custo Rateado', df_custo_rateado),
+            ('Custo FP Veículo', df_custo_fp_veic),
+            ('CPU Veículo', df_cpu_veic),
+        ]:
+            if data is not None:
+                n_nan = data.isnull().sum().sum()
+                if n_nan > 0:
+                    alertas.append(('⚠️', f'{nome}: {n_nan} valores NaN', 'Verificar merge e dados fonte'))
+                else:
+                    alertas.append(('✅', f'{nome}: sem NaN', ''))
+
+        # 5. Rateio: FP sem Ded = Rateado
+        if df_custo_rateado is not None and 'Custo Rateado' in df_custo_rateado.columns:
+            diff_rat_check = abs(soma_fp_sem_ded - df_custo_rateado['Custo Rateado'].sum())
+            if diff_rat_check > 0.01:
+                alertas.append(('❌', f'Rateio: diff FP sem Ded vs Rateado = R$ {diff_rat_check:,.2f}', ''))
+            else:
+                alertas.append(('✅', 'Rateio: FP sem Ded ≈ Custo Rateado', f'Diff = R$ {diff_rat_check:,.6f}'))
+
+        # Exibir alertas
+        for icone, titulo, detalhe in alertas:
+            if icone == '✅':
+                st.success(f"{icone} **{titulo}** — {detalhe}")
+            elif icone == '⚠️':
+                st.warning(f"{icone} **{titulo}** — {detalhe}")
+            else:
+                st.error(f"{icone} **{titulo}** — {detalhe}")
 
     st.divider()
     st.caption(f"TC — Planta Principal | Debug | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
