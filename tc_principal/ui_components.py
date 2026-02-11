@@ -154,11 +154,11 @@ def render_kpi_spacer() -> None:
 def render_header():
     """Renderiza banner superior no padrão TC Ext (gradiente roxo)."""
     # Versão
-    versao_str = "—"
+    versao_str = "1.91"
     try:
         with open('versao.json', 'r', encoding='utf-8') as f:
             v = json.load(f)
-            versao_str = v.get('versao', '—')
+            versao_str = v.get('versao', '1.91')
     except Exception:
         pass
 
@@ -169,28 +169,43 @@ def render_header():
         5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
         9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
     }
-    mes_ano = f"{meses_pt.get(agora.month, '')} {agora.year}"
+    mes_atual = meses_pt.get(agora.month, '')
+    ano_atual = agora.year
 
-    # Data atualização parquets
-    data_atualizacao = "—"
-    anos = descobrir_anos_tc_principal()
-    if anos:
-        ts = obter_timestamp_parquets(anos[0])
-        if ts:
-            dt = datetime.fromtimestamp(ts)
-            data_atualizacao = dt.strftime('%d/%m/%Y %H:%M')
+    # Data atualização parquets (formato igual TC Ext)
+    data_atualizacao = None
+    try:
+        pasta_dados = os.path.join("dados", "TC_Principal")
+        if os.path.exists(pasta_dados):
+            anos = [d for d in os.listdir(pasta_dados)
+                    if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
+            if anos:
+                ano_mais_recente = max(anos, key=int)
+                arquivos = [
+                    os.path.join(pasta_dados, ano_mais_recente, "df_principal.parquet"),
+                    os.path.join(pasta_dados, ano_mais_recente, "df_volume.parquet"),
+                    os.path.join(pasta_dados, "historico_consolidado", "df_principal_historico.parquet"),
+                ]
+                ts_max = None
+                for arq in arquivos:
+                    if os.path.exists(arq):
+                        ts = os.path.getmtime(arq)
+                        if ts_max is None or ts > ts_max:
+                            ts_max = ts
+                if ts_max:
+                    dt = datetime.fromtimestamp(ts_max)
+                    data_atualizacao = f"{dt.day:02d} de {meses_pt[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+    except Exception:
+        pass
+
+    # Montar textos do cabeçalho (igual TC Ext)
+    texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_str} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+    texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                padding: 8px 16px; border-radius: 6px; margin-bottom: 14px;
-                border-bottom: 1px solid #5a4fcf;
-                display: flex; justify-content: space-between; align-items: center;">
-        <div style="color: white; font-size: 0.85rem;">
-            <strong>TC Planta Principal</strong> • v{versao_str} • {mes_ano}
-        </div>
-        <div style="color: rgba(255,255,255,0.8); font-size: 0.75rem;">
-            📅 Dados: {data_atualizacao}
-        </div>
+    <div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
+        <div style='flex: 1;'>{texto_esquerda}</div>
+        <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
     </div>
     """, unsafe_allow_html=True)
 

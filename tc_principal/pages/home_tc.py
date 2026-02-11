@@ -8,6 +8,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+import os
+import json
 from datetime import datetime
 
 from tc_principal.shared import (
@@ -24,6 +26,13 @@ from tc_principal.ui_components import (
     criar_tabela_html, render_kpi, render_kpi_spacer,
     formatar_ratio_com_barra, criar_tabela_html_flex,
 )
+
+# Dicionário de meses em português
+meses_pt = {
+    1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+    5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+    9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
+}
 
 
 def render():
@@ -89,14 +98,14 @@ def render():
         soma = {c: df[c].sum() for c in cols_val}
 
     c1, c2, c3 = st.columns(3)
-    c1.metric(f"📦 {label_valor} Desp. Primária", f"{simbolo} {soma.get('Despesa Primaria', 0):,.0f}{sufixo}")
-    c2.metric(f"🏭 {label_valor} FA", f"{simbolo} {soma.get('Custo FA', 0):,.0f}{sufixo}")
-    c3.metric("💰 Redis", f"{simbolo} {soma.get('Redis', 0):,.0f}{sufixo}")
+    c1.metric(f"📦 {label_valor} Desp. Primária", f"{simbolo} {soma.get('Despesa Primaria', 0):,.2f}{sufixo}")
+    c2.metric(f"🏭 {label_valor} FA", f"{simbolo} {soma.get('Custo FA', 0):,.2f}{sufixo}")
+    c3.metric("💰 Redis", f"{simbolo} {soma.get('Redis', 0):,.2f}{sufixo}")
 
     c4, c5, c6 = st.columns(3)
-    c4.metric(f"🚗 {label_valor} FP", f"{simbolo} {soma.get('Custo FP', 0):,.0f}{sufixo}")
-    c5.metric("📉 D&A Dedicada", f"{simbolo} {soma.get('D&A dedicado', 0):,.0f}{sufixo}")
-    c6.metric("✅ FP sem Dedicada", f"{simbolo} {soma.get('FP sem Dedicada', 0):,.0f}{sufixo}")
+    c4.metric(f"🚗 {label_valor} FP", f"{simbolo} {soma.get('Custo FP', 0):,.2f}{sufixo}")
+    c5.metric("📉 D&A Dedicada", f"{simbolo} {soma.get('D&A dedicado', 0):,.2f}{sufixo}")
+    c6.metric("✅ FP sem Dedicada", f"{simbolo} {soma.get('FP sem Dedicada', 0):,.2f}{sufixo}")
 
     # ════════════════════════════════════════
     #  TABS
@@ -202,13 +211,16 @@ def render():
                 'Período', as_index=False
             )['Volume'].sum()
             vol_per['Período'] = vol_per['Período'].astype(str)
-            df_periodo = df_periodo.merge(vol_per, on='Período', how='left')
-            df_periodo['Volume'] = df_periodo['Volume'].fillna(0)
-            for c in cols_val:
-                if c in df_periodo.columns:
-                    df_periodo[c] = calcular_cpu(
-                        df_periodo[c], df_periodo['Volume']
-                    )
+            df_periodo = df_periodo.merge(vol_per, on='Período', how='inner')
+            # Usar inner join garante apenas períodos com volume
+            if len(df_periodo) == 0:
+                st.warning("⚠️ Sem dados de volume para calcular CPU neste período.")
+            else:
+                for c in cols_val:
+                    if c in df_periodo.columns:
+                        df_periodo[c] = calcular_cpu(
+                            df_periodo[c], df_periodo['Volume']
+                        )
 
         # Ordenação cronológica usando lista filtrada de ORDEM_MESES
         periodos_presentes = df_periodo['Período'].unique().tolist()
@@ -461,17 +473,6 @@ def render():
 
         st.altair_chart(grafico_final, use_container_width=True)
 
-        # Legenda do gráfico
-        st.caption(
-            "🟦 Barras = Custo FP Real (degradê azul) | "
-            "🟠 Linha pontilhada = Flex Budget"
-        )
-        if grafico_delta is not None:
-            st.caption(
-                "🟢 Delta negativo = Abaixo do Flex (favorável) | "
-                "🔴 Delta positivo = Acima do Flex (desfavorável)"
-            )
-
         st.divider()
 
         # ════════════════════════════════════════
@@ -480,8 +481,50 @@ def render():
         st.subheader("📊 Análise Flex por Categoria")
 
         if df_flex is not None and 'Custo' in df.columns:
+            # ── Filtros de Período e Visualização (padrão TC Ext) ──
+            col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 1.5, 1])
+
+            # Lista de períodos disponíveis
+            periodos_disponiveis = sorted(
+                df['Período'].dropna().unique().tolist(),
+                key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
+            )
+            opcoes_periodos = ["Todos"] + periodos_disponiveis
+
+            with col_filtro1:
+                periodos_selecionados_raw = st.multiselect(
+                    "📅 **Período(s):**",
+                    opcoes_periodos,
+                    default=["Todos"],
+                    key="flex_periodo_multiselect"
+                )
+                # Processar seleção
+                if "Todos" in periodos_selecionados_raw:
+                    periodos_filtro = periodos_disponiveis.copy()
+                else:
+                    periodos_filtro = [p for p in periodos_selecionados_raw if p != "Todos"]
+
+            with col_filtro2:
+                modo_visualizacao = st.radio(
+                    "📊 **Visualização:**",
+                    ["Fixo/Variável", "Total"],
+                    index=0,
+                    horizontal=True,
+                    key="flex_modo_visualizacao"
+                )
+
+            with col_filtro3:
+                btn_excel = st.button(
+                    "📥 Baixar Excel",
+                    key="flex_download_excel",
+                    use_container_width=True
+                )
+
+            st.markdown("---")
             # Preparar dados para tabela Flex por Categoria
             df_cat = df.copy()
+            # Aplicar filtro de período
+            df_cat = df_cat[df_cat['Período'].isin(periodos_filtro)].copy()
             df_cat['Custo_str'] = df_cat['Custo'].astype(str).str.lower()
             df_cat['Categoria'] = df_cat['Custo_str'].apply(
                 lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -608,139 +651,303 @@ def render():
             st.markdown("---")
 
             # ═══════════════════════════════════════
+            # 📥 Exportar para Excel (se botão clicado)
+            # ═══════════════════════════════════════
+            if btn_excel:
+                try:
+                    # Preparar DataFrame para download
+                    df_download = df_cat_agg[['Categoria', 'Período', 'BUD',
+                                              'Flex Bud - BUD', 'Flex BUD',
+                                              'Total - Flex Bud', 'Total',
+                                              'Total / Flex Bud']].copy()
+                    # Formatar ratio como percentual
+                    df_download['Total / Flex Bud'] = df_download['Total / Flex Bud'].apply(
+                        lambda x: f"{x:.2%}"
+                    )
+
+                    # Salvar na pasta Downloads
+                    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                    tipo_nome = "CPU" if tipo == "CPU (Custo por Unidade)" else "Custo_Total"
+                    modo_nome = "Fixo_Variavel" if modo_visualizacao == "Fixo/Variável" else "Total"
+                    file_name = f"TC_Principal_Flex_{modo_nome}_{tipo_nome}_{ano}.xlsx"
+                    file_path = os.path.join(downloads_path, file_name)
+
+                    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                        df_download.to_excel(writer, index=False, sheet_name='Flex_Bud')
+
+                    st.success(f"✅ Arquivo salvo em: {file_path}")
+                except Exception as e:
+                    st.error(f"❌ Erro ao exportar: {e}")
+
+            # ═══════════════════════════════════════
             # Expanders 💰 Fixo e 💰 Variável com hierarquia Type 05 → Account
             # ═══════════════════════════════════════
-            # Preparar dados com Type 05 e Account para hierarquia
-            df_hier = df.copy()
-            df_hier['Custo_str'] = df_hier['Custo'].astype(str).str.lower()
-            df_hier['Categoria'] = df_hier['Custo_str'].apply(
-                lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
-            )
-
-            # Garantir que Type 05 e Account existem
-            if 'Type 05' not in df_hier.columns:
-                df_hier['Type 05'] = 'N/A'
-            if 'Account' not in df_hier.columns:
-                df_hier['Account'] = 'N/A'
-
-            # Agrupar por Categoria, Type 05, Account
-            df_hier_agg = df_hier.groupby(
-                ['Categoria', 'Type 05', 'Account'], as_index=False
-            )['Custo FP'].sum()
-
-            # Merge com volumes para cálculo de Flex
-            vol_total_bud = (df_vol_bud['Volume'].sum()
-                            if df_vol_bud is not None else 1)
-            vol_total_act = (df_vol_actual['Volume'].sum()
-                            if df_vol_actual is not None else vol_total_bud)
-            proporcao_global = vol_total_act / vol_total_bud if vol_total_bud > 0 else 1
-
-            # Duplicar para ter BUD (original já tem Total)
-            df_hier_agg = df_hier_agg.rename(columns={'Custo FP': 'Total'})
-
-            # Calcular BUD com base nos dados originais
-            df_bud_hier = df_hier.groupby(
-                ['Categoria', 'Type 05', 'Account'], as_index=False
-            )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
-
-            df_hier_agg = df_hier_agg.merge(
-                df_bud_hier, on=['Categoria', 'Type 05', 'Account'], how='left'
-            )
-            df_hier_agg['BUD'] = df_hier_agg['BUD'].fillna(0)
-
-            # Calcular Flex BUD (Fixo = BUD, Variável = BUD * Proporção)
-            df_hier_agg['Flex BUD'] = df_hier_agg.apply(
-                lambda r: r['BUD'] if r['Categoria'] == 'Fixo'
-                else r['BUD'] * proporcao_global,
-                axis=1
-            )
-
-            # Aplicar CPU se necessário
-            if tipo == 'CPU (Custo por Unidade)':
-                df_hier_agg['Total'] = calcular_cpu(
-                    df_hier_agg['Total'], vol_total_act
-                )
-                df_hier_agg['BUD'] = calcular_cpu(
-                    df_hier_agg['BUD'], vol_total_bud
-                )
-                df_hier_agg['Flex BUD'] = calcular_cpu(
-                    df_hier_agg['Flex BUD'], vol_total_act
+            # Mostrar expanders apenas se visualização for Fixo/Variável
+            if modo_visualizacao == "Fixo/Variável":
+                # Preparar dados com Type 05 e Account para hierarquia
+                df_hier = df.copy()
+                # Aplicar filtro de período
+                df_hier = df_hier[df_hier['Período'].isin(periodos_filtro)].copy()
+                df_hier['Custo_str'] = df_hier['Custo'].astype(str).str.lower()
+                df_hier['Categoria'] = df_hier['Custo_str'].apply(
+                    lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
                 )
 
-            # Calcular diferenças e ratio
-            df_hier_agg['Flex Bud - BUD'] = df_hier_agg['Flex BUD'] - df_hier_agg['BUD']
-            df_hier_agg['Total - Flex Bud'] = df_hier_agg['Total'] - df_hier_agg['Flex BUD']
-            df_hier_agg['Total / Flex Bud'] = df_hier_agg.apply(
-                lambda r: r['Total'] / r['Flex BUD'] if r['Flex BUD'] != 0 else 0,
-                axis=1
-            )
+                # Garantir que Type 05 e Account existem
+                if 'Type 05' not in df_hier.columns:
+                    df_hier['Type 05'] = 'N/A'
+                if 'Account' not in df_hier.columns:
+                    df_hier['Account'] = 'N/A'
 
-            for categoria in ['Fixo', 'Variável']:
-                df_cat_hier = df_hier_agg[
-                    df_hier_agg['Categoria'] == categoria
-                ].copy()
+                # Agrupar por Categoria, Type 05, Account
+                df_hier_agg = df_hier.groupby(
+                    ['Categoria', 'Type 05', 'Account'], as_index=False
+                )['Custo FP'].sum()
 
-                if len(df_cat_hier) == 0:
-                    continue
+                # Merge com volumes para cálculo de Flex
+                vol_total_bud = (df_vol_bud['Volume'].sum()
+                                if df_vol_bud is not None else 1)
+                vol_total_act = (df_vol_actual['Volume'].sum()
+                                if df_vol_actual is not None else vol_total_bud)
+                proporcao_global = vol_total_act / vol_total_bud if vol_total_bud > 0 else 1
 
-                # Totais da categoria
-                cat_bud = df_cat_hier['BUD'].sum()
-                cat_flex = df_cat_hier['Flex BUD'].sum()
-                cat_total = df_cat_hier['Total'].sum()
-                cat_flex_diff = cat_flex - cat_bud
-                cat_real_diff = cat_total - cat_flex
-                cat_ratio = cat_total / cat_flex if cat_flex != 0 else 0
-                total_cat_fmt = f"{simbolo} {cat_total:,.2f}{sufixo}"
+                # Duplicar para ter BUD (original já tem Total)
+                df_hier_agg = df_hier_agg.rename(columns={'Custo FP': 'Total'})
 
-                with st.expander(
-                    f"💰 {categoria} - Total: {total_cat_fmt}",
-                    expanded=False
-                ):
-                    # KPIs da categoria - 6 em linha única
-                    ck1, ck2, ck3, ck4, ck5, ck6 = st.columns(6)
-                    with ck1:
-                        render_kpi("BUD", f"{simbolo} {cat_bud:,.2f}{sufixo}")
-                    with ck2:
-                        render_kpi("Flex - BUD", f"{simbolo} {cat_flex_diff:+,.2f}{sufixo}")
-                    with ck3:
-                        render_kpi("Flex BUD", f"{simbolo} {cat_flex:,.2f}{sufixo}")
-                    with ck4:
-                        render_kpi("Total - Flex", f"{simbolo} {cat_real_diff:+,.2f}{sufixo}")
-                    with ck5:
-                        render_kpi("Total", f"{simbolo} {cat_total:,.2f}{sufixo}")
-                    with ck6:
-                        render_kpi("Total / Flex", f"{cat_ratio:.0%}")
+                # Calcular BUD com base nos dados originais
+                df_bud_hier = df_hier.groupby(
+                    ['Categoria', 'Type 05', 'Account'], as_index=False
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
 
-                    render_kpi_spacer()
+                df_hier_agg = df_hier_agg.merge(
+                    df_bud_hier, on=['Categoria', 'Type 05', 'Account'], how='left'
+                )
+                df_hier_agg['BUD'] = df_hier_agg['BUD'].fillna(0)
 
-                    # Sub-expanders por Type 05
-                    type05_list = df_cat_hier['Type 05'].unique()
-                    for type05 in type05_list:
-                        df_type05 = df_cat_hier[
-                            df_cat_hier['Type 05'] == type05
-                        ].copy()
+                # Calcular Flex BUD (Fixo = BUD, Variável = BUD * Proporção)
+                df_hier_agg['Flex BUD'] = df_hier_agg.apply(
+                    lambda r: r['BUD'] if r['Categoria'] == 'Fixo'
+                    else r['BUD'] * proporcao_global,
+                    axis=1
+                )
 
-                        # Totais do Type 05
+                # Aplicar CPU se necessário
+                if tipo == 'CPU (Custo por Unidade)':
+                    df_hier_agg['Total'] = calcular_cpu(
+                        df_hier_agg['Total'], vol_total_act
+                    )
+                    df_hier_agg['BUD'] = calcular_cpu(
+                        df_hier_agg['BUD'], vol_total_bud
+                    )
+                    df_hier_agg['Flex BUD'] = calcular_cpu(
+                        df_hier_agg['Flex BUD'], vol_total_act
+                    )
+
+                # Calcular diferenças e ratio
+                df_hier_agg['Flex Bud - BUD'] = df_hier_agg['Flex BUD'] - df_hier_agg['BUD']
+                df_hier_agg['Total - Flex Bud'] = df_hier_agg['Total'] - df_hier_agg['Flex BUD']
+                df_hier_agg['Total / Flex Bud'] = df_hier_agg.apply(
+                    lambda r: r['Total'] / r['Flex BUD'] if r['Flex BUD'] != 0 else 0,
+                    axis=1
+                )
+
+                for categoria in ['Fixo', 'Variável']:
+                    df_cat_hier = df_hier_agg[
+                        df_hier_agg['Categoria'] == categoria
+                    ].copy()
+
+                    if len(df_cat_hier) == 0:
+                        continue
+
+                    # Totais da categoria
+                    cat_bud = df_cat_hier['BUD'].sum()
+                    cat_flex = df_cat_hier['Flex BUD'].sum()
+                    cat_total = df_cat_hier['Total'].sum()
+                    cat_flex_diff = cat_flex - cat_bud
+                    cat_real_diff = cat_total - cat_flex
+                    cat_ratio = cat_total / cat_flex if cat_flex != 0 else 0
+                    total_cat_fmt = f"{simbolo} {cat_total:,.2f}{sufixo}"
+
+                    with st.expander(
+                        f"💰 {categoria} - Total: {total_cat_fmt}",
+                        expanded=False
+                    ):
+                        # KPIs da categoria - 6 em linha única
+                        ck1, ck2, ck3, ck4, ck5, ck6 = st.columns(6)
+                        with ck1:
+                            render_kpi("BUD", f"{simbolo} {cat_bud:,.2f}{sufixo}")
+                        with ck2:
+                            render_kpi("Flex - BUD", f"{simbolo} {cat_flex_diff:+,.2f}{sufixo}")
+                        with ck3:
+                            render_kpi("Flex BUD", f"{simbolo} {cat_flex:,.2f}{sufixo}")
+                        with ck4:
+                            render_kpi("Total - Flex", f"{simbolo} {cat_real_diff:+,.2f}{sufixo}")
+                        with ck5:
+                            render_kpi("Total", f"{simbolo} {cat_total:,.2f}{sufixo}")
+                        with ck6:
+                            render_kpi("Total / Flex", f"{cat_ratio:.0%}")
+
+                        render_kpi_spacer()
+
+                        # Sub-expanders por Type 05
+                        type05_list = df_cat_hier['Type 05'].unique()
+                        for type05 in type05_list:
+                            df_type05 = df_cat_hier[
+                                df_cat_hier['Type 05'] == type05
+                            ].copy()
+
+                            # Totais do Type 05
+                            t05_bud = df_type05['BUD'].sum()
+                            t05_flex = df_type05['Flex BUD'].sum()
+                            t05_total = df_type05['Total'].sum()
+                            t05_fmt = f"{simbolo} {t05_total:,.2f}{sufixo}"
+
+                            with st.expander(
+                                f"📊 Type 05: {type05} - Total: {t05_fmt}",
+                                expanded=False
+                            ):
+                                # Preparar tabela por Account
+                                df_tabela = df_type05[[
+                                    'Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD',
+                                    'Total - Flex Bud', 'Total', 'Total / Flex Bud'
+                                ]].copy()
+
+# Filtrar linhas zeradas/nulas
+                                df_tabela = df_tabela[
+                                    (df_tabela['Total'].abs() > 0.01) |
+                                    (df_tabela['BUD'].abs() > 0.01)
+                                ].copy()
+
+                                if len(df_tabela) > 0:
+                                    # Usar tabela HTML com barrinha
+                                    html_tabela = criar_tabela_html_flex(
+                                        df_tabela, simbolo, sufixo
+                                    )
+                                    st.markdown(html_tabela, unsafe_allow_html=True)
+                                else:
+                                    st.info("Sem dados para exibir.")
+            else:
+                # Modo Total: expanders direto por Type 05 → Account (sem Fixo/Variável)
+                # Preparar dados agrupados por Type 05 e Account (sem categoria)
+                df_total = df.copy()
+                df_total = df_total[df_total['Período'].isin(periodos_filtro)].copy()
+
+                if 'Type 05' not in df_total.columns:
+                    df_total['Type 05'] = 'N/A'
+                if 'Account' not in df_total.columns:
+                    df_total['Account'] = 'N/A'
+
+                # Agrupar por Type 05, Account
+                df_total_agg = df_total.groupby(
+                    ['Type 05', 'Account'], as_index=False
+                )['Custo FP'].sum()
+
+                # Merge com volumes para cálculo de Flex
+                vol_total_bud = (df_vol_bud['Volume'].sum()
+                                if df_vol_bud is not None else 1)
+                vol_total_act = (df_vol_actual['Volume'].sum()
+                                if df_vol_actual is not None else vol_total_bud)
+                proporcao_global = (vol_total_act / vol_total_bud
+                                   if vol_total_bud > 0 else 1)
+
+                df_total_agg = df_total_agg.rename(columns={'Custo FP': 'Total'})
+
+                # BUD
+                df_bud_total = df_total.groupby(
+                    ['Type 05', 'Account'], as_index=False
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
+
+                df_total_agg = df_total_agg.merge(
+                    df_bud_total, on=['Type 05', 'Account'], how='left'
+                )
+                df_total_agg['BUD'] = df_total_agg['BUD'].fillna(0)
+
+                # Flex BUD (média de Fixo e Variável = BUD * proporcao parcial)
+                df_total_agg['Flex BUD'] = df_total_agg['BUD'] * proporcao_global
+
+                # Aplicar CPU se necessário
+                if tipo == 'CPU (Custo por Unidade)':
+                    df_total_agg['Total'] = calcular_cpu(
+                        df_total_agg['Total'], vol_total_act
+                    )
+                    df_total_agg['BUD'] = calcular_cpu(
+                        df_total_agg['BUD'], vol_total_bud
+                    )
+                    df_total_agg['Flex BUD'] = calcular_cpu(
+                        df_total_agg['Flex BUD'], vol_total_act
+                    )
+
+                # Calcular diferenças e ratio
+                df_total_agg['Flex Bud - BUD'] = (
+                    df_total_agg['Flex BUD'] - df_total_agg['BUD']
+                )
+                df_total_agg['Total - Flex Bud'] = (
+                    df_total_agg['Total'] - df_total_agg['Flex BUD']
+                )
+                df_total_agg['Total / Flex Bud'] = df_total_agg.apply(
+                    lambda r: r['Total'] / r['Flex BUD']
+                    if r['Flex BUD'] != 0 else 0,
+                    axis=1
+                )
+
+                # Expanders por Type 05 (diretamente, sem Fixo/Variável)
+                type05_list = df_total_agg['Type 05'].unique()
+                for type05 in type05_list:
+                    df_type05 = df_total_agg[
+                        df_total_agg['Type 05'] == type05
+                    ].copy()
+
+                    # Filtrar linhas zeradas/nulas
+                    df_type05 = df_type05[
+                        (df_type05['Total'].abs() > 0.01) |
+                        (df_type05['BUD'].abs() > 0.01)
+                    ].copy()
+
+                    if len(df_type05) == 0:
+                        continue
+
+                    # Totais do Type 05
+                    t05_total = df_type05['Total'].sum()
+                    t05_fmt = f"{simbolo} {t05_total:,.2f}{sufixo}"
+
+                    with st.expander(
+                        f"📊 Type 05: {type05} - Total: {t05_fmt}",
+                        expanded=False
+                    ):
+                        # KPIs do Type 05
                         t05_bud = df_type05['BUD'].sum()
                         t05_flex = df_type05['Flex BUD'].sum()
-                        t05_total = df_type05['Total'].sum()
-                        t05_fmt = f"{simbolo} {t05_total:,.2f}{sufixo}"
+                        t05_flex_diff = t05_flex - t05_bud
+                        t05_real_diff = t05_total - t05_flex
+                        t05_ratio = t05_total / t05_flex if t05_flex != 0 else 0
 
-                        with st.expander(
-                            f"📊 Type 05: {type05} - Total: {t05_fmt}",
-                            expanded=False
-                        ):
-                            # Preparar tabela por Account
-                            df_tabela = df_type05[[
-                                'Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD',
-                                'Total - Flex Bud', 'Total', 'Total / Flex Bud'
-                            ]].copy()
+                        tk1, tk2, tk3, tk4, tk5, tk6 = st.columns(6)
+                        with tk1:
+                            render_kpi("BUD", f"{simbolo} {t05_bud:,.2f}{sufixo}")
+                        with tk2:
+                            render_kpi("Flex-BUD", f"{simbolo} {t05_flex_diff:+,.2f}{sufixo}")
+                        with tk3:
+                            render_kpi("Flex BUD", f"{simbolo} {t05_flex:,.2f}{sufixo}")
+                        with tk4:
+                            render_kpi("Total-Flex", f"{simbolo} {t05_real_diff:+,.2f}{sufixo}")
+                        with tk5:
+                            render_kpi("Total", f"{simbolo} {t05_total:,.2f}{sufixo}")
+                        with tk6:
+                            render_kpi("Total/Flex", f"{t05_ratio:.0%}")
 
-                            # Usar tabela HTML com barrinha
-                            html_tabela = criar_tabela_html_flex(
-                                df_tabela, simbolo, sufixo
-                            )
-                            st.markdown(html_tabela, unsafe_allow_html=True)
+                        render_kpi_spacer()
+
+                        # Tabela por Account
+                        df_tabela = df_type05[[
+                            'Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD',
+                            'Total - Flex Bud', 'Total', 'Total / Flex Bud'
+                        ]].copy()
+
+                        # Usar tabela HTML com barrinha
+                        html_tabela = criar_tabela_html_flex(
+                            df_tabela, simbolo, sufixo
+                        )
+                        st.markdown(html_tabela, unsafe_allow_html=True)
 
         else:
             st.info(
@@ -862,8 +1069,8 @@ def render():
 
                     # Legenda manual
                     st.caption(
-                        "🟦 Barras = Volume Budget | "
-                        "🟠 Linha = Volume Realizado"
+                        "� Barras com degradê verde = Volume Budget | "
+                        "🟠 Linha tracejada = Volume Realizado"
                     )
                 else:
                     st.info(
@@ -898,13 +1105,13 @@ def render():
                         axis=alt.Axis(grid=False)),
                 color=alt.Color(
                     'Volume:Q',
-                    title='Volume',
+                    title='Volume Budget',
                     scale=alt.Scale(scheme='greens'),
                     legend=alt.Legend(orient='right', titleFontSize=10, labelFontSize=9)
                 ),
                 tooltip=[
                     alt.Tooltip('Veículo:N', title='Veículo'),
-                    alt.Tooltip('Volume:Q', title='Volume', format=',')
+                    alt.Tooltip('Volume:Q', title='Volume Budget', format=',')
                 ],
             ).properties(height=360)
 
@@ -913,7 +1120,46 @@ def render():
                 align='center', dy=-10, fontSize=9, color='black'
             ).encode(text=alt.Text('Volume:Q', format=','))
 
-            chart_veic = (bar_veic + rotulos_veic).configure_view(strokeWidth=0)
+            layers_veic = [bar_veic, rotulos_veic]
+
+            # Adicionar linha BUD (se Volume Actual existir e for diferente)
+            if df_va is not None:
+                df_va_total_veic = df_va.groupby(
+                    'Veículo', as_index=False
+                )['Volume'].sum()
+                # Verificar se são diferentes
+                vol_veic_bud = df_vb_total_veic['Volume'].sum()
+                vol_veic_act = df_va_total_veic['Volume'].sum()
+                sao_diferentes_veic = abs(vol_veic_bud - vol_veic_act) > 1
+
+                if sao_diferentes_veic:
+                    # Linha tracejada laranja para Volume Actual
+                    line_veic_act = alt.Chart(df_va_total_veic).mark_line(
+                        color='#FF6B35', strokeDash=[5, 3], strokeWidth=2
+                    ).encode(
+                        x=alt.X('Veículo:N', sort=ordem_veiculos),
+                        y='Volume:Q',
+                        tooltip=[
+                            alt.Tooltip('Veículo:N', title='Veículo'),
+                            alt.Tooltip('Volume:Q', title='Volume Realizado', format=',')
+                        ],
+                    )
+                    # Pontos na linha
+                    pontos_veic_act = alt.Chart(df_va_total_veic).mark_circle(
+                        color='#FF6B35', size=60
+                    ).encode(
+                        x=alt.X('Veículo:N', sort=ordem_veiculos),
+                        y='Volume:Q',
+                    )
+                    layers_veic.extend([line_veic_act, pontos_veic_act])
+
+                    # Legenda
+                    st.caption(
+                        "🟢 Barras com degradê verde = Volume Budget | "
+                        "🟠 Linha tracejada = Volume Realizado"
+                    )
+
+            chart_veic = alt.layer(*layers_veic).configure_view(strokeWidth=0)
             st.altair_chart(chart_veic, use_container_width=True)
 
             # ═══════════════════════════════════════
@@ -1449,7 +1695,23 @@ def render():
                 st.info("ℹ️ Dados de Budget/Flex não disponíveis.")
 
     st.divider()
-    st.caption(f"TC — Planta Principal | Budget {ano} | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+    # Rodapé padrão TC Ext
+    mes_rodape = meses_pt.get(datetime.now().month, '')
+    ano_rodape = datetime.now().year
+    versao_rodape = '1.91'
+    try:
+        with open('versao.json', 'r', encoding='utf-8') as f:
+            versao_rodape = json.load(f).get('versao', '1.91')
+    except Exception:
+        pass
+    st.markdown(f"""
+    <div style='text-align: center; color: #666; padding: 20px;'>
+        📚 Documentação Completa do Sistema TC | Versão {versao_rodape} | {mes_rodape} {ano_rodape}
+        <br>
+        <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
