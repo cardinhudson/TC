@@ -288,6 +288,13 @@ def render_sidebar_global(page_key):
         if f'{page_key}_moeda' not in st.session_state:
             st.session_state[f'{page_key}_moeda'] = 'BRL'
 
+        # Função callback para sincronização imediata (evita 2 cliques)
+        def atualizar_moeda():
+            if f'{page_key}_moeda_radio' in st.session_state:
+                st.session_state[f'{page_key}_moeda'] = (
+                    st.session_state[f'{page_key}_moeda_radio']
+                )
+
         moeda_atual = st.session_state[f'{page_key}_moeda']
 
         # Bandeiras como botões visuais
@@ -310,28 +317,42 @@ def render_sidebar_global(page_key):
             index=['BRL', 'USD', 'EUR'].index(moeda_atual),
             horizontal=True, key=f'{page_key}_moeda_radio',
             label_visibility='collapsed',
+            on_change=atualizar_moeda,  # Callback para sincronização imediata
         )
-        st.session_state[f'{page_key}_moeda'] = moeda
+        # Backup de sincronização (caso callback não execute)
+        if st.session_state[f'{page_key}_moeda'] != moeda:
+            st.session_state[f'{page_key}_moeda'] = moeda
 
         # ── Taxas ──
         inicializar_banco_taxas()
-        taxas = carregar_taxas_banco()
+        taxas_entrada = carregar_taxas_banco()  # taxas no formato "1 USD = X BRL"
 
         if moeda != 'BRL':
             col_t1, col_t2 = st.columns([1.1, 1.1], gap="small")
             with col_t1:
-                taxas['USD'] = st.number_input(
-                    "USD→BRL", value=taxas.get('USD', 5.0),
+                taxas_entrada['USD'] = st.number_input(
+                    "USD→BRL", value=taxas_entrada.get('USD', 5.0),
                     min_value=0.01, step=0.01, format="%.2f",
                     key=f'{page_key}_taxa_usd',
                 )
             with col_t2:
-                taxas['EUR'] = st.number_input(
-                    "EUR→BRL", value=taxas.get('EUR', 5.5),
+                taxas_entrada['EUR'] = st.number_input(
+                    "EUR→BRL", value=taxas_entrada.get('EUR', 5.5),
                     min_value=0.01, step=0.01, format="%.2f",
                     key=f'{page_key}_taxa_eur',
                 )
-            salvar_taxas_banco(taxas)
+            salvar_taxas_banco(taxas_entrada)
+
+        # Calcular taxas INVERSAS para conversão (1 BRL = X USD/EUR)
+        # Ex: Se 1 USD = 5 BRL, então 1 BRL = 0.20 USD
+        # Assim: 100 BRL * 0.20 = 20 USD (correto!)
+        taxa_usd = taxas_entrada.get('USD', 5.0)
+        taxa_eur = taxas_entrada.get('EUR', 5.5)
+        taxas = {
+            'BRL': 1.0,
+            'USD': 1.0 / taxa_usd if taxa_usd > 0 else 0.20,
+            'EUR': 1.0 / taxa_eur if taxa_eur > 0 else 0.18,
+        }
 
         st.divider()
 
@@ -578,3 +599,156 @@ def criar_tabela_html(df, tema=None, col_barra=None, col_ref=None,
 
     html += "</tbody></table></div>"
     return html
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FORMATAÇÃO RATIO COM BARRINHA (padrão TC Ext)
+# ═══════════════════════════════════════════════════════════════
+
+def formatar_ratio_com_barra(valor):
+    """Formata um valor de ratio (Total/Flex Bud) como percentual com barra de progresso em HTML"""
+    if pd.isna(valor) or valor == 0:
+        percentual = 0
+    else:
+        # Converter para percentual
+        percentual = valor * 100
+    
+    # Calcular largura da barra: 100% = barra cheia, acima de 100% também fica cheia
+    if percentual >= 100:
+        largura_barra = 100  # Barra cheia para 100% ou mais
+    else:
+        largura_barra = max(0, percentual)  # Proporcional até 100%
+    
+    # Calcular cor: verde até 90%, depois gradiente até vermelho em 100%
+    if percentual <= 0:
+        r, g, b = 0, 170, 0  # Verde (#00AA00)
+    elif percentual <= 90:
+        r, g, b = 0, 170, 0  # Verde puro até 90%
+    elif percentual >= 100:
+        r, g, b = 255, 0, 0  # Vermelho (#FF0000) quando 100% ou mais
+    else:
+        # Gradiente de verde para vermelho entre 90% e 100%
+        progresso = (percentual - 90) / 10
+        r = int(255 * progresso)
+        g = int(170 * (1 - progresso))
+        b = 0
+    
+    cor = f"rgb({r}, {g}, {b})"
+    
+    # Detectar tema para adaptar cor do texto
+    try:
+        theme_base = st.get_option("theme.base") or "light"
+        if theme_base == "dark":
+            texto_cor = "#FAFAFA"
+        else:
+            texto_cor = "#31333F"
+    except:
+        texto_cor = "#31333F"
+    
+    html = f"""
+    <div style="display: flex; align-items: center; gap: 5px; width: 100%; justify-content: flex-start; margin: 0; padding: 0; vertical-align: middle;">
+        <div style="width: 64px; background-color: #333; border-radius: 3px; height: 11px; position: relative; overflow: hidden; flex-shrink: 0; margin: 0;">
+            <div style="width: {largura_barra}%; height: 100%; background-color: {cor}; transition: width 0.3s;"></div>
+        </div>
+        <span style="width: 65px; text-align: left; font-weight: normal; color: {texto_cor}; font-size: 0.75rem; flex-shrink: 0; line-height: 1.2; margin: 0;">{percentual:.0f}%</span>
+    </div>
+    """
+    return html
+
+
+def criar_tabela_html_flex(df_display, simbolo='R$', sufixo=''):
+    """
+    Cria tabela HTML para Análise Flex por Categoria com barrinha no Total / Flex Bud.
+    
+    Args:
+        df_display: DataFrame com colunas Account, BUD, Flex Bud - BUD, Flex BUD, 
+                   Total - Flex Bud, Total, Total / Flex Bud
+        simbolo: Símbolo da moeda
+        sufixo: Sufixo do valor (ex: ' K', ' M')
+    """
+    # Detectar tema
+    try:
+        theme_base = st.get_option("theme.base") or "light"
+        if theme_base == "dark":
+            header_bg = "rgba(38, 39, 48, 0.15)"
+            border_color = "rgba(250, 250, 250, 0.1)"
+            text_color = "#FAFAFA"
+        else:
+            header_bg = "rgba(240, 242, 246, 0.15)"
+            border_color = "rgba(49, 51, 63, 0.1)"
+            text_color = "#31333F"
+    except:
+        header_bg = "rgba(38, 39, 48, 0.15)"
+        border_color = "rgba(250, 250, 250, 0.1)"
+        text_color = "#FAFAFA"
+    
+    html = f"""
+    <div style='overflow-x: auto; margin: 0.5rem 0;'>
+        <style>
+            .flex-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 0.75rem;
+            }}
+            .flex-table th {{
+                background: {header_bg};
+                padding: 0.5rem 0.75rem;
+                text-align: left;
+                font-weight: 600;
+                border-bottom: 1px solid {border_color};
+                color: {text_color};
+            }}
+            .flex-table td {{
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid {border_color};
+                vertical-align: middle;
+                color: {text_color};
+            }}
+            .flex-table .num {{
+                text-align: right;
+                font-family: 'SF Mono', Consolas, monospace;
+                font-variant-numeric: tabular-nums;
+            }}
+            .flex-table .ratio-col {{
+                min-width: 130px;
+            }}
+        </style>
+        <table class='flex-table'>
+            <thead>
+                <tr>
+    """
+    
+    # Colunas
+    colunas = df_display.columns.tolist()
+    for col in colunas:
+        classe = "ratio-col" if col == "Total / Flex Bud" else ""
+        html += f"<th class='{classe}'>{col}</th>"
+    html += "</tr></thead><tbody>"
+    
+    # Linhas de dados
+    for _, row in df_display.iterrows():
+        html += "<tr>"
+        for col in colunas:
+            val = row[col]
+            if col == "Total / Flex Bud":
+                # Renderizar com barrinha
+                if isinstance(val, (int, float)) and not pd.isna(val):
+                    barra_html = formatar_ratio_com_barra(val)
+                    html += f"<td class='ratio-col'>{barra_html}</td>"
+                else:
+                    html += f"<td class='ratio-col'>—</td>"
+            elif col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total']:
+                # Formatar valor monetário
+                if isinstance(val, (int, float)) and not pd.isna(val):
+                    html += f"<td class='num'>{simbolo} {val:,.2f}{sufixo}</td>"
+                else:
+                    html += f"<td class='num'>—</td>"
+            else:
+                # Texto (Account, Type 05, etc.)
+                html += f"<td>{val}</td>"
+        html += "</tr>"
+    
+    html += "</tbody></table></div>"
+    return html
+
