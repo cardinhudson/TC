@@ -34,10 +34,22 @@ MESES_ABREV = {
 }
 
 # Colunas monetárias padrão do TC Principal
+# Nota: Redis NÃO é mais coluna — é identificado por Account='Redis' nas linhas
 COLUNAS_MONETARIAS = [
-    'Despesa Primaria', 'Custo FA', 'Redis', 'Custo FP',
+    'Despesa Primaria', 'Custo FA', 'Custo FP',
     'D&A dedicado', 'FP sem Dedicada',
 ]
+
+# Identificador de linhas Redis na tabela principal
+ACCOUNT_REDIS = 'Redis'
+
+
+def extrair_redis(df: pd.DataFrame) -> float:
+    """Extrai soma das linhas Redis (Account='Redis') da tabela principal."""
+    if df is None or 'Account' not in df.columns:
+        return 0.0
+    mask = df['Account'] == ACCOUNT_REDIS
+    return df.loc[mask, 'Despesa Primaria'].sum() if 'Despesa Primaria' in df.columns else 0.0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -45,9 +57,15 @@ COLUNAS_MONETARIAS = [
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_tc_principal(ano):
-    """Caminho da pasta de dados TC Principal para um ano."""
+    """Caminho da pasta de dados TC Principal Budget para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/BUD/
     return os.path.join('dados', 'TC_Principal', str(ano), 'BUD')
+
+
+def _pasta_tc_principal_real(ano):
+    """Caminho da pasta de dados TC Principal Real para um ano."""
+    # Estrutura: dados/TC_Principal/{ano}/ (raiz, sem subfolder)
+    return os.path.join('dados', 'TC_Principal', str(ano))
 
 
 def descobrir_anos_tc_principal():
@@ -177,6 +195,46 @@ def load_custo_fp_veiculo(ano):
 def load_cpu_veiculo(ano):
     """CPU (Custo Por Unidade) por modelo de veículo."""
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_cpu_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  DATA LOADING — REAL (cached)
+# ═══════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_principal_real(ano):
+    """Tabela principal Real (Sapiens)."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_principal.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_volume_fa_real(ano):
+    """Volume FA + Tempo FA Real."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_volume_fa.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_tempo_veiculos_real(ano):
+    """Tempo Veículo Real."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tempo_veiculos.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_comparativo(ano):
+    """Comparativo Real × Budget."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_comparativo_real_budget.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)

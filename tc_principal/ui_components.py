@@ -295,9 +295,9 @@ def render_sidebar_global(page_key):
 
         # Bandeiras visuais
         moedas_info = [
-            ('BRL', '🇧🇷', 'R$', 'https://flagcdn.com/w40/br.png'),
-            ('USD', '🇺🇸', '$', 'https://flagcdn.com/w40/us.png'),
-            ('EUR', '🇪🇺', '€', 'https://flagcdn.com/w40/eu.png'),
+            ('BRL', '🇧🇷 R$', 'R$', 'https://flagcdn.com/w40/br.png'),
+            ('USD', '🇺🇸 $', '$', 'https://flagcdn.com/w40/us.png'),
+            ('EUR', '🇪🇺 €', '€', 'https://flagcdn.com/w40/eu.png'),
         ]
 
         if f'{page_key}_moeda' not in st.session_state:
@@ -306,35 +306,34 @@ def render_sidebar_global(page_key):
         # Função callback para sincronização imediata (evita 2 cliques)
         def atualizar_moeda():
             if f'{page_key}_moeda_radio' in st.session_state:
-                st.session_state[f'{page_key}_moeda'] = (
-                    st.session_state[f'{page_key}_moeda_radio']
-                )
+                val = st.session_state[f'{page_key}_moeda_radio']
+                # Extrair código da moeda do label com emoji
+                for cod, label, _, _ in moedas_info:
+                    if val == label:
+                        st.session_state[f'{page_key}_moeda'] = cod
+                        break
 
         moeda_atual = st.session_state[f'{page_key}_moeda']
 
-        # Bandeiras como botões visuais
-        flag_cols = st.columns(3)
-        for i, (cod, emoji, simb, url) in enumerate(moedas_info):
-            with flag_cols[i]:
-                is_selected = moeda_atual == cod
-                border = '2px solid #ff4b4b' if is_selected else '2px solid transparent'
-                shadow = 'box-shadow: 0 0 6px rgba(255,75,75,0.6);' if is_selected else ''
-                st.markdown(f"""
-                <div style="text-align: center; cursor: pointer;">
-                    <img src="{url}" width="40" height="28"
-                         style="border: {border}; border-radius: 4px; {shadow}">
-                    <div style="font-size: 0.7rem; margin-top: 2px;">{simb}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        # Radio com emojis de bandeira (alinhamento perfeito)
+        opcoes_radio = [label for _, label, _, _ in moedas_info]
+        label_atual = next(label for cod, label, _, _ in moedas_info if cod == moeda_atual)
+        idx_atual = opcoes_radio.index(label_atual) if label_atual in opcoes_radio else 0
 
-        moeda = st.radio(
-            "Moeda", ['BRL', 'USD', 'EUR'],
-            index=['BRL', 'USD', 'EUR'].index(moeda_atual),
+        moeda_label = st.radio(
+            "Moeda", opcoes_radio,
+            index=idx_atual,
             horizontal=True, key=f'{page_key}_moeda_radio',
             label_visibility='collapsed',
-            on_change=atualizar_moeda,  # Callback para sincronização imediata
+            on_change=atualizar_moeda,
         )
-        # Backup de sincronização (caso callback não execute)
+        # Backup de sincronização
+        for cod, label, _, _ in moedas_info:
+            if moeda_label == label:
+                moeda = cod
+                break
+        else:
+            moeda = 'BRL'
         if st.session_state[f'{page_key}_moeda'] != moeda:
             st.session_state[f'{page_key}_moeda'] = moeda
 
@@ -345,16 +344,28 @@ def render_sidebar_global(page_key):
         if moeda != 'BRL':
             col_t1, col_t2 = st.columns([1.1, 1.1], gap="small")
             with col_t1:
+                st.markdown(
+                    '<p style="font-size:0.7rem;margin-bottom:0.2rem;">🇺🇸 1 $ (USD) = R$</p>',
+                    unsafe_allow_html=True
+                )
                 taxas_entrada['USD'] = st.number_input(
-                    "USD→BRL", value=taxas_entrada.get('USD', 5.0),
+                    "Taxa USD para BRL",
+                    value=taxas_entrada.get('USD', 5.0),
                     min_value=0.01, step=0.01, format="%.2f",
                     key=f'{page_key}_taxa_usd',
+                    label_visibility='collapsed',
                 )
             with col_t2:
+                st.markdown(
+                    '<p style="font-size:0.7rem;margin-bottom:0.2rem;">🇪🇺 1 € (EUR) = R$</p>',
+                    unsafe_allow_html=True
+                )
                 taxas_entrada['EUR'] = st.number_input(
-                    "EUR→BRL", value=taxas_entrada.get('EUR', 5.5),
+                    "Taxa EUR para BRL",
+                    value=taxas_entrada.get('EUR', 5.5),
                     min_value=0.01, step=0.01, format="%.2f",
                     key=f'{page_key}_taxa_eur',
+                    label_visibility='collapsed',
                 )
             salvar_taxas_banco(taxas_entrada)
 

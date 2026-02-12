@@ -35,10 +35,27 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 - Gráficos por período: removido o corte por “mês atual” quando existem valores futuros (Forecast), evitando esconder Fev–Dez no ano corrente.
 - Diagnósticos: adicionados expanders com prova da fonte de dados (paths/mtimes/shapes) e checagens de sanidade de CPU.
 - Governança (Budget): **Volume BUDGET deve conter `Veículo`**. Se não existir `Veículo`, isso é **erro de extração** (o app não faz mais rateio/fallback).
-- Extração (inputs): arquivos de entrada ficam **apenas** em `dados/{ano}/` (mesma fonte para REAIS e BUDGET); outputs de Budget seguem em `dados/{ano}/BUD/`.
+- Extração (inputs): arquivos de entrada ficam em `dados/TC_Ext/{ano}/` (TC Ext) e `dados/TC_Principal/{ano}/` (TC Principal); outputs de Budget seguem em subpasta `BUD/`.
 - Governança (Flex Bud): **Custo Fixo nunca é flexibilizado** fora do contexto de simulação; no comparativo Real x Budget/Flex Bud, Fixo permanece igual ao Budget.
 - Home (Budget): correção de totais (ex.: `Type 05`) para evitar divergência entre base de exibição e base de resumo.
 - UI (exibição): remoção de linhas 100% zero/NaN e remoção da coluna `Ano` **somente para exibição** (não altera cálculos nem totais).
+
+## 1.2) Mudanças recentes — Reestruturação de pastas e Real no TC Principal
+
+- **Estrutura de pastas separada por módulo**: os dados agora ficam em pastas separadas para cada módulo:
+  - `dados/TC_Ext/{ano}/` — inputs e outputs do TC Ext (Real + BUD)
+  - `dados/TC_Ext/historico_consolidado/` — histórico consolidado do TC Ext
+  - `dados/TC_Principal/{ano}/` — inputs e outputs do TC Principal (Real na raiz, BUD em `BUD/`)
+  - `dados/TC_Principal/{ano}/BUD/` — parquets de Budget do TC Principal
+- **Páginas de extração corrigidas**: `pages/5 - Extração de Dados.py` e `tc_principal/pages/extracao_dados_tc.py` adaptadas para usar os novos caminhos.
+- **TC Ext — gráficos corrigidos**: 8 referências de path em `home_ext.py` e `be_analise_ext.py` corrigidas para incluir o segmento `TC_Ext`, restaurando a linha Flex Bud e o gráfico Delta.
+- **TC Principal — Real no gráfico**: o gráfico de Custo FP por Período em `home_tc.py` agora exibe:
+  - **Barras roxas (largas)**: Budget
+  - **Barras azuis (estreitas)**: Real (quando disponível, via `load_principal_real`)
+  - **Linha laranja pontilhada**: Flex Bud (cálculo já usa Volume Actual)
+  - **Delta**: Real - Flex Bud (anteriormente Budget - Flex Bud)
+  - KPIs "Total" renomeados para "Real" quando há dados reais disponíveis
+- **Rateio de veículos Real**: já implementado nas fases 11-16 de `processamento_dados_veiculos.py`.
 
 ---
 

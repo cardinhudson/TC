@@ -14,11 +14,13 @@ from datetime import datetime
 
 from tc_principal.shared import (
     ORDEM_MESES, CORES_VEICULOS, COLUNAS_MONETARIAS,
-    load_principal, load_volume_bud, load_volume_actual,
+    load_principal, load_principal_real,
+    load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
     normalizar_periodo, ordenar_por_mes,
     calcular_flex_budget, aplicar_fator_df,
     converter_moeda_df, obter_sufixo_fator, calcular_cpu,
+    extrair_redis,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header,
@@ -41,7 +43,8 @@ meses_pt = {
 def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo, ordem_per, tem_ano=False):
     """
     Cria gráfico de Custo FP por Período — copiado do padrão TC Ext.
-    Usa scheme='purples' para degradê roxo nas barras.
+    Usa scheme='purples' para degradê nas barras.
+    df_periodo já contém Real (quando disponível) ou Budget.
     """
     try:
         coluna = 'Custo FP'
@@ -193,6 +196,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo
         grafico_delta = None
         if df_flex_p is not None and len(df_flex_p) > 0:
             try:
+                # df_periodo já contém Real (quando disponível)
                 delta_data = df_periodo[[coluna_periodo, coluna]].copy()
                 delta_data = delta_data.merge(
                     df_flex_p[[coluna_periodo, 'Flex_Bud']],
@@ -291,7 +295,7 @@ def render():
     render_header()
 
     st.title("🏭 Dashboard TC Planta Principal")
-    st.subheader("Custo de Produção de Veículos • Budget")
+    st.subheader("Custo de Produção de Veículos • Real")
 
     # ── Sidebar Global ──
     cfg = render_sidebar_global('home')
@@ -301,6 +305,7 @@ def render():
 
     # ── Carregar dados ──
     df_principal = load_principal(ano)
+    df_real_raw = load_principal_real(ano)
     df_vol_bud = load_volume_bud(ano)
     df_vol_actual = load_volume_actual(ano)
     df_tempo_veic = load_tempo_veiculos(ano)
@@ -325,10 +330,27 @@ def render():
     df = aplicar_fator_df(df, cols_val, fator)
     df = converter_moeda_df(df, cols_val, moeda, taxas)
 
+    # ── Processar dados Real (mesmos filtros, fator e moeda) ──
+    df_real = None
+    if df_real_raw is not None:
+        df_real_temp = normalizar_periodo(df_real_raw.copy())
+        df_real_temp = aplicar_filtros(df_real_temp, filtros_sel)
+        if not df_real_temp.empty:
+            cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real_temp.columns]
+            df_real_temp = aplicar_fator_df(df_real_temp, cols_val_real, fator)
+            df_real_temp = converter_moeda_df(df_real_temp, cols_val_real, moeda, taxas)
+            df_real = df_real_temp
+
     # ── Budget Flex (calculado APÓS filtros para garantir consistência) ──
-    # IMPORTANTE: df_flex usa df que já está convertido/fatorado, então NÃO aplicar novamente!
+    # IMPORTANTE: df_flex usa df (Budget) que já está convertido/fatorado
     tem_ano_df = 'Ano' in df.columns
     df_flex = calcular_flex_budget(df, df_vol_bud, df_vol_actual, tem_ano=tem_ano_df)
+
+    # ── Trocar df para Real (Budget fica em df_bud para KPI de BUD) ──
+    df_bud = df.copy()
+    tem_real = df_real is not None
+    if tem_real:
+        df = df_real  # A partir daqui, df = Real para todas exibições
 
     # ════════════════════════════════════════
     #  MÉTRICAS RESUMO
@@ -337,14 +359,21 @@ def render():
     vol_total = df_vol_bud['Volume'].sum() if df_vol_bud is not None else 0
 
     if tipo == 'CPU (Custo por Unidade)' and vol_total > 0:
-        soma = {c: df[c].sum() / vol_total for c in cols_val}
+        soma = {c: df[c].sum() / vol_total for c in cols_val if c in df.columns}
     else:
-        soma = {c: df[c].sum() for c in cols_val}
+        soma = {c: df[c].sum() for c in cols_val if c in df.columns}
+
+    # Redis vem das linhas com Account='Redis', não de coluna separada
+    redis_total = extrair_redis(df)
+    if tipo == 'CPU (Custo por Unidade)' and vol_total > 0:
+        redis_val = redis_total / vol_total
+    else:
+        redis_val = redis_total
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric(f"📦 {label_valor} Desp. Primária", f"{simbolo} {soma.get('Despesa Primaria', 0):,.2f}{sufixo}")
     c2.metric(f"🏭 {label_valor} FA", f"{simbolo} {soma.get('Custo FA', 0):,.2f}{sufixo}")
-    c3.metric("💰 Redis", f"{simbolo} {soma.get('Redis', 0):,.2f}{sufixo}")
+    c3.metric("💰 Redis", f"{simbolo} {redis_val:,.2f}{sufixo}")
     c4.metric(f"🚗 {label_valor} FP", f"{simbolo} {soma.get('Custo FP', 0):,.2f}{sufixo}")
     c5.metric("📉 D&A Dedicada", f"{simbolo} {soma.get('D&A dedicado', 0):,.2f}{sufixo}")
     c6.metric("✅ FP sem Dedicada", f"{simbolo} {soma.get('FP sem Dedicada', 0):,.2f}{sufixo}")
@@ -360,28 +389,50 @@ def render():
 
     # ── TAB 1: TC Veículos ──
     with tab1:
+        # ── Filtro de Período (topo da tab, afeta tudo abaixo) ──
+        periodos_disponiveis = sorted(
+            df_bud['Período'].dropna().unique().tolist(),
+            key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
+        )
+        opcoes_periodos = ["Todos"] + periodos_disponiveis
+        periodos_selecionados_raw = st.multiselect(
+            "📅 **Período(s):**",
+            opcoes_periodos,
+            default=["Todos"],
+            key="flex_periodo_multiselect"
+        )
+        if "Todos" in periodos_selecionados_raw:
+            periodos_filtro = periodos_disponiveis.copy()
+        else:
+            periodos_filtro = [p for p in periodos_selecionados_raw if p != "Todos"]
+
+        st.markdown("---")
+
         # ════════════════════════════════════════
         # 📊 Resumo TC Principal (KPIs dentro da tab)
         # ════════════════════════════════════════
         st.subheader("📊 Resumo TC Principal")
 
-        # Calcular BUD e Flex BUD usando mesma lógica do Resumo Geral
-        # Separar em Fixo e Variável
-        df_resumo = df.copy()
-        df_resumo['Custo_str'] = df_resumo['Custo'].astype(str).str.lower()
-        df_resumo['Categoria'] = df_resumo['Custo_str'].apply(
+        # Calcular BUD e Flex BUD usando dados do Budget (filtrados por período)
+        df_resumo_bud = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+        df_resumo_bud['Custo_str'] = df_resumo_bud['Custo'].astype(str).str.lower()
+        df_resumo_bud['Categoria'] = df_resumo_bud['Custo_str'].apply(
             lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
         )
         
-        # Calcular totais por categoria
-        bud_fixo = df_resumo[df_resumo['Categoria'] == 'Fixo']['Custo FP'].sum()
-        bud_variavel = df_resumo[df_resumo['Categoria'] == 'Variável']['Custo FP'].sum()
+        # Calcular totais por categoria (Budget)
+        bud_fixo = df_resumo_bud[df_resumo_bud['Categoria'] == 'Fixo']['Custo FP'].sum()
+        bud_variavel = df_resumo_bud[df_resumo_bud['Categoria'] == 'Variável']['Custo FP'].sum()
         bud_total = bud_fixo + bud_variavel
         
-        # Calcular proporção global de volume
+        # Calcular proporção global de volume (filtrado por período)
         if df_vol_bud is not None and df_vol_actual is not None:
-            vol_budget_total = df_vol_bud['Volume'].sum()
-            vol_actual_total = df_vol_actual['Volume'].sum()
+            _vb_f = normalizar_periodo(df_vol_bud.copy())
+            _vb_f = _vb_f[_vb_f['Período'].isin(periodos_filtro)]
+            vol_budget_total = _vb_f['Volume'].sum()
+            _va_f = normalizar_periodo(df_vol_actual.copy())
+            _va_f = _va_f[_va_f['Período'].isin(periodos_filtro)]
+            vol_actual_total = _va_f['Volume'].sum()
             proporcao_global_tc = (vol_actual_total / vol_budget_total) if vol_budget_total > 0 else 1
         else:
             vol_budget_total = 0
@@ -391,14 +442,15 @@ def render():
         # Calcular Flex BUD: Fixo + (Variável × Proporção Global)
         flex_bud_total = bud_fixo + (bud_variavel * proporcao_global_tc)
         
-        # Total = soma de Custo FP (já filtrado)
-        total_custo = soma.get('Custo FP', 0)
+        # Total = Real filtrado pelo período selecionado
+        _df_real_per = df[df['Período'].isin(periodos_filtro)] if 'Período' in df.columns else df
+        total_custo = _df_real_per['Custo FP'].sum() if 'Custo FP' in _df_real_per.columns else 0
 
         # Aplicar CPU se necessário
         if tipo == 'CPU (Custo por Unidade)' and vol_actual_total > 0:
             bud_exibir = bud_total / vol_actual_total
             flex_exibir = flex_bud_total / vol_actual_total
-            total_exibir = total_custo
+            total_exibir = total_custo / vol_actual_total
         else:
             bud_exibir = bud_total
             flex_exibir = flex_bud_total
@@ -421,11 +473,11 @@ def render():
         with k3:
             render_kpi("Flex BUD", _fmt_val(flex_exibir))
         with k4:
-            render_kpi("Total - Flex Bud", _fmt_val(total_menos_flex))
+            render_kpi("Real - Flex Bud", _fmt_val(total_menos_flex))
         with k5:
-            render_kpi("Total", _fmt_val(total_exibir))
+            render_kpi("Real", _fmt_val(total_exibir))
         with k6:
-            render_kpi("Total / Flex Bud", f"{total_div_flex:.0%}")
+            render_kpi("Real / Flex Bud", f"{total_div_flex:.0%}")
 
         render_kpi_spacer()
 
@@ -442,51 +494,51 @@ def render():
         st.divider()
 
         # ════════════════════════════════════════
-        # Gráfico: Custo FP por Período (degradê azul) + Linha Flex BUD pontilhada
+        # Gráfico: Custo FP por Período + Real + Linha Flex BUD pontilhada
         # ════════════════════════════════════════
-        st.markdown("### Custo FP por Período")
+        st.markdown("### Custo FP por Período — Real")
 
         # Detectar se há coluna Ano (padrão TC Ext)
         tem_ano = 'Ano' in df.columns
-        
-        # Agrupar por Período (e Ano se existir)
-        if tem_ano:
-            df_periodo = df.groupby(['Ano', 'Período'], as_index=False).agg({
-                c: 'sum' for c in cols_val
-            })
-        else:
-            df_periodo = df.groupby('Período', as_index=False).agg({
-                c: 'sum' for c in cols_val
-            })
-        df_periodo = ordenar_por_mes(df_periodo)
-        df_periodo['Período'] = df_periodo['Período'].astype(str)
-        if tem_ano:
-            df_periodo['Ano'] = df_periodo['Ano'].astype(str)
 
-        if tipo == 'CPU (Custo por Unidade)' and df_vol_bud is not None:
-            # Agrupar volume por Período (e Ano se existir)
-            vol_bud_norm = normalizar_periodo(df_vol_bud.copy())
-            cols_agrup_vol = ['Ano', 'Período'] if tem_ano and 'Ano' in vol_bud_norm.columns else ['Período']
-            vol_per = vol_bud_norm.groupby(cols_agrup_vol, as_index=False)['Volume'].sum()
-            vol_per['Período'] = vol_per['Período'].astype(str)
-            if tem_ano and 'Ano' in vol_per.columns:
-                vol_per['Ano'] = vol_per['Ano'].astype(str)
-            
-            merge_on = cols_agrup_vol
-            df_periodo = df_periodo.merge(vol_per, on=merge_on, how='left')
-            df_periodo['Volume'] = df_periodo['Volume'].fillna(0)
-            if df_periodo['Volume'].sum() == 0:
-                st.warning("⚠️ Sem dados de volume para calcular CPU neste período.")
+        # ── Barras = somente Real (filtrado por período selecionado) ──
+        df_periodo = None
+        if df_real is not None and 'Custo FP' in df_real.columns:
+            df_real_graf = df_real[df_real['Período'].isin(periodos_filtro)].copy() if 'Período' in df_real.columns else df_real.copy()
+            cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real_graf.columns]
+            if tem_ano and 'Ano' in df_real_graf.columns:
+                df_periodo = df_real_graf.groupby(['Ano', 'Período'], as_index=False).agg({
+                    c: 'sum' for c in cols_val_real
+                })
             else:
-                for c in cols_val:
-                    if c in df_periodo.columns:
-                        df_periodo[c] = calcular_cpu(
-                            df_periodo[c], df_periodo['Volume']
-                        )
+                df_periodo = df_real_graf.groupby('Período', as_index=False).agg({
+                    c: 'sum' for c in cols_val_real
+                })
+            df_periodo = ordenar_por_mes(df_periodo)
+            df_periodo['Período'] = df_periodo['Período'].astype(str)
+            if tem_ano and 'Ano' in df_periodo.columns:
+                df_periodo['Ano'] = df_periodo['Ano'].astype(str)
+
+            # Aplicar CPU ao Real se necessário
+            if tipo == 'CPU (Custo por Unidade)' and df_vol_actual is not None:
+                vol_act_norm = normalizar_periodo(df_vol_actual.copy())
+                cols_agrup_vol = ['Ano', 'Período'] if tem_ano and 'Ano' in vol_act_norm.columns else ['Período']
+                vol_per = vol_act_norm.groupby(cols_agrup_vol, as_index=False)['Volume'].sum()
+                vol_per['Período'] = vol_per['Período'].astype(str)
+                if tem_ano and 'Ano' in vol_per.columns:
+                    vol_per['Ano'] = vol_per['Ano'].astype(str)
+                df_periodo = df_periodo.merge(vol_per, on=cols_agrup_vol, how='left')
+                df_periodo['Volume'] = df_periodo['Volume'].fillna(0)
+                if df_periodo['Volume'].sum() > 0:
+                    for c in cols_val_real:
+                        if c in df_periodo.columns:
+                            df_periodo[c] = calcular_cpu(
+                                df_periodo[c], df_periodo['Volume']
+                            )
 
         # Ordenação cronológica usando lista filtrada de ORDEM_MESES
-        if len(df_periodo) == 0 or 'Custo FP' not in df_periodo.columns:
-            st.info("ℹ️ Nenhum dado disponível para exibir no gráfico com os filtros atuais.")
+        if df_periodo is None or len(df_periodo) == 0 or 'Custo FP' not in df_periodo.columns:
+            st.info("ℹ️ Nenhum dado de Realizado disponível para exibir no gráfico.")
         else:
             # Criar lista de ordem de períodos
             if tem_ano and 'Período_Completo' not in df_periodo.columns:
@@ -509,10 +561,9 @@ def render():
                 simbolo, sufixo, ordem_per, tem_ano
             )
             
-            # PADRÃO TC EXT: Renderizar no placeholder dentro de try/except
+            # PADRÃO TC EXT: Renderizar no placeholder (sem key para evitar conflito de re-render)
             try:
                 if grafico_final is not None:
-                    # Exibir gráfico no placeholder (renderização imediata)
                     chart_placeholder.altair_chart(grafico_final, use_container_width=True)
                 else:
                     chart_placeholder.warning("⚠️ O gráfico não pôde ser criado.")
@@ -529,30 +580,9 @@ def render():
         st.subheader("📊 Análise Flex por Categoria")
 
         if df_flex is not None and 'Custo' in df.columns:
-            # ── Filtros de Período e Visualização (padrão TC Ext) ──
-            col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 1.5, 1])
-
-            # Lista de períodos disponíveis
-            periodos_disponiveis = sorted(
-                df['Período'].dropna().unique().tolist(),
-                key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
-            )
-            opcoes_periodos = ["Todos"] + periodos_disponiveis
-
-            with col_filtro1:
-                periodos_selecionados_raw = st.multiselect(
-                    "📅 **Período(s):**",
-                    opcoes_periodos,
-                    default=["Todos"],
-                    key="flex_periodo_multiselect"
-                )
-                # Processar seleção
-                if "Todos" in periodos_selecionados_raw:
-                    periodos_filtro = periodos_disponiveis.copy()
-                else:
-                    periodos_filtro = [p for p in periodos_selecionados_raw if p != "Todos"]
-
-            with col_filtro2:
+            # Controles de visualização e download (Período no topo da tab)
+            col_viz1, col_viz2 = st.columns([1.5, 1])
+            with col_viz1:
                 modo_visualizacao = st.radio(
                     "📊 **Visualização:**",
                     ["Fixo/Variável", "Total"],
@@ -560,56 +590,15 @@ def render():
                     horizontal=True,
                     key="flex_modo_visualizacao"
                 )
-
-            with col_filtro3:
+            with col_viz2:
                 btn_excel = st.button(
                     "📥 Baixar Excel",
                     key="flex_download_excel",
                     use_container_width=True
                 )
-
             st.markdown("---")
-            # Preparar dados para tabela Flex por Categoria
-            df_cat = df.copy()
-            # Aplicar filtro de período
-            df_cat = df_cat[df_cat['Período'].isin(periodos_filtro)].copy()
-            df_cat['Custo_str'] = df_cat['Custo'].astype(str).str.lower()
-            df_cat['Categoria'] = df_cat['Custo_str'].apply(
-                lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
-            )
-
-            # Agrupar por Categoria e Período
-            df_cat_agg = df_cat.groupby(
-                ['Categoria', 'Período'], as_index=False
-            )['Custo FP'].sum()
-            df_cat_agg = ordenar_por_mes(df_cat_agg)
-
-            # Preparar dados de volume para cálculo de Flex
-            if df_vol_bud is not None and df_vol_actual is not None:
-                # Normalizar e filtrar pelos períodos selecionados
-                df_vol_bud_norm = normalizar_periodo(df_vol_bud.copy())
-                df_vol_bud_norm = df_vol_bud_norm[
-                    df_vol_bud_norm['Período'].isin(periodos_filtro)
-                ].copy()
-                
-                df_vol_act_norm = normalizar_periodo(df_vol_actual.copy())
-                df_vol_act_norm = df_vol_act_norm[
-                    df_vol_act_norm['Período'].isin(periodos_filtro)
-                ].copy()
-                
-                # Calcular proporção GLOBAL (não por período)
-                vol_total_budget = df_vol_bud_norm['Volume'].sum()
-                vol_total_actual = df_vol_act_norm['Volume'].sum()
-                proporcao_global = (vol_total_actual / vol_total_budget) if vol_total_budget > 0 else 1
-            else:
-                proporcao_global = 1
-
-            # Merge com volumes (remover código antigo de merge por período)
-
-            # Merge com BUD do df (com mesmos filtros sidebar que o Total)
-            df_bud_cat = df.copy()
-            # Aplicar filtro de período
-            df_bud_cat = df_bud_cat[df_bud_cat['Período'].isin(periodos_filtro)].copy()
+            # ── BUD: agrupar do Budget (tem todos os meses) ──
+            df_bud_cat = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
             df_bud_cat['Custo_str'] = df_bud_cat['Custo'].astype(str).str.lower()
             df_bud_cat['Categoria'] = df_bud_cat['Custo_str'].apply(
                 lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -618,26 +607,56 @@ def render():
                 ['Categoria', 'Período'], as_index=False
             )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
             df_bud_cat_agg['Período'] = df_bud_cat_agg['Período'].astype(str)
+            df_bud_cat_agg = ordenar_por_mes(df_bud_cat_agg)
 
-            df_cat_agg = df_cat_agg.merge(
-                df_bud_cat_agg, on=['Categoria', 'Período'], how='left'
+            # ── Real: agrupar do Real (pode ter menos meses) ──
+            df_real_cat = df[df['Período'].isin(periodos_filtro)].copy()
+            if not df_real_cat.empty and 'Custo' in df_real_cat.columns:
+                df_real_cat['Custo_str'] = df_real_cat['Custo'].astype(str).str.lower()
+                df_real_cat['Categoria'] = df_real_cat['Custo_str'].apply(
+                    lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
+                )
+                df_real_cat_agg = df_real_cat.groupby(
+                    ['Categoria', 'Período'], as_index=False
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'Total'})
+                df_real_cat_agg['Período'] = df_real_cat_agg['Período'].astype(str)
+            else:
+                df_real_cat_agg = pd.DataFrame(columns=['Categoria', 'Período', 'Total'])
+
+            # Preparar dados de volume para cálculo de Flex
+            if df_vol_bud is not None and df_vol_actual is not None:
+                df_vol_bud_norm = normalizar_periodo(df_vol_bud.copy())
+                df_vol_bud_norm = df_vol_bud_norm[
+                    df_vol_bud_norm['Período'].isin(periodos_filtro)
+                ].copy()
+                df_vol_act_norm = normalizar_periodo(df_vol_actual.copy())
+                df_vol_act_norm = df_vol_act_norm[
+                    df_vol_act_norm['Período'].isin(periodos_filtro)
+                ].copy()
+                vol_total_budget = df_vol_bud_norm['Volume'].sum()
+                vol_total_actual = df_vol_act_norm['Volume'].sum()
+                proporcao_global = (vol_total_actual / vol_total_budget) if vol_total_budget > 0 else 1
+            else:
+                proporcao_global = 1
+
+            # Merge: BUD como base (ano completo), Real onde disponível
+            df_cat_agg = df_bud_cat_agg.merge(
+                df_real_cat_agg, on=['Categoria', 'Período'], how='left'
             )
-            df_cat_agg['BUD'] = df_cat_agg['BUD'].fillna(0)
+            df_cat_agg['Total'] = df_cat_agg['Total'].fillna(0)
 
-            # Calcular Flex BUD usando proporção GLOBAL:
-            # Fixo: Flex = BUD (não flexibiliza)
-            # Variável: Flex = BUD * Proporção Global
+            # Calcular Flex BUD usando proporção GLOBAL
             df_cat_agg['Flex BUD'] = df_cat_agg.apply(
                 lambda r: r['BUD'] if r['Categoria'] == 'Fixo'
                 else r['BUD'] * proporcao_global,
                 axis=1
             )
 
-            # Aplicar CPU se necessário (usando volumes globais)
+            # Aplicar CPU se necessário
             if tipo == 'CPU (Custo por Unidade)':
                 if 'vol_total_budget' in locals() and 'vol_total_actual' in locals():
-                    df_cat_agg['Custo FP'] = calcular_cpu(
-                        df_cat_agg['Custo FP'], vol_total_actual
+                    df_cat_agg['Total'] = calcular_cpu(
+                        df_cat_agg['Total'], vol_total_actual
                     )
                     df_cat_agg['BUD'] = calcular_cpu(
                         df_cat_agg['BUD'], vol_total_budget
@@ -645,9 +664,6 @@ def render():
                     df_cat_agg['Flex BUD'] = calcular_cpu(
                         df_cat_agg['Flex BUD'], vol_total_actual
                     )
-
-            # Renomear para padrão TC Ext
-            df_cat_agg = df_cat_agg.rename(columns={'Custo FP': 'Total'})
 
             # Calcular diferenças
             df_cat_agg['Flex Bud - BUD'] = (
@@ -727,25 +743,38 @@ def render():
             # ═══════════════════════════════════════
             # Mostrar expanders apenas se visualização for Fixo/Variável
             if modo_visualizacao == "Fixo/Variável":
-                # Preparar dados com Type 05 e Account para hierarquia
-                df_hier = df.copy()
-                # Aplicar filtro de período
-                df_hier = df_hier[df_hier['Período'].isin(periodos_filtro)].copy()
-                df_hier['Custo_str'] = df_hier['Custo'].astype(str).str.lower()
-                df_hier['Categoria'] = df_hier['Custo_str'].apply(
+                # ── BUD: hierarquia do Budget (todos os accounts) ──
+                df_bud_hier_base = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+                df_bud_hier_base['Custo_str'] = df_bud_hier_base['Custo'].astype(str).str.lower()
+                df_bud_hier_base['Categoria'] = df_bud_hier_base['Custo_str'].apply(
                     lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
                 )
-
-                # Garantir que Type 05 e Account existem
-                if 'Type 05' not in df_hier.columns:
-                    df_hier['Type 05'] = 'N/A'
-                if 'Account' not in df_hier.columns:
-                    df_hier['Account'] = 'N/A'
-
-                # Agrupar por Categoria, Type 05, Account
-                df_hier_agg = df_hier.groupby(
+                if 'Type 05' not in df_bud_hier_base.columns:
+                    df_bud_hier_base['Type 05'] = 'N/A'
+                if 'Account' not in df_bud_hier_base.columns:
+                    df_bud_hier_base['Account'] = 'N/A'
+                df_bud_hier = df_bud_hier_base.groupby(
                     ['Categoria', 'Type 05', 'Account'], as_index=False
-                )['Custo FP'].sum()
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
+
+                # ── Real: hierarquia do Real (pode ter menos accounts) ──
+                df_real_hier = df[df['Período'].isin(periodos_filtro)].copy()
+                if not df_real_hier.empty and 'Custo' in df_real_hier.columns:
+                    df_real_hier['Custo_str'] = df_real_hier['Custo'].astype(str).str.lower()
+                    df_real_hier['Categoria'] = df_real_hier['Custo_str'].apply(
+                        lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
+                    )
+                    if 'Type 05' not in df_real_hier.columns:
+                        df_real_hier['Type 05'] = 'N/A'
+                    if 'Account' not in df_real_hier.columns:
+                        df_real_hier['Account'] = 'N/A'
+                    df_real_hier_agg = df_real_hier.groupby(
+                        ['Categoria', 'Type 05', 'Account'], as_index=False
+                    )['Custo FP'].sum().rename(columns={'Custo FP': 'Total'})
+                else:
+                    df_real_hier_agg = pd.DataFrame(
+                        columns=['Categoria', 'Type 05', 'Account', 'Total']
+                    )
 
                 # Merge com volumes para cálculo de Flex (filtrados por período)
                 if df_vol_bud is not None:
@@ -767,18 +796,11 @@ def render():
                     vol_total_act = vol_total_bud
                 proporcao_global = vol_total_act / vol_total_bud if vol_total_bud > 0 else 1
 
-                # Duplicar para ter BUD (original já tem Total)
-                df_hier_agg = df_hier_agg.rename(columns={'Custo FP': 'Total'})
-
-                # Calcular BUD com base nos dados originais
-                df_bud_hier = df_hier.groupby(
-                    ['Categoria', 'Type 05', 'Account'], as_index=False
-                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
-
-                df_hier_agg = df_hier_agg.merge(
-                    df_bud_hier, on=['Categoria', 'Type 05', 'Account'], how='left'
+                # Merge: BUD como base, Real onde disponível
+                df_hier_agg = df_bud_hier.merge(
+                    df_real_hier_agg, on=['Categoria', 'Type 05', 'Account'], how='left'
                 )
-                df_hier_agg['BUD'] = df_hier_agg['BUD'].fillna(0)
+                df_hier_agg['Total'] = df_hier_agg['Total'].fillna(0)
 
                 # Calcular Flex BUD (Fixo = BUD, Variável = BUD * Proporção)
                 df_hier_agg['Flex BUD'] = df_hier_agg.apply(
@@ -884,19 +906,25 @@ def render():
                                     st.info("Sem dados para exibir.")
             else:
                 # Modo Total: expanders direto por Type 05 → Account (sem Fixo/Variável)
-                # Preparar dados agrupados por Type 05 e Account (sem categoria)
-                df_total = df.copy()
-                df_total = df_total[df_total['Período'].isin(periodos_filtro)].copy()
-
-                if 'Type 05' not in df_total.columns:
-                    df_total['Type 05'] = 'N/A'
-                if 'Account' not in df_total.columns:
-                    df_total['Account'] = 'N/A'
-
-                # Agrupar por Type 05, Account
-                df_total_agg = df_total.groupby(
+                # ── BUD: agrupar do Budget (todos os accounts) ──
+                df_bud_total_base = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+                if 'Type 05' not in df_bud_total_base.columns:
+                    df_bud_total_base['Type 05'] = 'N/A'
+                if 'Account' not in df_bud_total_base.columns:
+                    df_bud_total_base['Account'] = 'N/A'
+                df_bud_total = df_bud_total_base.groupby(
                     ['Type 05', 'Account'], as_index=False
-                )['Custo FP'].sum()
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
+
+                # ── Real: agrupar do Real (pode ter menos accounts) ──
+                df_real_total = df[df['Período'].isin(periodos_filtro)].copy()
+                if 'Type 05' not in df_real_total.columns:
+                    df_real_total['Type 05'] = 'N/A'
+                if 'Account' not in df_real_total.columns:
+                    df_real_total['Account'] = 'N/A'
+                df_real_total_agg = df_real_total.groupby(
+                    ['Type 05', 'Account'], as_index=False
+                )['Custo FP'].sum().rename(columns={'Custo FP': 'Total'})
 
                 # Merge com volumes para cálculo de Flex (filtrados por período)
                 if df_vol_bud is not None:
@@ -919,17 +947,11 @@ def render():
                 proporcao_global = (vol_total_act / vol_total_bud
                                    if vol_total_bud > 0 else 1)
 
-                df_total_agg = df_total_agg.rename(columns={'Custo FP': 'Total'})
-
-                # BUD
-                df_bud_total = df_total.groupby(
-                    ['Type 05', 'Account'], as_index=False
-                )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
-
-                df_total_agg = df_total_agg.merge(
-                    df_bud_total, on=['Type 05', 'Account'], how='left'
+                # Merge: BUD como base, Real onde disponível
+                df_total_agg = df_bud_total.merge(
+                    df_real_total_agg, on=['Type 05', 'Account'], how='left'
                 )
-                df_total_agg['BUD'] = df_total_agg['BUD'].fillna(0)
+                df_total_agg['Total'] = df_total_agg['Total'].fillna(0)
 
                 # Flex BUD (média de Fixo e Variável = BUD * proporcao parcial)
                 df_total_agg['Flex BUD'] = df_total_agg['BUD'] * proporcao_global
@@ -1392,8 +1414,8 @@ def render():
         # ── Tabela Pivotada Oficina × Período ──
         with st.expander("📊 Resumo BUD vs Flex por Oficina × Período"):
             if df_flex is not None and 'Oficina' in df.columns:
-                # Agrupar por Oficina e Período para BUD e Flex
-                df_pivot_base = df.groupby(
+                # Agrupar por Oficina e Período para BUD (usar df_bud) e Flex
+                df_pivot_base = df_bud.groupby(
                     ['Oficina', 'Período'], as_index=False
                 )['Custo FP'].sum()
 
@@ -1424,9 +1446,9 @@ def render():
                 st.dataframe(fmt_bud, use_container_width=True)
 
                 # Flex Budget por Oficina × Período (se disponível)
-                if 'Custo' in df.columns:
-                    # Calcular Flex por Oficina × Período
-                    df_flex_base = df.copy()
+                if 'Custo' in df_bud.columns:
+                    # Calcular Flex por Oficina × Período (usando Budget)
+                    df_flex_base = df_bud.copy()
                     df_flex_base['Custo_str'] = df_flex_base['Custo'].astype(
                         str
                     ).str.lower()

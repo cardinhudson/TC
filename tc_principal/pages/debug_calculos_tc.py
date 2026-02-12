@@ -12,13 +12,13 @@ import os
 from datetime import datetime
 
 from tc_principal.shared import (
-    ORDEM_MESES, COLUNAS_MONETARIAS,
+    ORDEM_MESES, COLUNAS_MONETARIAS, ACCOUNT_REDIS,
     _pasta_tc_principal, load_principal,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
     load_fp_sem_da_veiculos, load_percentual_rateio_veiculos,
     load_custo_rateado_veiculos, load_custo_fp_veiculo, load_cpu_veiculo,
-    normalizar_periodo, ordenar_por_mes,
+    normalizar_periodo, ordenar_por_mes, extrair_redis,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header, criar_tabela_html,
@@ -255,14 +255,14 @@ def render():
     # ── 5. CUSTO FP ──
     with tabs[4]:
         st.subheader("Custo FP — Auditoria")
-        st.caption("Custo FP = Despesa Primária − Custo FA + Redistribuição")
+        st.caption("Custo FP = Despesa Primária − Custo FA (Redis como linhas com Rateio FA = 0)")
 
-        cols_fp = ['Oficina', 'Account', 'Período', 'Despesa Primaria', 'Custo FA', 'Redis', 'Custo FP']
+        cols_fp = ['Oficina', 'Account', 'Período', 'Despesa Primaria', 'Custo FA', 'Custo FP']
         cols_fp = [c for c in cols_fp if c in df.columns]
         df_fp = df[cols_fp].copy()
 
-        if all(c in df.columns for c in ['Despesa Primaria', 'Custo FA', 'Redis', 'Custo FP']):
-            df_fp['Recalculado'] = df_fp['Despesa Primaria'] - df_fp['Custo FA'] + df_fp['Redis']
+        if all(c in df.columns for c in ['Despesa Primaria', 'Custo FA', 'Custo FP']):
+            df_fp['Recalculado'] = df_fp['Despesa Primaria'] - df_fp['Custo FA']
             df_fp['Diff'] = (df_fp['Custo FP'] - df_fp['Recalculado']).round(4)
             df_fp['OK'] = df_fp['Diff'].abs() < 0.01
 
@@ -275,10 +275,11 @@ def render():
 
             st.divider()
             st.markdown("**Totais:**")
+            redis_total = extrair_redis(df)
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Despesa Primária", f"R$ {df['Despesa Primaria'].sum():,.2f}")
             c2.metric("Custo FA", f"R$ {df['Custo FA'].sum():,.2f}")
-            c3.metric("Redis", f"R$ {df['Redis'].sum():,.2f}")
+            c3.metric("Redis (linhas)", f"R$ {redis_total:,.2f}")
             c4.metric("Custo FP", f"R$ {df['Custo FP'].sum():,.2f}")
 
             # Tipo Custo (Fixo/Variável) breakdown

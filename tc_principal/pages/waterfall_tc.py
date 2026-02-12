@@ -17,6 +17,7 @@ from tc_principal.shared import (
     load_principal, normalizar_periodo, ordenar_por_mes,
     aplicar_fator, aplicar_fator_df, converter_moeda_df,
     obter_sufixo_fator, calcular_cpu,
+    extrair_redis,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header,
@@ -60,7 +61,7 @@ def render():
     st.subheader("Waterfall — Decomposição do Custo Total")
 
     despesa = df['Despesa Primaria'].sum()
-    redis = df['Redis'].sum()
+    redis = extrair_redis(df)
     custo_fa = df['Custo FA'].sum()
     dea = df['D&A dedicado'].sum()
     custo_fp = df['Custo FP'].sum()
@@ -97,9 +98,11 @@ def render():
         cols = st.columns(n_cols)
         for idx, (_, row) in enumerate(df_of.iterrows()):
             with cols[idx % n_cols]:
+                # Redis por oficina: filtrar linhas Account='Redis' para esta oficina
+                redis_ofi = df[(df['Oficina'] == row['Oficina']) & (df['Account'] == 'Redis')]['Despesa Primaria'].sum() if 'Account' in df.columns else 0.0
                 vals = {
                     'Desp. Prim.': row['Despesa Primaria'],
-                    'Redis': row['Redis'],
+                    'Redis': redis_ofi,
                     'Custo FA': row['Custo FA'],
                     'D&A Ded.': row['D&A dedicado'],
                     'Custo FP': row['Custo FP'],

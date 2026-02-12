@@ -107,15 +107,15 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos do Best Estimate (arquivos gerados)
-            os.path.join("dados", "Forecast", "forecast_completo.parquet"),
-            os.path.join("dados", "Forecast", "df_vol_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
+            os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes
@@ -171,6 +171,7 @@ def get_budget_oficinas_opcoes(ano_selecionado_param):
         caminho_budget = os.path.join(
             project_root,
             "dados",
+            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -211,6 +212,7 @@ def get_budget_volume_oficinas_opcoes(ano_selecionado_param):
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
+            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",
@@ -847,7 +849,7 @@ st.session_state.filtro_ano_tc_ext = ano_selecionado
 def load_data(ano_selecionado_param, mtime_forecast=None):
     """Carrega os dados do arquivo parquet - SEMPRE da pasta Forecast (BE Análise)."""
     try:
-        caminho_forecast = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
         if not os.path.exists(caminho_forecast):
             st.error(f"❌ Arquivo não encontrado: {caminho_forecast}")
             st.info("💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'.")
@@ -1082,8 +1084,8 @@ if is_main_page:
     # Alinhar com o comportamento esperado da análise de Best Estimate (página legacy removida):
     # - garantir que os mesmos arquivos do simulador existem
     # - invalidar cache quando os parquets são atualizados (mtime)
-    caminho_forecast_check = os.path.join("dados", "Forecast", "forecast_completo.parquet")
-    caminho_vol_check = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+    caminho_forecast_check = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+    caminho_vol_check = os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
     arquivos_existem = os.path.exists(caminho_forecast_check) and os.path.exists(caminho_vol_check)
     if not arquivos_existem:
         st.warning("⚠️ Arquivos de forecast não encontrados.")
@@ -1401,7 +1403,7 @@ def load_volume_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do Best Estimate consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
+        caminho_historico = os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
         
         if not os.path.exists(caminho_historico):
             return None
@@ -1658,6 +1660,7 @@ def load_budget_data(ano_selecionado_param):
         caminho_budget = os.path.join(
             project_root,
             "dados",
+            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -1738,6 +1741,7 @@ def load_budget_volume_data(ano_selecionado_param):
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
+            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",

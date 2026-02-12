@@ -23,9 +23,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -196,11 +196,11 @@ def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: st
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False) -> str | None:
     candidatos = [
-        os.path.join('dados', str(ano), nome_arquivo),
+        os.path.join('dados', 'TC_Ext', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join('dados', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join('dados', 'TC_Ext', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -433,7 +433,7 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
 
 def verificar_arquivos_reais(ano):
     """Verifica arquivos necessários para dados REAIS"""
-    pasta_ano = f'dados/{ano}'
+    pasta_ano = f'dados/TC_Ext/{ano}'
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume e Sapiens'
@@ -457,7 +457,7 @@ def verificar_arquivos_reais(ano):
 
 def verificar_arquivos_budget(ano):
     """Verifica arquivos necessários para dados BUDGET"""
-    pasta_ano = f'dados/{ano}'
+    pasta_ano = f'dados/TC_Ext/{ano}'
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume'
@@ -544,12 +544,12 @@ with tab1:
         """Renderiza 1 uploader e salva em um único local por ano.
 
         Padrão do projeto: os Excels de entrada (REAIS + BUDGET) ficam em:
-        - dados/{ano}/<arquivo>
+        - dados/TC_Ext/{ano}/<arquivo>
 
-        (Os outputs de BUDGET continuam indo para dados/{ano}/BUD/ como antes.)
+        (Os outputs de BUDGET continuam indo para dados/TC_Ext/{ano}/BUD/ como antes.)
         """
 
-        pasta_ano = f"dados/{ano_selecionado}"
+        pasta_ano = f"dados/TC_Ext/{ano_selecionado}"
         destino = os.path.join(pasta_ano, nome_arquivo)
 
         arquivo_upload = st.file_uploader(
@@ -760,28 +760,28 @@ with tab3:
     
     st.subheader("📁 Estrutura de Pastas")
     
-    if os.path.exists(f'dados/{ano_selecionado}'):
-        st.success(f"✅ Pasta `dados/{ano_selecionado}/` existe")
+    if os.path.exists(f'dados/TC_Ext/{ano_selecionado}'):
+        st.success(f"✅ Pasta `dados/TC_Ext/{ano_selecionado}/` existe")
         
         # Listar arquivos na pasta do ano
-        arquivos_ano = os.listdir(f'dados/{ano_selecionado}')
+        arquivos_ano = os.listdir(f'dados/TC_Ext/{ano_selecionado}')
         if arquivos_ano:
             st.markdown("**Arquivos na pasta do ano:**")
             for arquivo in arquivos_ano:
-                caminho_completo = os.path.join(f'dados/{ano_selecionado}', arquivo)
+                caminho_completo = os.path.join(f'dados/TC_Ext/{ano_selecionado}', arquivo)
                 if os.path.isfile(caminho_completo):
                     tamanho = os.path.getsize(caminho_completo) / (1024 * 1024)  # MB
                     data_mod = datetime.fromtimestamp(os.path.getmtime(caminho_completo))
                     st.text(f"  📄 {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
     else:
-        st.warning(f"⚠️ Pasta `dados/{ano_selecionado}/` não existe ainda")
+        st.warning(f"⚠️ Pasta `dados/TC_Ext/{ano_selecionado}/` não existe ainda")
     
     st.markdown("---")
     
     st.subheader("📚 Histórico Consolidado")
     
-    if os.path.exists('dados/historico_consolidado'):
-        st.success("✅ Pasta `dados/historico_consolidado/` existe")
+    if os.path.exists('dados/TC_Ext/historico_consolidado'):
+        st.success("✅ Pasta `dados/TC_Ext/historico_consolidado/` existe")
         
         # Verificar arquivos principais
         arquivos_historico = [
@@ -790,7 +790,7 @@ with tab3:
         ]
         
         for arquivo in arquivos_historico:
-            caminho = os.path.join('dados/historico_consolidado', arquivo)
+            caminho = os.path.join('dados/TC_Ext/historico_consolidado', arquivo)
             if os.path.exists(caminho):
                 tamanho = os.path.getsize(caminho) / (1024 * 1024)  # MB
                 data_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
@@ -799,7 +799,7 @@ with tab3:
                 st.warning(f"  ⚠️ {arquivo} não encontrado")
         
         # Verificar histórico BUD
-        if os.path.exists('dados/historico_consolidado/BUD'):
+        if os.path.exists('dados/TC_Ext/historico_consolidado/BUD'):
             st.markdown("**Histórico BUD:**")
             arquivos_historico_bud = [
                 'df_final_historico_BUD.parquet',
@@ -807,7 +807,7 @@ with tab3:
             ]
             
             for arquivo in arquivos_historico_bud:
-                caminho = os.path.join('dados/historico_consolidado/BUD', arquivo)
+                caminho = os.path.join('dados/TC_Ext/historico_consolidado/BUD', arquivo)
                 if os.path.exists(caminho):
                     tamanho = os.path.getsize(caminho) / (1024 * 1024)  # MB
                     data_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
@@ -815,7 +815,7 @@ with tab3:
                 else:
                     st.warning(f"  ⚠️ {arquivo} não encontrado")
     else:
-        st.warning("⚠️ Pasta `dados/historico_consolidado/` não existe ainda")
+        st.warning("⚠️ Pasta `dados/TC_Ext/historico_consolidado/` não existe ainda")
 
 # Rodapé
 st.markdown("---")
