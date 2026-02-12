@@ -106,17 +106,17 @@ def obter_data_atualizacao_dados():
     try:
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
-            # Caminhos do histórico consolidado TC_Ext
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            # Caminhos do histórico consolidado
+            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes
-        pasta_dados = os.path.join("dados", "TC_Ext")
+        pasta_dados = "dados"
         if os.path.exists(pasta_dados):
             try:
                 anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
@@ -171,7 +171,6 @@ def get_budget_oficinas_opcoes(ano_selecionado_param):
         caminho_budget = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -212,7 +211,6 @@ def get_budget_volume_oficinas_opcoes(ano_selecionado_param):
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",
@@ -882,7 +880,7 @@ def load_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
         caminho_absoluto = os.path.abspath(caminho_historico)
         
         if os.path.exists(caminho_historico):
@@ -1393,7 +1391,7 @@ def load_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
         caminho_absoluto = os.path.abspath(caminho_historico)
         
         if os.path.exists(caminho_historico):
@@ -1475,7 +1473,7 @@ def load_volume_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+        caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_historico):
             # 🔧 CORREÇÃO: Garantir que Volume seja sempre numérico ao carregar
@@ -1735,7 +1733,6 @@ def load_budget_data(ano_selecionado_param):
         caminho_budget = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -1816,7 +1813,6 @@ def load_budget_volume_data(ano_selecionado_param):
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",

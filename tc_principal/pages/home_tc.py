@@ -27,6 +27,9 @@ from tc_principal.ui_components import (
     formatar_ratio_com_barra, criar_tabela_html_flex,
 )
 
+# Desabilitar limite de linhas do Altair (nível de módulo, uma única vez)
+alt.data_transformers.disable_max_rows()
+
 # Dicionário de meses em português
 meses_pt = {
     1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
@@ -37,219 +40,179 @@ meses_pt = {
 
 def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo, ordem_per, tem_ano=False):
     """
-    Cria gráfico de Custo FP por Período (padrão TC Ext).
-    
-    Args:
-        df_periodo: DataFrame com dados do período (Real)
-        df_flex: DataFrame com dados Flex Bud (pode ser None)
-        tipo: Tipo de visualização ("Custo Total" ou "CPU")
-        label_valor: Label do eixo Y
-        simbolo: Símbolo da moeda
-        sufixo: Sufixo do fator (K, M, etc)
-        ordem_per: Lista ordenada de períodos
-        tem_ano: Se True, combina Período + Ano no eixo X
-    
-    Returns:
-        Gráfico Altair ou None
+    Cria gráfico de Custo FP por Período — copiado do padrão TC Ext.
+    Usa scheme='purples' para degradê roxo nas barras.
     """
     try:
-        # Desabilitar limite de linhas do Altair
-        alt.data_transformers.disable_max_rows()
-        
-        # Limpar apenas Inf (manter valores válidos incluindo pequenos)
+        coluna = 'Custo FP'
+        titulo_y = f'{label_valor} ({simbolo}{sufixo})'
+
+        # Limpar dados
         df_periodo = df_periodo.replace([np.inf, -np.inf], 0)
-        df_periodo['Custo FP'] = df_periodo['Custo FP'].fillna(0)
-        
-        # Forçar cópia limpa do DataFrame para evitar cache
+        df_periodo[coluna] = df_periodo[coluna].fillna(0)
         df_periodo = df_periodo.copy().reset_index(drop=True)
-        
-        # Adicionar coluna 'Tipo' para o Real (barras)
-        df_periodo['Tipo'] = 'Real'
-        
+
         # Determinar coluna do período para eixo X
         if tem_ano and 'Ano' in df_periodo.columns:
-            # Criar coluna combinada (padrão TC Ext)
             df_periodo['Período_Completo'] = df_periodo['Período'].astype(str) + ' ' + df_periodo['Ano'].astype(str)
             coluna_periodo = 'Período_Completo'
         else:
             coluna_periodo = 'Período'
 
-        # Gráfico de barras com degradê azul (padrão TC Ext)
-        # IMPORTANTE: forçar domain a começar em 0 para garantir degradê visível
-        # Sem isso, se todos os valores são altos (ex: 12M-23M), o scheme='blues'
-        # mapeia tudo para o extremo escuro da escala, ficando preto no tema dark.
-        max_valor = df_periodo['Custo FP'].max()
-        bar = alt.Chart(df_periodo).mark_bar().encode(
+        # Garantir dados numéricos
+        df_periodo[coluna] = pd.to_numeric(df_periodo[coluna], errors='coerce').fillna(0)
+
+        n_periodos = len(ordem_per) if ordem_per else 0
+        altura_grafico = min(520, max(260, 18 * n_periodos + 120)) if n_periodos else 260
+
+        # ── Barras com degradê roxo (purples) ──
+        grafico_barras = alt.Chart(df_periodo).mark_bar().encode(
             x=alt.X(
                 f'{coluna_periodo}:N',
-                sort=ordem_per,
                 title='Período',
+                sort=ordem_per,
                 axis=alt.Axis(grid=False, domain=True, ticks=True)
             ),
-            y=alt.Y(
-                'Custo FP:Q',
-                title=f'{label_valor} ({simbolo}{sufixo})',
-                axis=alt.Axis(grid=False, domain=True, ticks=True)
-            ),
+            y=alt.Y(f'{coluna}:Q', title=titulo_y, axis=alt.Axis(grid=False, domain=True, ticks=True)),
             color=alt.Color(
-                'Custo FP:Q',
-                title='Custo FP',
-                scale=alt.Scale(scheme='blues', domain=[0, max_valor]),
-                legend=alt.Legend(
-                    title='Custo FP', orient='right',
-                    titleFontSize=10, labelFontSize=9
-                )
+                f'{coluna}:Q',
+                title=coluna,
+                scale=alt.Scale(scheme='purples'),
+                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=9)
             ),
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                alt.Tooltip('Custo FP:Q', format=',.2f', title='Custo FP')
+                alt.Tooltip(f'{coluna}:Q', title=coluna, format=',.2f')
             ]
-        ).properties(height=450, width=900)
+        ).properties(height=altura_grafico, width=900)
 
-        # Rótulos de valores nas barras
-        rotulos = bar.mark_text(
+        # ── Rótulos nas barras ──
+        rotulos = grafico_barras.mark_text(
             align='center', baseline='middle', dy=-10,
             color='black', fontSize=9
         ).encode(
-            text=alt.Text('Custo FP:Q', format=',.2f')
+            text=alt.Text(f'{coluna}:Q', format=',.2f')
         ).transform_filter(
-            (alt.datum['Custo FP'] != None) & (alt.datum['Custo FP'] != 0)
+            (alt.datum[coluna] != None) & (alt.datum[coluna] != 0)
         )
 
-        layers = [bar, rotulos]
-
-        # Linha Flex Bud (pontilhada laranja)
+        # ── Linha Flex Bud (pontilhada laranja) ──
+        linha_flex = None
         df_flex_p = None
         if df_flex is not None and len(df_flex) > 0:
-            # Incluir coluna Ano se existir
             colunas_flex = ['Período', 'Flex_Bud']
             if tem_ano and 'Ano' in df_flex.columns:
                 colunas_flex.insert(0, 'Ano')
-            
+
             df_flex_p = df_flex[colunas_flex].copy()
             df_flex_p['Período'] = df_flex_p['Período'].astype(str)
-            
-            # Se tem ano, criar coluna Período_Completo
+
             if tem_ano and 'Ano' in df_flex_p.columns:
                 df_flex_p['Ano'] = df_flex_p['Ano'].astype(str)
                 df_flex_p['Período_Completo'] = df_flex_p['Período'] + ' ' + df_flex_p['Ano']
-            
-            # IMPORTANTE: ordenar dados cronologicamente ANTES de desenhar linha
+
             df_flex_p = ordenar_por_mes(df_flex_p)
+
             if tipo == 'CPU (Custo por Unidade)' and 'Vol_Actual' in df_flex.columns:
-                # Incluir Ano no merge se existir
                 colunas_vol_merge = ['Período', 'Vol_Actual']
                 if tem_ano and 'Ano' in df_flex.columns:
                     colunas_vol_merge.insert(0, 'Ano')
                     merge_on = ['Ano', 'Período']
                 else:
                     merge_on = 'Período'
-                
                 df_flex_vol = df_flex[colunas_vol_merge].copy()
                 df_flex_vol['Período'] = df_flex_vol['Período'].astype(str)
                 if tem_ano and 'Ano' in df_flex_vol.columns:
                     df_flex_vol['Ano'] = df_flex_vol['Ano'].astype(str)
-                
-                df_flex_p = df_flex_p.merge(
-                    df_flex_vol, on=merge_on, how='left'
-                )
+                df_flex_p = df_flex_p.merge(df_flex_vol, on=merge_on, how='left')
                 df_flex_p['Vol_Actual'] = df_flex_p['Vol_Actual'].fillna(0)
-                df_flex_p['Flex_Bud'] = calcular_cpu(
-                    df_flex_p['Flex_Bud'], df_flex_p['Vol_Actual']
-                )
-            
-            # Limpar valores inválidos (substituir Inf por 0, manter valores pequenos)
+                df_flex_p['Flex_Bud'] = calcular_cpu(df_flex_p['Flex_Bud'], df_flex_p['Vol_Actual'])
+
             df_flex_p = df_flex_p.replace([np.inf, -np.inf], 0)
             df_flex_p['Flex_Bud'] = df_flex_p['Flex_Bud'].fillna(0)
-            
-            # Forçar cópia limpa para evitar cache
             df_flex_p = df_flex_p.copy().reset_index(drop=True)
-            
-            # Apenas remover se TODOS os valores forem zero
+
             if df_flex_p['Flex_Bud'].abs().sum() == 0:
                 df_flex_p = None
 
         if df_flex_p is not None and len(df_flex_p) > 0:
-            # Linha Flex Bud
+            # Adicionar coluna de legenda
+            df_flex_p['Tipo'] = 'Flex Bud'
+
             line_flex = alt.Chart(df_flex_p).mark_line(
-                strokeDash=[10, 5],
-                strokeWidth=2,
-                opacity=0.9,
-                color='#FF6B35'
+                strokeDash=[10, 5], strokeWidth=1.5, opacity=0.8
             ).encode(
-                x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
-                y='Flex_Bud:Q',
+                x=alt.X(f'{coluna_periodo}:N', title='Período', sort=ordem_per,
+                         axis=alt.Axis(grid=False, domain=True, ticks=True)),
+                y=alt.Y('Flex_Bud:Q', title=titulo_y, axis=alt.Axis(grid=False, domain=True, ticks=True)),
+                color=alt.Color(
+                    'Tipo:N', title='Legenda',
+                    scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#8B5CF6', '#FF6B35']),
+                    legend=alt.Legend(
+                        title='Legenda', orient='bottom', titleFontSize=10, labelFontSize=9,
+                        titleAnchor='middle', direction='horizontal', symbolType='square'
+                    )
+                ),
+                strokeDash=alt.StrokeDash(
+                    'Tipo:N', scale=alt.Scale(domain=['Real', 'Flex Bud'], range=[[0], [10, 5]]),
+                    legend=None
+                ),
                 tooltip=[
                     alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
                     alt.Tooltip('Flex_Bud:Q', format=',.2f', title='Flex Bud')
                 ]
             )
 
-            # Pontos na linha
             pontos_flex = alt.Chart(df_flex_p).mark_circle(
-                size=100, opacity=1, color='#FF6B35'
+                size=80, opacity=0.9
             ).encode(
                 x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
                 y='Flex_Bud:Q',
+                color=alt.Color(
+                    'Tipo:N', scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#8B5CF6', '#FF6B35']),
+                    legend=None
+                ),
                 tooltip=[
                     alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
                     alt.Tooltip('Flex_Bud:Q', format=',.2f', title='Flex Bud')
                 ]
             )
 
-            layers.extend([line_flex, pontos_flex])
+            rotulos_flex = alt.Chart(df_flex_p).mark_text(
+                align='center', baseline='bottom', dy=-15,
+                color='#FF6B35', fontSize=9, fontWeight='bold'
+            ).encode(
+                x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
+                y='Flex_Bud:Q',
+                text=alt.Text('Flex_Bud:Q', format=',.2f')
+            )
 
-        # Combinar gráfico principal
-        grafico_principal = alt.layer(*layers).resolve_scale(
-            x='shared', y='shared'
-        )
+            linha_flex = line_flex + pontos_flex + rotulos_flex
 
-        # ════════════════════════════════════════
-        # Gráfico Delta (Real - Flex Bud)
-        # ════════════════════════════════════════
+        # ── Gráfico Delta (Real - Flex Bud) ──
         grafico_delta = None
         if df_flex_p is not None and len(df_flex_p) > 0:
             try:
-                # Usar mesma coluna de período do gráfico principal
-                colunas_merge = [coluna_periodo, 'Custo FP']
-                delta_data = df_periodo[colunas_merge].copy()
-                
-                colunas_flex_merge = [coluna_periodo, 'Flex_Bud']
+                delta_data = df_periodo[[coluna_periodo, coluna]].copy()
                 delta_data = delta_data.merge(
-                    df_flex_p[colunas_flex_merge],
+                    df_flex_p[[coluna_periodo, 'Flex_Bud']],
                     on=coluna_periodo, how='left'
                 )
                 delta_data['Flex_Bud'] = delta_data['Flex_Bud'].fillna(0)
-                delta_data['Custo FP'] = delta_data['Custo FP'].fillna(0)
-                delta_data['Delta'] = delta_data['Custo FP'] - delta_data['Flex_Bud']
+                delta_data[coluna] = delta_data[coluna].fillna(0)
+                delta_data['Delta'] = delta_data[coluna] - delta_data['Flex_Bud']
 
-                # Calcular escala simétrica para cores
                 delta_min_abs = abs(delta_data['Delta'].min())
                 delta_max_abs = abs(delta_data['Delta'].max())
                 delta_abs_max = max(delta_min_abs, delta_max_abs)
                 delta_min = -delta_abs_max if delta_abs_max > 0 else -1
                 delta_max = delta_abs_max if delta_abs_max > 0 else 1
 
-                # Gráfico de barras delta
-                grafico_delta = alt.Chart(delta_data).mark_bar(
-                    size=20
-                ).encode(
-                    x=alt.X(
-                        f'{coluna_periodo}:N',
-                        title='',
-                        sort=ordem_per,
-                        axis=alt.Axis(
-                            grid=False, domain=False,
-                            ticks=False, labels=False
-                        )
-                    ),
-                    y=alt.Y(
-                        'Delta:Q', title='Delta (Real - Flex Bud)',
-                        axis=alt.Axis(
-                            grid=False, domain=True,
-                            ticks=True, labels=True
-                        )
-                    ),
+                grafico_delta = alt.Chart(delta_data).mark_bar(size=20).encode(
+                    x=alt.X(f'{coluna_periodo}:N', title='', sort=ordem_per,
+                             axis=alt.Axis(grid=False, domain=False, ticks=False, labels=False)),
+                    y=alt.Y('Delta:Q', title='Delta (Real - Flex Bud)',
+                             axis=alt.Axis(grid=False, domain=True, ticks=True, labels=True)),
                     color=alt.Color(
                         'Delta:Q', title='Delta',
                         scale=alt.Scale(
@@ -261,73 +224,50 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo
                     ),
                     tooltip=[
                         alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                        alt.Tooltip(
-                            'Delta:Q', title='Delta (Real - Flex Bud)',
-                            format=',.2f'
-                        ),
-                        alt.Tooltip(
-                            'Custo FP:Q', title='Real', format=',.2f'
-                        ),
-                        alt.Tooltip(
-                            'Flex_Bud:Q', title='Flex Bud', format=',.2f'
-                        )
+                        alt.Tooltip('Delta:Q', title='Delta (Real - Flex Bud)', format=',.2f'),
+                        alt.Tooltip(f'{coluna}:Q', title='Real', format=',.2f'),
+                        alt.Tooltip('Flex_Bud:Q', title='Flex Bud', format=',.2f')
                     ]
-                ).properties(height=38, width=900)
+                ).properties(height=38)
 
-                # Rótulos delta positivos (acima)
                 rotulos_delta_pos = alt.Chart(
                     delta_data[delta_data['Delta'] >= 0]
                 ).mark_text(
-                    align='center', baseline='bottom', dy=-12,
-                    fontSize=9, fontWeight='bold'
+                    align='center', baseline='bottom', dy=-12, fontSize=9, fontWeight='bold'
                 ).encode(
-                    x=alt.X(
-                        f'{coluna_periodo}:N',
-                        sort=ordem_per,
-                    ),
+                    x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
                     y='Delta:Q',
                     text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color(
-                        'Delta:Q',
-                        scale=alt.Scale(
-                            domain=[0, delta_max],
-                            range=['#FFFFFF', '#FF0000'],
-                            type='linear', nice=False
-                        ),
-                        legend=None
-                    )
+                    color=alt.Color('Delta:Q',
+                        scale=alt.Scale(domain=[0, delta_max], range=['#FFFFFF', '#FF0000'],
+                                        type='linear', nice=False), legend=None)
                 )
 
-                # Rótulos delta negativos (abaixo)
                 rotulos_delta_neg = alt.Chart(
                     delta_data[delta_data['Delta'] < 0]
                 ).mark_text(
-                    align='center', baseline='top', dy=12,
-                    fontSize=9, fontWeight='bold'
+                    align='center', baseline='top', dy=12, fontSize=9, fontWeight='bold'
                 ).encode(
-                    x=alt.X(
-                        f'{coluna_periodo}:N',
-                        sort=ordem_per,
-                    ),
+                    x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
                     y='Delta:Q',
                     text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color(
-                        'Delta:Q',
-                        scale=alt.Scale(
-                            domain=[delta_min, 0],
-                            range=['#00AA00', '#FFFFFF'],
-                            type='linear', nice=False
-                        ),
-                        legend=None
-                    )
+                    color=alt.Color('Delta:Q',
+                        scale=alt.Scale(domain=[delta_min, 0], range=['#00AA00', '#FFFFFF'],
+                                        type='linear', nice=False), legend=None)
                 )
 
                 grafico_delta = grafico_delta + rotulos_delta_pos + rotulos_delta_neg
             except Exception as e:
-                # Delta não disponível (silencioso, não é erro crítico)
                 grafico_delta = None
 
-        # Combinar gráficos (padrão TC Ext: sem configure_view/configure_axis)
+        # ── Combinar tudo (padrão TC Ext) ──
+        if linha_flex is not None:
+            grafico_principal = alt.layer(
+                grafico_barras, rotulos, linha_flex
+            ).resolve_scale(x='shared', y='shared')
+        else:
+            grafico_principal = grafico_barras + rotulos
+
         if grafico_delta is not None:
             grafico_final = alt.vconcat(
                 grafico_delta, grafico_principal
@@ -336,7 +276,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo
             grafico_final = grafico_principal
 
         return grafico_final
-        
+
     except Exception as e:
         st.error(f"❌ Erro ao criar gráfico: {str(e)}")
         import traceback
@@ -572,6 +512,7 @@ def render():
             # PADRÃO TC EXT: Renderizar no placeholder dentro de try/except
             try:
                 if grafico_final is not None:
+                    # Exibir gráfico no placeholder (renderização imediata)
                     chart_placeholder.altair_chart(grafico_final, use_container_width=True)
                 else:
                     chart_placeholder.warning("⚠️ O gráfico não pôde ser criado.")
@@ -579,16 +520,6 @@ def render():
                 import traceback
                 chart_placeholder.error(f"❌ Erro ao renderizar gráfico: {str(e)}")
                 chart_placeholder.code(traceback.format_exc())
-            
-            # Legenda manual abaixo do gráfico
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.markdown("""
-                <div style='text-align: center; padding: 10px;'>
-                    <span style='color: #4A90E2; font-size: 18px;'>■</span> Real &nbsp;&nbsp;&nbsp;
-                    <span style='color: #FF6B35; font-size: 18px;'>■</span> Flex Bud
-                </div>
-                """, unsafe_allow_html=True)
 
         st.divider()
 
