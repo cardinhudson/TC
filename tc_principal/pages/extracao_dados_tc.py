@@ -94,13 +94,13 @@ def _validar_pre_extracao_budget(ano: int):
     msgs = []
     ok = True
 
-    caminho_rateio = _encontrar_arquivo(ano, 'Reporting fluxo anexo.xlsx')
+    caminho_rateio = _encontrar_arquivo(ano, 'Reporting veículos.xlsx')
     if not caminho_rateio:
-        return False, ["❌ 'Reporting fluxo anexo.xlsx' não encontrado."]
+        return False, ["❌ 'Reporting veículos.xlsx' não encontrado."]
 
     # Abas esperadas para Budget Veículos (MP)
     abas = ['massa primária - BDG', 'Rateio BDG', 'Volume BDG']
-    ok_abas, m = _validar_abas_excel(caminho_rateio, abas, 'Reporting fluxo anexo.xlsx')
+    ok_abas, m = _validar_abas_excel(caminho_rateio, abas, 'Reporting veículos.xlsx')
     msgs.extend(m)
     ok &= ok_abas
 
@@ -215,13 +215,13 @@ def render():
 
         col_u1, col_u2 = st.columns(2)
         with col_u1:
-            st.markdown("**Upload: Reporting fluxo anexo.xlsx**")
+            st.markdown("**Upload: Reporting veículos.xlsx**")
             uploaded = st.file_uploader("Selecionar arquivo", type=["xlsx"],
                                         key='upload_reporting_tc')
             if uploaded:
                 pasta = f"dados/{ano_selecionado}"
                 os.makedirs(pasta, exist_ok=True)
-                dest = os.path.join(pasta, "Reporting fluxo anexo.xlsx")
+                dest = os.path.join(pasta, "Reporting veículos.xlsx")
                 with open(dest, 'wb') as f:
                     f.write(uploaded.getbuffer())
                 st.success(f"✅ Salvo em `{dest}`")
@@ -229,7 +229,7 @@ def render():
 
         with col_u2:
             st.markdown("**Arquivo esperado em:**")
-            caminho = f"dados/{ano_selecionado}/Reporting fluxo anexo.xlsx"
+            caminho = f"dados/{ano_selecionado}/Reporting veículos.xlsx"
             if os.path.exists(caminho):
                 tam = os.path.getsize(caminho) / (1024 * 1024)
                 dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))

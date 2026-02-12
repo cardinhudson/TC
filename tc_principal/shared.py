@@ -231,14 +231,14 @@ def mask_custo_fixo(serie: pd.Series) -> pd.Series:
 #  BUDGET FLEX
 # ═══════════════════════════════════════════════════════════════
 
-def calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual, col_custo='Custo FP'):
+def calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual, col_custo='Custo FP', tem_ano=False):
     """
-    Calcula Budget Flex por Período.
+    Calcula Budget Flex por Período (e Ano se tem_ano=True).
 
     Flex = Fixo_Budget + (NãoFixo_Budget × Volume_Actual / Volume_Budget)
 
     Returns DataFrame com colunas:
-      Período, Custo_Fixo, Custo_NaoFixo, Custo_Total_Bud,
+      Período, [Ano], Custo_Fixo, Custo_NaoFixo, Custo_Total_Bud,
       Vol_Budget, Vol_Actual, Proporcao, Flex_Bud
     Retorna None se dados insuficientes.
     """
@@ -247,31 +247,34 @@ def calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual, col_custo='Cus
     if 'Custo' not in df_principal.columns:
         return None
 
-    # Volume por período
-    vol_bud_per = df_vol_bud.groupby('Período', as_index=False)['Volume'].sum()
+    # Determinar colunas de agrupamento
+    cols_agrup = ['Ano', 'Período'] if tem_ano and 'Ano' in df_principal.columns else ['Período']
+
+    # Volume por período (e ano se aplicável)
+    vol_bud_per = df_vol_bud.groupby(cols_agrup, as_index=False)['Volume'].sum()
     vol_bud_per = vol_bud_per.rename(columns={'Volume': 'Vol_Budget'})
 
-    vol_act_per = df_vol_actual.groupby('Período', as_index=False)['Volume'].sum()
+    vol_act_per = df_vol_actual.groupby(cols_agrup, as_index=False)['Volume'].sum()
     vol_act_per = vol_act_per.rename(columns={'Volume': 'Vol_Actual'})
 
-    # Custo fixo e total por período
+    # Custo fixo e total por período (e ano se aplicável)
     fixo_mask = mask_custo_fixo(df_principal['Custo'])
 
     custo_fixo = (df_principal[fixo_mask]
-                  .groupby('Período', as_index=False)[col_custo].sum()
+                  .groupby(cols_agrup, as_index=False)[col_custo].sum()
                   .rename(columns={col_custo: 'Custo_Fixo'}))
 
     custo_total = (df_principal
-                   .groupby('Período', as_index=False)[col_custo].sum()
+                   .groupby(cols_agrup, as_index=False)[col_custo].sum()
                    .rename(columns={col_custo: 'Custo_Total_Bud'}))
 
     # Montar tabela flex
-    df_flex = custo_total.merge(custo_fixo, on='Período', how='left')
+    df_flex = custo_total.merge(custo_fixo, on=cols_agrup, how='left')
     df_flex['Custo_Fixo'] = df_flex['Custo_Fixo'].fillna(0)
     df_flex['Custo_NaoFixo'] = df_flex['Custo_Total_Bud'] - df_flex['Custo_Fixo']
 
-    df_flex = df_flex.merge(vol_bud_per, on='Período', how='left')
-    df_flex = df_flex.merge(vol_act_per, on='Período', how='left')
+    df_flex = df_flex.merge(vol_bud_per, on=cols_agrup, how='left')
+    df_flex = df_flex.merge(vol_act_per, on=cols_agrup, how='left')
     df_flex['Vol_Budget'] = df_flex['Vol_Budget'].fillna(0)
     df_flex['Vol_Actual'] = df_flex['Vol_Actual'].fillna(0)
 

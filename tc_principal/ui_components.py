@@ -381,6 +381,7 @@ def render_sidebar_global(page_key):
         if tipo == "Custo Total":
             fator = st.radio(
                 "🔢 Fator", ["Nenhum", "K (milhares)", "M (milhões)"],
+                index=1,  # Padrão: K (milhares)
                 horizontal=True, key=f'{page_key}_fator',
             )
         else:
