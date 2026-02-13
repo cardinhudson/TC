@@ -6,7 +6,6 @@ import plotly.io as pio
 import os
 import sys
 from datetime import datetime
-from versionamento import obter_versao_atual
 
 # Configurar Plotly para usar o engine JSON padrão
 try:
@@ -48,41 +47,68 @@ from tc_exports import (
 from tc_principal.shared import (
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
+    load_custo_fp_veiculo, load_custo_fp_veiculo_real,
     descobrir_anos_tc_principal,
     calcular_flex_budget, normalizar_periodo, ordenar_por_mes,
     mask_custo_fixo, aplicar_fator_df, converter_moeda_df,
     COLUNAS_MONETARIAS,
 )
+from tc_principal.ui_components import (
+    injetar_css_global, render_header, render_sidebar_global,
+)
 
 # ── Helpers de carregamento para o Waterfall TC Veículos ─────────────
+def _agregar_sem_veiculo(df):
+    """Remove dimensão Veículo, agregando colunas numéricas.
+    Usado quando o usuário escolhe 'Todos (TC Total)'."""
+    if df is None or df.empty or 'Veículo' not in df.columns:
+        return df
+    cols_id = [c for c in df.columns
+               if c != 'Veículo' and not pd.api.types.is_numeric_dtype(df[c])]
+    cols_num = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    if not cols_num:
+        return df.drop(columns=['Veículo'])
+    return df.groupby(cols_id, as_index=False, dropna=False)[cols_num].sum()
+
+
+def _enrich_with_vehicle(df_main, df_veic):
+    """Usa dados por veículo (com coluna Veículo) se disponíveis.
+    Renomeia 'Custo FP Veiculo' → 'Custo FP' para compatibilidade."""
+    if df_veic is not None and not df_veic.empty and 'Veículo' in df_veic.columns:
+        if 'Custo FP Veiculo' in df_veic.columns:
+            df_veic = df_veic.copy()
+            df_veic['Custo FP'] = df_veic['Custo FP Veiculo']
+        return df_veic
+    return df_main
+
 def _load_tc_veiculos_real(ano_sel):
-    """Carrega dados Real do TC Veículos: df_principal.parquet."""
+    """Carrega dados Real do TC Veículos com coluna Veículo."""
     if ano_sel == "Todos":
         frames = []
         for ano in descobrir_anos_tc_principal():
-            df = load_principal_real(ano)
+            df = _enrich_with_vehicle(load_principal_real(ano), load_custo_fp_veiculo_real(ano))
             if df is not None and not df.empty:
                 frames.append(df)
         if frames:
             return pd.concat(frames, ignore_index=True)
         return pd.DataFrame()
     else:
-        df = load_principal_real(int(ano_sel))
+        df = _enrich_with_vehicle(load_principal_real(int(ano_sel)), load_custo_fp_veiculo_real(int(ano_sel)))
         return df if df is not None else pd.DataFrame()
 
 def _load_tc_veiculos_budget(ano_sel):
-    """Carrega dados Budget do TC Veículos: df_principal_BUD.parquet."""
+    """Carrega dados Budget do TC Veículos com coluna Veículo."""
     if ano_sel == "Todos":
         frames = []
         for ano in descobrir_anos_tc_principal():
-            df = load_principal(ano)
+            df = _enrich_with_vehicle(load_principal(ano), load_custo_fp_veiculo(ano))
             if df is not None and not df.empty:
                 frames.append(df)
         if frames:
             return pd.concat(frames, ignore_index=True)
         return pd.DataFrame()
     else:
-        df = load_principal(int(ano_sel))
+        df = _enrich_with_vehicle(load_principal(int(ano_sel)), load_custo_fp_veiculo(int(ano_sel)))
         return df if df is not None else pd.DataFrame()
 
 def _load_tc_veiculos_volume(ano_sel):
@@ -115,99 +141,12 @@ def _load_tc_veiculos_budget_volume(ano_sel):
         df = load_volume_bud(int(ano_sel))
         return df if df is not None else pd.DataFrame()
 
-# Função para obter mês atual em português
-def obter_mes_atual():
-    """Retorna o mês atual em português"""
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    agora = datetime.now()
-    return meses[agora.month]
+# ═══════════════════════════════════════════════════════════════
+#  UI: CSS + Header + Sidebar global
+# ═══════════════════════════════════════════════════════════════
+injetar_css_global()
+render_header()
 
-# Função para obter data e hora de atualização dos dados
-def obter_data_atualizacao_dados():
-    """Retorna a data e hora da última atualização dos arquivos de dados"""
-    try:
-        # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
-        arquivos_dados = [
-            # Caminhos do histórico consolidado
-            os.path.join("dados", "TC_Principal", "historico_consolidado", "df_principal.parquet"),
-            os.path.join("dados", "TC_Principal", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Principal", "historico_consolidado", "BUD", "df_principal_BUD.parquet"),
-            # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "TC_Principal", "historico_consolidado", "df_principal.parquet"),
-            os.path.join("./dados", "TC_Principal", "historico_consolidado", "df_vol_historico.parquet"),
-        ]
-        
-        # Também tentar buscar em pastas de anos recentes
-        pasta_dados = "dados"
-        if os.path.exists(pasta_dados):
-            try:
-                anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
-                if anos:
-                    ano_mais_recente = max(anos, key=int)
-                    arquivos_dados.extend([
-                        os.path.join(pasta_dados, ano_mais_recente, "df_final.parquet"),
-                        os.path.join(pasta_dados, ano_mais_recente, "df_vol.parquet"),
-                    ])
-            except (OSError, ValueError):
-                pass
-        
-        data_atualizacao = None
-        arquivos_encontrados = []
-        
-        for arquivo in arquivos_dados:
-            if os.path.exists(arquivo):
-                try:
-                    data_modificacao = os.path.getmtime(arquivo)
-                    # Validar que o timestamp é válido (positivo e razoável)
-                    if data_modificacao and data_modificacao > 0:
-                        arquivos_encontrados.append(arquivo)
-                        if data_atualizacao is None or data_modificacao > data_atualizacao:
-                            data_atualizacao = data_modificacao
-                except (OSError, ValueError):
-                    continue
-        
-        # Se encontrou pelo menos um arquivo, retornar data
-        if data_atualizacao and data_atualizacao > 0:
-            try:
-                dt = datetime.fromtimestamp(data_atualizacao)
-                meses = {
-                    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-                    5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-                    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-                }
-                return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
-            except (ValueError, OSError):
-                return None  # Retornar None para não exibir mensagem
-        
-        # Se não encontrou nenhum arquivo, retornar None (não exibir mensagem)
-        return None
-    except Exception:
-        # Em caso de qualquer erro, retornar None (não exibir mensagem)
-        return None
-
-# Cabeçalho compacto com data de atualização
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
-data_atualizacao = obter_data_atualizacao_dados()
-
-# Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
-texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
-
-st.markdown(f"""
-<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
-    <div style='flex: 1;'>{texto_esquerda}</div>
-    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# CSS
 st.markdown("""
     <style>
         h1 {
@@ -219,215 +158,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🌊 Waterfall Analysis — TC Veículos")
-st.markdown("---")
 
-# ========== CONFIGURAÇÕES INICIAIS (mesmas do app.py) ==========
-# Inicializar banco de taxas
-inicializar_banco_taxas()
+# ── Sidebar Global (Ano, Moeda, Taxas, Tipo, Fator, Tema) ──
+cfg = render_sidebar_global('wf', incluir_todos=True)
 
-# Filtros na sidebar - ANTES de carregar dados
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📅 Seleção de Ano**")
-
-# Listar anos disponíveis
-anos_disponiveis = descobrir_anos_tc_principal()
-opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
-
-# Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
-ano_atual = datetime.now().year
-ano_atual_str = str(ano_atual)
-if ano_atual_str in opcoes_ano:
-    index_padrao = opcoes_ano.index(ano_atual_str)
-else:
-    index_padrao = 0  # "Todos" se ano atual não estiver disponível
-
-# Inicializar session_state para manter valores dos filtros
-if 'filtro_ano_waterfall_tc' not in st.session_state:
-    st.session_state.filtro_ano_waterfall_tc = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
-
-# Seletor de ano
-ano_selecionado = st.sidebar.selectbox(
-    "Selecione o ano:",
-    options=opcoes_ano,
-    index=opcoes_ano.index(st.session_state.filtro_ano_waterfall_tc) if st.session_state.filtro_ano_waterfall_tc in opcoes_ano else index_padrao,
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
-    key="filtro_ano_waterfall_tc_selectbox"
-)
-# Atualizar session_state
-st.session_state.filtro_ano_waterfall_tc = ano_selecionado
-
-# Carregar taxas
-try:
-    taxas_cambio_banco = carregar_taxas_banco()
-except Exception as e:
-    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
-
-taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
-taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
-
-# Inicializar estado da moeda se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "🇧🇷 R$"
-if 'moeda_selecionada_radio' not in st.session_state:
-    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
-
-# URLs das bandeiras
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-# Seleção de moeda com bandeiras ao lado
-col_moeda1, col_moeda2 = st.columns([3, 1])
-
-with col_moeda1:
-    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-    
-    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-    
-    def atualizar_moeda():
-        if 'moeda_selecionada_radio_waterfall_tc' in st.session_state:
-            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio_waterfall_tc
-    
-    moeda_selecionada = st.radio(
-        "Moeda",
-        opcoes_moeda,
-        index=index_moeda,
-        horizontal=True,
-        help="Selecione a moeda para exibição nos gráficos",
-        key="moeda_selecionada_radio_waterfall_tc",
-        label_visibility="collapsed",
-        on_change=atualizar_moeda
-    )
-    
-    if st.session_state.moeda_selecionada != moeda_selecionada:
-        st.session_state.moeda_selecionada = moeda_selecionada
-
-# Obter moeda atual do session_state
-moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-flag_selecionada_eur = moeda_atual == '🇪🇺 €'
-
-with col_moeda2:
-    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
-    st.markdown(f"""
-    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Taxas de câmbio
-st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
-col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
-
-with col_taxa1:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
-    taxa_usd_para_brl = st.number_input(
-        "Taxa USD para BRL",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_usd_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros.",
-        key="taxa_usd_para_brl_waterfall_tc",
-        label_visibility="collapsed"
-    )
-
-with col_taxa2:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
-    taxa_eur_para_brl = st.number_input(
-        "Taxa EUR para BRL",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_eur_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Euro em Reais Brasileiros.",
-        key="taxa_eur_para_brl_waterfall_tc",
-        label_visibility="collapsed"
-    )
-
-taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
-taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
-
-# Salvar taxas
-taxa_usd_atual_key = "taxa_usd_atual_salva_waterfall_tc"
-taxa_eur_atual_key = "taxa_eur_atual_salva_waterfall_tc"
-
-taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
-taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
-
-if taxa_usd_mudou or taxa_eur_mudou:
-    novas_taxas = {
-        "USD": float(taxa_usd_para_brl),
-        "EUR": float(taxa_eur_para_brl)
-    }
-    try:
-        salvar_taxas_banco(novas_taxas)
-        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
-        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
-    except Exception as e:
-        st.error(f"❌ Erro ao salvar taxas: {e}")
-
-taxas_cambio = {
-    "BRL": 1.0,
-    "USD": taxa_brl_para_usd,
-    "EUR": taxa_brl_para_eur
-}
-
-# Seletores no topo
-col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
-
-with col_tipo:
-    tipo_visualizacao = st.radio(
-        "📊 **Tipo:**",
-        ["Custo Total", "CPU (Custo por Unidade)"],
-        index=0,
-        horizontal=True,
-        key="tipo_visualizacao_waterfall_tc"
-    )
-
-with col_fator:
-    if tipo_visualizacao == "Custo Total":
-        fator_conversao = st.radio(
-            "🔢 **Fator:**",
-            ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=1,
-            horizontal=True,
-            help="Aplica divisão aos valores para simplificar visualização.",
-            key="fator_conversao_waterfall_tc"
-        )
-    else:
-        fator_conversao = None
-
-# Obter a moeda selecionada do session state (já está atualizado acima)
-moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-
-if moeda_selecionada == "🇧🇷 R$":
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-elif moeda_selecionada == "🇺🇸 $":
-    moeda_codigo = "USD"
-    moeda_simbolo = "$"
-elif moeda_selecionada == "🇪🇺 €":
-    moeda_codigo = "EUR"
-    moeda_simbolo = "€"
-else:
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
+# Variáveis-ponte: mantém os nomes originais usados no restante do arquivo
+ano_selecionado = cfg['ano']          # int ou "Todos"
+moeda_codigo    = cfg['moeda']        # 'BRL', 'USD' ou 'EUR'
+moeda_simbolo   = cfg['simbolo']      # 'R$', '$' ou '€'
+taxas_cambio    = cfg['taxas']        # {'BRL': 1.0, 'USD': ..., 'EUR': ...}
+tipo_visualizacao = cfg['tipo']       # 'Custo Total' ou 'CPU (Custo por Unidade)'
+fator_conversao = cfg['fator']        # 'Nenhum', 'K (milhares)' ou 'M (Milhões)'
 
 # Carregar dados com o ano selecionado
 try:
@@ -743,7 +484,6 @@ if 'Custo FP' in df_filtrado.columns:
 df_visualizacao = df_filtrado.copy()
 
 # ========== CÓDIGO DO TAB5 (adaptado) ==========
-st.markdown("---")
 
 # Verificar se Type 06 existe nos dados
 if 'Type 06' not in df_filtrado.columns:
@@ -823,9 +563,21 @@ else:
         # TAB REAL
         with tab_real:
             st.subheader("📊 Análise Real")
-            
-            # Modo de Comparação
-            st.markdown("### 📅 Modo de Comparação")
+
+            # ── Escopo de Veículo (Todos vs modelo específico) ──
+            _veic_opcoes_real = []
+            if 'Veículo' in df_filtrado_waterfall_tc.columns:
+                _veic_opcoes_real = sorted(
+                    [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist() if v != 'Sem Veículo']
+                )
+            escopo_veiculo_real = st.radio(
+                "🚗 Escopo de Veículo:",
+                ["Todos (TC Total)"] + _veic_opcoes_real,
+                index=0, horizontal=True,
+                key="escopo_veiculo_real_wf",
+                help="Todos = visão consolidada sem quebra por modelo. Selecione um modelo para análise específica.",
+            )
+
             modo_comparacao = st.radio(
                 "Tipo de comparação:",
                 options=["Mês a Mês", "Ano a Ano", "Semestre", "Quarter"],
@@ -997,7 +749,37 @@ else:
                     
                     # Preparar dados para análise
                     df_analise = df_filtrado_waterfall_tc.copy()
+
+                    # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
+                    if 'Veículo' in df_analise.columns:
+                        df_analise = df_analise[df_analise['Veículo'] != 'Sem Veículo'].copy()
                     
+                    # ═══ Bloco 1: Separar Redis do fluxo principal (mesmo padrão Budget) ═══
+                    _df_redis_real = pd.DataFrame()
+                    if 'Account' in df_analise.columns:
+                        _mask_redis = df_analise['Account'] == 'Redis'
+                        _df_redis_real = df_analise[_mask_redis].copy()
+                        df_analise = df_analise[~_mask_redis].copy()
+
+                    # Aplicar escopo de veículo selecionado
+                    # ═══ Bloco 4: quando "Todos", NÃO agregar imediatamente — manter coluna Veículo
+                    #     para que apareça como dimensão disponível. A agregação é feita DEPOIS
+                    #     que o usuário escolhe a dimensão (lazy aggregation). ═══
+                    _todos_mode_real = False
+                    if escopo_veiculo_real == "Todos (TC Total)":
+                        _todos_mode_real = True
+                        # NÃO chamar _agregar_sem_veiculo() aqui
+                        if not _df_redis_real.empty:
+                            _df_redis_real = _agregar_sem_veiculo(_df_redis_real)
+                    elif 'Veículo' in df_analise.columns:
+                        df_analise = df_analise[
+                            df_analise['Veículo'] == escopo_veiculo_real
+                        ].copy()
+                        if not _df_redis_real.empty and 'Veículo' in _df_redis_real.columns:
+                            _df_redis_real = _df_redis_real[
+                                _df_redis_real['Veículo'] == escopo_veiculo_real
+                            ].copy()
+
                     # Criar df_vol_filtrado aplicando os mesmos filtros (necessário para cálculo do Flex Volume no gráfico)
                     # 🔧 CORREÇÃO CRÍTICA: Aplicar TODOS os filtros que existem em df_filtrado_waterfall_tc (mesma lógica do app.py)
                     df_vol_filtrado = None
@@ -1125,6 +907,13 @@ else:
                             key="dim_waterfall_tc_real"
                         )
                         
+                        # ═══ Bloco 4: Lazy aggregation — se "Todos" e dim ≠ Veículo, agregar agora ═══
+                        if _todos_mode_real and chosen_dim_waterfall_tc != "Veículo":
+                            df_analise = _agregar_sem_veiculo(df_analise)
+                            # Recalcular df_temp sem veículo
+                            if 'Veículo' in df_temp.columns:
+                                df_temp = _agregar_sem_veiculo(df_temp)
+                        
                         # Obter todas as categorias disponíveis
                         cats_all = sorted([str(x).strip() for x in df_analise[chosen_dim_waterfall_tc].dropna().unique().tolist() if str(x).strip() != ""])
                         total_cats = max(1, len(cats_all))
@@ -1228,26 +1017,21 @@ else:
                         # Garantir que cats_selecionadas_atual contém apenas valores válidos
                         cats_selecionadas_atual = [c for c in cats_selecionadas_atual if c in cats_all]
                         
-                        # Criar o multiselect
-                        # IMPORTANTE: Quando o slider muda, o session_state já foi atualizado acima
-                        # O Streamlit vai usar o valor do session_state automaticamente (ignora default se key existe)
-                        # Quando não existe no session_state, usa o default
+                        # Sanitizar session_state: remover valores que não existem mais nas opções
                         if multiselect_key_fixed in st.session_state:
-                            # Usar o valor do session_state (pode ter sido atualizado pelo slider ou pelo usuário)
-                            cats_sel_raw = st.multiselect(
-                                "Categorias (uma ou mais):",
-                                cats_options,
-                                default=st.session_state[multiselect_key_fixed],
-                                key=multiselect_key_fixed
-                            )
-                        else:
-                            # Primeira vez, usar o valor calculado
-                            cats_sel_raw = st.multiselect(
-                                "Categorias (uma ou mais):",
-                                cats_options,
-                                default=cats_selecionadas_atual,
-                                key=multiselect_key_fixed
-                            )
+                            _vals_limpos = [v for v in st.session_state[multiselect_key_fixed] if v in cats_options]
+                            if not _vals_limpos:
+                                _vals_limpos = top_cats_selecionadas[:min(max_cats, len(top_cats_selecionadas))]
+                            st.session_state[multiselect_key_fixed] = _vals_limpos
+                            cats_selecionadas_atual = _vals_limpos
+
+                        # Criar o multiselect
+                        cats_sel_raw = st.multiselect(
+                            "Categorias (uma ou mais):",
+                            cats_options,
+                            default=cats_selecionadas_atual,
+                            key=multiselect_key_fixed
+                        )
                         
                         # Processar seleção do usuário
                         # IMPORTANTE: Quando o usuário seleciona categorias manualmente, NÃO atualizar o slider
@@ -1320,6 +1104,38 @@ else:
                             df_m1 = df_analise[df_analise['Período'].astype(str) == str(mes_inicial)].copy()
                             df_m2 = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
+                    # ═══ Redis por período (Bloco 1) ═══
+                    _redis_m1_val = 0.0
+                    _redis_m2_val = 0.0
+                    _redis_col = 'Custo FP' if 'Custo FP' in _df_redis_real.columns else ('Despesa Primaria' if 'Despesa Primaria' in _df_redis_real.columns else None)
+                    if not _df_redis_real.empty and _redis_col:
+                        def _filter_redis_period(df_redis, col_period, val):
+                            if col_period and col_period in df_redis.columns:
+                                return df_redis[df_redis[col_period].astype(str) == str(val)]
+                            elif 'Período' in df_redis.columns:
+                                return df_redis[df_redis['Período'].astype(str) == str(val)]
+                            return df_redis
+                        if modo_comparacao == "Mês a Mês":
+                            _redis_m1_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_inicial)[_redis_col].sum())
+                            _redis_m2_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_final)[_redis_col].sum())
+                        elif modo_comparacao == "Ano a Ano":
+                            _redis_m1_val = float(_df_redis_real[_df_redis_real['Ano'].astype(str) == str(ano_inicial)][_redis_col].sum()) if 'Ano' in _df_redis_real.columns else 0.0
+                            _redis_m2_val = float(_df_redis_real[_df_redis_real['Ano'].astype(str) == str(ano_final)][_redis_col].sum()) if 'Ano' in _df_redis_real.columns else 0.0
+                        elif modo_comparacao == "Semestre":
+                            meses_semestre_r = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
+                            _redis_m1_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_inicial)) & (_df_redis_real['Período'].isin(meses_semestre_r.get(semestre_inicial, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
+                            _redis_m2_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_final)) & (_df_redis_real['Período'].isin(meses_semestre_r.get(semestre_final, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
+                        elif modo_comparacao == "Quarter":
+                            meses_trim_r = {1: ['Janeiro', 'Fevereiro', 'Março'], 2: ['Abril', 'Maio', 'Junho'],
+                                            3: ['Julho', 'Agosto', 'Setembro'], 4: ['Outubro', 'Novembro', 'Dezembro']}
+                            _redis_m1_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_inicial)) & (_df_redis_real['Período'].isin(meses_trim_r.get(trimestre_inicial, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
+                            _redis_m2_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_final)) & (_df_redis_real['Período'].isin(meses_trim_r.get(trimestre_final, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
+                        else:
+                            _redis_m1_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_inicial)[_redis_col].sum())
+                            _redis_m2_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_final)[_redis_col].sum())
+                    _redis_delta_real = _redis_m2_val - _redis_m1_val
+
                     # Verificar se os períodos foram realmente selecionados antes de processar
                     if not periodos_validos or not meses_selecionados or len(meses_selecionados) < 2:
                         st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
@@ -1747,14 +1563,16 @@ else:
                         
                         remainder = round(total_m2_all - (valor_inicial_para_remainder + flex_volume_delta + sum(values_cats)), 2)
                         
-                        # IMPORTANTE: No modo CPU, usar bud (BUD em CPU) calculado corretamente
-                        # No modo Custo Total, usar total_m1_all diretamente (como estava antes)
+                        # ═══ Redis: ajustar totais para incluir Redis (Bloco 1) ═══
+                        # Redis é separado do df_analise; adicionar de volta nos totais do gráfico
                         if tipo_visualizacao == "CPU (Custo por Unidade)":
-                            valor_inicial_grafico = bud
-                            valor_final_grafico = total_m2_all
+                            valor_inicial_grafico = bud + (_redis_m1_val / volume_m1_graph if volume_m1_graph > 0 else 0)
+                            valor_final_grafico = total_m2_all + (_redis_m2_val / volume_m2_graph if volume_m2_graph > 0 else 0)
+                            _redis_delta_chart = valor_final_grafico - valor_inicial_grafico - flex_volume_delta - sum(values_cats) - remainder
                         else:
-                            valor_inicial_grafico = total_m1_all
-                            valor_final_grafico = total_m2_all
+                            valor_inicial_grafico = total_m1_all + _redis_m1_val
+                            valor_final_grafico = total_m2_all + _redis_m2_val
+                            _redis_delta_chart = _redis_delta_real
                         
                         # Adicionar "Outros" se remainder for significativo
                         if abs(remainder) >= 0.01:
@@ -1767,11 +1585,9 @@ else:
                         measures_waterfall_tc = ["absolute"]
                         
                         # Adicionar Flex Volume = Flex Mês 1 - Mês 1 sempre que o valor for diferente de zero
-                        # IMPORTANTE: flex_volume_delta já está calculado corretamente (em CPU ou Custo Total conforme o modo)
-                        # Usar tolerância muito pequena para garantir que apareça
                         tem_flex_volume_significativo = abs(flex_volume_delta) > 1e-10
                         if tem_flex_volume_significativo:
-                            labels_waterfall_tc.append("Flex Mês 1 - Mês 1")  # Nome da barra
+                            labels_waterfall_tc.append("Flex Mês 1 - Mês 1")
                             values_waterfall_tc.append(flex_volume_delta)
                             measures_waterfall_tc.append("relative")
                         
@@ -1779,6 +1595,12 @@ else:
                         labels_waterfall_tc.extend(labels_cats)
                         values_waterfall_tc.extend(values_cats)
                         measures_waterfall_tc.extend(["relative"] * len(labels_cats))
+                        
+                        # ═══ Barra Redis separada (Bloco 1) ═══
+                        if abs(_redis_delta_chart) > 1e-9:
+                            labels_waterfall_tc.append("Redis")
+                            values_waterfall_tc.append(_redis_delta_chart)
+                            measures_waterfall_tc.append("relative")
                         
                         # Adicionar barra final
                         labels_waterfall_tc.append(f"{mes_final}")
@@ -1799,6 +1621,7 @@ else:
                         cor_azul = "#1e6ba8"
                         cor_laranja = "#ff9800"
                         cor_amarela = "#ffd700"  # Amarelo para Flex Volume
+                        cor_roxa = "#9b59b6"     # Roxo para Redis
                         
                         # Criar anotações
                         annotations_custom = []
@@ -1837,6 +1660,8 @@ else:
                                     cor_texto = cor_amarela
                                 elif label == "Outros":
                                     cor_texto = cor_laranja
+                                elif label == "Redis":
+                                    cor_texto = cor_roxa
                                 
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt,
@@ -1981,6 +1806,34 @@ else:
                                 width=0.8,  # Mesma largura padrão do Plotly Waterfall
                                 offsetgroup='1',  # Mesmo grupo do waterfall principal
                                 alignmentgroup='1'  # Alinhar com o waterfall principal
+                            ))
+                        
+                        # Adicionar overlay para "Redis" (roxo)
+                        if "Redis" in labels_waterfall_tc:
+                            idx_redis = labels_waterfall_tc.index("Redis")
+                            valor_redis = values_waterfall_tc[idx_redis]
+                            
+                            cumulative_redis = valor_inicial_grafico
+                            for i in range(1, idx_redis):
+                                cumulative_redis += values_waterfall_tc[i]
+                            
+                            if valor_redis >= 0:
+                                base_redis = cumulative_redis
+                            else:
+                                base_redis = cumulative_redis + valor_redis
+                            
+                            fig.add_trace(go.Bar(
+                                x=['Redis'],
+                                y=[abs(valor_redis)],
+                                base=[base_redis],
+                                marker_color=cor_roxa,
+                                marker_line=dict(width=2, color=cor_roxa),
+                                opacity=1.0,
+                                showlegend=False,
+                                textposition='none',
+                                width=0.8,
+                                offsetgroup='1',
+                                alignmentgroup='1'
                             ))
                         
                         # Calcular range do eixo Y
@@ -2937,7 +2790,21 @@ else:
             # TAB BUDGET
             with tab_budget:
                 st.subheader("💰 Análise Budget")
-                
+
+                # ── Escopo de Veículo (Todos vs modelo específico) ──
+                _veic_opcoes_bud = []
+                if 'Veículo' in df_filtrado_waterfall_tc.columns:
+                    _veic_opcoes_bud = sorted(
+                        [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist() if v != 'Sem Veículo']
+                    )
+                escopo_veiculo_budget = st.radio(
+                    "🚗 Escopo de Veículo:",
+                    ["Todos (TC Total)"] + _veic_opcoes_bud,
+                    index=0, horizontal=True,
+                    key="escopo_veiculo_budget_wf",
+                    help="Todos = visão consolidada sem quebra por modelo. Selecione um modelo para análise específica.",
+                )
+
                 # Carregar dados de budget e aplicar mesmos filtros
                 try:
                     # Carregar dados de budget
@@ -2951,6 +2818,21 @@ else:
                     else:
                         # Preparar dados para análise (usar df_filtrado_waterfall_tc)
                         df_analise_budget = df_filtrado_waterfall_tc.copy() if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0 else pd.DataFrame()
+
+                        # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
+                        if 'Veículo' in df_analise_budget.columns:
+                            df_analise_budget = df_analise_budget[df_analise_budget['Veículo'] != 'Sem Veículo'].copy()
+
+                        # Aplicar escopo de veículo selecionado
+                        # ═══ Bloco 4: quando "Todos", NÃO agregar imediatamente ═══
+                        _todos_mode_budget = False
+                        if escopo_veiculo_budget == "Todos (TC Total)":
+                            _todos_mode_budget = True
+                            # NÃO chamar _agregar_sem_veiculo() aqui
+                        elif 'Veículo' in df_analise_budget.columns:
+                            df_analise_budget = df_analise_budget[
+                                df_analise_budget['Veículo'] == escopo_veiculo_budget
+                            ].copy()
 
                         # 🔒 Budget Waterfall: sempre considerar Mês/Ano quando houver Ano.
                         # Isso evita somar (ex.: Novembro/2025 + Novembro/2026) quando o usuário quer um mês específico de um ano.
@@ -2966,9 +2848,6 @@ else:
                         if df_analise_budget.empty:
                             st.warning("⚠️ Nenhum dado real disponível para comparação.")
                         else:
-                            # Seleção de período (pode selecionar múltiplos)
-                            st.markdown("### 📅 Seleção de Período")
-                            
                             # Modo de agregação
                             modo_agregacao_budget = st.radio(
                                 "Agrupar por:",
@@ -3049,8 +2928,6 @@ else:
                                 
                                 if not periodos_selecionados_budget:
                                     st.warning("⚠️ Nenhum período selecionado.")
-                                else:
-                                    st.markdown("---")
                                 
                                 # Obter dimensões de categoria disponíveis
                                 dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
@@ -3065,6 +2942,10 @@ else:
                                         index=min(1, len(dims_cat_budget)-1) if len(dims_cat_budget) > 1 else 0,
                                         key="dim_waterfall_tc_budget"
                                     )
+                                    
+                                    # ═══ Bloco 4: Lazy aggregation Budget ═══
+                                    if _todos_mode_budget and chosen_dim_budget != "Veículo":
+                                        df_analise_budget = _agregar_sem_veiculo(df_analise_budget)
                                     
                                     # Filtrar dados pelos períodos selecionados
                                     if col_mes_budget == 'Período_Ano':
@@ -3140,95 +3021,105 @@ else:
                                     if not cats_ordenadas_por_impacto_budget:
                                         cats_ordenadas_por_impacto_budget = cats_all_budget
                                     
+                                    # ═══ Detecção de troca de dimensão (Bug 5d fix) ═══
+                                    _prev_dim_key_budget = "_prev_dim_budget_waterfall_tc"
+                                    _dim_changed_budget = (
+                                        _prev_dim_key_budget in st.session_state
+                                        and st.session_state[_prev_dim_key_budget] != chosen_dim_budget
+                                    )
+                                    st.session_state[_prev_dim_key_budget] = chosen_dim_budget
+                                    
+                                    # Se a dimensão mudou, limpar multiselect para evitar categorias fantasma
+                                    _multiselect_key_budget_fixed = "cats_budget_waterfall_tc_multiselect"
+                                    if _dim_changed_budget:
+                                        for _k in list(st.session_state.keys()):
+                                            if _k.startswith("cats_budget_waterfall_tc"):
+                                                del st.session_state[_k]
+                                    
                                     # Controle: Quantidade de categorias a exibir (Top N)
-                                    # REMOVIDO limite de 20 - agora permite todas as categorias disponíveis
-                                    # Garantir que o slider tenha um range válido (min < max)
                                     if total_cats_budget <= 1:
-                                        # Se há apenas 1 categoria ou nenhuma, não mostrar slider
                                         max_cats_budget = total_cats_budget
                                         st.info(f"ℹ️ Apenas {total_cats_budget} categoria disponível para esta dimensão.")
                                     else:
-                                        default_value_budget = min(total_cats_budget, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
+                                        # Padrão _desired: ler valor desejado ANTES de renderizar o slider (Bug 5a fix)
+                                        _slider_desired_key_bud = "max_cats_budget_waterfall_tc_desired"
+                                        if _slider_desired_key_bud in st.session_state:
+                                            default_value_budget = st.session_state[_slider_desired_key_bud]
+                                            del st.session_state[_slider_desired_key_bud]
+                                            default_value_budget = max(1, min(default_value_budget, total_cats_budget))
+                                        elif _dim_changed_budget:
+                                            default_value_budget = min(total_cats_budget, 20)
+                                        else:
+                                            default_value_budget = min(total_cats_budget, 20)
+                                        
                                         max_cats_budget = st.slider(
                                             f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
                                             min_value=1,
-                                            max_value=total_cats_budget,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                                            max_value=total_cats_budget,
                                             value=default_value_budget,
                                             key="max_cats_budget_waterfall_tc"
                                         )
                                     
-                                    # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
-                                    # Se max_cats_budget = total_cats_budget, selecionar TODAS as categorias
+                                    # Selecionar top N categorias
                                     if max_cats_budget >= total_cats_budget:
-                                        top_cats_selecionadas_budget = cats_all_budget  # Todas as categorias
+                                        top_cats_selecionadas_budget = cats_all_budget
                                     else:
-                                        top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]  # Top N por impacto absoluto
+                                        top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]
                                     
-                                    # Opções de categorias
                                     cats_options_budget = ["Todos"] + cats_all_budget
-                                    
-                                    # IMPORTANTE: Filtrar top_cats_selecionadas_budget para garantir que todas existem em cats_all_budget
                                     top_cats_selecionadas_budget = [c for c in top_cats_selecionadas_budget if c in cats_all_budget]
                                     
-                                    # Verificar se o slider mudou comparando com o valor anterior
-                                    slider_key_budget_prev = f"max_cats_budget_waterfall_tc_prev"
-                                    if slider_key_budget_prev not in st.session_state:
-                                        st.session_state[slider_key_budget_prev] = max_cats_budget
+                                    # ═══ Multiselect com KEY FIXA (Bug 5b fix — padrão da aba Real) ═══
+                                    _slider_prev_key_bud = "max_cats_budget_waterfall_tc_prev"
+                                    if _slider_prev_key_bud not in st.session_state:
+                                        st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    slider_mudou_budget = st.session_state[slider_key_budget_prev] != max_cats_budget
-                                    st.session_state[slider_key_budget_prev] = max_cats_budget
+                                    slider_mudou_budget = st.session_state[_slider_prev_key_bud] != max_cats_budget
+                                    st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    # Se o slider mudou, forçar atualização do multiselect
-                                    # Usar uma chave única baseada no valor do slider para forçar recriação do widget
-                                    multiselect_key_budget = f"cats_budget_waterfall_tc_{max_cats_budget}"
-                                    
-                                    # Se o slider mudou, limpar qualquer estado anterior e usar apenas top_cats_selecionadas_budget
-                                    if slider_mudou_budget:
-                                        # Limpar todas as chaves relacionadas ao multiselect budget
-                                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("cats_budget_waterfall_tc")]
-                                        for key in keys_to_delete:
-                                            del st.session_state[key]
-                                        # Forçar uso das categorias do slider
+                                    if slider_mudou_budget or _dim_changed_budget:
                                         cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
+                                    elif _multiselect_key_budget_fixed in st.session_state:
+                                        cats_selecionadas_atual_budget = st.session_state[_multiselect_key_budget_fixed]
+                                        cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
                                     else:
-                                        # Verificar se há uma seleção salva que corresponde ao slider atual
-                                        saved_key_budget = f"cats_budget_waterfall_tc_saved_{max_cats_budget}"
-                                        if saved_key_budget in st.session_state:
-                                            cats_selecionadas_atual_budget = st.session_state[saved_key_budget]
-                                            # Verificar se ainda são válidas
-                                            cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
-                                            # Se não correspondem ao slider, usar top_cats_selecionadas_budget
-                                            if len(cats_selecionadas_atual_budget) != max_cats_budget or (max_cats_budget < total_cats_budget and not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget)):
-                                                cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                        else:
-                                            cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
                                     
-                                    # Controle: Categorias (uma ou mais)
-                                    # Usar chave única baseada no valor do slider para forçar atualização quando slider muda
+                                    # Garantir validade
+                                    cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                    if not cats_selecionadas_atual_budget:
+                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget[:min(max_cats_budget, len(top_cats_selecionadas_budget))]
+                                    
+                                    # Sanitizar session_state da chave fixa
+                                    if _multiselect_key_budget_fixed in st.session_state:
+                                        _bud_limpos = [v for v in st.session_state[_multiselect_key_budget_fixed] if v in cats_options_budget]
+                                        if not _bud_limpos:
+                                            _bud_limpos = cats_selecionadas_atual_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = _bud_limpos
+                                        cats_selecionadas_atual_budget = _bud_limpos
+                                    
+                                    # Criar multiselect com key fixa
                                     cats_sel_raw_budget = st.multiselect(
                                         "Categorias (uma ou mais):",
                                         cats_options_budget,
                                         default=cats_selecionadas_atual_budget,
-                                        key=multiselect_key_budget
+                                        key=_multiselect_key_budget_fixed
                                     )
                                     
-                                    # Quando o usuário seleciona categorias manualmente, ajustar o slider e usar todas as selecionadas
-                                    if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0 and "Todos" not in cats_sel_raw_budget:
-                                        # Usar as categorias selecionadas pelo usuário
-                                        cats_sel_budget = cats_sel_raw_budget
-                                        # Ajustar o slider para refletir o número de categorias selecionadas
-                                        num_cats_selecionadas_budget = len(cats_sel_budget)
-                                        if num_cats_selecionadas_budget != max_cats_budget:
-                                            # Atualizar o slider para refletir a seleção manual
-                                            st.session_state["max_cats_budget_waterfall_tc"] = num_cats_selecionadas_budget
-                                            # Salvar a seleção
-                                            st.session_state[f"cats_budget_waterfall_tc_saved_{num_cats_selecionadas_budget}"] = cats_sel_budget
+                                    # Processar seleção — NÃO atualizar o slider (Bug 5a fix)
+                                    if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0:
+                                        if "Todos" in cats_sel_raw_budget:
+                                            cats_sel_budget = cats_all_budget
+                                        else:
+                                            cats_sel_budget = cats_sel_raw_budget
+                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
                                     else:
-                                        # Se vazio ou "Todos", usar exatamente o que o slider indica
                                         cats_sel_budget = top_cats_selecionadas_budget
-                                        st.session_state[f"cats_budget_waterfall_tc_saved_{max_cats_budget}"] = cats_sel_budget
-                                    
-                                    st.markdown("---")
+                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
                                     
                                     # Filtrar dados pelos períodos selecionados
                                     if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget.columns:
@@ -3412,23 +3303,21 @@ else:
                                                 else:
                                                     df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                     
-                                    # Verificar se temos coluna Account
-                                    if 'Account' not in df_real_periodo.columns:
-                                        st.warning("⚠️ Coluna 'Account' não encontrada nos dados.")
+                                    # Verificar se temos a coluna da dimensão selecionada
+                                    if chosen_dim_budget not in df_real_periodo.columns:
+                                        st.warning(f"⚠️ Coluna '{chosen_dim_budget}' não encontrada nos dados.")
                                     elif 'Custo' not in df_real_periodo.columns:
                                         st.warning("⚠️ Coluna 'Custo' não encontrada nos dados. A tabela requer classificação Fixo/Variável.")
                                     else:
                                         # df_budget_periodo já foi criado acima, apenas usar
                                         
-                                        # Agrupar dados reais por Account (sem Período, pois já está filtrado)
-                                        colunas_agrupamento = ['Account', 'Custo']
-                                        if 'Type 05' in df_real_periodo.columns:
-                                            colunas_agrupamento.insert(0, 'Type 05')
-                                        if 'Type 06' in df_real_periodo.columns:
-                                            if 'Type 05' in colunas_agrupamento:
-                                                colunas_agrupamento.insert(1, 'Type 06')
-                                            else:
-                                                colunas_agrupamento.insert(0, 'Type 06')
+                                        # Agrupar dados reais pela dimensão selecionada (sem Período, pois já está filtrado)
+                                        colunas_agrupamento = [chosen_dim_budget]
+                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_real_periodo.columns:
+                                            colunas_agrupamento.append('Custo')
+                                        for _extra_col in ['Type 05', 'Type 06']:
+                                            if _extra_col != chosen_dim_budget and _extra_col in df_real_periodo.columns:
+                                                colunas_agrupamento.insert(0, _extra_col)
                                         
                                         # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall_tc
                                         # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
@@ -3447,15 +3336,13 @@ else:
                                         
                                         df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Custo FP'].sum().reset_index()
                                         
-                                        # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
-                                        colunas_agrupamento_budget = ['Account', 'Custo']
-                                        if 'Type 05' in df_budget_periodo.columns:
-                                            colunas_agrupamento_budget.insert(0, 'Type 05')
-                                        if 'Type 06' in df_budget_periodo.columns:
-                                            if 'Type 05' in colunas_agrupamento_budget:
-                                                colunas_agrupamento_budget.insert(1, 'Type 06')
-                                            else:
-                                                colunas_agrupamento_budget.insert(0, 'Type 06')
+                                        # Agrupar dados de budget pela dimensão selecionada
+                                        colunas_agrupamento_budget = [chosen_dim_budget]
+                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_budget_periodo.columns:
+                                            colunas_agrupamento_budget.append('Custo')
+                                        for _extra_col in ['Type 05', 'Type 06']:
+                                            if _extra_col != chosen_dim_budget and _extra_col in df_budget_periodo.columns:
+                                                colunas_agrupamento_budget.insert(0, _extra_col)
                                         
                                         # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
                                         # IMPORTANTE: Sempre usar df_budget_periodo que já foi filtrado pelos períodos selecionados
@@ -3599,15 +3486,13 @@ else:
                                             colunas_remover.append('_Flex_Bud_CustoFP_Custo')
                                         df_tabela_flex = df_tabela_flex.drop(columns=[col for col in colunas_remover if col in df_tabela_flex.columns])
                                         
-                                        # Agrupar mantendo Type 05 e Type 06 para estrutura hierárquica
-                                        colunas_agrupamento_tabela = ['Account', 'Custo']
-                                        if 'Type 05' in df_tabela_flex.columns:
-                                            colunas_agrupamento_tabela.insert(0, 'Type 05')
-                                        if 'Type 06' in df_tabela_flex.columns:
-                                            if 'Type 05' in colunas_agrupamento_tabela:
-                                                colunas_agrupamento_tabela.insert(1, 'Type 06')
-                                            else:
-                                                colunas_agrupamento_tabela.insert(0, 'Type 06')
+                                        # Agrupar mantendo estrutura hierárquica pela dimensão selecionada
+                                        colunas_agrupamento_tabela = [chosen_dim_budget]
+                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_tabela_flex.columns:
+                                            colunas_agrupamento_tabela.append('Custo')
+                                        for _extra_col in ['Type 05', 'Type 06']:
+                                            if _extra_col != chosen_dim_budget and _extra_col in df_tabela_flex.columns:
+                                                colunas_agrupamento_tabela.insert(0, _extra_col)
                                         
                                         # Não precisa agrupar por Período, pois já está filtrado
                                         df_tabela_total_agrupado = df_tabela_flex.groupby(colunas_agrupamento_tabela).agg({
@@ -3627,7 +3512,7 @@ else:
                                         # Filtrar linhas zeradas
                                         colunas_numericas = [col for col in df_tabela_total_agrupado.columns 
                                                             if pd.api.types.is_numeric_dtype(df_tabela_total_agrupado[col]) 
-                                                            and col not in ['Account', 'Custo', 'Type 05', 'Type 06', 'Período']]
+                                                            and col not in [chosen_dim_budget, 'Account', 'Custo', 'Type 05', 'Type 06', 'Período']]
                                         if colunas_numericas:
                                             df_tabela_total_agrupado_temp = df_tabela_total_agrupado[colunas_numericas].fillna(0)
                                             df_tabela_total_agrupado = df_tabela_total_agrupado[
@@ -3635,8 +3520,8 @@ else:
                                             ].copy()
                                         
                                         # Calcular valores para gráfico waterfall
-                                        # Agrupar por Account para o gráfico
-                                        df_grafico = df_tabela_total_agrupado.groupby('Account').agg({
+                                        # Agrupar pela dimensão selecionada para o gráfico
+                                        df_grafico = df_tabela_total_agrupado.groupby(chosen_dim_budget).agg({
                                             'BUD': 'sum',
                                             'Flex Bud - BUD': 'sum',
                                             'Flex BUD': 'sum',
@@ -3651,27 +3536,25 @@ else:
                                         flex_bud_menos_bud = float((flex_bud_total - bud_total) if pd.notna(flex_bud_total) and pd.notna(bud_total) else 0.0)
                                         total_menos_flex_bud = float((total_real - flex_bud_total) if pd.notna(total_real) and pd.notna(flex_bud_total) else 0.0)
                                         
-                                        # Calcular variações por Account (Total - Flex Bud)
+                                        # ═══ Calcular variações APENAS pelas categorias selecionadas (Bug 5c fix) ═══
+                                        # Indexar df_grafico pela dimensão para lookup rápido
+                                        _grafico_idx = df_grafico.set_index(chosen_dim_budget)['Total - Flex Bud'].to_dict()
+                                        
                                         labels_cats = []
                                         values_cats = []
-                                        for _, row in df_grafico.iterrows():
-                                            account = str(row['Account'])
-                                            delta = float(row['Total - Flex Bud'])
+                                        for cat in cats_sel_budget:
+                                            delta = float(_grafico_idx.get(cat, 0.0))
                                             if abs(delta) > 1e-9:
-                                                labels_cats.append(account)
-                                                values_cats.append(float(delta))
+                                                labels_cats.append(str(cat))
+                                                values_cats.append(delta)
                                         
                                         # Ordenar por valor absoluto
-                                        # IMPORTANTE: Não limitar pelo slider - usar todas as categorias selecionadas (cats_sel_budget)
                                         if labels_cats:
                                             sorted_idx = sorted(range(len(values_cats)), key=lambda i: abs(values_cats[i]), reverse=True)
                                             labels_cats = [labels_cats[i] for i in sorted_idx]
                                             values_cats = [values_cats[i] for i in sorted_idx]
-                                            
-                                            # NÃO limitar - usar todas as categorias selecionadas pelo usuário
-                                            # O gráfico deve refletir exatamente o que foi selecionado no multiselect
                                         
-                                        # Calcular remainder
+                                        # Calcular remainder (categorias não selecionadas vão para "Outros")
                                         remainder = round(total_real - (bud_total + flex_bud_menos_bud + sum(values_cats)), 2)
                                         
                                         # Montar estrutura do waterfall
@@ -4307,8 +4190,8 @@ else:
                                                 colunas_agrupamento_total.append('Type 05')
                                             if 'Type 06' in df_tabela_total_agrupado.columns:
                                                 colunas_agrupamento_total.append('Type 06')
-                                            if 'Account' in df_tabela_total_agrupado.columns:
-                                                colunas_agrupamento_total.append('Account')
+                                            if chosen_dim_budget in df_tabela_total_agrupado.columns and chosen_dim_budget not in colunas_agrupamento_total:
+                                                colunas_agrupamento_total.append(chosen_dim_budget)
                                             
                                             if len(colunas_agrupamento_total) > 0:
                                                 df_total_agrupado = df_tabela_total_agrupado.groupby(colunas_agrupamento_total).agg({
@@ -4471,26 +4354,20 @@ else:
                     import traceback
                     st.code(traceback.format_exc())
 
-st.markdown("---")
-
 # Função para obter mês atual em português
-def obter_mes_atual():
-    """Retorna o mês atual em português"""
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    agora = datetime.now()
-    return meses[agora.month]
-
 # Rodapé
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
+try:
+    import json as _json
+    with open('versao.json', 'r', encoding='utf-8') as _f:
+        _versao_str = _json.load(_f).get('versao', '1.91')
+except Exception:
+    _versao_str = '1.91'
+_meses_pt = {1:'Janeiro',2:'Fevereiro',3:'Março',4:'Abril',5:'Maio',6:'Junho',
+             7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'}
+_agora = datetime.now()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Documentação Completa do Sistema TC | Versão {_versao_str} | {_meses_pt[_agora.month]} {_agora.year}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

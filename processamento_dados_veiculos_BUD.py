@@ -868,6 +868,7 @@ def fase11_fp_sem_dedicada(df_principal: pd.DataFrame,
     # Agregar D&A por Oficina + Account + Período (somar todos os veículos)
     chaves = ['Oficina', 'Account', 'Período']
     df_dea_agg = df_dea.groupby(chaves, as_index=False)['D&A dedicado'].sum()
+    df_dea_agg = df_dea_agg.rename(columns={'D&A dedicado': '_dea_grupo'})
 
     count_antes = len(df_principal)
 
@@ -878,7 +879,18 @@ def fase11_fp_sem_dedicada(df_principal: pd.DataFrame,
         how='left'
     )
 
-    df_principal['D&A dedicado'] = df_principal['D&A dedicado'].fillna(0)
+    df_principal['_dea_grupo'] = df_principal['_dea_grupo'].fillna(0)
+
+    # ── Distribuir D&A pro-rata pelo Custo FP de cada linha ──
+    # Cada grupo (Oficina, Account, Período) recebe 1 total de D&A;
+    # precisamos repartir entre as N linhas do grupo.
+    _total_fp_grupo = df_principal.groupby(chaves)['Custo FP'].transform('sum')
+    df_principal['D&A dedicado'] = np.where(
+        _total_fp_grupo != 0,
+        df_principal['_dea_grupo'] * (df_principal['Custo FP'] / _total_fp_grupo),
+        0.0,
+    )
+    df_principal.drop(columns=['_dea_grupo'], inplace=True)
     df_principal['FP sem Dedicada'] = df_principal['Custo FP'] - df_principal['D&A dedicado']
 
     count_depois = len(df_principal)
@@ -1025,14 +1037,39 @@ def fase15_custo_rateado_veiculos(df_principal: pd.DataFrame,
         how='left'
     )
 
-    # Se Veículo ficou NaN, significa que aquela oficina/período não tem percentual
-    # Preencher com 'Sem Veículo' e percentual 1.0 (manter custo integral)
+    # Se Veículo ficou NaN → distribuir pro-rata entre veículos do período
     mask_sem_veiculo = df_merged['Veículo'].isna()
     if mask_sem_veiculo.any():
         n_sem = mask_sem_veiculo.sum()
-        print(f"  ⚠️ {n_sem} linhas sem veículo atribuído — mantendo custo integral")
-        df_merged.loc[mask_sem_veiculo, 'Veículo'] = 'Sem Veículo'
-        df_merged.loc[mask_sem_veiculo, 'Percentual'] = 1.0
+        print(f"  ⚠️ {n_sem} linhas sem veículo — distribuindo pro-rata")
+        df_com = df_merged[~mask_sem_veiculo].copy()
+        cols_drop = [c for c in ['Veículo', 'Percentual'] if c in df_merged.columns]
+        df_sem = df_merged[mask_sem_veiculo].drop(columns=cols_drop).copy()
+        # Distribuição média por Período
+        dist_periodo = (
+            df_pct.groupby(['Período', 'Veículo'])['Percentual']
+            .mean().reset_index()
+        )
+        soma_per = dist_periodo.groupby('Período')['Percentual'].transform('sum')
+        dist_periodo['Percentual'] = dist_periodo['Percentual'] / soma_per.replace(0, 1)
+        df_sem_expanded = pd.merge(df_sem, dist_periodo, on='Período', how='left')
+        mask_still = df_sem_expanded['Veículo'].isna()
+        if mask_still.any():
+            veiculos_unicos = df_pct['Veículo'].unique()
+            n_veic = max(1, len(veiculos_unicos))
+            linhas_orfas = df_sem_expanded[mask_still].drop(
+                columns=[c for c in ['Veículo', 'Percentual'] if c in df_sem_expanded.columns]
+            )
+            expansoes = []
+            for v in veiculos_unicos:
+                tmp = linhas_orfas.copy()
+                tmp['Veículo'] = v
+                tmp['Percentual'] = 1.0 / n_veic
+                expansoes.append(tmp)
+            df_sem_expanded = pd.concat(
+                [df_sem_expanded[~mask_still]] + expansoes, ignore_index=True
+            )
+        df_merged = pd.concat([df_com, df_sem_expanded], ignore_index=True)
 
     # Calcular custo rateado
     df_merged['Custo Rateado'] = df_merged['FP sem Dedicada'] * df_merged['Percentual']
@@ -1082,6 +1119,8 @@ def fase16_custo_fp_veiculo(df_custo_rateado: pd.DataFrame,
         # Se D&A não tem veículo, agregar por (Oficina, Account, Período)
         df_dea_veic = df_dea.groupby(chaves_dea, as_index=False)['D&A dedicado'].sum()
 
+    df_dea_veic = df_dea_veic.rename(columns={'D&A dedicado': '_dea_grupo'})
+
     # Merge D&A com custo rateado
     chaves_merge = [c for c in chaves_dea if c in df_custo_rateado.columns]
     df_merged = pd.merge(
@@ -1090,7 +1129,12 @@ def fase16_custo_fp_veiculo(df_custo_rateado: pd.DataFrame,
         on=chaves_merge,
         how='left'
     )
-    df_merged['D&A dedicado'] = df_merged['D&A dedicado'].fillna(0)
+    df_merged['_dea_grupo'] = df_merged['_dea_grupo'].fillna(0)
+
+    # ── Distribuir D&A pro-rata entre as linhas do grupo ──
+    _n_rows = df_merged.groupby(chaves_merge)['Custo Rateado'].transform('count')
+    df_merged['D&A dedicado'] = df_merged['_dea_grupo'] / _n_rows.replace(0, 1)
+    df_merged.drop(columns=['_dea_grupo'], inplace=True)
 
     # Custo FP Veículo = Rateado + D&A dedicado
     df_merged['Custo FP Veiculo'] = df_merged['Custo Rateado'] + df_merged['D&A dedicado']

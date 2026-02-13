@@ -12,7 +12,10 @@ import numpy as np
 import re
 import shutil
 from datetime import datetime, timedelta
-from versionamento import obter_versao_atual
+
+from tc_principal.ui_components import (
+    injetar_css_global, render_header, render_sidebar_global,
+)
 
 # st_aggrid é opcional: se a página for executada fora do .venv, pode não existir.
 # Mantemos a funcionalidade principal (forecast) mesmo sem AgGrid.
@@ -46,345 +49,28 @@ def _fix_mojibake_cols(df: pd.DataFrame) -> pd.DataFrame:
         df['Custo'] = df['Custo'].replace({f"Vari\ufffdvel": "Variável"})
     return df
 
-# Configuração da página
-# Função para obter mês atual em português
-def obter_mes_atual():
-    """Retorna o mês atual em português"""
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    agora = datetime.now()
-    return meses[agora.month]
+# ═══════════════════════════════════════════════════════════════
+#  UI: CSS + Header + Sidebar global
+# ═══════════════════════════════════════════════════════════════
+injetar_css_global()
+render_header()
 
-# Função para obter data e hora de atualização dos dados
-def obter_data_atualizacao_dados():
-    """Retorna a data e hora da última atualização dos arquivos de dados"""
-    try:
-        arquivos_dados = [
-            os.path.join("dados", "TC_Principal", "historico_consolidado", "df_principal_historico.parquet"),
-            os.path.join("dados", "TC_Principal", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Principal", "Forecast", "forecast_completo.parquet"),
-            os.path.join("dados", "TC_Principal", "Forecast", "forecast_historico.parquet"),
-        ]
-        
-        data_atualizacao = None
-        for arquivo in arquivos_dados:
-            if os.path.exists(arquivo):
-                try:
-                    data_modificacao = os.path.getmtime(arquivo)
-                    if data_modificacao and data_modificacao > 0:
-                        if data_atualizacao is None or data_modificacao > data_atualizacao:
-                            data_atualizacao = data_modificacao
-                except (OSError, ValueError):
-                    continue
-        
-        if data_atualizacao and data_atualizacao > 0:
-            try:
-                dt = datetime.fromtimestamp(data_atualizacao)
-                meses = {
-                    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-                    5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-                    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-                }
-                return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
-            except (ValueError, OSError):
-                return "Não disponível"
-        return None
-    except Exception:
-        return None
-
-# Cabeçalho compacto com data de atualização
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
-data_atualizacao = obter_data_atualizacao_dados()
-
-# Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
-texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
-
-st.markdown(f"""
-<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
-    <div style='flex: 1;'>{texto_esquerda}</div>
-    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# CSS para customização
-st.markdown("""
-    <style>
-        /* Reduzir títulos em 20% e evitar quebra de linha */
-        h1 {
-            /* Reduzido de 3rem para 2.4rem (20%) */
-            font-size: 2.4rem !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-        }
-        h2 {
-            /* Reduzido de 2rem para 1.6rem (20%) */
-            font-size: 1.6rem !important;
-        }
-        h3 {
-            /* Reduzido de 1.6rem para 1.28rem (20%) */
-            font-size: 1.28rem !important;
-        }
-        /* Estilos para botões: reduzir fonte e aproximar */
-        .stButton > button {
-            font-size: 0.85rem !important;
-            padding: 0.4rem 1rem !important;
-            margin-bottom: 0.3rem !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Título
 st.title("🔮 Best Estimate - Simulador (TC Veículos)")
 st.subheader("Análise preditiva e previsões de custos e volumes")
-
 st.markdown("---")
 
-# ========== CABEÇALHO PADRONIZADO (Moeda, Bandeiras, Taxas, Tipo, Fator) ==========
-import sqlite3
-from datetime import datetime
+# ── Sidebar Global (Ano, Moeda, Taxas, Tipo, Fator, Tema) ──
+cfg = render_sidebar_global('be_sim', incluir_todos=True)
 
-# Inicializar estado se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "🇧🇷 R$"
-if 'moeda_selecionada_radio' not in st.session_state:
-    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
+# Variáveis-ponte: mantém os nomes originais usados no restante do arquivo
+ano_selecionado    = cfg['ano']          # int ou "Todos"
+moeda_codigo       = cfg['moeda']        # 'BRL', 'USD' ou 'EUR'
+moeda_simbolo      = cfg['simbolo']      # 'R$', '$' ou '€'
+taxas_cambio       = cfg['taxas']        # {'BRL': 1.0, 'USD': ..., 'EUR': ...}
+tipo_visualizacao  = cfg['tipo']         # 'Custo Total' ou 'CPU (Custo por Unidade)'
+fator_conversao    = cfg['fator']        # 'Nenhum', 'K (milhares)' ou 'M (Milhões)'
 
-# URLs das bandeiras
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-# Funções de banco de dados SQLite
-def inicializar_banco_taxas():
-    """Cria o banco de dados e tabela para taxas de câmbio se não existir"""
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS taxas_cambio (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            moeda TEXT NOT NULL,
-            taxa_para_brl REAL NOT NULL,
-            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(moeda)
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-def carregar_taxas_banco():
-    """Carrega as taxas de câmbio do banco de dados SQLite"""
-    inicializar_banco_taxas()
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT moeda, taxa_para_brl FROM taxas_cambio ORDER BY data_atualizacao DESC')
-    resultados = cursor.fetchall()
-    conn.close()
-    
-    taxas = {}
-    for moeda, taxa in resultados:
-        taxas[moeda] = taxa
-    
-    # Valores padrão se não houver dados
-    if 'USD' not in taxas:
-        taxas['USD'] = 5.00
-    if 'EUR' not in taxas:
-        taxas['EUR'] = 5.50
-    
-    return taxas
-
-def salvar_taxas_banco(taxas):
-    """Salva as taxas de câmbio no banco de dados SQLite"""
-    inicializar_banco_taxas()
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    
-    for moeda, taxa in taxas.items():
-        cursor.execute('''
-            INSERT OR REPLACE INTO taxas_cambio (moeda, taxa_para_brl, data_atualizacao)
-            VALUES (?, ?, ?)
-        ''', (moeda, float(taxa), datetime.now()))
-    
-    conn.commit()
-    conn.close()
-
-# Seleção de moeda com bandeiras ao lado
-col_moeda1, col_moeda2 = st.columns([3, 1])
-
-with col_moeda1:
-    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-    
-    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-    
-    def atualizar_moeda():
-        if 'moeda_selecionada_radio' in st.session_state:
-            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
-    
-    moeda_selecionada = st.radio(
-        "",
-        opcoes_moeda,
-        index=index_moeda,
-        horizontal=True,
-        help="Selecione a moeda para exibição nos gráficos",
-        key="moeda_selecionada_radio_forecast_tc",
-        label_visibility="visible",
-        on_change=atualizar_moeda
-    )
-    
-    if st.session_state.moeda_selecionada != moeda_selecionada:
-        st.session_state.moeda_selecionada = moeda_selecionada
-
-# Obter moeda atual do session_state
-moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-flag_selecionada_eur = moeda_atual == '🇪🇺 €'
-
-with col_moeda2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Carregar taxas do banco de dados
-try:
-    taxas_cambio_banco = carregar_taxas_banco()
-except Exception as e:
-    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
-
-# Taxas de conversão
-taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
-taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
-
-# Seção de Taxas de Câmbio
-st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
-
-col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
-
-with col_taxa1:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
-    taxa_usd_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_usd_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros",
-        key="taxa_usd_para_brl_input_forecast_tc",
-        label_visibility="collapsed"
-    )
-
-with col_taxa2:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
-    taxa_eur_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_eur_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Euro em Reais Brasileiros",
-        key="taxa_eur_para_brl_input_forecast_tc",
-        label_visibility="collapsed"
-    )
-
-# Calcular taxas inversas
-taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
-taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
-
-# Salvar taxas quando alteradas
-taxa_usd_atual_key = "taxa_usd_atual_salva_forecast_tc"
-taxa_eur_atual_key = "taxa_eur_atual_salva_forecast_tc"
-
-taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
-taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
-
-if taxa_usd_mudou or taxa_eur_mudou:
-    novas_taxas = {
-        "USD": float(taxa_usd_para_brl),
-        "EUR": float(taxa_eur_para_brl)
-    }
-    try:
-        salvar_taxas_banco(novas_taxas)
-        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
-        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
-    except Exception as e:
-        st.error(f"❌ Erro ao salvar taxas: {e}")
-
-# Armazenar taxas em dicionário
-taxas_cambio = {
-    "BRL": 1.0,
-    "USD": taxa_brl_para_usd,
-    "EUR": taxa_brl_para_eur
-}
-
-# Seletores Tipo e Fator
-col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
-
-with col_tipo:
-    tipo_visualizacao = st.radio(
-        "📊 **Tipo:**",
-        ["Custo Total", "CPU (Custo por Unidade)"],
-        index=0,
-        horizontal=True,
-        key="tipo_visualizacao_top_forecast_tc"
-    )
-
-with col_fator:
-    if tipo_visualizacao == "Custo Total":
-        fator_conversao = st.radio(
-            "🔢 **Fator:**",
-            ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=1,
-            horizontal=True,
-            help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
-            key="fator_conversao_top_forecast_tc"
-        )
-    else:
-        fator_conversao = None
-
-# Obter código e símbolo da moeda
-moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-if moeda_selecionada == "🇧🇷 R$":
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-elif moeda_selecionada == "🇺🇸 $":
-    moeda_codigo = "USD"
-    moeda_simbolo = "$"
-elif moeda_selecionada == "🇪🇺 €":
-    moeda_codigo = "EUR"
-    moeda_simbolo = "€"
-else:
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-
-# Funções de conversão de moeda
+# Funções de conversão de moeda (usadas no restante do arquivo)
 def converter_moeda(valor, moeda_destino, taxas):
     """Converte valor de R$ (BRL) para a moeda de destino"""
     if valor is None or pd.isna(valor):
@@ -393,41 +79,6 @@ def converter_moeda(valor, moeda_destino, taxas):
         return valor
     taxa = taxas.get(moeda_destino, 1.0)
     return valor * taxa
-
-def converter_coluna_moeda(df, coluna, moeda_destino, taxas):
-    """Converte uma coluna inteira de R$ para outra moeda"""
-    if coluna not in df.columns:
-        return df
-    if moeda_destino == "BRL":
-        return df
-    df = df.copy()
-    df[coluna] = df[coluna].apply(lambda x: converter_moeda(x, moeda_destino, taxas))
-    return df
-
-def obter_simbolo_moeda(moeda_codigo):
-    """Retorna o símbolo da moeda"""
-    simbolos = {
-        "BRL": "R$",
-        "USD": "$",
-        "EUR": "€"
-    }
-    return simbolos.get(moeda_codigo, "R$")
-
-st.markdown("---")
-
-# Função auxiliar para listar anos disponíveis
-def listar_anos_disponiveis():
-    """Lista todos os anos disponíveis nas pastas de dados TC Veículos"""
-    pasta_dados = os.path.join("dados", "TC_Principal")
-    anos_disponiveis = []
-    
-    if os.path.exists(pasta_dados):
-        for item in os.listdir(pasta_dados):
-            caminho_item = os.path.join(pasta_dados, item)
-            if os.path.isdir(caminho_item) and item.isdigit():
-                anos_disponiveis.append(int(item))
-    
-    return sorted(anos_disponiveis, reverse=True)  # Mais recente primeiro
 
 # Função auxiliar para encontrar arquivo parquet na ordem de prioridade
 def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
@@ -487,46 +138,6 @@ def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
         return nome_arquivo
     
     return None
-
-# Filtros na sidebar - ANTES de carregar dados
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📅 Seleção de Ano**")
-
-# Listar anos disponíveis
-anos_disponiveis = listar_anos_disponiveis()
-opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
-
-# Inicializar session_state para manter valores dos filtros
-if 'filtro_ano_simulador_tc' not in st.session_state:
-    st.session_state.filtro_ano_simulador_tc = "Todos"
-
-# Seletor de ano
-ano_selecionado = st.sidebar.selectbox(
-    "Selecione o ano:",
-    options=opcoes_ano,
-    index=opcoes_ano.index(st.session_state.filtro_ano_simulador_tc) if st.session_state.filtro_ano_simulador_tc in opcoes_ano else 0,
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
-    key="filtro_ano_simulador_selectbox_tc"
-)
-# Atualizar session_state
-st.session_state.filtro_ano_simulador_tc = ano_selecionado
-
-st.sidebar.markdown("---")
-
-# Seletor de tipo de visualização (mesma lógica do TC_Principal)
-st.sidebar.markdown("**📊 Tipo de Visualização**")
-tipo_visualizacao = st.sidebar.radio(
-    "Selecione o tipo:",
-    ["Custo Total", "CPU (Custo por Unidade)"],
-    index=0
-)
-st.sidebar.markdown("---")
-
-# Botão para limpar cache (útil após mudanças no código)
-if st.sidebar.button("🗑️ Limpar Cache", help="Limpa o cache do Streamlit para forçar recálculo"):
-    st.cache_data.clear()
-    st.sidebar.success("✅ Cache limpo! Recarregue a página.")
-st.sidebar.markdown("---")
 
 # 🔧 OTIMIZAÇÃO: Sincronização Excel/Parquet removida do início
 # A sincronização só acontece quando o botão "Aplicar Configurações" é clicado,
@@ -741,7 +352,7 @@ def get_oficinas_budget_opcoes(ano_selecionado_param):
 
         if os.path.exists(caminho_budget_vol):
             try:
-                df_vol = pd.read_parquet(caminho_budget_vol, columns=["Oficina", "Ano"])
+                df_vol = pd.read_parquet(caminho_budget_vol)
             except Exception:
                 df_vol = pd.read_parquet(caminho_budget_vol)
 
@@ -1091,7 +702,9 @@ if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
                 # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir (mesma lógica do TC_Principal linha 544-547)
                 # O filtro de ano já foi aplicado no load_data, então quando um ano específico está selecionado,
                 # o df_filtrado já está filtrado por aquele ano. Incluir 'Ano' no agrupamento garante consistência.
-                colunas_agrupamento = ['Oficina', 'Período']
+                colunas_agrupamento = ['Período']
+                if 'Oficina' in df_filtrado.columns:
+                    colunas_agrupamento.insert(0, 'Oficina')
                 if tem_ano:
                     colunas_agrupamento.append('Ano')
                 if tem_veiculo:
@@ -1116,7 +729,9 @@ if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
 
                     # Agrupar Volume incluindo Veículo e Ano
                     # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir (mesma lógica do TC_Principal)
-                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    colunas_agrupamento_vol = ['Período']
+                    if 'Oficina' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.insert(0, 'Oficina')
                     if tem_ano and 'Ano' in df_vol_calc.columns:
                         colunas_agrupamento_vol.append('Ano')
                     if 'Veículo' in df_vol_calc.columns:
@@ -1127,14 +742,16 @@ if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
                     )['Volume'].sum()
 
                     # Fazer merge incluindo Veículo e Ano
+                    # Usar interseção de colunas para merge seguro
+                    colunas_merge_cpu = [c for c in colunas_agrupamento if c in df_vol_agrupado.columns]
                     df_cpu = pd.merge(
                         df_total_agrupado,
                         df_vol_agrupado,
-                        on=colunas_agrupamento,
+                        on=colunas_merge_cpu,
                         how='left'
                     )
                 else:
-                    # Agrupar Total por Oficina, Período e Ano (se existir)
+                    # Agrupar Total por Período e Ano (se existir)
                     if 'Custo FP' in df_filtrado.columns:
                         df_total_agrupado = df_filtrado.groupby(
                             colunas_agrupamento,
@@ -1149,9 +766,11 @@ if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
                             columns={'Despesa Primaria': 'Custo FP'}, inplace=True
                         )
                     
-                    # Agrupar Volume por Oficina, Período e Ano (se existir)
-                    # 🔧 CORREÇÃO: Incluir 'Ano' no groupby se existir (mesma lógica do TC_Principal)
-                    colunas_agrupamento_vol = ['Oficina', 'Período']
+                    # Agrupar Volume por Período e Ano (se existir)
+                    # 🔧 CORREÇÃO: Incluir 'Oficina' e 'Ano' no groupby apenas se existirem
+                    colunas_agrupamento_vol = ['Período']
+                    if 'Oficina' in df_vol_calc.columns:
+                        colunas_agrupamento_vol.insert(0, 'Oficina')
                     if tem_ano and 'Ano' in df_vol_calc.columns:
                         colunas_agrupamento_vol.append('Ano')
                     
@@ -1159,18 +778,21 @@ if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
                         colunas_agrupamento_vol, as_index=False
                     )['Volume'].sum()
 
-                    # Fazer merge
+                    # Fazer merge usando interseção de colunas
+                    colunas_merge_cpu = [c for c in colunas_agrupamento if c in df_vol_agrupado.columns]
                     df_cpu = pd.merge(
                         df_total_agrupado,
                         df_vol_agrupado,
-                        on=colunas_agrupamento,
+                        on=colunas_merge_cpu,
                         how='left'
                     )
 
                     # Se df_filtrado tem Veículo mas df_vol não, expandir
                     if tem_veiculo:
                         # Fazer merge com df_filtrado para obter Veículo e Ano
-                        colunas_merge_veiculo = ['Oficina', 'Período', 'Veículo']
+                        colunas_merge_veiculo = ['Período', 'Veículo']
+                        if 'Oficina' in df_filtrado.columns:
+                            colunas_merge_veiculo.insert(0, 'Oficina')
                         if tem_ano:
                             colunas_merge_veiculo.append('Ano')
                         
@@ -1237,7 +859,7 @@ else:
 # PROBLEMA IDENTIFICADO: df_visualizacao pode ter múltiplas linhas
 # para a mesma combinação de Oficina+Período+Veículo, causando duplicação no merge
 # SOLUÇÃO: Agrupar df_visualizacao ANTES do merge, igual ao modo CPU faz com df_total_agrupado
-if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.columns and 'Período' in df_visualizacao.columns:
+if 'Veículo' in df_visualizacao.columns and 'Período' in df_visualizacao.columns:
     # 🔧 CORREÇÃO CRÍTICA: Carregar volume da MESMA fonte e com a MESMA lógica usada no forecast
     # O volume deve ser exatamente o mesmo usado para calcular o forecast linha a linha
     # Fonte: C:\GIT\TC\dados\Forecast\df_vol_historico.parquet (mesmo arquivo usado no forecast)
@@ -1290,7 +912,9 @@ if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.column
             # 🔧 CORREÇÃO: Usar a MESMA lógica do volume_por_mes do forecast (linha 5244-5248)
             # Agrupar por ['Oficina', 'Veículo', 'Período'] e incluir 'Ano' se existir
             # Este é o mesmo agrupamento usado no forecast, garantindo consistência
-            colunas_agrupamento_vol = ['Oficina', 'Veículo', 'Período']
+            colunas_agrupamento_vol = ['Veículo', 'Período']
+            if 'Oficina' in df_vol_calc.columns:
+                colunas_agrupamento_vol.insert(0, 'Oficina')
             if tem_ano and 'Ano' in df_vol_calc.columns:
                 colunas_agrupamento_vol.append('Ano')
             
@@ -4083,7 +3707,7 @@ if aplicar_config_forecast:
             df_vol_historico_para_media = load_volume_historico_data()
             df_vol_para_calculo_media = None
             if df_vol_historico_para_media is not None and not df_vol_historico_para_media.empty:
-                if 'Oficina' in df_vol_historico_para_media.columns and 'Veículo' in df_vol_historico_para_media.columns and 'Volume' in df_vol_historico_para_media.columns:
+                if 'Volume' in df_vol_historico_para_media.columns:
                     # Filtrar volume pelos mesmos períodos e ano usados para custo
                     df_vol_para_calculo_media = df_vol_historico_para_media.copy()
                     
@@ -4271,7 +3895,7 @@ if aplicar_config_forecast:
             if df_vol_historico is not None and not df_vol_historico.empty:
                 # Calcular volume médio histórico (MESMA LÓGICA DO FORECAST COPY)
                 # O volume_base será calculado a partir dos períodos selecionados para média
-                if 'Oficina' in df_vol_historico.columns and 'Veículo' in df_vol_historico.columns and 'Volume' in df_vol_historico.columns:
+                if 'Volume' in df_vol_historico.columns:
                     # Filtrar volumes pelos mesmos períodos usados para calcular a média de custo
                     if periodos_para_media and 'Período' in df_vol_historico.columns:
                         # 🔧 CORREÇÃO CRÍTICA: Filtrar por ano PRIMEIRO, antes de filtrar por períodos
@@ -4404,12 +4028,20 @@ if aplicar_config_forecast:
                                     and df_vol_para_media['Veículo'].notna().any()
                                 )
 
+                                tem_oficina_no_vol_para_media = 'Oficina' in df_vol_para_media.columns
+
                                 if tem_veiculo_no_vol_para_media:
-                                    colunas_groupby_vol_medio = ['Oficina', 'Veículo', 'Período']
-                                    chaves_volume_base = ['Oficina', 'Veículo']
+                                    colunas_groupby_vol_medio = ['Veículo', 'Período']
+                                    chaves_volume_base = ['Veículo']
+                                    if tem_oficina_no_vol_para_media:
+                                        colunas_groupby_vol_medio.insert(0, 'Oficina')
+                                        chaves_volume_base.insert(0, 'Oficina')
                                 else:
-                                    colunas_groupby_vol_medio = ['Oficina', 'Período']
-                                    chaves_volume_base = ['Oficina']
+                                    colunas_groupby_vol_medio = ['Período']
+                                    chaves_volume_base = []
+                                    if tem_oficina_no_vol_para_media:
+                                        colunas_groupby_vol_medio.insert(0, 'Oficina')
+                                        chaves_volume_base.append('Oficina')
 
                                 if 'Ano' in df_vol_para_media.columns:
                                     colunas_groupby_vol_medio.append('Ano')
@@ -4429,9 +4061,11 @@ if aplicar_config_forecast:
                                 volume_base.rename(columns={'Volume': 'Volume_Medio_Historico'}, inplace=True)
 
                                 if 'Veículo' in chaves_volume_base:
-                                    adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} combinações Oficina/Veículo")
+                                    adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} combinações {'Oficina/' if 'Oficina' in chaves_volume_base else ''}Veículo")
+                                elif chaves_volume_base:
+                                    adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} grupos")
                                 else:
-                                    adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} Oficinas")
+                                    adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} linhas")
                             else:
                                 adicionar_mensagem("warning", f"⚠️ Volume: Nenhum dado após filtro por ano {ano_referencia_media}")
                                 volume_base = None
@@ -4442,20 +4076,32 @@ if aplicar_config_forecast:
                             'Veículo' in df_vol_historico.columns
                             and df_vol_historico['Veículo'].notna().any()
                         )
+                        tem_oficina_fallback = 'Oficina' in df_vol_historico.columns
                         if tem_veiculo_no_vol_historico:
-                            volume_base = df_vol_historico.groupby(['Oficina', 'Veículo'], as_index=False, dropna=False)['Volume'].mean()
-                        else:
+                            _gb_cols = (['Oficina', 'Veículo'] if tem_oficina_fallback else ['Veículo'])
+                            volume_base = df_vol_historico.groupby(_gb_cols, as_index=False, dropna=False)['Volume'].mean()
+                        elif tem_oficina_fallback:
                             volume_base = df_vol_historico.groupby(['Oficina'], as_index=False, dropna=False)['Volume'].mean()
+                        else:
+                            volume_base = pd.DataFrame({'Volume_Medio_Historico': [df_vol_historico['Volume'].mean()]})
                         volume_base.rename(columns={'Volume': 'Volume_Medio_Historico'}, inplace=True)
             
             # Fazer merge com volume_base para obter Volume_Medio_Historico (MESMA LÓGICA DO FORECAST COPY linha 6226-6235)
             if volume_base is not None and not volume_base.empty:
-                colunas_merge_vol = ['Oficina', 'Veículo'] if 'Veículo' in volume_base.columns else ['Oficina']
-                df_medias_linha = df_medias_linha.merge(
-                    volume_base[colunas_merge_vol + ['Volume_Medio_Historico']],
-                    on=colunas_merge_vol,
-                    how='left'
-                )
+                # Determinar colunas de merge dinamicamente
+                _possible_merge = ['Oficina', 'Veículo']
+                colunas_merge_vol = [c for c in _possible_merge if c in volume_base.columns and c in df_medias_linha.columns]
+                if colunas_merge_vol:
+                    df_medias_linha = df_medias_linha.merge(
+                        volume_base[colunas_merge_vol + ['Volume_Medio_Historico']],
+                        on=colunas_merge_vol,
+                        how='left'
+                    )
+                elif 'Volume_Medio_Historico' in volume_base.columns:
+                    # Sem colunas de merge — atribuir valor único
+                    df_medias_linha['Volume_Medio_Historico'] = volume_base['Volume_Medio_Historico'].iloc[0]
+                else:
+                    df_medias_linha['Volume_Medio_Historico'] = 0.0
                 df_medias_linha['Volume_Medio_Historico'] = df_medias_linha['Volume_Medio_Historico'].fillna(0.0)
             else:
                 df_medias_linha['Volume_Medio_Historico'] = 0.0
@@ -4545,7 +4191,11 @@ if aplicar_config_forecast:
                         if col_txt in df_vol_para_por_mes.columns:
                             df_vol_para_por_mes[col_txt] = df_vol_para_por_mes[col_txt].astype(str).str.strip()
 
-                    colunas_groupby_vol_por_mes = ['Oficina', 'Veículo', 'Período']
+                    colunas_groupby_vol_por_mes = ['Período']
+                    if 'Oficina' in df_vol_para_por_mes.columns:
+                        colunas_groupby_vol_por_mes.insert(0, 'Oficina')
+                    if 'Veículo' in df_vol_para_por_mes.columns:
+                        colunas_groupby_vol_por_mes.insert(-1, 'Veículo')
                     if 'Ano' in df_vol_para_por_mes.columns:
                         colunas_groupby_vol_por_mes.append('Ano')
                     # 🔧 CORREÇÃO: preservar grupos com 'Veículo' NaN (ex.: Ano 2025),
@@ -4956,18 +4606,26 @@ if aplicar_config_forecast:
                             'Veículo' in vol_mes_df.columns
                             and vol_mes_df['Veículo'].notna().any()
                         )
+                        usa_oficina_no_mes = 'Oficina' in vol_mes_df.columns
                         
+                        # Construir colunas de groupby e chave dinamicamente
+                        _gb_vol_cols = []
+                        if usa_oficina_no_mes:
+                            _gb_vol_cols.append('Oficina')
                         if usa_veiculo_no_mes:
-                            vol_mes_df = vol_mes_df.groupby(['Oficina', 'Veículo'], as_index=False, dropna=False)['Volume'].sum()
-                            adicionar_mensagem("info", f"📊 Volume encontrado para '{periodo}': {len(vol_mes_df):,} combinações Oficina/Veículo")
+                            _gb_vol_cols.append('Veículo')
+                        
+                        if _gb_vol_cols:
+                            vol_mes_df = vol_mes_df.groupby(_gb_vol_cols, as_index=False, dropna=False)['Volume'].sum()
+                            adicionar_mensagem("info", f"📊 Volume encontrado para '{periodo}': {len(vol_mes_df):,} combinações {'/'.join(_gb_vol_cols)}")
                             
-                            volume_dict = {(str(r['Oficina']), str(r['Veículo'])): float(r['Volume']) for _, r in vol_mes_df.iterrows()}
+                            volume_dict = {tuple(str(r[c]) for c in _gb_vol_cols): float(r['Volume']) for _, r in vol_mes_df.iterrows()}
                             
                             volume_valores = []
                             volume_encontrado_count = 0
                             volume_medio_count = 0
                             for idx in df_forecast_completo.index:
-                                chave = (str(df_forecast_completo.loc[idx, 'Oficina']), str(df_forecast_completo.loc[idx, 'Veículo']))
+                                chave = tuple(str(df_forecast_completo.loc[idx, c]) if c in df_forecast_completo.columns else '' for c in _gb_vol_cols)
                                 if chave in volume_dict:
                                     volume_valores.append(volume_dict[chave])
                                     volume_encontrado_count += 1
@@ -4977,24 +4635,12 @@ if aplicar_config_forecast:
                                 else:
                                     volume_valores.append(0.0)
                         else:
-                            vol_mes_df = vol_mes_df.groupby(['Oficina'], as_index=False, dropna=False)['Volume'].sum()
-                            adicionar_mensagem("info", f"📊 Volume encontrado para '{periodo}': {len(vol_mes_df):,} Oficinas (sem Veículo no volume)")
-
-                            volume_dict = {(str(r['Oficina']),): float(r['Volume']) for _, r in vol_mes_df.iterrows()}
-
-                            volume_valores = []
-                            volume_encontrado_count = 0
+                            # Nenhuma coluna de groupby — usar volume total do mês
+                            vol_total = float(vol_mes_df['Volume'].sum())
+                            adicionar_mensagem("info", f"📊 Volume total para '{periodo}': {vol_total:,.0f}")
+                            volume_valores = [vol_total] * len(df_forecast_completo)
+                            volume_encontrado_count = len(df_forecast_completo)
                             volume_medio_count = 0
-                            for idx in df_forecast_completo.index:
-                                chave = (str(df_forecast_completo.loc[idx, 'Oficina']),)
-                                if chave in volume_dict:
-                                    volume_valores.append(volume_dict[chave])
-                                    volume_encontrado_count += 1
-                                elif 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                                    volume_valores.append(float(df_forecast_completo.loc[idx, 'Volume_Medio_Historico']))
-                                    volume_medio_count += 1
-                                else:
-                                    volume_valores.append(0.0)
                         
                         volume_mes_serie = pd.Series(volume_valores, index=df_forecast_completo.index)
                         adicionar_mensagem("info", f"📊 Volume para '{periodo}': {volume_encontrado_count:,} encontrados, {volume_medio_count:,} usando médio histórico")
@@ -6124,25 +5770,20 @@ if aplicar_config_forecast:
     # As mensagens serão exibidas no início da próxima execução também
     st.rerun()
 
-# Função para obter mês atual em português
-def obter_mes_atual():
-    """Retorna o mês atual em português"""
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    agora = datetime.now()
-    return meses[agora.month]
-
 # Rodapé
 st.markdown("---")
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
+try:
+    import json as _json
+    with open('versao.json', 'r', encoding='utf-8') as _f:
+        _versao_str = _json.load(_f).get('versao', '1.91')
+except Exception:
+    _versao_str = '1.91'
+_meses_pt = {1:'Janeiro',2:'Fevereiro',3:'Março',4:'Abril',5:'Maio',6:'Junho',
+             7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro'}
+_agora = datetime.now()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Documentação Completa do Sistema TC | Versão {_versao_str} | {_meses_pt[_agora.month]} {_agora.year}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

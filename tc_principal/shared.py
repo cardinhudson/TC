@@ -477,7 +477,7 @@ def aplicar_fator(valor, fator_sel):
     """Aplica fator de conversão K/M a um valor."""
     if fator_sel == 'K (milhares)':
         return valor / 1_000
-    elif fator_sel == 'M (milhões)':
+    elif fator_sel in ('M (Milhões)', 'M (milhões)'):
         return valor / 1_000_000
     return valor
 
@@ -497,7 +497,7 @@ def obter_sufixo_fator(fator_sel):
     """Retorna sufixo para exibição (ex: ' K', ' M', '')."""
     if fator_sel == 'K (milhares)':
         return ' K'
-    elif fator_sel == 'M (milhões)':
+    elif fator_sel in ('M (Milhões)', 'M (milhões)'):
         return ' M'
     return ''
 

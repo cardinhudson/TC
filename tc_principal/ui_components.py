@@ -269,10 +269,16 @@ def is_dark_theme():
 #  SIDEBAR GLOBAL
 # ═══════════════════════════════════════════════════════════════
 
-def render_sidebar_global(page_key):
+def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None):
     """
     Renderiza elementos globais da sidebar:
     Ano, Moeda (com bandeiras), Taxas, Tipo, Fator, Tema.
+
+    Args:
+        page_key: chave única da página (ex: 'home', 'wf')
+        incluir_todos: se True, adiciona opção "Todos" ao seletor de ano
+        descobrir_anos_fn: callable que retorna lista de anos disponíveis.
+                           Se None, usa descobrir_anos_tc_principal().
 
     Retorna dict: {ano, moeda, simbolo, taxas, tipo, fator}
     """
@@ -280,13 +286,15 @@ def render_sidebar_global(page_key):
         st.header("⚙️ Configurações")
 
         # ── Ano ──
-        anos = descobrir_anos_tc_principal()
+        _fn_anos = descobrir_anos_fn or descobrir_anos_tc_principal
+        anos = _fn_anos()
         if not anos:
-            st.error("❌ Nenhum dado processado em dados/*/TC_Principal/BUD/")
+            st.error("❌ Nenhum dado processado encontrado.")
             st.info("💡 Execute o processamento na página Extração de Dados.")
             st.stop()
 
-        ano = st.selectbox("📅 Ano", anos, index=0, key=f'{page_key}_ano')
+        opcoes_ano = ["Todos"] + list(anos) if incluir_todos else list(anos)
+        ano = st.selectbox("📅 Ano", opcoes_ano, index=0, key=f'{page_key}_ano')
 
         st.divider()
 
@@ -407,7 +415,7 @@ def render_sidebar_global(page_key):
         # ── Fator ──
         if tipo == "Custo Total":
             fator = st.radio(
-                "🔢 Fator", ["Nenhum", "K (milhares)", "M (milhões)"],
+                "🔢 Fator", ["Nenhum", "K (milhares)", "M (Milhões)"],
                 index=1,  # Padrão: K (milhares)
                 horizontal=True, key=f'{page_key}_fator',
             )

@@ -28,6 +28,9 @@ from tc_core.finance.currency_db import (
 )
 
 from tc_ext.normalizacao import padronizar_colunas
+
+# ═══ Bloco 2: Sidebar global ═══
+from tc_principal.ui_components import render_sidebar_global
 from tc_ext.metricas_tc_ext import cpu_por_chaves
 
 
@@ -646,72 +649,25 @@ if is_main_page:
 
     st.markdown("---")
 
-    # Inicializar estado se não existir
-    if 'moeda_selecionada' not in st.session_state:
-        st.session_state.moeda_selecionada = "🇧🇷 R$"
-    # Inicializar moeda_selecionada_radio também para evitar erro no callback
-    if 'moeda_selecionada_radio' not in st.session_state:
-        st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
-
-    # URLs das bandeiras
-    bandeira_brasil_url = "https://flagcdn.com/br.svg"
-    bandeira_eua_url = "https://flagcdn.com/us.svg"
-    bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-    # Seleção de moeda com bandeiras ao lado (sem botões, apenas visual)
-    col_moeda1, col_moeda2 = st.columns([3, 1])
-
-    with col_moeda1:
-        st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-        opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-        
-        # SEMPRE usar o valor mais atual do session_state para calcular o índice
-        moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-        index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-        
-        # Função callback para garantir sincronização imediata
-        def atualizar_moeda():
-            # O valor já está em st.session_state.moeda_selecionada_radio após o clique
-            # Verificar se a chave existe antes de acessar
-            if 'moeda_selecionada_radio' in st.session_state:
-                st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
-        
-        moeda_selecionada = st.radio(
-            "Moeda",
-            opcoes_moeda,
-            index=index_moeda,
-            horizontal=True,
-            help="Selecione a moeda para exibição nos gráficos",
-            key="moeda_selecionada_radio",
-            label_visibility="collapsed",
-            on_change=atualizar_moeda
-        )
-        
-        # Garantir que o estado esteja sincronizado (backup caso on_change não funcione)
-        if st.session_state.moeda_selecionada != moeda_selecionada:
-            st.session_state.moeda_selecionada = moeda_selecionada
-
-    # Obter moeda atual do session_state (sempre atualizado)
-    moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-    flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-    flag_selecionada_eur = moeda_atual == '🇪🇺 €'
-
-    with col_moeda2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
-        st.markdown(f"""
-        <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-                <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
-            </div>
-            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-                <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-            </div>
-            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-                <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    # ═══ Bloco 2: Sidebar global — substitui widgets inline de Moeda/Tipo/Fator/Ano/Tema ═══
+    _cfg_ext = render_sidebar_global(
+        'tc_ext_home',
+        incluir_todos=True,
+        descobrir_anos_fn=_core_listar_anos_disponiveis,
+    )
+    # Bridge: mapear para variáveis que o restante do código espera
+    ano_selecionado = str(_cfg_ext['ano'])
+    moeda_codigo = _cfg_ext['moeda']
+    moeda_simbolo = _cfg_ext['simbolo']
+    tipo_visualizacao = _cfg_ext['tipo']
+    fator_conversao = _cfg_ext['fator'] if _cfg_ext['fator'] != "Nenhum" else None
+    taxas_cambio = _cfg_ext['taxas']
+    # Manter session_state para compatibilidade com código legado
+    _moeda_to_emoji = {"BRL": "🇧🇷 R$", "USD": "🇺🇸 $", "EUR": "🇪🇺 €"}
+    st.session_state.moeda_selecionada = _moeda_to_emoji.get(moeda_codigo, "🇧🇷 R$")
+    st.session_state.moeda_selecionada_radio = st.session_state.moeda_selecionada
+    st.session_state.filtro_ano_tc_ext = ano_selecionado
+    moeda_selecionada = st.session_state.moeda_selecionada
 
 # Funções de banco de dados SQLite (definir ANTES de usar - disponíveis para todas as páginas)
 def inicializar_banco_taxas():
