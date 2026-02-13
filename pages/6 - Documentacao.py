@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import json
@@ -32,9 +32,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -179,7 +179,16 @@ def carregar_foto_base64(foto_base64):
 st.sidebar.markdown("## 📑 Índice")
 st.sidebar.markdown("---")
 
-# Criar quatro índices no sidebar
+# Seletor de módulo (TC Extendido ou TC Veículos)
+modulo_doc = st.sidebar.radio(
+    "Módulo:",
+    ["📊 TC Extendido", "🚗 TC Veículos"],
+    horizontal=True,
+    key="modulo_documentacao"
+)
+st.sidebar.markdown("---")
+
+# Criar índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
     [
@@ -408,6 +417,147 @@ if indice_selecionado == "👥 Equipe do Projeto":
     - 📦 **Formato Parquet:** Dados comprimidos e otimizados
     - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
     """)
+
+# ==========================================
+# TC VEÍCULOS: REGRAS E CÁLCULO
+# ==========================================
+elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC Veículos":
+    st.header("📐 Regras e Cálculo — TC Veículos")
+
+    st.info(
+        "📌 **Módulo TC Veículos** — Regras de cálculo específicas para "
+        "análise de custo de produção de veículos."
+    )
+
+    with st.expander("💰 **Composição de Custos**", expanded=True):
+        st.markdown("""
+        ### 🔗 Cadeia de Custos TC Veículos
+
+        ```
+        Despesa Primária
+          + Custo FA (Fluxo Anexo × Rateio FA)
+          = Custo FP (Fabricação Principal)
+
+        Custo FP = Despesa Primária + Custo FA
+        D&A Dedicado = parcela de D&A atribuída diretamente ao veículo
+        FP sem Dedicada = Custo FP − D&A Dedicado
+        ```
+
+        **Colunas Monetárias** (recebem conversão de moeda e fator):
+        - `Despesa Primaria`, `Custo FA`, `Custo FP`, `D&A dedicado`, `FP sem Dedicada`
+
+        **Redis** — Não é uma coluna. Identificado por linhas onde `Account = 'Redis'`:
+        > Redis = Σ Despesa Primária onde Account = Redis
+        """)
+
+    with st.expander("🚗 **Rateio por Veículo**", expanded=False):
+        st.markdown("""
+        ### 📊 Processo de Rateio
+
+        O custo da oficina é **rateado** aos veículos proporcionalmente ao **tempo de produção**:
+
+        - **Percentual(v,o)** = TempoVeic(v,o) / Σ TempoVeic(v,o)
+        - **CustoRateado(v,o)** = FPsemDedicada(o) × Percentual(v,o)
+        - **CustoFPVeiculo(v,o)** = CustoRateado(v,o) + D&A Dedicado(v,o)
+
+        **Dados Consolidados vs Rateados:**
+
+        | Seleção | Fonte BUD | Fonte Real |
+        |---------|-----------|------------|
+        | Todos | `df_principal_BUD.parquet` | `df_principal.parquet` |
+        | Veículo específico | `df_veiculos_custo_fp_BUD.parquet` | `df_veiculos_custo_fp.parquet` |
+
+        > Quando **Veículo = "Todos"**: dados consolidados.
+        > Quando **Veículo = modelo específico**: dados rateados com `Custo FP Veiculo`.
+        """)
+
+    with st.expander("📊 **Flex Budget**", expanded=False):
+        st.markdown("""
+        ### 🔄 Conceito
+
+        O Budget Flex ajusta o orçamento pela proporção de volume realizado:
+        - Custos **fixos** permanecem iguais ao Budget
+        - Custos **variáveis** são ajustados pela proporção de volume
+
+        ### 📐 Fórmulas
+
+        - **Proporção** = Volume Realizado / Volume Budget
+        - **Flex fixo** = BUD fixo (sem alteração)
+        - **Flex variável** = BUD variável × Proporção
+        - **Flex total** = Flex fixo + Flex variável
+
+        ### 🏷️ Classificação Fixo/Variável
+
+        A coluna `Custo` determina a classificação:
+        - Valores que começam com `"Fix"` (case-insensitive) → **Fixo**
+        - Todos os demais → **Variável**
+
+        ```python
+        mask_fixo = df['Custo'].str.lower().str.startswith('fix')
+        ```
+        """)
+
+    with st.expander("📈 **CPU (Custo por Unidade)**", expanded=False):
+        st.markdown("""
+        ### 💲 Fórmula
+
+        **CPU = Custo Total / Volume Total**
+
+        Com proteção contra divisão por zero:
+        ```python
+        CPU = np.where(volume != 0, custo / volume, 0.0)
+        ```
+
+        **Quando o tipo de visualização é CPU:**
+        - Cada métrica é dividida pelo volume total
+        - O fator K/M **não é aplicado** (sempre "Nenhum")
+        - Volumes de BUD e Actual são usados conforme o contexto
+        """)
+
+    with st.expander("🎯 **KPIs do TC Veículos**", expanded=False):
+        st.markdown("""
+        ### 📊 KPIs do Topo (fora das tabs)
+
+        | KPI | Fórmula |
+        |-----|---------|
+        | Desp. Primária | Σ Despesa Primaria |
+        | Custo FA | Σ Custo FA |
+        | Redis | Σ Despesa Primaria (Account = Redis) |
+        | Custo FP | Σ Custo FP |
+        | D&A Dedicada | Σ D&A dedicado |
+        | FP sem Dedicada | Σ FP sem Dedicada |
+
+        ### 📊 KPIs do Resumo TC Veículos
+
+        | KPI | Fórmula |
+        |-----|---------|
+        | BUD | BUD fixo + BUD variável |
+        | Flex Bud − BUD | Flex total − BUD total |
+        | Flex BUD | BUD fixo + BUD variável × Proporção |
+        | Real − Flex Bud | Real total − Flex total |
+        | Real | Σ Custo FP Real |
+        | Real / Flex Bud | Real / Flex BUD (%) |
+        """)
+
+    with st.expander("🎯 **Arquitetura de Filtros**", expanded=False):
+        st.markdown("""
+        ### 🔍 Filtros do TC Veículos
+
+        | Filtro | Tipo | Comportamento |
+        |--------|------|---------------|
+        | Oficina | multiselect | "Todos" ou seleção múltipla |
+        | Tipo Custo | multiselect | Fixo/Variável ou todos |
+        | Veículo | **selectbox** | "Todos" (consolidado) ou **1 veículo** (rateado) |
+        | Período | multiselect | "Todos" ou seleção de meses |
+
+        **Cascading:** A seleção de Oficina filtra os Veículos disponíveis:
+        ```python
+        _df_filt_ofi = df[df['Oficina'].isin(oficinas_selecionadas)]
+        veiculos = sorted(_df_filt_ofi['Veículo'].dropna().unique())
+        ```
+
+        **Filtros globais:** Afetam KPIs, gráficos e Análise Flex simultaneamente.
+        """)
 
 # ==========================================
 # SEÇÃO 2: REGRAS E CÁLCULO
@@ -1887,6 +2037,76 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         """)
 
 # ==========================================
+# TC VEÍCULOS: CÁLCULO POR TABELAS/GRÁFICOS
+# ==========================================
+elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc == "🚗 TC Veículos":
+    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Veículos")
+
+    st.info(
+        "📌 **Módulo TC Veículos** — Tabelas e gráficos específicos do TC Veículos."
+    )
+
+    with st.expander("📊 **Análise Flex por Categoria**", expanded=True):
+        st.markdown("""
+        ### 🔍 Modos de Visualização
+
+        - **Fixo/Variável**: Expanders `💰 Fixo` e `💰 Variável`, cada um com sub-expanders por `Type 05` → tabela por `Account`
+        - **Total**: Expanders direto por `Type 05` → tabela por `Account`
+
+        ### 📋 Tabela Flex por Account
+
+        | Coluna | Cálculo |
+        |--------|---------|
+        | Account | Nome da conta |
+        | BUD | Σ Custo FP Budget |
+        | Flex Bud − BUD | Flex − BUD |
+        | Flex BUD | Fixo: BUD / Variável: BUD × Proporção |
+        | Total − Flex Bud | Real − Flex |
+        | Total | Σ Custo FP Real |
+        | Total / Flex Bud | Real/Flex (com barrinha de progresso) |
+
+        ### 🎨 Barrinha de Progresso
+        - 🟢 Verde: ≤ 90%
+        - 🟡 Gradiente verde→vermelho: 90%–100%
+        - 🔴 Vermelho: ≥ 100%
+        """)
+
+    with st.expander("📈 **Gráficos do TC Veículos**", expanded=False):
+        st.markdown("""
+        ### 📊 Custo FP por Período
+        - **Barras**: Real por período com degradê roxo (`scheme='purples'`)
+        - **Linha pontilhada**: Flex BUD (laranja, `strokeDash=[10,5]`)
+        - **Delta**: Gráfico inferior com `Real − Flex BUD` (verde/vermelho)
+        - Biblioteca: **Altair** com `data_transformers.disable_max_rows()`
+
+        ### 📊 Volume
+        - **Barras**: Volume Budget (degradê verde)
+        - **Linha tracejada**: Volume Realizado (laranja)
+        - **Por Veículo**: Barras agrupadas por modelo
+
+        ### 📊 Custos por Oficina
+        - Barras Custo FP por Oficina
+        - Barras Rateio FA por Oficina (verde/vermelho)
+        - Tabela BUD vs Flex pivotada Oficina × Período
+        """)
+
+    with st.expander("📋 **Tabs Disponíveis**", expanded=False):
+        st.markdown("""
+        ### 🗂️ Organização em Tabs
+
+        O TC Veículos organiza os dados em **6 tabs**:
+
+        | Tab | Conteúdo |
+        |-----|----------|
+        | 🚗 TC Veículos | KPIs resumo + Gráfico Custo FP × Flex BUD por período |
+        | 📊 Análise Flex | Fixo/Variável com hierarquia Type 05 → Account |
+        | 📈 Volume | Budget vs Realizado (por período e por veículo) |
+        | 🏢 Custos por Oficina | Custo FP e Rateio FA por oficina |
+        | ⏱️ Tempo de Produção | Tempo Veículo vs Tempo FA por oficina |
+        | 📋 Dados Detalhados | Tabelas exportáveis de Real e Budget |
+        """)
+
+# ==========================================
 # SEÇÃO 2: CÁLCULO POR TABELAS/GRÁFICOS
 # ==========================================
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
@@ -1929,6 +2149,157 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
             st.markdown(_extrair_trecho(conteudo))
         except Exception as e:
             st.error(f"Erro ao carregar/parsear especificação: {e}")
+
+# ==========================================
+# TC VEÍCULOS: ARQUITETURA E ESTRUTURA
+# ==========================================
+elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "🚗 TC Veículos":
+    st.header("🏗️ Arquitetura e Estrutura — TC Veículos")
+
+    st.info(
+        "📌 **Módulo TC Veículos** — Estrutura de pastas, contratos de dados e pipeline de processamento."
+    )
+
+    with st.expander("📁 **Contratos de Dados (Parquets)**", expanded=True):
+        st.markdown("""
+        ### 📂 Estrutura de Pastas
+
+        ```
+        dados/TC_Principal/
+        ├── {ano}/
+        │   ├── BUD/
+        │   │   ├── df_principal_BUD.parquet         # Custo consolidado BUD
+        │   │   ├── df_vol_veiculos_BUD.parquet      # Volume por veículo BUD
+        │   │   ├── df_veiculos_custo_fp_BUD.parquet  # Custo FP rateado BUD
+        │   │   ├── df_veiculos_cpu_BUD.parquet      # CPU por veículo BUD
+        │   │   ├── df_tempo_veiculos_BUD.parquet    # Tempo de produção BUD
+        │   │   ├── df_dea_dedicado_BUD.parquet      # D&A Dedicado BUD
+        │   │   └── df_volume_fa_BUD.parquet         # Volume Fluxo Anexo BUD
+        │   ├── df_principal.parquet                 # Custo Real consolidado
+        │   ├── df_vol_veiculos_actual.parquet       # Volume Realizado
+        │   ├── df_veiculos_custo_fp.parquet         # Custo FP Real rateado
+        │   └── df_veiculos_cpu.parquet              # CPU Real
+        ```
+
+        ### 📋 Schema — Principal BUD
+
+        | Coluna | Tipo | Descrição |
+        |--------|------|-----------|
+        | `Oficina` | str | Centro de custo (oficina) |
+        | `Veículo` | str | Modelo do veículo |
+        | `Type 05` | str | Classificação nível 1 |
+        | `Type 06` | str | Classificação nível 2 |
+        | `Custo` | str | Fixo ou Variável |
+        | `Account` | str | Conta contábil (inclui "Redis") |
+        | `Período` | str | Mês por extenso |
+        | `Despesa Primaria` | float | Despesa primária (R$) |
+        | `Custo FA` | float | Custo do Fluxo Anexo |
+        | `Custo FP` | float | Custo FP consolidado |
+        | `D&A dedicado` | float | D&A dedicada |
+        | `FP sem Dedicada` | float | Custo FP sem D&A |
+
+        ### 📋 Schema — Veículos Rateado (BUD)
+
+        | Coluna | Tipo | Descrição |
+        |--------|------|-----------|
+        | `Oficina` | str | Centro de custo |
+        | `Veículo` | str | Modelo do veículo |
+        | `Custo Rateado` | float | Custo × percentual do veículo |
+        | `D&A dedicado` | float | D&A dedicada direta |
+        | `Custo FP Veiculo` | float | Rateado + D&A |
+        | `Ano` | int | Ano de referência |
+
+        > O parquet BUD veículos tem `Custo FP Veiculo` (não `Custo FP`). O sistema faz mapeamento automático.
+        """)
+
+    with st.expander("🔧 **Módulos e Arquivos**", expanded=False):
+        st.markdown("""
+        ### 📂 Estrutura do Código
+
+        ```
+        tc_principal/
+        ├── __init__.py
+        ├── shared.py           # Constantes, loaders, helpers
+        ├── ui_components.py    # Sidebar filters, CSS, KPIs
+        └── pages/
+            ├── __init__.py
+            └── home_tc.py      # Página principal (6 tabs)
+        ```
+
+        ### ⚙️ Filtros — Arquitetura Unificada
+
+        ```
+        Sidebar filters
+             │
+             ├── Veículo = "Todos" ──► usar_rateado = False
+             │         ├── df_principal_BUD  → df_bud
+             │         └── df_principal_Real → df
+             │
+             └── Veículo = "CC21 biton" ──► usar_rateado = True
+                       ├── df_veiculos_custo_fp_BUD → df_bud (filtrado)
+                       └── df_veiculos_custo_fp_Real → df (filtrado)
+             │
+        aplicar_fator_df() + converter_moeda_df()
+             │
+        calcular_flex_budget()
+             │
+        ┌─────────────────────────────┐
+        │  Todos os tabs usam         │
+        │  df_bud, df, df_vol_bud,    │
+        │  df_vol_actual, df_flex     │
+        └─────────────────────────────┘
+        ```
+        """)
+
+    with st.expander("⚙️ **ETL e Processamento**", expanded=False):
+        st.markdown("""
+        ### 📋 Arquivos de Processamento
+
+        | Arquivo | Função |
+        |---------|--------|
+        | `processamento_dados_BUD.py` | Processa dados Budget (principal + veículos) |
+        | `processamento_dados_veiculos_BUD.py` | Rateio por veículo + CPU |
+        | `processamento_dados.py` | Processa dados Real (Sapiens) |
+
+        ### 🔄 Pipeline
+
+        1. Extração dos dados brutos (Excel/SAP)
+        2. Normalização de colunas e períodos
+        3. Cálculo de composição de custos (Desp. Primária → FA → FP)
+        4. Rateio por veículo (tempo de produção)
+        5. Cálculo de CPU por veículo
+        6. Gravação em Parquet na pasta `dados/TC_Principal/{ano}/`
+
+        ### 💾 Cache
+        - `@st.cache_data(ttl=3600)` em todos os loaders
+        - Botão "🔄 Limpar Cache" na sidebar para forçar recarga
+        """)
+
+    with st.expander("🌐 **Configurações Globais**", expanded=False):
+        st.markdown("""
+        ### 💱 Moeda
+
+        | Código | Símbolo | Conversão |
+        |--------|---------|-----------|
+        | BRL | R$ | 1.0 (base) |
+        | USD | $ | 1/Taxa USD→BRL |
+        | EUR | € | 1/Taxa EUR→BRL |
+
+        ### 📊 Fator
+
+        | Opção | Divisor |
+        |-------|---------|
+        | Nenhum | 1 |
+        | K (milhares) | 1.000 |
+        | M (milhões) | 1.000.000 |
+
+        ### 👁️ Tipo de Visualização
+
+        | Tipo | Comportamento |
+        |------|---------------|
+        | Custo Total | Valores absolutos em R$/USD/EUR |
+        | CPU | Custo ÷ Volume (fator = Nenhum) |
+        """)
 
 # ==========================================
 # SEÇÃO 2: ARQUITETURA E ESTRUTURA
@@ -2396,6 +2767,41 @@ plotly>=5.0.0
             """)
 
 # ==========================================
+# TC VEÍCULOS: ESPECIFICAÇÃO TÉCNICA
+# ==========================================
+elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)" and modulo_doc == "🚗 TC Veículos":
+    st.header("🧾 Especificação Técnica — TC Veículos")
+
+    st.markdown(
+        """
+        Especificação técnica completa do módulo **TC Veículos** em formato Markdown.
+        Arquivo fonte: `DOCUMENTACAO_TC_PRINCIPAL.md`
+        """
+    )
+
+    _caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+
+    if not os.path.exists(_caminho_doc_tc):
+        st.error(f"Arquivo não encontrado: {_caminho_doc_tc}")
+    else:
+        try:
+            with open(_caminho_doc_tc, "r", encoding="utf-8") as _f:
+                _conteudo_tc = _f.read()
+
+            st.download_button(
+                label="📥 Baixar especificação TC Veículos (Markdown)",
+                data=_conteudo_tc.encode("utf-8"),
+                file_name="DOCUMENTACAO_TC_PRINCIPAL.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+
+            st.markdown("---")
+            st.markdown(_conteudo_tc)
+        except Exception as e:
+            st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+
+# ==========================================
 # SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
 # ==========================================
 elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)":
@@ -2433,6 +2839,109 @@ elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)":
             st.markdown(conteudo)
         except Exception as e:
             st.error(f"Erro ao carregar especificação: {e}")
+
+# ==========================================
+# TC VEÍCULOS: GUIA DE EXTRAÇÃO DE DADOS
+# ==========================================
+elif indice_selecionado == "📥 Guia de Extração de Dados" and modulo_doc == "🚗 TC Veículos":
+    st.header("📥 Guia de Extração de Dados — TC Veículos")
+
+    st.markdown("""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
+    <h2 style="color: white; margin: 0;">📥 Extração de Dados — TC Veículos</h2>
+    <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
+            Pipeline de processamento de dados do módulo TC Veículos
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("📋 **Visão Geral do Pipeline**", expanded=True):
+        st.markdown("""
+        ### 🔄 Fluxo de Processamento
+
+        ```
+        Arquivos Excel (Entrada)
+            │
+            ├──> processamento_dados_BUD.py
+            │       ├──> Lê dados brutos do Budget
+            │       ├──> Normaliza colunas e períodos
+            │       ├──> Calcula composição de custos
+            │       ├──> Grava df_principal_BUD.parquet
+            │       └──> Chama processamento_dados_veiculos_BUD.py
+            │               ├──> Rateio por veículo (tempo de produção)
+            │               ├──> Cálculo de CPU por veículo
+            │               ├──> Grava df_veiculos_custo_fp_BUD.parquet
+            │               └──> Grava df_veiculos_cpu_BUD.parquet
+            │
+            └──> processamento_dados.py
+                    ├──> Lê dados reais do Sapiens
+                    ├──> Normaliza e processa
+                    ├──> Grava df_principal.parquet
+                    └──> Grava df_veiculos_custo_fp.parquet
+        ```
+        """)
+
+    with st.expander("📂 **Arquivos de Processamento**", expanded=False):
+        st.markdown("""
+        ### 📋 Scripts e Funções
+
+        | Arquivo | Função |
+        |---------|--------|
+        | `processamento_dados_BUD.py` | Processa dados Budget (principal + veículos) |
+        | `processamento_dados_veiculos_BUD.py` | Rateio por veículo + CPU |
+        | `processamento_dados.py` | Processa dados Real (Sapiens) |
+
+        ### 📁 Pastas de Entrada
+        - `dados/TC_Principal/{ano}/` — Arquivos Excel de entrada
+
+        ### 📁 Pastas de Saída (Parquets processados)
+        - `dados/TC_Principal/{ano}/BUD/` — Budget processado
+        - `dados/TC_Principal/{ano}/` — Real processado
+        """)
+
+    with st.expander("🔧 **Detalhes do Processamento BUD**", expanded=False):
+        st.markdown("""
+        ### processamento_dados_BUD.py
+
+        **Etapas:**
+        1. **Leitura**: Excel com dados de Budget do TC Veículos
+        2. **Normalização**: Padronização de colunas (Oficina, Veículo, Período, etc.)
+        3. **Composição de Custos**:
+           - Despesa Primária (soma dos lançamentos)
+           - Custo FA = Despesa Primária × Rateio FA
+           - Custo FP = Despesa Primária + Custo FA
+           - D&A Dedicado (identificado por Account)
+           - FP sem Dedicada = Custo FP − D&A Dedicado
+        4. **Gravação**: `df_principal_BUD.parquet`
+        5. **Chamada**: `processamento_dados_veiculos_BUD.py`
+
+        ### processamento_dados_veiculos_BUD.py
+
+        **Etapas:**
+        1. **Leitura** do tempo de produção por veículo e oficina
+        2. **Cálculo do percentual** de rateio por veículo
+        3. **Rateio**: FP sem Dedicada × Percentual = Custo Rateado
+        4. **Custo FP Veículo** = Custo Rateado + D&A Dedicado
+        5. **CPU** = Custo FP Veículo / Volume
+        6. **Gravação**: `df_veiculos_custo_fp_BUD.parquet`, `df_veiculos_cpu_BUD.parquet`
+        """)
+
+    with st.expander("📊 **Dados de Volume**", expanded=False):
+        st.markdown("""
+        ### Volumes por Veículo
+
+        | Arquivo | Descrição |
+        |---------|-----------|
+        | `df_vol_veiculos_BUD.parquet` | Volume Budget por veículo |
+        | `df_vol_veiculos_actual.parquet` | Volume Real por veículo |
+
+        **Colunas:** `Oficina`, `Veículo`, `Período`, `Volume`
+
+        Os volumes são usados para:
+        - Cálculo de CPU
+        - Cálculo de Flex Budget (proporção Real/BUD)
+        - Gráficos comparativos (BUD vs Real)
+        """)
 
 # ==========================================
 # SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS
@@ -4102,6 +4611,34 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
 
 
 # ==========================================
+# TC VEÍCULOS: GUIA DE BEST ESTIMATE
+# ==========================================
+elif indice_selecionado == "🔮 Guia de Best Estimate" and modulo_doc == "🚗 TC Veículos":
+    st.header("🔮 Guia de Best Estimate — TC Veículos")
+
+    st.warning(
+        "⚠️ O módulo **TC Veículos** ainda não possui funcionalidade de Best Estimate / Forecast. "
+        "Esta funcionalidade está disponível apenas no módulo **TC Extendido**."
+    )
+
+    st.markdown("""
+    ### 📋 Status
+
+    O Best Estimate atualmente está implementado apenas para o **TC Extendido**, onde:
+    - O **Simulador** define premissas (sensibilidade, inflação) e gera arquivos em `dados/TC_Ext/Forecast/`
+    - A **Análise de Best Estimate** usa o layout da Home, alimentado pelos dados de Forecast
+
+    ### 🚀 Próximos Passos
+
+    Para o TC Veículos, os seguintes itens estão planejados:
+    - Integração do pipeline de Forecast com dados de `dados/TC_Principal/Forecast/`
+    - Simulador específico com premissas por veículo
+    - Análise de Best Estimate com visão rateada por modelo
+    """)
+
+    st.info("💡 Para acessar o Best Estimate do TC Extendido, selecione '📊 TC Extendido' no seletor de módulo acima.")
+
+# ==========================================
 # SEÇÃO 5: GUIA DE BEST ESTIMATE
 # ==========================================
 elif indice_selecionado == "🔮 Guia de Best Estimate":
@@ -5151,7 +5688,7 @@ elif indice_selecionado == "📊 Apresentação Visual":
 
             **4:00–5:00 — Encerramento**
             - Exportação (Excel) + rastreabilidade (diagnósticos de fonte de dados / atualização).
-            - Próximos passos: padronizar/expandir para TC (Planta Principal) conforme necessário.
+            - Próximos passos: padronizar/expandir para TC Veículos conforme necessário.
             """
         )
         st.info(

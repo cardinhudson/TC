@@ -1,5 +1,5 @@
 """
-TC Principal — Componentes de UI
+TC Veículos — Componentes de UI
 Header, sidebar global, CSS, seletores e tabelas HTML padronizados.
 Replica o padrão visual do TC Ext.
 """
@@ -295,9 +295,9 @@ def render_sidebar_global(page_key):
 
         # Bandeiras visuais
         moedas_info = [
-            ('BRL', '🇧🇷 R$', 'R$', 'https://flagcdn.com/w40/br.png'),
-            ('USD', '🇺🇸 $', '$', 'https://flagcdn.com/w40/us.png'),
-            ('EUR', '🇪🇺 €', '€', 'https://flagcdn.com/w40/eu.png'),
+            ('BRL', '🇧🇷 R$', 'R$', 'https://flagcdn.com/br.svg'),
+            ('USD', '🇺🇸 $', '$', 'https://flagcdn.com/us.svg'),
+            ('EUR', '🇪🇺 €', '€', 'https://flagcdn.com/eu.svg'),
         ]
 
         if f'{page_key}_moeda' not in st.session_state:
@@ -336,6 +336,22 @@ def render_sidebar_global(page_key):
             moeda = 'BRL'
         if st.session_state[f'{page_key}_moeda'] != moeda:
             st.session_state[f'{page_key}_moeda'] = moeda
+
+        # ── Bandeiras SVG com glow ──
+        flags_html = '<div style="display:flex; gap:14px; justify-content:flex-start; padding-left:8px; margin:6px 0 4px 0;">'
+        for cod, _, _, img_url in moedas_info:
+            if cod == moeda:
+                borda = 'border:2px solid #ff4b4b; box-shadow:0 0 8px rgba(255,75,75,0.6);'
+                opac = 'opacity:1;'
+            else:
+                borda = 'border:2px solid transparent;'
+                opac = 'opacity:0.45;'
+            flags_html += (
+                f'<img src="{img_url}" width="56" height="38" '
+                f'style="{borda} {opac} border-radius:5px; object-fit:cover; transition:all 0.2s;" />'
+            )
+        flags_html += '</div>'
+        st.markdown(flags_html, unsafe_allow_html=True)
 
         # ── Taxas ──
         inicializar_banco_taxas()
@@ -448,12 +464,13 @@ def render_sidebar_filters(df, page_key, filtros=None):
     """
     Renderiza filtros de dados na sidebar.
     filtros: lista de nomes de filtro a exibir.
-             Default: ['oficina', 'custo', 'periodo']
+             Default: ['oficina', 'custo', 'veiculo', 'periodo']
 
-    Retorna dict com seleções.
+    Veículo é selectbox (single-select): "Todos" ou um veículo específico.
+    Retorna dict com seleções + flag 'veiculo_todos'.
     """
     if filtros is None:
-        filtros = ['oficina', 'custo', 'periodo']
+        filtros = ['oficina', 'custo', 'veiculo', 'periodo']
 
     result = {}
 
@@ -462,38 +479,57 @@ def render_sidebar_filters(df, page_key, filtros=None):
 
         if 'oficina' in filtros and 'Oficina' in df.columns:
             oficinas = sorted(df['Oficina'].dropna().unique())
-            result['oficinas'] = st.multiselect(
-                "Oficina", oficinas, default=oficinas,
+            opcoes_ofi = ["Todos"] + list(oficinas)
+            sel_ofi = st.multiselect(
+                "Oficina", opcoes_ofi, default=["Todos"],
                 key=f'{page_key}_ofi',
             )
+            result['oficinas'] = list(oficinas) if "Todos" in sel_ofi else [x for x in sel_ofi if x != "Todos"]
 
         if 'custo' in filtros and 'Custo' in df.columns:
             custos = sorted(df['Custo'].dropna().unique())
-            result['custos'] = st.multiselect(
-                "Tipo Custo", custos, default=custos,
+            opcoes_cst = ["Todos"] + list(custos)
+            sel_cst = st.multiselect(
+                "Tipo Custo", opcoes_cst, default=["Todos"],
                 key=f'{page_key}_custo',
             )
-
-        if 'periodo' in filtros:
-            periodos_disp = [m for m in ORDEM_MESES if m in df['Período'].unique()]
-            result['periodos'] = st.multiselect(
-                "Período", periodos_disp, default=periodos_disp,
-                key=f'{page_key}_per',
-            )
+            result['custos'] = list(custos) if "Todos" in sel_cst else [x for x in sel_cst if x != "Todos"]
 
         if 'veiculo' in filtros and 'Veículo' in df.columns:
-            veiculos = sorted(df['Veículo'].dropna().unique())
-            result['veiculos'] = st.multiselect(
-                "Veículo", veiculos, default=veiculos,
+            # Cascata: veículos filtrados pelas oficinas selecionadas
+            _df_filt_ofi = df.copy()
+            if 'oficinas' in result and result['oficinas'] and 'Oficina' in df.columns:
+                _df_filt_ofi = _df_filt_ofi[_df_filt_ofi['Oficina'].isin(result['oficinas'])]
+            veiculos = sorted(_df_filt_ofi['Veículo'].dropna().unique())
+            opcoes_veic = ["Todos"] + list(veiculos)
+            sel_veic = st.selectbox(
+                "🚗 Veículo", opcoes_veic, index=0,
                 key=f'{page_key}_veic',
             )
+            if sel_veic == "Todos":
+                result['veiculos'] = list(veiculos)
+                result['veiculo_todos'] = True
+            else:
+                result['veiculos'] = [sel_veic]
+                result['veiculo_todos'] = False
+
+        if 'periodo' in filtros and 'Período' in df.columns:
+            periodos_disp = [m for m in ORDEM_MESES if m in df['Período'].unique()]
+            opcoes_per = ["Todos"] + periodos_disp
+            sel_per = st.multiselect(
+                "Período", opcoes_per, default=["Todos"],
+                key=f'{page_key}_per',
+            )
+            result['periodos'] = list(periodos_disp) if "Todos" in sel_per else [x for x in sel_per if x != "Todos"]
 
         if 'account' in filtros and 'Account' in df.columns:
             accounts = sorted(df['Account'].dropna().unique())
-            result['accounts'] = st.multiselect(
-                "Account", accounts, default=[],
+            opcoes_acc = ["Todos"] + list(accounts)
+            sel_acc = st.multiselect(
+                "Account", opcoes_acc, default=["Todos"],
                 key=f'{page_key}_account',
             )
+            result['accounts'] = list(accounts) if "Todos" in sel_acc else [x for x in sel_acc if x != "Todos"]
 
     return result
 

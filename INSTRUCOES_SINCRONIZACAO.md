@@ -52,7 +52,7 @@ Deve mostrar:
 - `app.py` - portal/roteador de navegação (entrada do Streamlit)
 - `tc_ext/pages/home_ext.py` - Home do TC Ext (código principal legado)
 - `pages/*` - páginas legadas (Waterfall/Best Estimate/Extração/Documentação)
-- `tc_principal/pages/*` - stubs do TC (Planta Principal)
+- `tc_principal/pages/*` - páginas do TC Veículos
 
 ## Se Ainda Não Funcionar
 

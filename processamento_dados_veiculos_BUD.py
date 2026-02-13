@@ -1,5 +1,5 @@
 """
-Módulo de Processamento de Dados BUDGET — TC Principal (Planta Principal)
+Módulo de Processamento de Dados BUDGET — TC Veículos
 Processa o arquivo 'Reporting veículos.xlsx' seguindo a lógica metodológica
 do TC Ext, mas adaptada ao custo de produção de veículos.
 
@@ -224,7 +224,7 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     }
 
     print(f"\n{'='*60}")
-    print(f"  TC PRINCIPAL — Processamento Budget {ano}")
+    print(f"  TC VEÍCULOS — Processamento Budget {ano}")
     print(f"{'='*60}")
     print(f"  📂 Excel: {caminho}")
     print(f"  📂 Saída: {pasta_saida}")
@@ -1324,12 +1324,20 @@ def validacao_final(config: Dict, arquivos: Dict[str, str]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  CONSOLIDAÇÃO HISTÓRICO MULTI-ANO
+# ═══════════════════════════════════════════════════════════════
+
+# A função consolidar_historico_tc_veiculos é importada sob demanda
+# dentro de processar_veiculos_budget() para evitar importação circular.
+
+
+# ═══════════════════════════════════════════════════════════════
 #  ORQUESTRADOR PRINCIPAL
 # ═══════════════════════════════════════════════════════════════
 
 def processar_veiculos_budget(ano: Optional[int] = None,
                               progress_callback=None) -> Dict:
-    """Executa todas as fases do processamento do TC Principal (Budget).
+    """Executa todas as fases do processamento do TC Veículos (Budget).
 
     Args:
         ano: Ano de referência (default = ano atual)
@@ -1344,7 +1352,7 @@ def processar_veiculos_budget(ano: Optional[int] = None,
         else:
             print(msg)
 
-    log("🚀 PROCESSAMENTO BUDGET — TC Principal")
+    log("🚀 PROCESSAMENTO BUDGET — TC Veículos")
     log("=" * 60)
 
     inicio = datetime.now()
@@ -1439,6 +1447,16 @@ def processar_veiculos_budget(ano: Optional[int] = None,
 
     # Validação
     validacao_final(config, arquivos)
+
+    # Consolidação do histórico multi-ano (automática)
+    log("\n📋 Consolidando histórico multi-ano (Budget)...")
+    try:
+        from processamento_dados_veiculos import consolidar_historico_tc_veiculos
+        msgs = consolidar_historico_tc_veiculos(tipo='budget')
+        for m in msgs:
+            log(f"   {m}")
+    except Exception as e:
+        log(f"   ⚠️ Erro na consolidação: {e}")
 
     duracao = datetime.now() - inicio
     log(f"\n🎉 Processamento Budget concluído em {duracao.total_seconds():.1f}s")

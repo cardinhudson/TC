@@ -116,7 +116,7 @@ def obter_data_atualizacao_dados():
         ]
         
         # Também tentar buscar em pastas de anos recentes
-        pasta_dados = "dados"
+        pasta_dados = os.path.join("dados", "TC_Ext")
         if os.path.exists(pasta_dados):
             try:
                 anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]

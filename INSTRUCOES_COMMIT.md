@@ -61,7 +61,7 @@ Opções simples:
 ### Arquivos Principais:
 - ✅ `app.py` - Portal/roteador (entrada do Streamlit)
 - ✅ `tc_ext/` - Módulo do TC Ext (Home em `tc_ext/pages/home_ext.py`)
-- ✅ `tc_principal/` - Módulo do TC (Planta Principal) (stubs)
+- ✅ `tc_principal/` - Módulo do TC Veículos
 - ✅ `.gitignore` - Configuração atualizada
 - ✅ `versao.json` - Controle de versão
 - ✅ `controle_paginas.json` - Controle de páginas

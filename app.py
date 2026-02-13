@@ -1,13 +1,7 @@
 ﻿import streamlit as st
 
 from tc_principal.pages.home_tc import render as render_home_tc
-from tc_principal.pages.waterfall_tc import render as render_waterfall_tc
-from tc_principal.pages.best_estimate_simulador_tc import (
-    render as render_best_estimate_simulador_tc,
-)
-from tc_principal.pages.best_estimate_analise_tc import (
-    render as render_best_estimate_analise_tc,
-)
+
 from tc_principal.pages.extracao_dados_tc import (
     render as render_extracao_dados_tc,
 )
@@ -54,20 +48,20 @@ PAGES = {
             url_path="tc-ext-extracao",
         ),
     ],
-    "TC (Planta Principal)": [
-        st.Page(render_home_tc, title="Home (TC)", url_path="tc"),
+    "TC Veículos": [
+        st.Page(render_home_tc, title="Home (TC Veículos)", url_path="tc"),
         st.Page(
-            render_waterfall_tc,
+            "tc_principal/pages/waterfall_tc.py",
             title="Waterfall",
             url_path="tc-waterfall",
         ),
         st.Page(
-            render_best_estimate_simulador_tc,
+            "tc_principal/pages/best_estimate_simulador_tc.py",
             title="Best Estimate (Simulador)",
             url_path="tc-best-estimate-simulador",
         ),
         st.Page(
-            render_best_estimate_analise_tc,
+            "tc_principal/pages/best_estimate_analise_tc.py",
             title="Best Estimate (Análise)",
             url_path="tc-best-estimate-analise",
         ),

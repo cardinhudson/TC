@@ -135,8 +135,8 @@
                 ┌──────────────┼───────────────┬──────────────┐
                 │              │               │              │
         ┌───────▼────────┐ ┌───▼─────────┐ ┌──▼──────────┐
-        │ 🧩 TC Ext       │ │ 🏭 TC (PP)   │ │ 📚 Doc      │
-        │ Home + análises │ │ (stubs)      │ │ Única       │
+        │ 🧩 TC Ext       │ │ 🏭 TC Veíc.  │ │ 📚 Doc      │
+        │ Home + análises │ │ Funcional    │ │ Única       │
         └─────────────────┘ └─────────────┘ └─────────────┘
 ```
 
@@ -150,7 +150,7 @@ TC Ext (Linhas Secundárias)
         • Best Estimate (Análise): tc_ext/pages/be_analise_ext.py
         • Extração de Dados: pages/5 - Extração de Dados.py
 
-TC (Planta Principal) — páginas espelhadas (stubs)
+TC Veículos — páginas funcionais
         • Home: tc_principal/pages/home_tc.py
         • Waterfall: tc_principal/pages/waterfall_tc.py
         • Best Estimate (Simulador): tc_principal/pages/best_estimate_simulador_tc.py

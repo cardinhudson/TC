@@ -1,7 +1,7 @@
 """
-TC Principal — Módulo Compartilhado
+TC Veículos — Módulo Compartilhado
 Constantes, data loaders, helpers e cálculos centralizados.
-Todas as páginas do TC Principal importam daqui.
+Todas as páginas do TC Veículos importam daqui.
 """
 
 import streamlit as st
@@ -33,7 +33,7 @@ MESES_ABREV = {
     'Outubro': 'Out', 'Novembro': 'Nov', 'Dezembro': 'Dez',
 }
 
-# Colunas monetárias padrão do TC Principal
+# Colunas monetárias padrão do TC Veículos
 # Nota: Redis NÃO é mais coluna — é identificado por Account='Redis' nas linhas
 COLUNAS_MONETARIAS = [
     'Despesa Primaria', 'Custo FA', 'Custo FP',
@@ -57,13 +57,13 @@ def extrair_redis(df: pd.DataFrame) -> float:
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_tc_principal(ano):
-    """Caminho da pasta de dados TC Principal Budget para um ano."""
+    """Caminho da pasta de dados TC Veículos Budget para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/BUD/
     return os.path.join('dados', 'TC_Principal', str(ano), 'BUD')
 
 
 def _pasta_tc_principal_real(ano):
-    """Caminho da pasta de dados TC Principal Real para um ano."""
+    """Caminho da pasta de dados TC Veículos Real para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/ (raiz, sem subfolder)
     return os.path.join('dados', 'TC_Principal', str(ano))
 
@@ -238,6 +238,125 @@ def load_comparativo(ano):
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_custo_fp_veiculo_real(ano):
+    """Custo FP final por veículo (rateado + D&A) — Real."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_custo_fp.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_cpu_veiculo_real(ano):
+    """CPU (Custo Por Unidade) por modelo de veículo — Real."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_cpu.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  DATA LOADING — HISTÓRICO CONSOLIDADO (multi-ano)
+# ═══════════════════════════════════════════════════════════════
+
+def _pasta_historico():
+    return os.path.join('dados', 'TC_Principal', 'historico_consolidado')
+
+
+def _pasta_historico_bud():
+    return os.path.join('dados', 'TC_Principal', 'historico_consolidado', 'BUD')
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_principal():
+    """Tabela principal consolidada multi-ano (Real)."""
+    caminho = os.path.join(_pasta_historico(), 'df_principal_historico.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_volume():
+    """Volume consolidado multi-ano (Real)."""
+    caminho = os.path.join(_pasta_historico(), 'df_vol_historico.parquet')
+    if not os.path.exists(caminho):
+        return None
+    df = pd.read_parquet(caminho)
+    if 'Volume' in df.columns:
+        df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+    return df
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_custo_fp_veiculo():
+    """Custo FP por veículo consolidado multi-ano (Real)."""
+    caminho = os.path.join(_pasta_historico(), 'df_veiculos_custo_fp_historico.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_principal_bud():
+    """Tabela principal consolidada multi-ano (Budget)."""
+    caminho = os.path.join(_pasta_historico_bud(), 'df_principal_historico_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_volume_bud():
+    """Volume consolidado multi-ano (Budget)."""
+    caminho = os.path.join(_pasta_historico_bud(), 'df_vol_historico_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    df = pd.read_parquet(caminho)
+    if 'Volume' in df.columns:
+        df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+    return df
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_historico_custo_fp_veiculo_bud():
+    """Custo FP por veículo consolidado multi-ano (Budget)."""
+    caminho = os.path.join(_pasta_historico_bud(), 'df_veiculos_custo_fp_historico_BUD.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  DATA LOADING — FORECAST / BEST ESTIMATE
+# ═══════════════════════════════════════════════════════════════
+
+def _pasta_forecast_tc():
+    return os.path.join('dados', 'TC_Principal', 'Forecast')
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_forecast_completo():
+    """Forecast completo (Real + BE) — gerado pelo BE Simulador."""
+    caminho = os.path.join(_pasta_forecast_tc(), 'forecast_completo.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_forecast_volume():
+    """Volume do forecast — gerado pelo BE Simulador."""
+    caminho = os.path.join(_pasta_forecast_tc(), 'df_vol_historico.parquet')
+    if not os.path.exists(caminho):
+        return None
+    df = pd.read_parquet(caminho)
+    if 'Volume' in df.columns:
+        df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+    return df
 
 
 # ═══════════════════════════════════════════════════════════════

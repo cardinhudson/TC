@@ -42,7 +42,7 @@
 - **Cobrir lacunas de dados:** algumas oficinas têm pouco/nenhum realizado, mas possuem **Budget (BUD)** completo.
 - **Melhorar comparabilidade:** permitir previsões e análises coerentes também a partir do **planejado (Budget)**.
 - **Aumentar robustez:** evitar filtros/gráficos vazios quando a oficina só existe no Budget.
-- **Preparar expansão:** Portal único já separa **TC Ext** e **TC (Planta Principal)** com páginas espelhadas.
+- **Preparar expansão:** Portal único já separa **TC Ext** e **TC Veículos** com páginas funcionais.
 - **Padronizar cálculo:** Best Estimate (Análise) segue o padrão visual/lógico da Home e mantém coerência no modo **CPU** (Total/Volume).
 
 ---
@@ -61,7 +61,7 @@
     │     ├── 📊 Best Estimate (Análise): tc_ext/pages/be_analise_ext.py
     │     └── 📥 Extração de Dados: pages/5 - Extração de Dados.py
     │
-    ├── 🏭 TC (Planta Principal) — páginas espelhadas (stubs)
+    ├── 🏭 TC Veículos — páginas funcionais
     │     ├── Home: tc_principal/pages/home_tc.py
     │     ├── Waterfall: tc_principal/pages/waterfall_tc.py
     │     ├── Best Estimate (Simulador): tc_principal/pages/best_estimate_simulador_tc.py

@@ -1,5 +1,5 @@
 """
-TC Principal — Extração e Processamento de Dados
+TC Veículos — Extração e Processamento de Dados
 Replica o layout e funcionalidades do TC Ext (3 tabs + radio).
 Upload com proteção contra sobrescrita, pré-validação, barra de progresso,
 log ao vivo, consolidação histórica multi-ano e status de parquets.
@@ -347,6 +347,7 @@ def _consolidar_historico_tc_principal():
         'df_principal_historico.parquet': ('df_principal.parquet', ''),
         'df_vol_historico.parquet': ('df_vol_veiculos.parquet', ''),
         'df_cpu_historico.parquet': ('df_veiculos_cpu.parquet', ''),
+        'df_veiculos_custo_fp_historico.parquet': ('df_veiculos_custo_fp.parquet', ''),
     }, pasta_hist)
 
     # Budget
@@ -354,6 +355,7 @@ def _consolidar_historico_tc_principal():
         'df_principal_historico_BUD.parquet': ('df_principal_BUD.parquet', 'BUD'),
         'df_vol_historico_BUD.parquet': ('df_vol_veiculos_BUD.parquet', 'BUD'),
         'df_cpu_historico_BUD.parquet': ('df_veiculos_cpu_BUD.parquet', 'BUD'),
+        'df_veiculos_custo_fp_historico_BUD.parquet': ('df_veiculos_custo_fp_BUD.parquet', 'BUD'),
     }, pasta_hist_bud)
 
     return resultados
@@ -384,7 +386,7 @@ def render():
     render_header()
 
     st.title("📥 Extração e Processamento de Dados")
-    st.caption("TC Planta Principal (Veículos — Budget + Real)")
+    st.caption("TC Veículos (Budget + Real)")
     st.markdown("---")
 
     # ── Controles na página principal ──
@@ -811,7 +813,7 @@ def render():
 
     # ── Rodapé ──
     st.divider()
-    st.caption(f"TC — Planta Principal | Extração | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    st.caption(f"TC — Veículos | Extração | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
 
 if __name__ == "__main__":

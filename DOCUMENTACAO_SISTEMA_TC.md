@@ -35,27 +35,54 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 - Gráficos por período: removido o corte por “mês atual” quando existem valores futuros (Forecast), evitando esconder Fev–Dez no ano corrente.
 - Diagnósticos: adicionados expanders com prova da fonte de dados (paths/mtimes/shapes) e checagens de sanidade de CPU.
 - Governança (Budget): **Volume BUDGET deve conter `Veículo`**. Se não existir `Veículo`, isso é **erro de extração** (o app não faz mais rateio/fallback).
-- Extração (inputs): arquivos de entrada ficam em `dados/TC_Ext/{ano}/` (TC Ext) e `dados/TC_Principal/{ano}/` (TC Principal); outputs de Budget seguem em subpasta `BUD/`.
+- Extração (inputs): arquivos de entrada ficam em `dados/TC_Ext/{ano}/` (TC Ext) e `dados/TC_Principal/{ano}/` (TC Veículos); outputs de Budget seguem em subpasta `BUD/`.
 - Governança (Flex Bud): **Custo Fixo nunca é flexibilizado** fora do contexto de simulação; no comparativo Real x Budget/Flex Bud, Fixo permanece igual ao Budget.
 - Home (Budget): correção de totais (ex.: `Type 05`) para evitar divergência entre base de exibição e base de resumo.
 - UI (exibição): remoção de linhas 100% zero/NaN e remoção da coluna `Ano` **somente para exibição** (não altera cálculos nem totais).
 
-## 1.2) Mudanças recentes — Reestruturação de pastas e Real no TC Principal
+## 1.2) Mudanças recentes — Reestruturação de pastas e Real no TC Veículos
 
 - **Estrutura de pastas separada por módulo**: os dados agora ficam em pastas separadas para cada módulo:
   - `dados/TC_Ext/{ano}/` — inputs e outputs do TC Ext (Real + BUD)
   - `dados/TC_Ext/historico_consolidado/` — histórico consolidado do TC Ext
-  - `dados/TC_Principal/{ano}/` — inputs e outputs do TC Principal (Real na raiz, BUD em `BUD/`)
-  - `dados/TC_Principal/{ano}/BUD/` — parquets de Budget do TC Principal
+  - `dados/TC_Principal/{ano}/` — inputs e outputs do TC Veículos (Real na raiz, BUD em `BUD/`)
+  - `dados/TC_Principal/{ano}/BUD/` — parquets de Budget do TC Veículos
 - **Páginas de extração corrigidas**: `pages/5 - Extração de Dados.py` e `tc_principal/pages/extracao_dados_tc.py` adaptadas para usar os novos caminhos.
 - **TC Ext — gráficos corrigidos**: 8 referências de path em `home_ext.py` e `be_analise_ext.py` corrigidas para incluir o segmento `TC_Ext`, restaurando a linha Flex Bud e o gráfico Delta.
-- **TC Principal — Real no gráfico**: o gráfico de Custo FP por Período em `home_tc.py` agora exibe:
+- **TC Veículos — Real no gráfico**: o gráfico de Custo FP por Período em `home_tc.py` agora exibe:
   - **Barras roxas (largas)**: Budget
   - **Barras azuis (estreitas)**: Real (quando disponível, via `load_principal_real`)
   - **Linha laranja pontilhada**: Flex Bud (cálculo já usa Volume Actual)
   - **Delta**: Real - Flex Bud (anteriormente Budget - Flex Bud)
   - KPIs "Total" renomeados para "Real" quando há dados reais disponíveis
 - **Rateio de veículos Real**: já implementado nas fases 11-16 de `processamento_dados_veiculos.py`.
+
+## 1.3) Mudanças recentes — Implementação completa do TC Veículos (Jun/2026)
+
+Todas as páginas do módulo TC Veículos foram implementadas com funcionalidade completa, deixando de ser stubs:
+
+### Alterações de infraestrutura
+- **Paths corrigidos** (Bloco 1): 25+ referências de caminhos quebrados consertadas em `tc_exports.py`, `pages/1 - Waterfall.py`, `pages/6 - Documentacao.py`, `pages/2 - Best Estimate - Simulador.py`, `tc_ext/pages/home_ext.py`.
+- **Renomeação UI** (Bloco 2): "TC Principal" / "Planta Principal" → "TC Veículos" em todos os arquivos Python e Markdown.
+- **Pipeline historico_consolidado** (Bloco 5): funções `consolidar_historico_tc_veiculos()` adicionadas em `processamento_dados_veiculos.py` e `processamento_dados_veiculos_BUD.py`; 9 loaders novos em `shared.py` para dados multi-ano e Forecast.
+- **Import circular corrigido**: `processamento_dados_veiculos_BUD.py` — import movido para dentro da função (lazy import).
+
+### Páginas implementadas
+- **Waterfall TC Veículos** (`waterfall_tc.py`, ~375 linhas): 3 tabs (💰 Budget, 📊 Real, 📈 Budget vs Real) com waterfalls Plotly de decomposição (Desp.Primária→Redis→CustoFA→D&ADed→CustoFP), gráficos mensais, análise por oficina e bridge Budget→Flex→Real.
+- **BE Simulador TC Veículos** (`best_estimate_simulador_tc.py`, ~480 linhas): geração de Forecast (Real + simulação futura) com parâmetros de sensibilidade fixo/variável, simulador de volume por veículo, rateio FA, e salvamento em `dados/TC_Principal/Forecast/`.
+- **BE Análise TC Veículos** (`best_estimate_analise_tc.py`, ~490 linhas): 4 tabs (🔮 Visão Forecast, 📊 KPIs e CPU, 📈 Tendências Mensais, 🏭 Análise por Oficina) espelhando a Home, alimentado por dados de Forecast com fallback para Budget.
+
+### Loaders adicionados em `shared.py`
+| Função | Descrição |
+|--------|-----------|
+| `load_historico_principal()` | Dados consolidados Real multi-ano |
+| `load_historico_volume()` | Volume consolidado Real multi-ano |
+| `load_historico_custo_fp_veiculo()` | Custo FP por veículo consolidado |
+| `load_historico_principal_bud()` | Budget consolidado multi-ano |
+| `load_historico_volume_bud()` | Volume Budget consolidado |
+| `load_historico_custo_fp_veiculo_bud()` | Custo FP por veículo Budget |
+| `load_forecast_completo()` | Forecast (Real + BE) |
+| `load_forecast_volume()` | Volume do Forecast |
 
 ---
 
@@ -86,7 +113,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 ### Arquivos principais
 - `app.py`: **Portal TC** (menu/roteamento) que agrupa:
   - TC Ext (Linhas Secundárias)
-  - TC (Planta Principal)
+  - TC Veículos
   - Documentação (única, global)
 - `tc_ext/pages/home_ext.py`: **Home do TC Ext** (código que antes estava no `app.py`).
 - `pages/1 - Waterfall.py`: análise Waterfall.
@@ -96,8 +123,8 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 - `pages/5 - Extração de Dados.py`: guia/rotinas para extração.
 - `pages/6 - Documentacao.py`: documentação dentro do Streamlit.
 
-### Módulo TC (Planta Principal)
-- `tc_principal/pages/*.py`: páginas **stub** espelhando a estrutura do TC Ext (sem lógica ainda).
+### Módulo TC Veículos
+- `tc_principal/pages/*.py`: páginas funcionais espelhando a estrutura do TC Ext, com lógica completa de análise de Custo FP por veículo.
 
 ### Nota sobre roteamento (Streamlit)
 - Ao usar `st.navigation()`, o conjunto de páginas exibidas no menu fica centralizado no `app.py`.

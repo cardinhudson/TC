@@ -1,5 +1,5 @@
 """
-TC Principal — Home (Planta Principal)
+TC Veículos — Home
 Dashboard com visão geral do custo de produção de veículos.
 Padrão visual TC Ext: Altair, CSS global, seletores universais.
 """
@@ -17,6 +17,7 @@ from tc_principal.shared import (
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
+    load_custo_fp_veiculo, load_custo_fp_veiculo_real,
     normalizar_periodo, ordenar_por_mes,
     calcular_flex_budget, aplicar_fator_df,
     converter_moeda_df, obter_sufixo_fator, calcular_cpu,
@@ -289,12 +290,12 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo
 
 
 def render():
-    """Renderiza a página Home do TC (Planta Principal)."""
+    """Renderiza a página Home do TC Veículos."""
 
     injetar_css_global()
     render_header()
 
-    st.title("🏭 Dashboard TC Planta Principal")
+    st.title("🏭 Dashboard TC Veículos")
     st.subheader("Custo de Produção de Veículos • Real")
 
     # ── Sidebar Global ──
@@ -310,16 +311,65 @@ def render():
     df_vol_actual = load_volume_actual(ano)
     df_tempo_veic = load_tempo_veiculos(ano)
 
+    # ── Carregar dados rateados por veículo ──
+    df_veic_bud_raw = load_custo_fp_veiculo(ano)
+    df_veic_real_raw = load_custo_fp_veiculo_real(ano)
+
     if df_principal is None:
-        st.error(f"❌ Dados do TC Principal não encontrados para {ano}")
+        st.error(f"❌ Dados do TC Veículos não encontrados para {ano}")
         st.info("💡 Execute o processamento na página **Extração de Dados**.")
         st.stop()
 
     df_principal = normalizar_periodo(df_principal)
 
-    # ── Filtros ──
-    filtros_sel = render_sidebar_filters(df_principal, 'home')
-    df = aplicar_filtros(df_principal, filtros_sel)
+    # ── Cópias raw para filtros locais da Tab 1 ──
+    _raw_df_principal = df_principal.copy()
+    _raw_df_real = normalizar_periodo(df_real_raw.copy()) if df_real_raw is not None else None
+    _raw_df_vol_bud = normalizar_periodo(df_vol_bud.copy()) if df_vol_bud is not None else None
+    _raw_df_vol_actual = normalizar_periodo(df_vol_actual.copy()) if df_vol_actual is not None else None
+
+    # ── Filtros (inclui Veículo como selectbox na sidebar) ──
+    filtros_sel = render_sidebar_filters(
+        df_principal, 'home', ['oficina', 'custo', 'veiculo', 'periodo']
+    )
+
+    # ── Determinar se usa dados rateados por veículo ──
+    usar_rateado = not filtros_sel.get('veiculo_todos', True)
+
+    if usar_rateado and df_veic_bud_raw is not None:
+        # Dados rateados por veículo — BUD
+        _df_base_bud = normalizar_periodo(df_veic_bud_raw.copy())
+        if 'Custo FP Veiculo' in _df_base_bud.columns:
+            _df_base_bud['Custo FP'] = _df_base_bud['Custo FP Veiculo']
+        df = aplicar_filtros(_df_base_bud, filtros_sel)
+
+        # Dados rateados por veículo — Real
+        df_real = None
+        if df_veic_real_raw is not None:
+            _df_base_real = normalizar_periodo(df_veic_real_raw.copy())
+            if 'Custo FP Veiculo' in _df_base_real.columns:
+                _df_base_real['Custo FP'] = _df_base_real['Custo FP Veiculo']
+            _df_real_filt = aplicar_filtros(_df_base_real, filtros_sel)
+            if not _df_real_filt.empty:
+                df_real = _df_real_filt
+
+        # Volumes filtrados pelo veículo selecionado
+        veiculos_sel = filtros_sel.get('veiculos', [])
+        if df_vol_bud is not None and 'Veículo' in df_vol_bud.columns:
+            df_vol_bud = normalizar_periodo(df_vol_bud.copy())
+            df_vol_bud = df_vol_bud[df_vol_bud['Veículo'].isin(veiculos_sel)]
+        if df_vol_actual is not None and 'Veículo' in df_vol_actual.columns:
+            df_vol_actual = normalizar_periodo(df_vol_actual.copy())
+            df_vol_actual = df_vol_actual[df_vol_actual['Veículo'].isin(veiculos_sel)]
+    else:
+        # Dados consolidados (principal)
+        df = aplicar_filtros(df_principal, filtros_sel)
+        df_real = None
+        if df_real_raw is not None:
+            df_real_temp = normalizar_periodo(df_real_raw.copy())
+            df_real_temp = aplicar_filtros(df_real_temp, filtros_sel)
+            if not df_real_temp.empty:
+                df_real = df_real_temp
 
     if df.empty:
         st.warning("⚠️ Nenhum dado encontrado com os filtros selecionados.")
@@ -330,23 +380,16 @@ def render():
     df = aplicar_fator_df(df, cols_val, fator)
     df = converter_moeda_df(df, cols_val, moeda, taxas)
 
-    # ── Processar dados Real (mesmos filtros, fator e moeda) ──
-    df_real = None
-    if df_real_raw is not None:
-        df_real_temp = normalizar_periodo(df_real_raw.copy())
-        df_real_temp = aplicar_filtros(df_real_temp, filtros_sel)
-        if not df_real_temp.empty:
-            cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real_temp.columns]
-            df_real_temp = aplicar_fator_df(df_real_temp, cols_val_real, fator)
-            df_real_temp = converter_moeda_df(df_real_temp, cols_val_real, moeda, taxas)
-            df_real = df_real_temp
+    if df_real is not None:
+        cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real.columns]
+        df_real = aplicar_fator_df(df_real, cols_val_real, fator)
+        df_real = converter_moeda_df(df_real, cols_val_real, moeda, taxas)
 
-    # ── Budget Flex (calculado APÓS filtros para garantir consistência) ──
-    # IMPORTANTE: df_flex usa df (Budget) que já está convertido/fatorado
+    # ── Budget Flex (calculado com dados filtrados) ──
     tem_ano_df = 'Ano' in df.columns
     df_flex = calcular_flex_budget(df, df_vol_bud, df_vol_actual, tem_ano=tem_ano_df)
 
-    # ── Trocar df para Real (Budget fica em df_bud para KPI de BUD) ──
+    # ── df_bud = Budget, df = Real (ou Budget se sem Real) ──
     df_bud = df.copy()
     tem_real = df_real is not None
     if tem_real:
@@ -382,39 +425,147 @@ def render():
     #  TABS
     # ════════════════════════════════════════
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "� TC Veículos", "📈 Volume",
+        "🚗 TC Veículos", "📈 Volume",
         "🏭 Custos por Oficina", "📉 Análise Flex",
         "🚗 Tempo de Produção", "📋 Dados Detalhados",
     ])
 
     # ── TAB 1: TC Veículos ──
+    # Salvar estado global para restaurar após tab1
+    _save_df_bud = df_bud.copy()
+    _save_df = df.copy()
+    _save_df_vol_bud = df_vol_bud.copy() if df_vol_bud is not None else None
+    _save_df_vol_actual = df_vol_actual.copy() if df_vol_actual is not None else None
+    _save_df_flex = df_flex.copy() if df_flex is not None else None
+    _save_cols_val = cols_val[:]
+    _save_vol_total = vol_total
+    _save_tem_real = tem_real
+
     with tab1:
-        # ── Filtro de Período (topo da tab, afeta tudo abaixo) ──
-        periodos_disponiveis = sorted(
-            df_bud['Período'].dropna().unique().tolist(),
-            key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
-        )
-        opcoes_periodos = ["Todos"] + periodos_disponiveis
-        periodos_selecionados_raw = st.multiselect(
-            "📅 **Período(s):**",
-            opcoes_periodos,
-            default=["Todos"],
-            key="flex_periodo_multiselect"
-        )
-        if "Todos" in periodos_selecionados_raw:
-            periodos_filtro = periodos_disponiveis.copy()
+        st.markdown("---")
+
+        # ════════════════════════════════════════
+        # 🔍 Filtros da Aba (Oficina + Veículo)
+        # ════════════════════════════════════════
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            _oficinas_all = sorted(
+                _raw_df_principal['Oficina'].dropna().unique()
+            ) if 'Oficina' in _raw_df_principal.columns else []
+            _sel_ofi_t1 = st.multiselect(
+                "🏭 Oficina", ["Todos"] + _oficinas_all,
+                default=["Todos"], key="t1_oficina"
+            )
+            _ofi_t1 = (
+                _oficinas_all if "Todos" in _sel_ofi_t1
+                else [x for x in _sel_ofi_t1 if x != "Todos"]
+            )
+        with col_f2:
+            # Veículos do arquivo rateado (df_veic_bud_raw), pois df_principal não tem coluna Veículo
+            _df_veic_src = None
+            if df_veic_bud_raw is not None:
+                _df_veic_src = normalizar_periodo(df_veic_bud_raw.copy())
+                # Filtrar por oficinas selecionadas (cascata)
+                if _ofi_t1 and 'Oficina' in _df_veic_src.columns:
+                    _df_veic_src = _df_veic_src[_df_veic_src['Oficina'].isin(_ofi_t1)]
+            _veiculos_all = sorted(
+                _df_veic_src['Veículo'].dropna().unique()
+            ) if _df_veic_src is not None and 'Veículo' in _df_veic_src.columns else []
+            _sel_veic_t1 = st.selectbox(
+                "🚗 Veículo", ["Todos"] + _veiculos_all,
+                index=0, key="t1_veiculo"
+            )
+
+        # Períodos: usar todos disponíveis (filtro de período fica na seção Análise Flex)
+        _periodos_all = [
+            m for m in ORDEM_MESES
+            if m in _raw_df_principal['Período'].unique()
+        ]
+        _per_t1 = _periodos_all
+
+        # ── Reconstruir dados locais com filtros da aba ──
+        _filtros_t1 = {
+            'oficinas': _ofi_t1,
+            'periodos': _per_t1,
+        }
+        # Só incluir veiculos no filtro quando um veículo específico for selecionado
+        # (df_principal não tem coluna Veículo; apenas os dados rateados têm)
+        if _sel_veic_t1 != "Todos":
+            _filtros_t1['veiculos'] = [_sel_veic_t1]
+        _usar_rateado_t1 = _sel_veic_t1 != "Todos"
+
+        if _usar_rateado_t1 and df_veic_bud_raw is not None:
+            _bud_t1 = normalizar_periodo(df_veic_bud_raw.copy())
+            if 'Custo FP Veiculo' in _bud_t1.columns:
+                _bud_t1['Custo FP'] = _bud_t1['Custo FP Veiculo']
+            df_bud = aplicar_filtros(_bud_t1, _filtros_t1)
+
+            _real_t1 = None
+            if df_veic_real_raw is not None:
+                _r_t1 = normalizar_periodo(df_veic_real_raw.copy())
+                if 'Custo FP Veiculo' in _r_t1.columns:
+                    _r_t1['Custo FP'] = _r_t1['Custo FP Veiculo']
+                _rt = aplicar_filtros(_r_t1, _filtros_t1)
+                if not _rt.empty:
+                    _real_t1 = _rt
+
+            df_vol_bud = _raw_df_vol_bud.copy() if _raw_df_vol_bud is not None else None
+            if df_vol_bud is not None and 'Veículo' in df_vol_bud.columns:
+                df_vol_bud = df_vol_bud[df_vol_bud['Veículo'] == _sel_veic_t1]
+            df_vol_actual = _raw_df_vol_actual.copy() if _raw_df_vol_actual is not None else None
+            if df_vol_actual is not None and 'Veículo' in df_vol_actual.columns:
+                df_vol_actual = df_vol_actual[df_vol_actual['Veículo'] == _sel_veic_t1]
         else:
-            periodos_filtro = [p for p in periodos_selecionados_raw if p != "Todos"]
+            df_bud = aplicar_filtros(_raw_df_principal, _filtros_t1)
+            _real_t1 = None
+            if _raw_df_real is not None:
+                _rt = aplicar_filtros(_raw_df_real, _filtros_t1)
+                if not _rt.empty:
+                    _real_t1 = _rt
+            df_vol_bud = _raw_df_vol_bud.copy() if _raw_df_vol_bud is not None else None
+            df_vol_actual = _raw_df_vol_actual.copy() if _raw_df_vol_actual is not None else None
+
+        if df_bud.empty:
+            st.warning("⚠️ Nenhum dado encontrado com os filtros selecionados.")
+            df = df_bud.copy()
+            df_flex = None
+            vol_total = 0
+            cols_val = []
+            tem_real = False
+        else:
+            # Aplicar fator e moeda aos dados locais
+            cols_val = [c for c in COLUNAS_MONETARIAS if c in df_bud.columns]
+            df_bud = aplicar_fator_df(df_bud, cols_val, fator)
+            df_bud = converter_moeda_df(df_bud, cols_val, moeda, taxas)
+
+            if _real_t1 is not None:
+                _cv_t1 = [c for c in COLUNAS_MONETARIAS if c in _real_t1.columns]
+                _real_t1 = aplicar_fator_df(_real_t1, _cv_t1, fator)
+                _real_t1 = converter_moeda_df(_real_t1, _cv_t1, moeda, taxas)
+
+            tem_real = _real_t1 is not None
+            df = _real_t1 if tem_real else df_bud.copy()
+
+            _tem_ano_t1 = 'Ano' in df.columns
+            df_flex = calcular_flex_budget(
+                df_bud, df_vol_bud, df_vol_actual, tem_ano=_tem_ano_t1
+            )
+            vol_total = (
+                df_vol_bud['Volume'].sum()
+                if df_vol_bud is not None and 'Volume' in df_vol_bud.columns
+                else 0
+            )
+            cols_val = [c for c in COLUNAS_MONETARIAS if c in df.columns]
 
         st.markdown("---")
 
         # ════════════════════════════════════════
-        # 📊 Resumo TC Principal (KPIs dentro da tab)
+        # 📊 Resumo TC Veículos (KPIs dentro da tab)
         # ════════════════════════════════════════
-        st.subheader("📊 Resumo TC Principal")
+        st.subheader("📊 Resumo TC Veículos")
 
-        # Calcular BUD e Flex BUD usando dados do Budget (filtrados por período)
-        df_resumo_bud = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+        # Calcular BUD e Flex BUD usando dados do Budget (já filtrados pela sidebar)
+        df_resumo_bud = df_bud.copy()
         df_resumo_bud['Custo_str'] = df_resumo_bud['Custo'].astype(str).str.lower()
         df_resumo_bud['Categoria'] = df_resumo_bud['Custo_str'].apply(
             lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -425,14 +576,10 @@ def render():
         bud_variavel = df_resumo_bud[df_resumo_bud['Categoria'] == 'Variável']['Custo FP'].sum()
         bud_total = bud_fixo + bud_variavel
         
-        # Calcular proporção global de volume (filtrado por período)
+        # Calcular proporção global de volume
         if df_vol_bud is not None and df_vol_actual is not None:
-            _vb_f = normalizar_periodo(df_vol_bud.copy())
-            _vb_f = _vb_f[_vb_f['Período'].isin(periodos_filtro)]
-            vol_budget_total = _vb_f['Volume'].sum()
-            _va_f = normalizar_periodo(df_vol_actual.copy())
-            _va_f = _va_f[_va_f['Período'].isin(periodos_filtro)]
-            vol_actual_total = _va_f['Volume'].sum()
+            vol_budget_total = df_vol_bud['Volume'].sum()
+            vol_actual_total = df_vol_actual['Volume'].sum()
             proporcao_global_tc = (vol_actual_total / vol_budget_total) if vol_budget_total > 0 else 1
         else:
             vol_budget_total = 0
@@ -442,9 +589,8 @@ def render():
         # Calcular Flex BUD: Fixo + (Variável × Proporção Global)
         flex_bud_total = bud_fixo + (bud_variavel * proporcao_global_tc)
         
-        # Total = Real filtrado pelo período selecionado
-        _df_real_per = df[df['Período'].isin(periodos_filtro)] if 'Período' in df.columns else df
-        total_custo = _df_real_per['Custo FP'].sum() if 'Custo FP' in _df_real_per.columns else 0
+        # Total Real
+        total_custo = df['Custo FP'].sum() if 'Custo FP' in df.columns else 0
 
         # Aplicar CPU se necessário
         if tipo == 'CPU (Custo por Unidade)' and vol_actual_total > 0:
@@ -501,10 +647,10 @@ def render():
         # Detectar se há coluna Ano (padrão TC Ext)
         tem_ano = 'Ano' in df.columns
 
-        # ── Barras = somente Real (filtrado por período selecionado) ──
+        # ── Barras = somente Real ──
         df_periodo = None
-        if df_real is not None and 'Custo FP' in df_real.columns:
-            df_real_graf = df_real[df_real['Período'].isin(periodos_filtro)].copy() if 'Período' in df_real.columns else df_real.copy()
+        if 'Custo FP' in df.columns:
+            df_real_graf = df.copy()
             cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real_graf.columns]
             if tem_ano and 'Ano' in df_real_graf.columns:
                 df_periodo = df_real_graf.groupby(['Ano', 'Período'], as_index=False).agg({
@@ -521,7 +667,7 @@ def render():
 
             # Aplicar CPU ao Real se necessário
             if tipo == 'CPU (Custo por Unidade)' and df_vol_actual is not None:
-                vol_act_norm = normalizar_periodo(df_vol_actual.copy())
+                vol_act_norm = df_vol_actual.copy()
                 cols_agrup_vol = ['Ano', 'Período'] if tem_ano and 'Ano' in vol_act_norm.columns else ['Período']
                 vol_per = vol_act_norm.groupby(cols_agrup_vol, as_index=False)['Volume'].sum()
                 vol_per['Período'] = vol_per['Período'].astype(str)
@@ -579,9 +725,15 @@ def render():
         # ════════════════════════════════════════
         st.subheader("📊 Análise Flex por Categoria")
 
+        # Períodos disponíveis no Budget
+        _periodos_flex_all = sorted(
+            df_bud['Período'].dropna().unique().tolist(),
+            key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
+        )
+
         if df_flex is not None and 'Custo' in df.columns:
-            # Controles de visualização e download (Período no topo da tab)
-            col_viz1, col_viz2 = st.columns([1.5, 1])
+            # Controles de visualização, período e download
+            col_viz1, col_viz2, col_viz3 = st.columns([1.2, 1.5, 0.8])
             with col_viz1:
                 modo_visualizacao = st.radio(
                     "📊 **Visualização:**",
@@ -591,6 +743,19 @@ def render():
                     key="flex_modo_visualizacao"
                 )
             with col_viz2:
+                _sel_per_flex = st.multiselect(
+                    "📅 **Período(s):**",
+                    ["Todos"] + _periodos_flex_all,
+                    default=["Todos"],
+                    key="flex_periodo"
+                )
+                periodos_flex = (
+                    _periodos_flex_all if "Todos" in _sel_per_flex
+                    else [x for x in _sel_per_flex if x != "Todos"]
+                )
+                if not periodos_flex:
+                    periodos_flex = _periodos_flex_all
+            with col_viz3:
                 btn_excel = st.button(
                     "📥 Baixar Excel",
                     key="flex_download_excel",
@@ -598,7 +763,7 @@ def render():
                 )
             st.markdown("---")
             # ── BUD: agrupar do Budget (tem todos os meses) ──
-            df_bud_cat = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+            df_bud_cat = df_bud[df_bud['Período'].isin(periodos_flex)].copy()
             df_bud_cat['Custo_str'] = df_bud_cat['Custo'].astype(str).str.lower()
             df_bud_cat['Categoria'] = df_bud_cat['Custo_str'].apply(
                 lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -610,7 +775,7 @@ def render():
             df_bud_cat_agg = ordenar_por_mes(df_bud_cat_agg)
 
             # ── Real: agrupar do Real (pode ter menos meses) ──
-            df_real_cat = df[df['Período'].isin(periodos_filtro)].copy()
+            df_real_cat = df[df['Período'].isin(periodos_flex)].copy()
             if not df_real_cat.empty and 'Custo' in df_real_cat.columns:
                 df_real_cat['Custo_str'] = df_real_cat['Custo'].astype(str).str.lower()
                 df_real_cat['Categoria'] = df_real_cat['Custo_str'].apply(
@@ -627,11 +792,11 @@ def render():
             if df_vol_bud is not None and df_vol_actual is not None:
                 df_vol_bud_norm = normalizar_periodo(df_vol_bud.copy())
                 df_vol_bud_norm = df_vol_bud_norm[
-                    df_vol_bud_norm['Período'].isin(periodos_filtro)
+                    df_vol_bud_norm['Período'].isin(periodos_flex)
                 ].copy()
                 df_vol_act_norm = normalizar_periodo(df_vol_actual.copy())
                 df_vol_act_norm = df_vol_act_norm[
-                    df_vol_act_norm['Período'].isin(periodos_filtro)
+                    df_vol_act_norm['Período'].isin(periodos_flex)
                 ].copy()
                 vol_total_budget = df_vol_bud_norm['Volume'].sum()
                 vol_total_actual = df_vol_act_norm['Volume'].sum()
@@ -744,7 +909,7 @@ def render():
             # Mostrar expanders apenas se visualização for Fixo/Variável
             if modo_visualizacao == "Fixo/Variável":
                 # ── BUD: hierarquia do Budget (todos os accounts) ──
-                df_bud_hier_base = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+                df_bud_hier_base = df_bud[df_bud['Período'].isin(periodos_flex)].copy()
                 df_bud_hier_base['Custo_str'] = df_bud_hier_base['Custo'].astype(str).str.lower()
                 df_bud_hier_base['Categoria'] = df_bud_hier_base['Custo_str'].apply(
                     lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -758,7 +923,7 @@ def render():
                 )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
 
                 # ── Real: hierarquia do Real (pode ter menos accounts) ──
-                df_real_hier = df[df['Período'].isin(periodos_filtro)].copy()
+                df_real_hier = df[df['Período'].isin(periodos_flex)].copy()
                 if not df_real_hier.empty and 'Custo' in df_real_hier.columns:
                     df_real_hier['Custo_str'] = df_real_hier['Custo'].astype(str).str.lower()
                     df_real_hier['Categoria'] = df_real_hier['Custo_str'].apply(
@@ -780,7 +945,7 @@ def render():
                 if df_vol_bud is not None:
                     df_vol_bud_filt = normalizar_periodo(df_vol_bud.copy())
                     df_vol_bud_filt = df_vol_bud_filt[
-                        df_vol_bud_filt['Período'].isin(periodos_filtro)
+                        df_vol_bud_filt['Período'].isin(periodos_flex)
                     ].copy()
                     vol_total_bud = df_vol_bud_filt['Volume'].sum()
                 else:
@@ -789,7 +954,7 @@ def render():
                 if df_vol_actual is not None:
                     df_vol_act_filt = normalizar_periodo(df_vol_actual.copy())
                     df_vol_act_filt = df_vol_act_filt[
-                        df_vol_act_filt['Período'].isin(periodos_filtro)
+                        df_vol_act_filt['Período'].isin(periodos_flex)
                     ].copy()
                     vol_total_act = df_vol_act_filt['Volume'].sum()
                 else:
@@ -907,7 +1072,7 @@ def render():
             else:
                 # Modo Total: expanders direto por Type 05 → Account (sem Fixo/Variável)
                 # ── BUD: agrupar do Budget (todos os accounts) ──
-                df_bud_total_base = df_bud[df_bud['Período'].isin(periodos_filtro)].copy()
+                df_bud_total_base = df_bud[df_bud['Período'].isin(periodos_flex)].copy()
                 if 'Type 05' not in df_bud_total_base.columns:
                     df_bud_total_base['Type 05'] = 'N/A'
                 if 'Account' not in df_bud_total_base.columns:
@@ -917,7 +1082,7 @@ def render():
                 )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
 
                 # ── Real: agrupar do Real (pode ter menos accounts) ──
-                df_real_total = df[df['Período'].isin(periodos_filtro)].copy()
+                df_real_total = df[df['Período'].isin(periodos_flex)].copy()
                 if 'Type 05' not in df_real_total.columns:
                     df_real_total['Type 05'] = 'N/A'
                 if 'Account' not in df_real_total.columns:
@@ -930,7 +1095,7 @@ def render():
                 if df_vol_bud is not None:
                     df_vol_bud_filt = normalizar_periodo(df_vol_bud.copy())
                     df_vol_bud_filt = df_vol_bud_filt[
-                        df_vol_bud_filt['Período'].isin(periodos_filtro)
+                        df_vol_bud_filt['Período'].isin(periodos_flex)
                     ].copy()
                     vol_total_bud = df_vol_bud_filt['Volume'].sum()
                 else:
@@ -939,7 +1104,7 @@ def render():
                 if df_vol_actual is not None:
                     df_vol_act_filt = normalizar_periodo(df_vol_actual.copy())
                     df_vol_act_filt = df_vol_act_filt[
-                        df_vol_act_filt['Período'].isin(periodos_filtro)
+                        df_vol_act_filt['Período'].isin(periodos_flex)
                     ].copy()
                     vol_total_act = df_vol_act_filt['Volume'].sum()
                 else:
@@ -1045,6 +1210,16 @@ def render():
                 "ℹ️ Dados de categoria (Custo) não disponíveis para "
                 "análise Flex."
             )
+
+    # ── Restaurar estado global após tab1 ──
+    df_bud = _save_df_bud
+    df = _save_df
+    df_vol_bud = _save_df_vol_bud
+    df_vol_actual = _save_df_vol_actual
+    df_flex = _save_df_flex
+    cols_val = _save_cols_val
+    vol_total = _save_vol_total
+    tem_real = _save_tem_real
 
     # ── TAB 2: Volume ──
     with tab2:
@@ -1160,7 +1335,7 @@ def render():
 
                     # Legenda manual
                     st.caption(
-                        "� Barras com degradê verde = Volume Budget | "
+                        "📊 Barras com degradê verde = Volume Budget | "
                         "🟠 Linha tracejada = Volume Realizado"
                     )
                 else:
@@ -1172,7 +1347,6 @@ def render():
             chart_vol_per = (
                 alt.layer(*layers_vol)
                 .properties(height=400)
-                .configure_view(strokeWidth=0)
                 .configure_axis(labelFontSize=11, titleFontSize=13)
             )
             st.altair_chart(chart_vol_per, use_container_width=True)
@@ -1250,7 +1424,7 @@ def render():
                         "🟠 Linha tracejada = Volume Realizado"
                     )
 
-            chart_veic = alt.layer(*layers_veic).configure_view(strokeWidth=0)
+            chart_veic = alt.layer(*layers_veic)
             st.altair_chart(chart_veic, use_container_width=True)
 
             # ═══════════════════════════════════════
@@ -1379,8 +1553,7 @@ def render():
                 x=alt.X('Oficina:N', sort='-y', title='Oficina'),
                 y=alt.Y('Custo FP:Q', title=f'{label_valor} ({simbolo}{sufixo})'),
                 tooltip=['Oficina:N', alt.Tooltip('Custo FP:Q', format=',.2f', title='Custo FP')],
-            ).properties(height=450, title='Custo FP por Oficina')
-             .configure_view(strokeWidth=0))
+            ).properties(height=450, title='Custo FP por Oficina'))
             st.altair_chart(bar_ofi, use_container_width=True)
 
         with col_b:
@@ -1396,8 +1569,7 @@ def render():
                         alt.datum['Rateio %'] > 0, alt.value('#27ae60'), alt.value('#f44336'),
                     ),
                     tooltip=['Oficina:N', alt.Tooltip('Rateio %:Q', format='.2f')],
-                ).properties(height=450, title='Rateio FA por Oficina')
-                 .configure_view(strokeWidth=0))
+                ).properties(height=450, title='Rateio FA por Oficina'))
                 st.altair_chart(bar_rat, use_container_width=True)
 
         # Tabela com Custo FP
@@ -1557,8 +1729,7 @@ def render():
                                     legend=alt.Legend(orient='top')),
                     tooltip=['Período:N', 'Categoria:N',
                              alt.Tooltip('Custo FP:Q', format=',.0f')],
-                ).properties(height=400, title='Custo FP por Categoria')
-                 .configure_view(strokeWidth=0))
+                ).properties(height=400, title='Custo FP por Categoria'))
                 st.altair_chart(bar_cat, use_container_width=True)
 
             with col_b:
@@ -1674,8 +1845,7 @@ def render():
                         legend=None
                     ),
                     tooltip=['Veículo:N', alt.Tooltip('Custo FP:Q', format=',.2f', title='Custo FP')],
-                ).properties(height=400, title='Custo FP por Veículo')
-                 .configure_view(strokeWidth=0))
+                ).properties(height=400, title='Custo FP por Veículo'))
                 st.altair_chart(bar_veic, use_container_width=True)
 
             with col_b:
@@ -1716,8 +1886,7 @@ def render():
                     x=alt.X('Oficina:N', sort='-y'),
                     y=alt.Y('Tempo Veic:Q'),
                     tooltip=['Oficina:N', alt.Tooltip('Tempo Veic:Q', format=',')],
-                ).properties(height=400, title='Tempo Veículo por Oficina')
-                 .configure_view(strokeWidth=0))
+                ).properties(height=400, title='Tempo Veículo por Oficina'))
                 st.altair_chart(bar_tv, use_container_width=True)
 
             with col_d:
@@ -1739,8 +1908,7 @@ def render():
                                                         range=['#4A90E2', '#27ae60'])),
                         xOffset='Tipo:N',
                         tooltip=['Oficina:N', 'Tipo:N', alt.Tooltip('Tempo:Q', format=',')],
-                    ).properties(height=400, title='Tempo Veículo vs Tempo FA')
-                     .configure_view(strokeWidth=0))
+                    ).properties(height=400, title='Tempo Veículo vs Tempo FA'))
                     st.altair_chart(bar_comp, use_container_width=True)
 
             st.markdown("**EST e Tempo por Veículo e Oficina**")

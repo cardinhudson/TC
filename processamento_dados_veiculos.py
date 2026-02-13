@@ -1,5 +1,5 @@
 """
-Módulo de Processamento de Dados REAL (Sapiens) — TC Principal (Planta Principal)
+Módulo de Processamento de Dados REAL (Sapiens) — TC Veículos
 Processa o arquivo 'Reporting veículos.xlsx' (aba Sapiens) para extrair custos
 reais de produção de veículos.
 
@@ -1064,13 +1064,87 @@ def validacao_final(config: Dict, arquivos: Dict[str, str]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  CONSOLIDAÇÃO HISTÓRICO MULTI-ANO
+# ═══════════════════════════════════════════════════════════════
+
+def consolidar_historico_tc_veiculos(tipo: str = 'real') -> list:
+    """Consolida parquets de todos os anos em histórico multi-ano.
+
+    Args:
+        tipo: 'real' ou 'budget'
+
+    Returns:
+        Lista de mensagens de resultado.
+    """
+    resultados = []
+    pasta_base = os.path.join('dados', 'TC_Principal')
+
+    # Descobrir anos disponíveis
+    anos = []
+    if os.path.exists(pasta_base):
+        for item in sorted(os.listdir(pasta_base)):
+            caminho_item = os.path.join(pasta_base, item)
+            if os.path.isdir(caminho_item) and item.isdigit():
+                anos.append(int(item))
+
+    if not anos:
+        return ["⚠️ Nenhum ano encontrado em dados/TC_Principal/"]
+
+    pasta_hist = os.path.join(pasta_base, 'historico_consolidado')
+    pasta_hist_bud = os.path.join(pasta_hist, 'BUD')
+    os.makedirs(pasta_hist, exist_ok=True)
+    os.makedirs(pasta_hist_bud, exist_ok=True)
+
+    def _consolidar(mapa_arquivos: dict, pasta_destino: str):
+        for nome_hist, (nome_fonte, subpasta) in mapa_arquivos.items():
+            dfs = []
+            for a in anos:
+                if subpasta:
+                    caminho = os.path.join(pasta_base, str(a), subpasta, nome_fonte)
+                else:
+                    caminho = os.path.join(pasta_base, str(a), nome_fonte)
+                if os.path.exists(caminho):
+                    try:
+                        df = pd.read_parquet(caminho)
+                        if 'Ano' not in df.columns:
+                            df['Ano'] = a
+                        dfs.append(df)
+                    except Exception as e:
+                        resultados.append(f"⚠️ Erro ao ler {caminho}: {e}")
+            if dfs:
+                df_final = pd.concat(dfs, ignore_index=True)
+                destino = os.path.join(pasta_destino, nome_hist)
+                df_final.to_parquet(destino, index=False)
+                resultados.append(f"✅ {nome_hist}: {len(dfs)} ano(s) → {len(df_final):,} linhas")
+            else:
+                resultados.append(f"⚠️ {nome_hist}: nenhum dado encontrado")
+
+    if tipo == 'real':
+        _consolidar({
+            'df_principal_historico.parquet': ('df_principal.parquet', ''),
+            'df_vol_historico.parquet': ('df_vol_veiculos.parquet', ''),
+            'df_cpu_historico.parquet': ('df_veiculos_cpu.parquet', ''),
+            'df_veiculos_custo_fp_historico.parquet': ('df_veiculos_custo_fp.parquet', ''),
+        }, pasta_hist)
+    elif tipo == 'budget':
+        _consolidar({
+            'df_principal_historico_BUD.parquet': ('df_principal_BUD.parquet', 'BUD'),
+            'df_vol_historico_BUD.parquet': ('df_vol_veiculos_BUD.parquet', 'BUD'),
+            'df_cpu_historico_BUD.parquet': ('df_veiculos_cpu_BUD.parquet', 'BUD'),
+            'df_veiculos_custo_fp_historico_BUD.parquet': ('df_veiculos_custo_fp_BUD.parquet', 'BUD'),
+        }, pasta_hist_bud)
+
+    return resultados
+
+
+# ═══════════════════════════════════════════════════════════════
 #  ORQUESTRADOR PRINCIPAL
 # ═══════════════════════════════════════════════════════════════
 
 def processar_veiculos_real(ano: Optional[int] = None,
                             progress_callback=None) -> Dict:
     """
-    Pipeline completo de processamento Real (Sapiens) para TC Principal.
+    Pipeline completo de processamento Real (Sapiens) para TC Veículos.
 
     Args:
         ano: Ano de referência (default = ano atual)
@@ -1085,7 +1159,7 @@ def processar_veiculos_real(ano: Optional[int] = None,
         else:
             print(msg)
 
-    log("🚀 PROCESSAMENTO REAL (SAPIENS) — TC Principal")
+    log("🚀 PROCESSAMENTO REAL (SAPIENS) — TC Veículos")
     log("=" * 60)
 
     # 0. Configuração
@@ -1170,6 +1244,15 @@ def processar_veiculos_real(ano: Optional[int] = None,
     # 18. Validação final
     log("\n📋 Fase 18/18: Validação final...")
     validacao_final(config, arquivos)
+
+    # 19. Consolidação do histórico multi-ano (automática)
+    log("\n📋 Consolidando histórico multi-ano...")
+    try:
+        msgs = consolidar_historico_tc_veiculos(tipo='real')
+        for m in msgs:
+            log(f"   {m}")
+    except Exception as e:
+        log(f"   ⚠️ Erro na consolidação: {e}")
 
     log("\n🎉 Processamento Real concluído!")
 

@@ -84,12 +84,12 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes

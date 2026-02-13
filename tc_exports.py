@@ -82,7 +82,7 @@ def _normalizar_coluna_veiculo(df: pd.DataFrame) -> pd.DataFrame:
 @st.cache_data(ttl=3600, max_entries=10, show_spinner=True)
 def load_data(ano_selecionado_param):
     """Carrega df_final do histórico consolidado e filtra por ano quando aplicável."""
-    caminho_historico = os.path.join("dados", "historico_consolidado", "df_final_historico.parquet")
+    caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
     caminho_absoluto = os.path.abspath(caminho_historico)
 
     if not os.path.exists(caminho_historico):
@@ -107,7 +107,7 @@ def load_data(ano_selecionado_param):
 @st.cache_data(ttl=60, max_entries=10, show_spinner=True)
 def load_volume_data(ano_selecionado_param):
     """Carrega df_vol do histórico consolidado e filtra por ano quando aplicável."""
-    caminho_historico = os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet")
+    caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
 
     if not os.path.exists(caminho_historico):
         return None
@@ -133,7 +133,7 @@ def load_volume_data(ano_selecionado_param):
 def load_budget_data(ano_selecionado_param):
     """Carrega df_final do histórico consolidado BUD e filtra por ano quando aplicável."""
     caminho_budget = os.path.join(
-        "dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"
+        "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"
     )
     if not os.path.exists(caminho_budget):
         return None
@@ -156,7 +156,7 @@ def load_budget_data(ano_selecionado_param):
 def _load_budget_volume_data_cached(ano_selecionado_param, _mtime_cache_key: float | None):
     """(cacheada) Carrega df_vol do histórico consolidado BUD e filtra por ano."""
     caminho_budget_vol = os.path.join(
-        "dados", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+        "dados", "TC_Ext", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
     )
 
     df = pd.read_parquet(caminho_budget_vol)
@@ -198,7 +198,7 @@ def load_budget_volume_data(ano_selecionado_param):
     """
 
     caminho_budget_vol = os.path.join(
-        "dados", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+        "dados", "TC_Ext", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
     )
     if not os.path.exists(caminho_budget_vol):
         return None

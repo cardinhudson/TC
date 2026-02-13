@@ -1,5 +1,5 @@
 """
-TC Principal — Debug de Cálculos
+TC Veículos — Debug de Cálculos
 15 abas de auditoria: integridade, tabela principal, rateio FA, custo FA,
                      custo FP, D&A, volume/tempo, comparar Excel,
                      + 7 novas abas de cálculo por veículo.
@@ -53,7 +53,7 @@ def render():
     render_header()
 
     st.title("🔍 Debug de Cálculos")
-    st.subheader("Auditoria da Pipeline de Dados • TC Planta Principal")
+    st.subheader("Auditoria da Pipeline de Dados • TC Veículos")
 
     # ── Sidebar ──
     anos_disp = []
@@ -755,7 +755,7 @@ def render():
                 st.error(f"{icone} **{titulo}** — {detalhe}")
 
     st.divider()
-    st.caption(f"TC — Planta Principal | Debug | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    st.caption(f"TC — Veículos | Debug | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
 
 if __name__ == "__main__":
