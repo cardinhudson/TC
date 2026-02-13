@@ -8947,12 +8947,15 @@ if is_main_page:
             else:
                 st.subheader("📋 Tabela - Custo Total por Veículo, Oficina e Período")
                 
+            # 🔧 Garantir variáveis sempre definidas (evita NameError se bloco condicional não executar)
+            colunas_periodos = []
+            coluna_periodo_pivot = 'Período'
+            df_visualizacao_pivot = df_visualizacao.copy()
+            df_real_agr_cpu = None
+            colunas_adicionais = []
+            df_volume_real_base = None
+
             if tem_veiculo and tem_oficina and tem_periodo:
-                # 🔧 Garantir variáveis sempre definidas (evita NameError em caminhos alternativos)
-                colunas_periodos = []
-                coluna_periodo_pivot = 'Período'
-                df_visualizacao_pivot = df_visualizacao.copy()
-                df_real_agr_cpu = None
 
                 # Base de volume real já filtrada com a sidebar (não deve ser mergeada linha-a-linha no custo)
                 df_volume_real_base = None
@@ -9090,411 +9093,412 @@ if is_main_page:
                     if col not in colunas_excluidas
                 ]
                 
-            # Usar as mesmas colunas de períodos já determinadas
-            # Para CPU: calcular SEMPRE a partir de custo agregado + volume agregado (evita volume duplicado)
-            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                if df_real_agr_cpu is None:
-                    # Se ainda não foi calculado acima (por algum caminho alternativo), calcular aqui
-                    chaves_agr = ['Oficina', 'Veículo', 'Período']
-                    tem_multiplos_anos = 'Ano' in df_visualizacao_pivot.columns and df_visualizacao_pivot['Ano'].nunique() > 1
-                    if tem_multiplos_anos and 'Ano' in df_visualizacao_pivot.columns:
-                        chaves_agr.append('Ano')
+            if tem_veiculo and tem_oficina and tem_periodo:
+                # Usar as mesmas colunas de períodos já determinadas
+                # Para CPU: calcular SEMPRE a partir de custo agregado + volume agregado (evita volume duplicado)
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    if df_real_agr_cpu is None:
+                        # Se ainda não foi calculado acima (por algum caminho alternativo), calcular aqui
+                        chaves_agr = ['Oficina', 'Veículo', 'Período']
+                        tem_multiplos_anos = 'Ano' in df_visualizacao_pivot.columns and df_visualizacao_pivot['Ano'].nunique() > 1
+                        if tem_multiplos_anos and 'Ano' in df_visualizacao_pivot.columns:
+                            chaves_agr.append('Ano')
 
-                    if 'Custo FP' not in df_visualizacao_pivot.columns:
-                        if 'Despesa Primaria' in df_visualizacao_pivot.columns:
-                            df_visualizacao_pivot['Custo FP'] = df_visualizacao_pivot['Despesa Primaria']
-                        elif coluna_visualizacao in df_visualizacao_pivot.columns:
-                            df_visualizacao_pivot['Custo FP'] = df_visualizacao_pivot[coluna_visualizacao]
+                        if 'Custo FP' not in df_visualizacao_pivot.columns:
+                            if 'Despesa Primaria' in df_visualizacao_pivot.columns:
+                                df_visualizacao_pivot['Custo FP'] = df_visualizacao_pivot['Despesa Primaria']
+                            elif coluna_visualizacao in df_visualizacao_pivot.columns:
+                                df_visualizacao_pivot['Custo FP'] = df_visualizacao_pivot[coluna_visualizacao]
 
-                    df_custo_agr = (
-                        df_visualizacao_pivot.groupby(chaves_agr, dropna=False)
-                        .agg({'Custo FP': 'sum'})
-                        .reset_index()
-                    )
-
-                    if (
-                        df_volume_real_base is not None
-                        and 'Volume' in df_volume_real_base.columns
-                        and all(k in df_volume_real_base.columns for k in chaves_agr)
-                    ):
-                        df_vol_agr = (
-                            df_volume_real_base.groupby(chaves_agr, dropna=False)
-                            .agg({'Volume': 'sum'})
+                        df_custo_agr = (
+                            df_visualizacao_pivot.groupby(chaves_agr, dropna=False)
+                            .agg({'Custo FP': 'sum'})
                             .reset_index()
                         )
-                    else:
-                        df_vol_agr = df_custo_agr[chaves_agr].copy()
-                        df_vol_agr['Volume'] = 0
 
-                    df_real_agr_cpu = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='outer')
-                    df_real_agr_cpu['Volume'] = pd.to_numeric(df_real_agr_cpu['Volume'], errors='coerce').fillna(0)
-                    df_real_agr_cpu['Custo FP'] = pd.to_numeric(df_real_agr_cpu['Custo FP'], errors='coerce').fillna(0)
-                    df_real_agr_cpu['CPU'] = np.where(
-                        (df_real_agr_cpu['Volume'].notna()) & (df_real_agr_cpu['Volume'] != 0),
-                        df_real_agr_cpu['Custo FP'] / df_real_agr_cpu['Volume'],
-                        0
+                        if (
+                            df_volume_real_base is not None
+                            and 'Volume' in df_volume_real_base.columns
+                            and all(k in df_volume_real_base.columns for k in chaves_agr)
+                        ):
+                            df_vol_agr = (
+                                df_volume_real_base.groupby(chaves_agr, dropna=False)
+                                .agg({'Volume': 'sum'})
+                                .reset_index()
+                            )
+                        else:
+                            df_vol_agr = df_custo_agr[chaves_agr].copy()
+                            df_vol_agr['Volume'] = 0
+
+                        df_real_agr_cpu = pd.merge(df_custo_agr, df_vol_agr, on=chaves_agr, how='outer')
+                        df_real_agr_cpu['Volume'] = pd.to_numeric(df_real_agr_cpu['Volume'], errors='coerce').fillna(0)
+                        df_real_agr_cpu['Custo FP'] = pd.to_numeric(df_real_agr_cpu['Custo FP'], errors='coerce').fillna(0)
+                        df_real_agr_cpu['CPU'] = np.where(
+                            (df_real_agr_cpu['Volume'].notna()) & (df_real_agr_cpu['Volume'] != 0),
+                            df_real_agr_cpu['Custo FP'] / df_real_agr_cpu['Volume'],
+                            0
+                        )
+
+                        if tem_multiplos_anos:
+                            df_real_agr_cpu['Período_Ano'] = (
+                                df_real_agr_cpu['Período'].astype(str) + ' ' + df_real_agr_cpu['Ano'].astype(str)
+                            )
+                            coluna_periodo_pivot = 'Período_Ano'
+                        else:
+                            coluna_periodo_pivot = 'Período'
+
+                    df_tabela = df_real_agr_cpu.pivot_table(
+                        index=['Oficina', 'Veículo'],
+                        columns=coluna_periodo_pivot,
+                        values='CPU',
+                        aggfunc='first',
+                        fill_value=0
+                    )
+                else:
+                    # Para Custo Total, usar soma normalmente
+                    df_tabela = df_visualizacao_pivot.pivot_table(
+                        index=['Oficina', 'Veículo'],
+                        columns=coluna_periodo_pivot,
+                        values=coluna_visualizacao,
+                        aggfunc='sum',
+                        fill_value=0
                     )
 
-                    if tem_multiplos_anos:
-                        df_real_agr_cpu['Período_Ano'] = (
-                            df_real_agr_cpu['Período'].astype(str) + ' ' + df_real_agr_cpu['Ano'].astype(str)
-                        )
-                        coluna_periodo_pivot = 'Período_Ano'
-                    else:
-                        coluna_periodo_pivot = 'Período'
-
-                df_tabela = df_real_agr_cpu.pivot_table(
-                    index=['Oficina', 'Veículo'],
-                    columns=coluna_periodo_pivot,
-                    values='CPU',
-                    aggfunc='first',
-                    fill_value=0
-                )
-            else:
-                # Para Custo Total, usar soma normalmente
-                df_tabela = df_visualizacao_pivot.pivot_table(
-                    index=['Oficina', 'Veículo'],
-                    columns=coluna_periodo_pivot,
-                    values=coluna_visualizacao,
-                    aggfunc='sum',
-                    fill_value=0
-                )
-
-            # Se não foi possível determinar colunas_periodos acima, usar as colunas da própria tabela
-            if not colunas_periodos:
-                colunas_periodos = list(df_tabela.columns)
+                # Se não foi possível determinar colunas_periodos acima, usar as colunas da própria tabela
+                if not colunas_periodos:
+                    colunas_periodos = list(df_tabela.columns)
             
-            # Garantir que tenha as mesmas colunas (adicionar colunas faltantes com 0)
-            for col in colunas_periodos:
-                if col not in df_tabela.columns:
-                    df_tabela[col] = 0
+                # Garantir que tenha as mesmas colunas (adicionar colunas faltantes com 0)
+                for col in colunas_periodos:
+                    if col not in df_tabela.columns:
+                        df_tabela[col] = 0
                 
-            # Reordenar para usar exatamente as mesmas colunas
-            df_tabela = df_tabela[colunas_periodos]
+                # Reordenar para usar exatamente as mesmas colunas
+                df_tabela = df_tabela[colunas_periodos]
                 
-            # Calcular total por linha
-            # Para CPU, recalcular a partir de Total e Volume agregados por Oficina e Veículo (sem volume duplicado)
-            if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                df_total_oficina_veiculo = df_real_agr_cpu.groupby(['Oficina', 'Veículo'], dropna=False).agg({
-                    'Custo FP': 'sum',
-                    'Volume': 'sum'
-                }).reset_index()
-                # Calcular CPU - VETORIZADO
-                df_total_oficina_veiculo['CPU'] = np.where(
-                    (df_total_oficina_veiculo['Volume'].notna()) & (df_total_oficina_veiculo['Volume'] != 0),
-                    df_total_oficina_veiculo['Custo FP'] / df_total_oficina_veiculo['Volume'],
-                    0
-                )
-                # Fazer merge com df_tabela para adicionar coluna Total
-                df_tabela = df_tabela.reset_index()
-                df_tabela = pd.merge(
-                    df_tabela,
-                    df_total_oficina_veiculo[['Oficina', 'Veículo', 'CPU']],
-                    on=['Oficina', 'Veículo'],
-                    how='left'
-                )
-                df_tabela.rename(columns={'CPU': 'Custo FP'}, inplace=True)
-                df_tabela = df_tabela.set_index(['Oficina', 'Veículo'])
-            else:
-                df_tabela['Custo FP'] = df_tabela.sum(axis=1)
-            try:
-                df_tabela = df_tabela.sort_values(['Oficina', 'Veículo'])
-            except KeyError:
-                if isinstance(df_tabela.index, pd.MultiIndex):
-                    df_tabela = df_tabela.sort_index()
-                else:
-                    if 'Oficina' not in df_tabela.columns:
-                        df_tabela['Oficina'] = pd.NA
-                    if 'Veículo' not in df_tabela.columns:
-                        df_tabela['Veículo'] = pd.NA
-                    df_tabela = df_tabela.sort_values(['Oficina', 'Veículo'])
-                
-            # Resetar índice para ter Oficina e Veículo como colunas (Oficina primeiro)
-            df_tabela = df_tabela.reset_index()
-            
-            # Adicionar colunas adicionais fazendo merge com o primeiro valor não nulo por Oficina e Veículo
-            if colunas_adicionais:
-                # Filtrar apenas colunas que realmente existem no DataFrame
-                colunas_adicionais_validas = [
-                    col for col in colunas_adicionais 
-                    if col in df_visualizacao.columns
-                ]
-                    
-                if colunas_adicionais_validas:
-                    # Agrupar por Oficina e Veículo e pegar o primeiro valor não nulo de cada coluna adicional
-                    # Usar df_visualizacao original para ter todas as colunas
-                    df_colunas_adicionais = df_visualizacao.groupby(['Oficina', 'Veículo'])[colunas_adicionais_validas].first().reset_index()
-                    # Fazer merge com a tabela
+                # Calcular total por linha
+                # Para CPU, recalcular a partir de Total e Volume agregados por Oficina e Veículo (sem volume duplicado)
+                if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                    df_total_oficina_veiculo = df_real_agr_cpu.groupby(['Oficina', 'Veículo'], dropna=False).agg({
+                        'Custo FP': 'sum',
+                        'Volume': 'sum'
+                    }).reset_index()
+                    # Calcular CPU - VETORIZADO
+                    df_total_oficina_veiculo['CPU'] = np.where(
+                        (df_total_oficina_veiculo['Volume'].notna()) & (df_total_oficina_veiculo['Volume'] != 0),
+                        df_total_oficina_veiculo['Custo FP'] / df_total_oficina_veiculo['Volume'],
+                        0
+                    )
+                    # Fazer merge com df_tabela para adicionar coluna Total
+                    df_tabela = df_tabela.reset_index()
                     df_tabela = pd.merge(
                         df_tabela,
-                        df_colunas_adicionais,
+                        df_total_oficina_veiculo[['Oficina', 'Veículo', 'CPU']],
                         on=['Oficina', 'Veículo'],
                         how='left'
                     )
-                    # Reordenar colunas: Oficina, Veículo, colunas adicionais (na ordem original), períodos, Total
-                    # Manter a ordem original das colunas adicionais
-                    colunas_adicionais_ordenadas = [
-                        col for col in colunas_adicionais 
-                        if col in colunas_adicionais_validas
-                    ]
-                    colunas_finais = ['Oficina', 'Veículo'] + colunas_adicionais_ordenadas + colunas_periodos + ['Custo FP']
-                    # Manter apenas colunas que existem
-                    colunas_finais = [col for col in colunas_finais if col in df_tabela.columns]
-                    df_tabela = df_tabela[colunas_finais]
-            else:
-                # Reordenar colunas para garantir que Oficina venha antes de Veículo
-                colunas_ordenadas = ['Oficina', 'Veículo'] + [col for col in df_tabela.columns 
-                                                              if col not in ['Oficina', 'Veículo']]
-                df_tabela = df_tabela[colunas_ordenadas]
+                    df_tabela.rename(columns={'CPU': 'Custo FP'}, inplace=True)
+                    df_tabela = df_tabela.set_index(['Oficina', 'Veículo'])
+                else:
+                    df_tabela['Custo FP'] = df_tabela.sum(axis=1)
+                try:
+                    df_tabela = df_tabela.sort_values(['Oficina', 'Veículo'])
+                except KeyError:
+                    if isinstance(df_tabela.index, pd.MultiIndex):
+                        df_tabela = df_tabela.sort_index()
+                    else:
+                        if 'Oficina' not in df_tabela.columns:
+                            df_tabela['Oficina'] = pd.NA
+                        if 'Veículo' not in df_tabela.columns:
+                            df_tabela['Veículo'] = pd.NA
+                        df_tabela = df_tabela.sort_values(['Oficina', 'Veículo'])
                 
-            # Formatar valores baseado no tipo de visualização - OTIMIZADO
-            # Aplicar formatação apenas nas colunas numéricas (exceto Veículo, Oficina e colunas adicionais)
-            df_tabela_formatado = df_tabela.copy()
-            # Obter colunas adicionais que foram realmente adicionadas à tabela
-            colunas_adicionais_na_tabela = [
-                col for col in df_tabela_formatado.columns 
-                if col not in ['Oficina', 'Veículo'] + colunas_periodos + ['Custo FP']
-            ]
-            colunas_formatar = [
-                col for col in df_tabela_formatado.columns 
-                if col not in ['Veículo', 'Oficina'] + colunas_adicionais_na_tabela and
-                df_tabela_formatado[col].dtype in ['float64', 'float32', 'int64', 'int32']
-            ]
-            # Formatação vetorizada
-            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                for col in colunas_formatar:
-                    df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
-            else:
-                # Adicionar sufixo baseado no fator de conversão
-                sufixo = ""
-                if fator_conversao:
-                    if fator_conversao == "K (milhares)":
-                        sufixo = " K"
-                    elif fator_conversao == "M (Milhões)":
-                        sufixo = " M"
-                for col in colunas_formatar:
-                    df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}{sufixo}" if isinstance(x, (int, float)) else x)
+                # Resetar índice para ter Oficina e Veículo como colunas (Oficina primeiro)
+                df_tabela = df_tabela.reset_index()
             
-            # Função para formatar valores (definida antes de ser usada)
-            def formatar_valor(val, tipo):
-                if isinstance(val, (int, float)):
-                    # NOTA: Os dados já estão convertidos na base, então apenas formatamos
-                    simbolo = obter_simbolo_moeda(moeda_codigo)
-                    if tipo == "CPU (Custo por Unidade)":
-                        return f"{val:,.2f}"
-                    else:
-                        # Adicionar sufixo baseado no fator de conversão (apenas para Custo Total)
-                        sufixo = ""
-                        if tipo_visualizacao == "Custo Total" and fator_conversao:
-                            if fator_conversao == "K (milhares)":
-                                sufixo = " K"
-                            elif fator_conversao == "M (Milhões)":
-                                sufixo = " M"
-                        return f"{simbolo} {val:,.2f}{sufixo}"
-                return val
-            
-            # Agrupar por Oficina e renderizar blocos
-            oficinas = df_tabela_formatado['Oficina'].unique()
-
-            if len(oficinas) == 0:
-                st.info("Nenhum dado encontrado para exibir por Oficina.")
-            else:
-                for oficina in sorted(oficinas):
-                    # Filtrar dados da oficina
-                    df_oficina = df_tabela_formatado[df_tabela_formatado['Oficina'] == oficina].copy()
-
-                    # Calcular total da oficina
-                    if 'Custo FP' in df_oficina.columns:
-                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                            df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                            total_custo_of = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
-                            vol_of = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
-                            total_oficina = (total_custo_of / vol_of) if vol_of not in (0, None) else 0.0
-                        else:
-                            df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                            total_oficina = float(pd.to_numeric(df_oficina_numerico['Custo FP'], errors='coerce').fillna(0).sum())
-                        total_formatado = formatar_valor(total_oficina, tipo_visualizacao)
-                    else:
-                        total_formatado = "N/A"
-
-                    # Criar container para cada oficina (substituindo expander para evitar aninhamento)
-                    with st.container():
-                        st.markdown(
-                            f"### 🏭 **{oficina}** - Total: {total_formatado} ("
-                            f"{len(df_oficina)} veículo{'s' if len(df_oficina) > 1 else ''})"
+                # Adicionar colunas adicionais fazendo merge com o primeiro valor não nulo por Oficina e Veículo
+                if colunas_adicionais:
+                    # Filtrar apenas colunas que realmente existem no DataFrame
+                    colunas_adicionais_validas = [
+                        col for col in colunas_adicionais 
+                        if col in df_visualizacao.columns
+                    ]
+                    
+                    if colunas_adicionais_validas:
+                        # Agrupar por Oficina e Veículo e pegar o primeiro valor não nulo de cada coluna adicional
+                        # Usar df_visualizacao original para ter todas as colunas
+                        df_colunas_adicionais = df_visualizacao.groupby(['Oficina', 'Veículo'])[colunas_adicionais_validas].first().reset_index()
+                        # Fazer merge com a tabela
+                        df_tabela = pd.merge(
+                            df_tabela,
+                            df_colunas_adicionais,
+                            on=['Oficina', 'Veículo'],
+                            how='left'
                         )
-
-                        # Em CPU, o TOTAL por mês é ponderado por Volume (Total/Volume).
-                        # Se o volume muda entre meses, o TOTAL pode mudar mesmo com CPUs por veículo parecidas.
-                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                            with st.expander("📦 Volume por período (explica variações do TOTAL em CPU)", expanded=False):
-                                df_tmp_vol = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                                col_per = (
-                                    'Período_Ano'
-                                    if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_tmp_vol.columns
-                                    else 'Período'
-                                )
-                                vol_por_periodo = (
-                                    df_tmp_vol.groupby(col_per, dropna=False)['Volume']
-                                    .sum()
-                                    .astype(float)
-                                )
-
-                                # Ordenar colunas no mesmo padrão exibido na tabela
-                                ordem_cols = [c for c in colunas_periodos if c in vol_por_periodo.index]
-                                extras = [c for c in vol_por_periodo.index if c not in set(ordem_cols)]
-                                vol_por_periodo = vol_por_periodo.reindex(ordem_cols + extras, fill_value=0.0)
-
-                                st.dataframe(pd.DataFrame([vol_por_periodo]), width="stretch")
-                                st.caption(
-                                    "No modo CPU, o TOTAL do mês é calculado como sum(Total)/sum(Volume). "
-                                    "Se o volume muda entre meses, o TOTAL pode mudar mesmo com CPUs por veículo iguais após arredondamento."
-                                )
-
-                        # Remover coluna Oficina da tabela (já está no título)
-                        df_oficina_display = df_oficina.drop(columns=['Oficina'])
-
-                        # Remover colunas 'mes', 'Mes', 'QTD', 'soma_percentuais' e 'Soma_Percentuais' se existirem
-                        colunas_para_remover = ['mes', 'Mes', 'QTD', 'soma_percentuais', 'Soma_Percentuais']
-                        for col in colunas_para_remover:
-                            if col in df_oficina_display.columns:
-                                df_oficina_display = df_oficina_display.drop(columns=[col])
-
-                        # Calcular totais por coluna (meses) usando dados numéricos
-                        df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                        df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
-
-                        # Criar linha de total
-                        linha_total = {'Veículo': '**TOTAL**'}
-
-                        # Obter colunas adicionais que foram realmente adicionadas à tabela
-                        colunas_adicionais_na_tabela = [
-                            col for col in df_oficina_numerico.columns
-                            if col not in ['Veículo'] + colunas_periodos + ['Custo FP']
+                        # Reordenar colunas: Oficina, Veículo, colunas adicionais (na ordem original), períodos, Total
+                        # Manter a ordem original das colunas adicionais
+                        colunas_adicionais_ordenadas = [
+                            col for col in colunas_adicionais 
+                            if col in colunas_adicionais_validas
                         ]
-
-                        # Adicionar valores vazios para colunas adicionais na linha de total
-                        for col in colunas_adicionais_na_tabela:
-                            if col in df_oficina_numerico.columns:
-                                linha_total[col] = pd.NA
-
-                        # Adicionar totais por coluna (meses e Total)
-                        for col in df_oficina_numerico.columns:
-                            if col not in ['Veículo'] + colunas_adicionais_na_tabela:
-                                if col in colunas_periodos:
-                                    # Para colunas de período, se for CPU, calcular Total/Volume do período
-                                    if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                                        df_tmp = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                                        if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_tmp.columns:
-                                            df_tmp_p = df_tmp[df_tmp['Período_Ano'] == col]
-                                        else:
-                                            df_tmp_p = df_tmp[df_tmp['Período'] == col]
-
-                                        total_periodo = float(pd.to_numeric(df_tmp_p['Custo FP'], errors='coerce').fillna(0).sum())
-                                        volume_periodo = float(pd.to_numeric(df_tmp_p['Volume'], errors='coerce').fillna(0).sum())
-                                        cpu_periodo = (total_periodo / volume_periodo) if volume_periodo not in (0, None) else 0.0
-                                        linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
-                                    else:
-                                        # Para Custo Total, somar normalmente
-                                        if df_oficina_numerico[col].dtype in ['float64', 'float32', 'int64', 'int32']:
-                                            total_col = df_oficina_numerico[col].sum()
-                                            linha_total[col] = formatar_valor(total_col, tipo_visualizacao)
-                                elif col == 'Custo FP':
-                                    # Para a coluna Total, se for CPU, calcular Total/Volume geral da oficina
-                                    if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                                        df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                                        total_geral = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
-                                        volume_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
-                                        cpu_geral = (total_geral / volume_geral) if volume_geral not in (0, None) else 0.0
-                                        linha_total[col] = formatar_valor(cpu_geral, tipo_visualizacao)
-                                    else:
-                                        # Para Custo Total, somar normalmente
-                                        if df_oficina_numerico[col].dtype in ['float64', 'float32', 'int64', 'int32']:
-                                            total_col = df_oficina_numerico[col].sum()
-                                            linha_total[col] = formatar_valor(total_col, tipo_visualizacao)
-
-                        # Adicionar linha de total ao DataFrame
-                        df_oficina_display = pd.concat([
-                            df_oficina_display,
-                            pd.DataFrame([linha_total])
-                        ], ignore_index=True)
-
-                        st.dataframe(df_oficina_display, width="stretch")
+                        colunas_finais = ['Oficina', 'Veículo'] + colunas_adicionais_ordenadas + colunas_periodos + ['Custo FP']
+                        # Manter apenas colunas que existem
+                        colunas_finais = [col for col in colunas_finais if col in df_tabela.columns]
+                        df_tabela = df_tabela[colunas_finais]
+                else:
+                    # Reordenar colunas para garantir que Oficina venha antes de Veículo
+                    colunas_ordenadas = ['Oficina', 'Veículo'] + [col for col in df_tabela.columns 
+                                                                  if col not in ['Oficina', 'Veículo']]
+                    df_tabela = df_tabela[colunas_ordenadas]
+                
+                # Formatar valores baseado no tipo de visualização - OTIMIZADO
+                # Aplicar formatação apenas nas colunas numéricas (exceto Veículo, Oficina e colunas adicionais)
+                df_tabela_formatado = df_tabela.copy()
+                # Obter colunas adicionais que foram realmente adicionadas à tabela
+                colunas_adicionais_na_tabela = [
+                    col for col in df_tabela_formatado.columns 
+                    if col not in ['Oficina', 'Veículo'] + colunas_periodos + ['Custo FP']
+                ]
+                colunas_formatar = [
+                    col for col in df_tabela_formatado.columns 
+                    if col not in ['Veículo', 'Oficina'] + colunas_adicionais_na_tabela and
+                    df_tabela_formatado[col].dtype in ['float64', 'float32', 'int64', 'int32']
+                ]
+                # Formatação vetorizada
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    for col in colunas_formatar:
+                        df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
+                else:
+                    # Adicionar sufixo baseado no fator de conversão
+                    sufixo = ""
+                    if fator_conversao:
+                        if fator_conversao == "K (milhares)":
+                            sufixo = " K"
+                        elif fator_conversao == "M (Milhões)":
+                            sufixo = " M"
+                    for col in colunas_formatar:
+                        df_tabela_formatado[col] = df_tabela_formatado[col].map(lambda x: f"{x:,.2f}{sufixo}" if isinstance(x, (int, float)) else x)
             
-            # Botão de download da tabela (dentro do expander, fora do loop)
-            if st.button(
-                "📥 Baixar Tabela por Veículo e Oficina (Excel)",
-                width="stretch",
-                key="download_tabela_veiculo_oficina_tc"
-            ):
-                with st.spinner("Gerando arquivo da tabela..."):
-                    try:
-                        # Criar DataFrame completo para download (com todas as oficinas e totais)
-                        df_download_list = []
-                            
-                        for oficina in sorted(oficinas):
-                            # Dados da oficina (sem formatação para manter valores numéricos)
-                            df_oficina_download = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                                
-                            # Adicionar linha de total da oficina
-                            linha_total_download = {'Oficina': oficina, 'Veículo': 'TOTAL'}
+                # Função para formatar valores (definida antes de ser usada)
+                def formatar_valor(val, tipo):
+                    if isinstance(val, (int, float)):
+                        # NOTA: Os dados já estão convertidos na base, então apenas formatamos
+                        simbolo = obter_simbolo_moeda(moeda_codigo)
+                        if tipo == "CPU (Custo por Unidade)":
+                            return f"{val:,.2f}"
+                        else:
+                            # Adicionar sufixo baseado no fator de conversão (apenas para Custo Total)
+                            sufixo = ""
+                            if tipo_visualizacao == "Custo Total" and fator_conversao:
+                                if fator_conversao == "K (milhares)":
+                                    sufixo = " K"
+                                elif fator_conversao == "M (Milhões)":
+                                    sufixo = " M"
+                            return f"{simbolo} {val:,.2f}{sufixo}"
+                    return val
+            
+                # Agrupar por Oficina e renderizar blocos
+                oficinas = df_tabela_formatado['Oficina'].unique()
+
+                if len(oficinas) == 0:
+                    st.info("Nenhum dado encontrado para exibir por Oficina.")
+                else:
+                    for oficina in sorted(oficinas):
+                        # Filtrar dados da oficina
+                        df_oficina = df_tabela_formatado[df_tabela_formatado['Oficina'] == oficina].copy()
+
+                        # Calcular total da oficina
+                        if 'Custo FP' in df_oficina.columns:
                             if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
                                 df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                                for col in colunas_periodos:
-                                    if col in df_oficina_download.columns:
-                                        if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_base_of.columns:
-                                            df_p = df_base_of[df_base_of['Período_Ano'] == col]
-                                        else:
-                                            df_p = df_base_of[df_base_of['Período'] == col]
-
-                                        total_p = float(pd.to_numeric(df_p['Custo FP'], errors='coerce').fillna(0).sum())
-                                        vol_p = float(pd.to_numeric(df_p['Volume'], errors='coerce').fillna(0).sum())
-                                        linha_total_download[col] = (total_p / vol_p) if vol_p not in (0, None) else 0.0
-
-                                if 'Custo FP' in df_oficina_download.columns:
-                                    total_geral = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
-                                    vol_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
-                                    linha_total_download['Custo FP'] = (total_geral / vol_geral) if vol_geral not in (0, None) else 0.0
+                                total_custo_of = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
+                                vol_of = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
+                                total_oficina = (total_custo_of / vol_of) if vol_of not in (0, None) else 0.0
                             else:
                                 df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                                df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
-                                for col in df_oficina_numerico.columns:
-                                    if col != 'Veículo':
-                                        total_col = df_oficina_numerico[col].sum()
-                                        linha_total_download[col] = total_col
-                            
-                            # Adicionar dados da oficina
-                            df_download_list.append(df_oficina_download)
-                            # Adicionar linha de total
-                            df_download_list.append(pd.DataFrame([linha_total_download]))
-                            
-                        # Concatenar todos os DataFrames
-                        df_download = pd.concat(df_download_list, ignore_index=True)
-                            
-                        # Obter pasta Downloads do usuário
-                        downloads_path = os.path.join(
-                            os.path.expanduser("~"), "Downloads"
-                        )
-                        tipo_nome = "CPU" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Custo_Total"
-                        file_name = f"TC_Veiculos_tabela_veiculo_oficina_{tipo_nome}.xlsx"
-                        file_path = os.path.join(downloads_path, file_name)
-                            
-                        # Salvar arquivo diretamente na pasta Downloads
-                        with pd.ExcelWriter(
-                            file_path, engine='openpyxl'
-                        ) as writer:
-                            df_download.to_excel(
-                                writer, index=False, sheet_name='Veiculo_Oficina'
+                                total_oficina = float(pd.to_numeric(df_oficina_numerico['Custo FP'], errors='coerce').fillna(0).sum())
+                            total_formatado = formatar_valor(total_oficina, tipo_visualizacao)
+                        else:
+                            total_formatado = "N/A"
+
+                        # Criar container para cada oficina (substituindo expander para evitar aninhamento)
+                        with st.container():
+                            st.markdown(
+                                f"### 🏭 **{oficina}** - Total: {total_formatado} ("
+                                f"{len(df_oficina)} veículo{'s' if len(df_oficina) > 1 else ''})"
                             )
+
+                            # Em CPU, o TOTAL por mês é ponderado por Volume (Total/Volume).
+                            # Se o volume muda entre meses, o TOTAL pode mudar mesmo com CPUs por veículo parecidas.
+                            if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                                with st.expander("📦 Volume por período (explica variações do TOTAL em CPU)", expanded=False):
+                                    df_tmp_vol = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
+                                    col_per = (
+                                        'Período_Ano'
+                                        if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_tmp_vol.columns
+                                        else 'Período'
+                                    )
+                                    vol_por_periodo = (
+                                        df_tmp_vol.groupby(col_per, dropna=False)['Volume']
+                                        .sum()
+                                        .astype(float)
+                                    )
+
+                                    # Ordenar colunas no mesmo padrão exibido na tabela
+                                    ordem_cols = [c for c in colunas_periodos if c in vol_por_periodo.index]
+                                    extras = [c for c in vol_por_periodo.index if c not in set(ordem_cols)]
+                                    vol_por_periodo = vol_por_periodo.reindex(ordem_cols + extras, fill_value=0.0)
+
+                                    st.dataframe(pd.DataFrame([vol_por_periodo]), width="stretch")
+                                    st.caption(
+                                        "No modo CPU, o TOTAL do mês é calculado como sum(Total)/sum(Volume). "
+                                        "Se o volume muda entre meses, o TOTAL pode mudar mesmo com CPUs por veículo iguais após arredondamento."
+                                    )
+
+                            # Remover coluna Oficina da tabela (já está no título)
+                            df_oficina_display = df_oficina.drop(columns=['Oficina'])
+
+                            # Remover colunas 'mes', 'Mes', 'QTD', 'soma_percentuais' e 'Soma_Percentuais' se existirem
+                            colunas_para_remover = ['mes', 'Mes', 'QTD', 'soma_percentuais', 'Soma_Percentuais']
+                            for col in colunas_para_remover:
+                                if col in df_oficina_display.columns:
+                                    df_oficina_display = df_oficina_display.drop(columns=[col])
+
+                            # Calcular totais por coluna (meses) usando dados numéricos
+                            df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
+                            df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
+
+                            # Criar linha de total
+                            linha_total = {'Veículo': '**TOTAL**'}
+
+                            # Obter colunas adicionais que foram realmente adicionadas à tabela
+                            colunas_adicionais_na_tabela = [
+                                col for col in df_oficina_numerico.columns
+                                if col not in ['Veículo'] + colunas_periodos + ['Custo FP']
+                            ]
+
+                            # Adicionar valores vazios para colunas adicionais na linha de total
+                            for col in colunas_adicionais_na_tabela:
+                                if col in df_oficina_numerico.columns:
+                                    linha_total[col] = pd.NA
+
+                            # Adicionar totais por coluna (meses e Total)
+                            for col in df_oficina_numerico.columns:
+                                if col not in ['Veículo'] + colunas_adicionais_na_tabela:
+                                    if col in colunas_periodos:
+                                        # Para colunas de período, se for CPU, calcular Total/Volume do período
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                                            df_tmp = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
+                                            if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_tmp.columns:
+                                                df_tmp_p = df_tmp[df_tmp['Período_Ano'] == col]
+                                            else:
+                                                df_tmp_p = df_tmp[df_tmp['Período'] == col]
+
+                                            total_periodo = float(pd.to_numeric(df_tmp_p['Custo FP'], errors='coerce').fillna(0).sum())
+                                            volume_periodo = float(pd.to_numeric(df_tmp_p['Volume'], errors='coerce').fillna(0).sum())
+                                            cpu_periodo = (total_periodo / volume_periodo) if volume_periodo not in (0, None) else 0.0
+                                            linha_total[col] = formatar_valor(cpu_periodo, tipo_visualizacao)
+                                        else:
+                                            # Para Custo Total, somar normalmente
+                                            if df_oficina_numerico[col].dtype in ['float64', 'float32', 'int64', 'int32']:
+                                                total_col = df_oficina_numerico[col].sum()
+                                                linha_total[col] = formatar_valor(total_col, tipo_visualizacao)
+                                    elif col == 'Custo FP':
+                                        # Para a coluna Total, se for CPU, calcular Total/Volume geral da oficina
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                                            df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
+                                            total_geral = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
+                                            volume_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
+                                            cpu_geral = (total_geral / volume_geral) if volume_geral not in (0, None) else 0.0
+                                            linha_total[col] = formatar_valor(cpu_geral, tipo_visualizacao)
+                                        else:
+                                            # Para Custo Total, somar normalmente
+                                            if df_oficina_numerico[col].dtype in ['float64', 'float32', 'int64', 'int32']:
+                                                total_col = df_oficina_numerico[col].sum()
+                                                linha_total[col] = formatar_valor(total_col, tipo_visualizacao)
+
+                            # Adicionar linha de total ao DataFrame
+                            df_oficina_display = pd.concat([
+                                df_oficina_display,
+                                pd.DataFrame([linha_total])
+                            ], ignore_index=True)
+
+                            st.dataframe(df_oficina_display, width="stretch")
+            
+                # Botão de download da tabela (dentro do expander, fora do loop)
+                if st.button(
+                    "📥 Baixar Tabela por Veículo e Oficina (Excel)",
+                    width="stretch",
+                    key="download_tabela_veiculo_oficina_tc"
+                ):
+                    with st.spinner("Gerando arquivo da tabela..."):
+                        try:
+                            # Criar DataFrame completo para download (com todas as oficinas e totais)
+                            df_download_list = []
                             
-                        st.success(
-                            f"✅ Arquivo salvo com sucesso em: {file_path}"
-                        )
-                        st.info(
-                            f"📁 Verifique sua pasta Downloads: {downloads_path}"
-                        )
-                    except Exception as e:
-                        st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+                            for oficina in sorted(oficinas):
+                                # Dados da oficina (sem formatação para manter valores numéricos)
+                                df_oficina_download = df_tabela[df_tabela['Oficina'] == oficina].copy()
+                                
+                                # Adicionar linha de total da oficina
+                                linha_total_download = {'Oficina': oficina, 'Veículo': 'TOTAL'}
+                                if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                                    df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
+                                    for col in colunas_periodos:
+                                        if col in df_oficina_download.columns:
+                                            if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_base_of.columns:
+                                                df_p = df_base_of[df_base_of['Período_Ano'] == col]
+                                            else:
+                                                df_p = df_base_of[df_base_of['Período'] == col]
+
+                                            total_p = float(pd.to_numeric(df_p['Custo FP'], errors='coerce').fillna(0).sum())
+                                            vol_p = float(pd.to_numeric(df_p['Volume'], errors='coerce').fillna(0).sum())
+                                            linha_total_download[col] = (total_p / vol_p) if vol_p not in (0, None) else 0.0
+
+                                    if 'Custo FP' in df_oficina_download.columns:
+                                        total_geral = float(pd.to_numeric(df_base_of['Custo FP'], errors='coerce').fillna(0).sum())
+                                        vol_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
+                                        linha_total_download['Custo FP'] = (total_geral / vol_geral) if vol_geral not in (0, None) else 0.0
+                                else:
+                                    df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
+                                    df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
+                                    for col in df_oficina_numerico.columns:
+                                        if col != 'Veículo':
+                                            total_col = df_oficina_numerico[col].sum()
+                                            linha_total_download[col] = total_col
+                            
+                                # Adicionar dados da oficina
+                                df_download_list.append(df_oficina_download)
+                                # Adicionar linha de total
+                                df_download_list.append(pd.DataFrame([linha_total_download]))
+                            
+                            # Concatenar todos os DataFrames
+                            df_download = pd.concat(df_download_list, ignore_index=True)
+                            
+                            # Obter pasta Downloads do usuário
+                            downloads_path = os.path.join(
+                                os.path.expanduser("~"), "Downloads"
+                            )
+                            tipo_nome = "CPU" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Custo_Total"
+                            file_name = f"TC_Veiculos_tabela_veiculo_oficina_{tipo_nome}.xlsx"
+                            file_path = os.path.join(downloads_path, file_name)
+                            
+                            # Salvar arquivo diretamente na pasta Downloads
+                            with pd.ExcelWriter(
+                                file_path, engine='openpyxl'
+                            ) as writer:
+                                df_download.to_excel(
+                                    writer, index=False, sheet_name='Veiculo_Oficina'
+                                )
+                            
+                            st.success(
+                                f"✅ Arquivo salvo com sucesso em: {file_path}"
+                            )
+                            st.info(
+                                f"📁 Verifique sua pasta Downloads: {downloads_path}"
+                            )
+                        except Exception as e:
+                            st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
             else:
                 colunas_faltando = []
                 if not tem_veiculo:
