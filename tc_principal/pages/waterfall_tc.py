@@ -52,6 +52,7 @@ from tc_principal.shared import (
     calcular_flex_budget, normalizar_periodo, ordenar_por_mes,
     mask_custo_fixo, aplicar_fator_df, converter_moeda_df,
     COLUNAS_MONETARIAS,
+    load_forecast_completo, load_forecast_volume,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header, render_sidebar_global,
@@ -187,6 +188,57 @@ except Exception as e:
     import traceback
     st.error(f"Detalhes: {traceback.format_exc()}")
     st.stop()
+
+# ═══ Merge BE para meses sem dados Real ═══
+_be_merged = False
+try:
+    _df_fc = load_forecast_completo()
+    if _df_fc is not None and not _df_fc.empty:
+        _df_fc = normalizar_periodo(_df_fc)
+        # Filtrar apenas linhas BE
+        if 'Tipo' in _df_fc.columns:
+            _df_be = _df_fc[_df_fc['Tipo'] == 'BE'].copy()
+        else:
+            _df_be = pd.DataFrame()
+
+        if not _df_be.empty and 'Período' in _df_be.columns:
+            # Filtrar pelo ano selecionado
+            if ano_selecionado != "Todos" and 'Ano' in _df_be.columns:
+                try:
+                    _df_be = _df_be[_df_be['Ano'] == int(ano_selecionado)].copy()
+                except (ValueError, TypeError):
+                    pass
+
+            # Meses que já existem no Real
+            _meses_real = set()
+            if 'Período' in df_total.columns:
+                _meses_real = set(df_total['Período'].dropna().unique())
+
+            # Meses BE que NÃO existem no Real
+            _meses_be = set(_df_be['Período'].dropna().unique())
+            _meses_novos = _meses_be - _meses_real
+
+            if _meses_novos:
+                _df_be_novos = _df_be[_df_be['Período'].isin(_meses_novos)].copy()
+                # Marcar fonte
+                df_total['Fonte'] = 'Real'
+                _df_be_novos['Fonte'] = 'BE'
+                # Alinhar colunas
+                for c in df_total.columns:
+                    if c not in _df_be_novos.columns:
+                        _df_be_novos[c] = np.nan if pd.api.types.is_numeric_dtype(df_total[c]) else ''
+                _df_be_novos = _df_be_novos[[c for c in df_total.columns if c in _df_be_novos.columns]]
+                df_total = pd.concat([df_total, _df_be_novos], ignore_index=True)
+                _be_merged = True
+            else:
+                df_total['Fonte'] = 'Real'
+        else:
+            df_total['Fonte'] = 'Real'
+    else:
+        df_total['Fonte'] = 'Real'
+except Exception:
+    if 'Fonte' not in df_total.columns:
+        df_total['Fonte'] = 'Real'
 
 # Carregar dados de volume e budget
 df_volume = _load_tc_veiculos_volume(ano_selecionado)
@@ -3143,6 +3195,13 @@ else:
                                     if moeda_codigo != "BRL" and 'Custo FP' in df_budget_work.columns:
                                         df_budget_work = converter_coluna_moeda(df_budget_work, 'Custo FP', moeda_codigo, taxas_cambio)
                                     
+                                    # ═══ Aplicar escopo de veículo (radio Budget tab) ═══
+                                    if escopo_veiculo_budget != "Todos (TC Total)":
+                                        if 'Veículo' in df_budget_work.columns:
+                                            df_budget_work = df_budget_work[df_budget_work['Veículo'] == escopo_veiculo_budget].copy()
+                                        if df_budget_vol is not None and 'Veículo' in df_budget_vol.columns:
+                                            df_budget_vol = df_budget_vol[df_budget_vol['Veículo'] == escopo_veiculo_budget].copy()
+
                                     # Aplicar TODOS os filtros que existem em df_filtrado_waterfall_tc
                                     df_budget_filtrado = df_budget_work.copy()
                                     df_budget_vol_filtrado = df_budget_vol.copy()

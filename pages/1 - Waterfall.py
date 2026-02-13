@@ -7,6 +7,7 @@ import os
 import sys
 from datetime import datetime
 from versionamento import obter_versao_atual
+from tc_principal.ui_components import render_sidebar_global
 
 # Configurar Plotly para usar o engine JSON padrão em vez de orjson (evita problemas de importação circular)
 # Isso força o Plotly a usar o json padrão do Python em vez de orjson
@@ -177,208 +178,25 @@ st.markdown("---")
 inicializar_banco_taxas()
 
 # Filtros na sidebar - ANTES de carregar dados
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📅 Seleção de Ano**")
-
-# Listar anos disponíveis
-anos_disponiveis = listar_anos_disponiveis()
-opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
-
-# Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
-ano_atual = datetime.now().year
-ano_atual_str = str(ano_atual)
-if ano_atual_str in opcoes_ano:
-    index_padrao = opcoes_ano.index(ano_atual_str)
-else:
-    index_padrao = 0  # "Todos" se ano atual não estiver disponível
-
-# Inicializar session_state para manter valores dos filtros
-if 'filtro_ano_waterfall' not in st.session_state:
-    st.session_state.filtro_ano_waterfall = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
-
-# Seletor de ano
-ano_selecionado = st.sidebar.selectbox(
-    "Selecione o ano:",
-    options=opcoes_ano,
-    index=opcoes_ano.index(st.session_state.filtro_ano_waterfall) if st.session_state.filtro_ano_waterfall in opcoes_ano else index_padrao,
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
-    key="filtro_ano_waterfall_selectbox"
+# ═══ Sidebar global: Ano / Moeda / Taxas / Tipo / Fator ═══
+sidebar_vals = render_sidebar_global(
+    'wf_ext',
+    incluir_todos=True,
+    descobrir_anos_fn=listar_anos_disponiveis,
 )
-# Atualizar session_state
+ano_selecionado = sidebar_vals['ano']
+moeda_codigo    = sidebar_vals['moeda']
+moeda_simbolo   = sidebar_vals['simbolo']
+taxas_cambio    = sidebar_vals['taxas']
+tipo_visualizacao = sidebar_vals['tipo']
+fator_conversao = sidebar_vals['fator']
+
+# Sincronizar session_state legado
+st.session_state.moeda_selecionada = {
+    "BRL": "🇧🇷 R$", "USD": "🇺🇸 $", "EUR": "🇪🇺 €"
+}.get(moeda_codigo, "🇧🇷 R$")
+st.session_state.moeda_selecionada_radio = st.session_state.moeda_selecionada
 st.session_state.filtro_ano_waterfall = ano_selecionado
-
-# Carregar taxas
-try:
-    taxas_cambio_banco = carregar_taxas_banco()
-except Exception as e:
-    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
-
-taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
-taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
-
-# Inicializar estado da moeda se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "🇧🇷 R$"
-if 'moeda_selecionada_radio' not in st.session_state:
-    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
-
-# URLs das bandeiras
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-# Seleção de moeda com bandeiras ao lado
-col_moeda1, col_moeda2 = st.columns([3, 1])
-
-with col_moeda1:
-    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-    
-    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-    
-    def atualizar_moeda():
-        if 'moeda_selecionada_radio_waterfall' in st.session_state:
-            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio_waterfall
-    
-    moeda_selecionada = st.radio(
-        "Moeda",
-        opcoes_moeda,
-        index=index_moeda,
-        horizontal=True,
-        help="Selecione a moeda para exibição nos gráficos",
-        key="moeda_selecionada_radio_waterfall",
-        label_visibility="collapsed",
-        on_change=atualizar_moeda
-    )
-    
-    if st.session_state.moeda_selecionada != moeda_selecionada:
-        st.session_state.moeda_selecionada = moeda_selecionada
-
-# Obter moeda atual do session_state
-moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-flag_selecionada_eur = moeda_atual == '🇪🇺 €'
-
-with col_moeda2:
-    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
-    st.markdown(f"""
-    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Taxas de câmbio
-st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
-col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
-
-with col_taxa1:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
-    taxa_usd_para_brl = st.number_input(
-        "Taxa USD para BRL",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_usd_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros.",
-        key="taxa_usd_para_brl_waterfall",
-        label_visibility="collapsed"
-    )
-
-with col_taxa2:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
-    taxa_eur_para_brl = st.number_input(
-        "Taxa EUR para BRL",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_eur_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Euro em Reais Brasileiros.",
-        key="taxa_eur_para_brl_waterfall",
-        label_visibility="collapsed"
-    )
-
-taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
-taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
-
-# Salvar taxas
-taxa_usd_atual_key = "taxa_usd_atual_salva_waterfall"
-taxa_eur_atual_key = "taxa_eur_atual_salva_waterfall"
-
-taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
-taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
-
-if taxa_usd_mudou or taxa_eur_mudou:
-    novas_taxas = {
-        "USD": float(taxa_usd_para_brl),
-        "EUR": float(taxa_eur_para_brl)
-    }
-    try:
-        salvar_taxas_banco(novas_taxas)
-        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
-        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
-    except Exception as e:
-        st.error(f"❌ Erro ao salvar taxas: {e}")
-
-taxas_cambio = {
-    "BRL": 1.0,
-    "USD": taxa_brl_para_usd,
-    "EUR": taxa_brl_para_eur
-}
-
-# Seletores no topo
-col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
-
-with col_tipo:
-    tipo_visualizacao = st.radio(
-        "📊 **Tipo:**",
-        ["Custo Total", "CPU (Custo por Unidade)"],
-        index=0,
-        horizontal=True,
-        key="tipo_visualizacao_waterfall"
-    )
-
-with col_fator:
-    if tipo_visualizacao == "Custo Total":
-        fator_conversao = st.radio(
-            "🔢 **Fator:**",
-            ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=1,
-            horizontal=True,
-            help="Aplica divisão aos valores para simplificar visualização.",
-            key="fator_conversao_waterfall"
-        )
-    else:
-        fator_conversao = None
-
-# Obter a moeda selecionada do session state (já está atualizado acima)
-moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-
-if moeda_selecionada == "🇧🇷 R$":
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-elif moeda_selecionada == "🇺🇸 $":
-    moeda_codigo = "USD"
-    moeda_simbolo = "$"
-elif moeda_selecionada == "🇪🇺 €":
-    moeda_codigo = "EUR"
-    moeda_simbolo = "€"
-else:
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
 
 # Carregar dados com o ano selecionado
 try:
@@ -397,6 +215,50 @@ except Exception as e:
     import traceback
     st.error(f"Detalhes: {traceback.format_exc()}")
     st.stop()
+
+# ═══ Merge BE para meses sem dados Real ═══
+_be_merged = False
+try:
+    _fc_path = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+    if os.path.exists(_fc_path):
+        _df_fc = pd.read_parquet(_fc_path)
+        if 'Período' not in _df_fc.columns:
+            for _c in _df_fc.columns:
+                if 'per' in str(_c).lower() and 'odo' in str(_c).lower():
+                    _df_fc = _df_fc.rename(columns={_c: 'Período'})
+                    break
+        if 'Tipo' in _df_fc.columns and 'Período' in _df_fc.columns:
+            _df_be = _df_fc[_df_fc['Tipo'] == 'BE'].copy()
+            if not _df_be.empty:
+                if ano_selecionado != "Todos" and 'Ano' in _df_be.columns:
+                    try:
+                        _df_be = _df_be[_df_be['Ano'] == int(ano_selecionado)].copy()
+                    except (ValueError, TypeError):
+                        pass
+                _meses_real = set(df_total['Período'].dropna().unique()) if 'Período' in df_total.columns else set()
+                _meses_be = set(_df_be['Período'].dropna().unique())
+                _meses_novos = _meses_be - _meses_real
+                if _meses_novos:
+                    _df_be_novos = _df_be[_df_be['Período'].isin(_meses_novos)].copy()
+                    df_total['Fonte'] = 'Real'
+                    _df_be_novos['Fonte'] = 'BE'
+                    for c in df_total.columns:
+                        if c not in _df_be_novos.columns:
+                            _df_be_novos[c] = np.nan if pd.api.types.is_numeric_dtype(df_total[c]) else ''
+                    _df_be_novos = _df_be_novos[[c for c in df_total.columns if c in _df_be_novos.columns]]
+                    df_total = pd.concat([df_total, _df_be_novos], ignore_index=True)
+                    _be_merged = True
+                else:
+                    df_total['Fonte'] = 'Real'
+            else:
+                df_total['Fonte'] = 'Real'
+        else:
+            df_total['Fonte'] = 'Real'
+    else:
+        df_total['Fonte'] = 'Real'
+except Exception:
+    if 'Fonte' not in df_total.columns:
+        df_total['Fonte'] = 'Real'
 
 # Carregar dados de volume e budget
 df_volume = load_volume_data(ano_selecionado)
