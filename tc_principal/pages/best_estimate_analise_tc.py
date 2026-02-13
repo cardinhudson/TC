@@ -22,6 +22,7 @@ from tc_principal.shared import (
     calcular_flex_budget, aplicar_fator_df,
     converter_moeda_df, obter_sufixo_fator, calcular_cpu,
     extrair_redis,
+    _pivotar_detalhado, _pivotar_flex, render_secao_tabela_detalhe,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header,
@@ -2316,59 +2317,54 @@ with tab5:
 
 # ── TAB 6: Dados Detalhados ──
 with tab6:
-    st.subheader("Dados Detalhados")
+    st.subheader("📋 Dados Detalhados")
 
-    # Seção 1: Dados BE
-    with st.expander("📋 Dados Best Estimate (Custo FP)", expanded=True):
-        if 'Account' in df.columns:
-            accounts = sorted(df['Account'].dropna().unique())
-            account_sel = st.multiselect(
-                "Filtrar por Account", accounts, default=[],
-                key='be_account_detail'
-            )
-            df_det = (
-                df[df['Account'].isin(account_sel)].copy()
-                if account_sel else df.copy()
-            )
-        else:
-            df_det = df.copy()
-
-        st.dataframe(
-            df_det, use_container_width=True, hide_index=True
-        )
-        st.caption(
-            f"Total de linhas: {len(df_det):,} | "
-            f"Moeda: {moeda} | {tipo}"
+    # Seletor de visualização Fixo/Variável/Total
+    _col_viz, _ = st.columns([1.3, 3])
+    with _col_viz:
+        filtro_custo_tab6 = st.radio(
+            "📊 **Visualização:**",
+            ["Total", "Fixo", "Variável"],
+            index=0, horizontal=True,
+            key="be_tab6_viz",
         )
 
-        csv = df_det.to_csv(index=False, sep=';', decimal=',')
-        st.download_button(
-            "📥 Baixar Dados BE (CSV)", data=csv,
-            file_name=f"tc_principal_be_{ano}.csv", mime="text/csv"
-        )
+    col_valor_tab6 = 'Custo FP'
 
-    # Seção 2: Dados Budget
-    with st.expander(
-        "🧾 Dados Budget (BUD e Flex BUD)", expanded=False
-    ):
-        if df_flex is not None and not df_flex.empty:
-            st.dataframe(
-                df_flex, use_container_width=True, hide_index=True
-            )
-            st.caption(
-                f"Total de linhas: {len(df_flex):,} | Moeda: {moeda}"
-            )
+    # ═══ Seção 1: Budget / Flex Bud ═══
+    st.markdown("### 📊 Tabelas Budget / Flex Bud Totais")
 
-            csv_bud = df_flex.to_csv(
-                index=False, sep=';', decimal=','
-            )
-            st.download_button(
-                "📥 Baixar Dados Budget (CSV)", data=csv_bud,
-                file_name=f"tc_principal_bud_flex_{ano}.csv",
-                mime="text/csv", key='be_download_bud_flex'
-            )
-        else:
-            st.info("ℹ️ Dados de Budget/Flex não disponíveis.")
+    # Tabela 1 — Budget Total
+    piv_bud, ofc_bud = _pivotar_detalhado(
+        df_bud, col_valor_tab6,
+        filtro_custo=filtro_custo_tab6,
+    )
+    render_secao_tabela_detalhe(
+        piv_bud, ofc_bud, "Budget Total", "💰",
+        "be_bud", ano, simbolo, sufixo, expanded=True,
+    )
+
+    # Tabela 2 — Flex Budget
+    piv_flex, ofc_flex = _pivotar_flex(
+        df_flex, filtro_custo=filtro_custo_tab6,
+    )
+    render_secao_tabela_detalhe(
+        piv_flex, ofc_flex, "Flex Budget", "📐",
+        "be_flex", ano, simbolo, sufixo, expanded=False,
+    )
+
+    # ═══ Seção 2: Real / BE ═══
+    st.markdown("### 🔮 Tabelas Real / BE Totais")
+
+    # Tabela 3 — BE Total (df = BE nesta página)
+    piv_be, ofc_be = _pivotar_detalhado(
+        df, col_valor_tab6,
+        filtro_custo=filtro_custo_tab6,
+    )
+    render_secao_tabela_detalhe(
+        piv_be, ofc_be, "Best Estimate Total", "🔮",
+        "be_real", ano, simbolo, sufixo, expanded=True,
+    )
 
 st.divider()
 
