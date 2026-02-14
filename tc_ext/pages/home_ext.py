@@ -296,312 +296,77 @@ st.markdown("""
             padding: 0.4rem 1rem !important;
             margin-bottom: 0.3rem !important;
         }
-        /* Ajustar tamanho da fonte dos radio buttons no topo (exceto moeda) */
-        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) label {
+        /* Radio buttons no conteúdo principal — compactos */
+        main div[data-testid="stRadio"] label {
             font-size: 0.8rem !important;
             line-height: 1.1 !important;
         }
-        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) label p {
+        main div[data-testid="stRadio"] label p {
             font-size: 0.8rem !important;
             margin-bottom: 0 !important;
             line-height: 1.1 !important;
             padding-bottom: 0 !important;
         }
-        /* Reduzir espaçamento dos radio buttons horizontais (exceto moeda) */
-        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) > div {
+        main div[data-testid="stRadio"] > div {
             gap: 0.25rem !important;
         }
-        div[data-testid="stRadio"]:not([key*="moeda_selecionada"]) > div > label {
+        main div[data-testid="stRadio"] > div > label {
             padding: 0.15rem 0.35rem !important;
             margin-bottom: 0 !important;
+            white-space: nowrap !important;
         }
         /* Reduzir espaçamento entre colunas */
         .stColumn {
             padding-left: 0.2rem !important;
             padding-right: 0.2rem !important;
         }
-        /* Eliminar espaçamento nas colunas de moeda - SEM interferir nos cliques */
-        div[data-testid="column"]:has(div[data-testid="stRadio"][key="moeda_selecionada_radio"]) {
-            padding-left: 0 !important;
-            padding-right: 0.05rem !important;
-            margin: 0 !important;
-            pointer-events: auto !important;
-        }
-        div[data-testid="column"]:has(#flag-brl):not(:has(#flag-usd)):not(:has(#flag-eur)) {
-            padding-left: 0.05rem !important;
-            padding-right: 0 !important;
-            margin: 0 !important;
-            pointer-events: auto !important;
-        }
-        /* Garantir que os radio buttons fiquem compactos */
-        div[data-testid="stRadio"] {
+        /* Radio buttons compactos no conteúdo principal */
+        main div[data-testid="stRadio"] {
             margin-bottom: 0 !important;
             padding-bottom: 0 !important;
-        }
-        /* Reduzir margem do label do radio */
-        div[data-testid="stRadio"] > label {
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-        }
-        /* Reduzir altura total do container do radio */
-        div[data-testid="stRadio"] > div {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-        }
-        /* Forçar altura mínima do container do radio */
-        div[data-testid="stRadio"] {
             min-height: auto !important;
             height: auto !important;
+            overflow: visible !important;
         }
-        /* Reduzir espaçamento do título do radio */
-        div[data-testid="stRadio"] > label > div {
+        main div[data-testid="stRadio"] > label {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        main div[data-testid="stRadio"] > label > div {
             margin-bottom: 0.15rem !important;
             padding-bottom: 0 !important;
         }
-        /* Compactar ainda mais os elementos das colunas */
-        [data-testid="stColumn"] {
-            /* Não force layout flex nas colunas (isso pode encolher gráficos) */
-            align-items: stretch !important;
-        }
-        [data-testid="stColumn"] > div {
-            width: 100% !important;
-        }
-        /* Garantir que os radio buttons não quebrem linha */
-        div[data-testid="stRadio"] > div[role="radiogroup"] {
+        main div[data-testid="stRadio"] > div[role="radiogroup"] {
             display: flex !important;
             flex-wrap: nowrap !important;
         }
-        /* Evitar que palavras sejam cortadas */
-        div[data-testid="stRadio"] > div > label {
+        main div[data-testid="stRadio"] label p {
             white-space: nowrap !important;
             overflow: visible !important;
-            text-overflow: clip !important;
-            word-break: keep-all !important;
         }
-        div[data-testid="stRadio"] label p {
+        /* Sidebar: radio buttons com tamanho padrão */
+        section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
+            font-size: 0.78rem !important;
             white-space: nowrap !important;
-            overflow: visible !important;
-            text-overflow: clip !important;
-            word-break: keep-all !important;
         }
-        /* Garantir que o container não corte o conteúdo */
-        div[data-testid="stRadio"] {
-            overflow: visible !important;
+        section[data-testid="stSidebar"] div[data-testid="stRadio"] label p {
+            font-size: 0.78rem !important;
+            line-height: 1.3 !important;
+            white-space: nowrap !important;
         }
-        div[data-testid="stColumn"] {
-            overflow: visible !important;
-        }
-        /* REMOVER qualquer interferência nos radio buttons de moeda */
-        div[data-testid="stRadio"][key="moeda_selecionada_radio"] {
-            overflow: visible !important;
-            pointer-events: auto !important;
-        }
-        div[data-testid="stRadio"][key="moeda_selecionada_radio"] * {
-            pointer-events: auto !important;
-        }
-        div[data-testid="stRadio"][key="moeda_selecionada_radio"] input[type="radio"] {
-            pointer-events: auto !important;
-            cursor: pointer !important;
-            z-index: 999 !important;
-            position: relative !important;
-        }
-        div[data-testid="stRadio"][key="moeda_selecionada_radio"] label {
-            pointer-events: auto !important;
-            cursor: pointer !important;
-        }
-        /* Ocultar botões de moeda ocultos */
-        button[key="btn_brl_hidden"],
-        button[key="btn_usd_hidden"],
-        button[key="btn_eur_hidden"] {
-            display: none !important;
-            visibility: hidden !important;
-            position: absolute !important;
-            left: -9999px !important;
-            width: 0 !important;
-            height: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-        /* Ocultar containers dos botões de moeda */
-        div:has(button[key="btn_brl_hidden"]),
-        div:has(button[key="btn_usd_hidden"]),
-        div:has(button[key="btn_eur_hidden"]) {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-            width: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: hidden !important;
-        }
-        div[data-testid="stButton"]:has(button[key="btn_brl_hidden"]),
-        div[data-testid="stButton"]:has(button[key="btn_usd_hidden"]),
-        div[data-testid="stButton"]:has(button[key="btn_eur_hidden"]) {
-            display: none !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        /* Container fixo para as bandeiras no topo direito */
-        #flags-container-top {{
-            position: fixed !important;
-            top: 1rem !important;
-            right: 1rem !important;
-            z-index: 9999 !important;
-            display: flex !important;
-            flex-direction: row !important;
-            gap: 0.5rem !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background-color: rgba(14, 17, 23, 0.95) !important;
-            padding: 0.5rem !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-            pointer-events: auto !important;
-        }}
-        /* Garantir que as bandeiras fiquem em linha horizontal */
-        #flags-container-top > div {{
-            display: inline-block !important;
-            flex-shrink: 0 !important;
-        }}
-        /* Ocultar qualquer texto que possa aparecer */
-        #flags-container-top p,
-        #flags-container-top span,
-        #flags-container-top::before,
-        #flags-container-top::after {{
-            display: none !important;
-        }}
-        /* Ocultar texto do Streamlit ao redor do container */
-        div:has(#flags-container-top) p,
-        div:has(#flags-container-top) > *:not(#flags-container-top) {{
-            display: none !important;
-        }}
-        /* Garantir que o container pai não adicione texto */
-        [data-testid="stMarkdownContainer"]:has(#flags-container-top) > *:not(#flags-container-top) {{
-            display: none !important;
-        }}
-        /* Ocultar qualquer código JavaScript que apareça como texto */
-        div:has(#flags-container-top) + *,
-        div:has(#flags-container-top) ~ * {{
-            display: none !important;
-        }}
-        /* Ocultar texto JavaScript específico */
-        *:not(script):not(style) {{
-            font-size: inherit !important;
-        }}
-        /* Ocultar elementos com texto JavaScript - REGRAS MAIS AGRESSIVAS */
-        p:contains('}}'),
-        span:contains('}}'),
-        div:contains('}}'),
-        *:not(script):not(style):not(#flags-container-top) {{
-            font-size: inherit !important;
-        }}
-        /* Ocultar qualquer elemento que contenha apenas texto JavaScript */
-        body *:not(script):not(style):not(#flags-container-top):not([data-testid]):not(input):not(button):not(select):not(textarea):not(img):not(svg) {{
-            font-size: inherit !important;
-        }}
-        /* Ocultar texto específico "})();" - mas NÃO interferir nos radio buttons */
-        body *:not(script):not(style):not(#flags-container-top):not([data-testid="stRadio"]):not([data-testid="stRadio"] *) {{
-            position: relative !important;
-        }}
-        body *:not(script):not(style):not(#flags-container-top)::before,
-        body *:not(script):not(style):not(#flags-container-top)::after {{
-            content: none !important;
-        }}
-        /* REMOVER qualquer interferência - deixar Streamlit gerenciar normalmente */
-        div[data-testid="stRadio"][key="moeda_selecionada_radio"] {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-        }
-        /* Padronizar campos de entrada de taxas - reduzir tamanho e evitar quebra */
+        /* Campos de taxas de câmbio */
         div[data-testid="stNumberInput"] label {
             font-size: 0.7rem !important;
             white-space: nowrap !important;
-            word-break: keep-all !important;
             overflow: visible !important;
-            max-width: none !important;
-            width: auto !important;
         }
         div[data-testid="stNumberInput"] label p {
             font-size: 0.7rem !important;
             white-space: nowrap !important;
-            word-break: keep-all !important;
             margin: 0 !important;
             padding: 0 !important;
             line-height: 1.2 !important;
-            max-width: none !important;
-            width: auto !important;
             overflow: visible !important;
-            display: inline-block !important;
-        }
-        /* Garantir que R$ não seja quebrado - forçar renderização completa */
-        div[data-testid="stNumberInput"] label p {
-            letter-spacing: 0 !important;
-            word-spacing: normal !important;
-        }
-        /* CSS específico para garantir que o $ não seja cortado */
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label,
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label {
-            font-size: 0.7rem !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow: visible !important;
-            width: auto !important;
-            max-width: none !important;
-        }
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label p,
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label p {
-            font-size: 0.7rem !important;
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow: visible !important;
-            text-overflow: clip !important;
-            width: auto !important;
-            min-width: fit-content !important;
-            max-width: none !important;
-        }
-        /* Garantir que o container não corte o texto */
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"],
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] {
-            overflow: visible !important;
-        }
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] > div,
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] > div {
-            overflow: visible !important;
-        }
-        /* Forçar que o label completo seja visível */
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] > div > label,
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] > div > label {
-            overflow: visible !important;
-            width: auto !important;
-            max-width: none !important;
-        }
-        /* Garantir que nenhum elemento corte o texto R$ */
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] *,
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] * {
-            overflow: visible !important;
-        }
-        /* Específico para garantir que o parágrafo com R$ seja completo */
-        div[data-testid="stNumberInput"][key="taxa_usd_para_brl_input"] label p:contains("R$"),
-        div[data-testid="stNumberInput"][key="taxa_eur_para_brl_input"] label p:contains("R$") {
-            white-space: nowrap !important;
-            word-break: keep-all !important;
-            overflow: visible !important;
-            text-overflow: clip !important;
-        }
-        /* Padronizar tamanho de texto dos radio buttons de Tipo e Fator */
-        div[data-testid="stRadio"][key="tipo_visualizacao_top"] label,
-        div[data-testid="stRadio"][key="fator_conversao_top"] label {
-            font-size: 0.7rem !important;
-        }
-        div[data-testid="stRadio"][key="tipo_visualizacao_top"] label p,
-        div[data-testid="stRadio"][key="fator_conversao_top"] label p {
-            font-size: 0.7rem !important;
-            line-height: 1.2 !important;
         }
 """, unsafe_allow_html=True)
 

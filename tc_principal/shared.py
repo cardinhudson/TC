@@ -258,6 +258,75 @@ def load_cpu_veiculo_real(ano):
     return pd.read_parquet(caminho)
 
 
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_percentual_rateio_veiculos_real(ano):
+    """Percentuais de rateio por veículo — Real (baseados em tempos reais)."""
+    caminho = os.path.join(
+        _pasta_tc_principal_real(ano),
+        'df_veiculos_percentual_rateio.parquet',
+    )
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
+    """
+    Distribui dados de BE (ou qualquer df com Custo FP por Oficina/Período)
+    por veículo, usando os mesmos percentuais de tempo do Real.
+
+    Lógica idêntica ao rateio Real:
+      Custo FP Veiculo = Custo FP × Percentual
+      (merge por Oficina + Período)
+
+    Parâmetros
+    ----------
+    df_be : DataFrame
+        Dados do Best Estimate com colunas [Oficina, Período, Custo FP, ...].
+    df_percentual : DataFrame
+        Percentuais de rateio com [Oficina, Veículo, Período, Percentual].
+    col_custo : str
+        Coluna de custo a ratear (default: 'Custo FP').
+
+    Retorna
+    -------
+    DataFrame com coluna Veículo e Custo FP Veiculo adicionadas.
+    Retorna None se dados insuficientes.
+    """
+    if df_be is None or df_be.empty:
+        return None
+    if df_percentual is None or df_percentual.empty:
+        return None
+    if col_custo not in df_be.columns:
+        return None
+
+    pct = df_percentual[['Oficina', 'Veículo', 'Período', 'Percentual']].copy()
+
+    # Merge: expande BE para granularidade de veículo
+    df = pd.merge(df_be, pct, on=['Oficina', 'Período'], how='left')
+
+    # Linhas sem veículo (Oficinas que não têm rateio) → distribuir igual
+    mask_sem = df['Veículo'].isna()
+    if mask_sem.any():
+        veiculos_unicos = pct['Veículo'].dropna().unique()
+        if len(veiculos_unicos) > 0:
+            linhas_sem = df[mask_sem].drop(columns=['Veículo', 'Percentual'])
+            expansoes = []
+            for v in veiculos_unicos:
+                tmp = linhas_sem.copy()
+                tmp['Veículo'] = v
+                tmp['Percentual'] = 1.0 / len(veiculos_unicos)
+                expansoes.append(tmp)
+            df = pd.concat(
+                [df[~mask_sem]] + expansoes, ignore_index=True,
+            )
+
+    df['Percentual'] = df['Percentual'].fillna(0)
+    df['Custo FP Veiculo'] = df[col_custo] * df['Percentual']
+
+    return df
+
+
 # ═══════════════════════════════════════════════════════════════
 #  DATA LOADING — HISTÓRICO CONSOLIDADO (multi-ano)
 # ═══════════════════════════════════════════════════════════════
@@ -538,6 +607,84 @@ def _fmt_ptbr(valor, decimais=2):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  FLEX BUDGET DETALHADO (com dimensões)
+# ═══════════════════════════════════════════════════════════════
+
+def calcular_flex_budget_detalhado(
+    df_principal, df_vol_bud, df_vol_actual,
+    col_custo='Custo FP', tem_ano=False,
+):
+    """
+    Calcula Budget Flex **mantendo** as colunas dimensionais
+    (Oficina, Type 05, Type 06, Account, Custo).
+
+    Volume não tem essas dimensões, então a proporção
+    Vol_Actual / Vol_Budget é calculada por Período (global)
+    e aplicada a cada linha dimensional.
+
+    Retorna DataFrame com:
+      Oficina, Type 05, Type 06, Account, Custo, Período,
+      [Ano], Flex_Bud
+    ou None se dados insuficientes.
+    """
+    if df_vol_bud is None or df_vol_actual is None:
+        return None
+    if 'Custo' not in df_principal.columns:
+        return None
+
+    cols_agrup_vol = (
+        ['Ano', 'Período']
+        if tem_ano and 'Ano' in df_principal.columns
+        else ['Período']
+    )
+
+    # Proporção de volume por Período (agregado — sem dimensões)
+    vol_bud_per = (
+        df_vol_bud.groupby(cols_agrup_vol, as_index=False)['Volume']
+        .sum().rename(columns={'Volume': 'Vol_Budget'})
+    )
+    vol_act_per = (
+        df_vol_actual.groupby(cols_agrup_vol, as_index=False)['Volume']
+        .sum().rename(columns={'Volume': 'Vol_Actual'})
+    )
+    prop = vol_bud_per.merge(vol_act_per, on=cols_agrup_vol, how='left')
+    prop['Vol_Budget'] = prop['Vol_Budget'].fillna(0)
+    prop['Vol_Actual'] = prop['Vol_Actual'].fillna(0)
+    prop['Proporcao'] = np.where(
+        prop['Vol_Budget'] != 0,
+        prop['Vol_Actual'] / prop['Vol_Budget'], 1.0,
+    )
+    prop = prop[cols_agrup_vol + ['Proporcao']]
+
+    # Dimensões disponíveis
+    dim_cols = [c for c in _DIM_COLS_DETALHE if c in df_principal.columns]
+    if not dim_cols:
+        return None  # sem dimensões, usar calcular_flex_budget padrão
+
+    # Agregar custo por (dimensões + Período)
+    grp_cols = dim_cols + cols_agrup_vol
+    agr = df_principal.groupby(grp_cols, as_index=False)[col_custo].sum()
+
+    # Classificar Fixo / Variável
+    agr['_is_fixo'] = mask_custo_fixo(agr['Custo'])
+
+    # Juntar proporção
+    agr = agr.merge(prop, on=cols_agrup_vol, how='left')
+    agr['Proporcao'] = agr['Proporcao'].fillna(1.0)
+
+    # Flex = Fixo puro + Variável × proporção
+    agr['Flex_Bud'] = np.where(
+        agr['_is_fixo'],
+        agr[col_custo],                         # Fixo: não flexibiliza
+        agr[col_custo] * agr['Proporcao'],       # Variável: flexibiliza
+    )
+
+    # Limpar e retornar
+    resultado = agr[grp_cols + ['Flex_Bud']].copy()
+    return resultado
+
+
+# ═══════════════════════════════════════════════════════════════
 #  TAB DADOS DETALHADOS — HELPERS
 # ═══════════════════════════════════════════════════════════════
 
@@ -545,15 +692,15 @@ def _fmt_ptbr(valor, decimais=2):
 _DIM_COLS_DETALHE = ['Oficina', 'Type 05', 'Type 06', 'Account', 'Custo']
 
 
-def _pivotar_detalhado(df, col_valor, col_periodo='Período',
-                       filtro_custo='Total'):
+def _pivotar_detalhado(df, col_valor, col_periodo='Período'):
     """
     Pivota DataFrame (long) → wide com TODAS as dimensões.
 
     index = [Oficina, Type 05, Type 06, Account, Custo] (as que existirem)
     columns = Período (meses)  +  coluna Total
 
-    ``filtro_custo``: 'Total' | 'Fixo' | 'Variável'
+    Oculta linhas onde TODOS os meses são 0 ou NaN (somente exibição).
+    Adiciona linha TOTAL ao final.
 
     Retorna (df_pivot_num, oficinas_list).
     """
@@ -563,16 +710,6 @@ def _pivotar_detalhado(df, col_valor, col_periodo='Período',
     df_w = df.copy()
     if col_periodo not in df_w.columns:
         return pd.DataFrame(), []
-
-    # ── Filtrar Fixo / Variável ──
-    if filtro_custo in ('Fixo', 'Variável') and 'Custo' in df_w.columns:
-        is_fixo = mask_custo_fixo(df_w['Custo'])
-        if filtro_custo == 'Fixo':
-            df_w = df_w[is_fixo].copy()
-        else:
-            df_w = df_w[~is_fixo].copy()
-        if df_w.empty:
-            return pd.DataFrame(), []
 
     # ── Determinar colunas de index disponíveis ──
     idx_cols = [c for c in _DIM_COLS_DETALHE if c in df_w.columns]
@@ -596,8 +733,14 @@ def _pivotar_detalhado(df, col_valor, col_periodo='Período',
     # Coluna Total
     piv['Total'] = piv[cols_ord + extras].sum(axis=1)
 
-    # Linha TOTAL
+    # ── Linha TOTAL (calculada ANTES de remover zeros) ──
     linha_total = piv.sum(numeric_only=True)
+
+    # ── Ocultar linhas 100 % zero/NaN ──
+    num_cols_check = cols_ord + extras + ['Total']
+    mask_nonzero = piv[num_cols_check].abs().sum(axis=1) > 0.005
+    piv = piv.loc[mask_nonzero]
+
     piv = piv.reset_index()
     total_row = {c: 'TOTAL' if i == 0 else '' for i, c in enumerate(idx_cols)}
     for c in piv.columns:
@@ -615,13 +758,10 @@ def _pivotar_detalhado(df, col_valor, col_periodo='Período',
     return piv, oficinas
 
 
-def _pivotar_flex(df_flex, col_periodo='Período', filtro_custo='Total'):
-    """
-    Pivota o df_flex → wide.
+def _pivotar_flex(df_flex, col_periodo='Período'):
+    """Pivota o df_flex → wide (linha única com Flex_Bud total).
 
-    ``filtro_custo``: 'Total' → Flex_Bud
-                      'Fixo'  → Custo_Fixo (parte fixa do flex = BUD fixo)
-                      'Variável' → parte variável = Custo_NaoFixo × Proporcao
+    Usado como fallback quando não há Flex detalhado.
     """
     if df_flex is None or df_flex.empty:
         return pd.DataFrame(), []
@@ -629,20 +769,8 @@ def _pivotar_flex(df_flex, col_periodo='Período', filtro_custo='Total'):
         return pd.DataFrame(), []
 
     df_w = df_flex.copy()
-
-    if filtro_custo == 'Fixo':
-        col_usar = 'Custo_Fixo'
-        label = 'Flex Budget (Fixo)'
-    elif filtro_custo == 'Variável':
-        if 'Custo_NaoFixo' in df_w.columns and 'Proporcao' in df_w.columns:
-            df_w['_flex_var'] = df_w['Custo_NaoFixo'] * df_w['Proporcao']
-            col_usar = '_flex_var'
-        else:
-            col_usar = 'Flex_Bud'
-        label = 'Flex Budget (Variável)'
-    else:
-        col_usar = 'Flex_Bud'
-        label = 'Flex Budget'
+    col_usar = 'Flex_Bud'
+    label = 'Flex Budget'
 
     if col_usar not in df_w.columns:
         return pd.DataFrame(), []
@@ -659,13 +787,28 @@ def _pivotar_flex(df_flex, col_periodo='Período', filtro_custo='Total'):
     return piv, []
 
 
+def _render_tabela_fmt(st_obj, df_show, colunas_num):
+    """Renderiza dataframe com formatação pt-BR."""
+    df_fmt = df_show.copy()
+    for c in colunas_num:
+        if c in df_fmt.columns:
+            df_fmt[c] = df_show[c].apply(lambda v: _fmt_ptbr(v))
+    st_obj.dataframe(df_fmt, use_container_width=True, hide_index=True)
+
+
 def render_secao_tabela_detalhe(
     df_pivot, oficinas, titulo, icone, page_key, ano,
     simbolo='R$', sufixo='', expanded=False,
+    modo='Total',
 ):
     """
     Renderiza seção: expander com tabela resumo por oficina +
     sub-expanders com linhas detalhadas + download Excel.
+
+    ``modo``:
+        - 'Total'          → tabela completa (sem separação)
+        - 'Fixo/Variável'  → dentro de cada oficina divide
+                              em **Fixo** e **Variável**
     """
     import streamlit as _st
 
@@ -681,58 +824,149 @@ def render_secao_tabela_detalhe(
         dim_cols = ['_dim']
     colunas_num = [c for c in df_pivot.columns if c not in dim_cols]
 
+    separar_custo = (
+        modo == 'Fixo/Variável'
+        and 'Custo' in df_pivot.columns
+        and 'Oficina' in df_pivot.columns
+    )
+
     with _st.expander(f"{icone} **{titulo}**", expanded=expanded):
         # ── Tabela resumo: agrupar por Oficina × Meses ──
         if 'Oficina' in df_pivot.columns and oficinas:
-            # Resumo: só Oficina × meses (sem Type05/06/Account)
-            resumo = df_pivot.groupby('Oficina', as_index=False)[colunas_num].sum()
-            # Mover linha TOTAL para o final
-            mask_total = resumo['Oficina'].isin(['TOTAL', ''])
-            resumo = pd.concat([
-                resumo[~mask_total], resumo[mask_total]
-            ], ignore_index=True)
+            resumo = df_pivot[
+                ~df_pivot['Oficina'].isin(['TOTAL', ''])
+            ].groupby('Oficina', as_index=False)[colunas_num].sum()
+            # Ocultar oficinas zeradas no resumo
+            _num_only = [c for c in colunas_num if c in resumo.columns]
+            if _num_only:
+                resumo = resumo.loc[
+                    resumo[_num_only].abs().sum(axis=1) > 0.005
+                ]
+            # Linha TOTAL no resumo
+            if not resumo.empty:
+                total_resumo = resumo[_num_only].sum()
+                total_row_r = {'Oficina': 'TOTAL'}
+                for c in _num_only:
+                    total_row_r[c] = total_resumo.get(c, 0)
+                resumo = pd.concat(
+                    [resumo, pd.DataFrame([total_row_r])],
+                    ignore_index=True,
+                )
 
-            resumo_fmt = resumo.copy()
-            for c in colunas_num:
-                resumo_fmt[c] = resumo[c].apply(lambda v: _fmt_ptbr(v))
             _st.markdown("**Resumo por Oficina**")
-            _st.dataframe(
-                resumo_fmt, use_container_width=True, hide_index=True,
-            )
+            _render_tabela_fmt(_st, resumo, colunas_num)
         else:
-            # Sem oficinas (ex: Flex) — mostrar direto
-            df_fmt = df_pivot.copy()
-            for c in colunas_num:
-                df_fmt[c] = df_pivot[c].apply(lambda v: _fmt_ptbr(v))
-            _st.dataframe(
-                df_fmt, use_container_width=True, hide_index=True,
-            )
+            _render_tabela_fmt(_st, df_pivot, colunas_num)
 
-        # ── Sub-expanders por oficina (tabela detalhada) ──
+        # ── Sub-expanders por oficina ──
         if oficinas:
             for ofc in oficinas:
                 mask = df_pivot['Oficina'] == ofc
                 df_ofc = df_pivot.loc[mask].copy()
                 if df_ofc.empty:
                     continue
-                total_ofc = df_ofc['Total'].sum() if 'Total' in df_ofc.columns else 0
+                total_ofc = (
+                    df_ofc['Total'].sum()
+                    if 'Total' in df_ofc.columns else 0
+                )
+                if abs(total_ofc) < 0.005:
+                    continue  # Pular oficinas com total zero
                 total_str = f"{simbolo} {_fmt_ptbr(total_ofc)}{sufixo}"
                 n_linhas = len(df_ofc)
+
                 with _st.expander(
                     f"🏭 **{ofc}** — Total: {total_str}"
                     f"  ({n_linhas} linha{'s' if n_linhas > 1 else ''})"
                 ):
-                    # Remover coluna Oficina do display
-                    show_cols = [c for c in df_ofc.columns if c != 'Oficina']
-                    df_show = df_ofc[show_cols].copy()
-                    for c in colunas_num:
-                        if c in df_show.columns:
-                            df_show[c] = df_ofc[c].apply(
-                                lambda v: _fmt_ptbr(v),
-                            )
-                    _st.dataframe(
-                        df_show, use_container_width=True, hide_index=True,
+                    show_cols = [
+                        c for c in df_ofc.columns if c != 'Oficina'
+                    ]
+
+                    if separar_custo:
+                        # ── Dividir em Fixo e Variável ──
+                        is_fixo = mask_custo_fixo(df_ofc['Custo'])
+                        df_fixo = df_ofc.loc[is_fixo, show_cols]
+                        df_var = df_ofc.loc[~is_fixo, show_cols]
+
+                        if not df_fixo.empty:
+                            _st.markdown("**🟢 Custo Fixo**")
+                            _render_tabela_fmt(_st, df_fixo, colunas_num)
+
+                        if not df_var.empty:
+                            _st.markdown("**🔵 Custo Variável**")
+                            _render_tabela_fmt(_st, df_var, colunas_num)
+                    else:
+                        # ── Modo Total: tabela única ──
+                        _render_tabela_fmt(
+                            _st, df_ofc[show_cols], colunas_num,
+                        )
+
+            # ── Expander TOTAL (re-agregar TODAS as oficinas) ──
+            # Pegar todas as linhas reais (exceto a linha sintética TOTAL)
+            df_all_real = df_pivot[
+                ~df_pivot['Oficina'].isin(['TOTAL', ''])
+            ].copy()
+            if not df_all_real.empty:
+                # Colunas de dimensão sem Oficina
+                _dim_sem_ofc = [
+                    c for c in _DIM_COLS_DETALHE
+                    if c in df_all_real.columns and c != 'Oficina'
+                ]
+                # Re-agregar: somar valores de TODAS as oficinas
+                # por (Type 05, Type 06, Account, Custo)
+                df_total_reag = df_all_real.groupby(
+                    _dim_sem_ofc, as_index=False, dropna=False,
+                )[colunas_num].sum()
+                # Recalcular coluna Total
+                _meses_cols_t = [
+                    c for c in colunas_num if c != 'Total'
+                ]
+                if _meses_cols_t:
+                    df_total_reag['Total'] = (
+                        df_total_reag[_meses_cols_t].sum(axis=1)
                     )
+                # Filtrar linhas 100% zero
+                _mask_nz = (
+                    df_total_reag[colunas_num].abs().sum(axis=1)
+                    > 0.005
+                )
+                df_total_reag = df_total_reag.loc[_mask_nz]
+
+                total_geral = (
+                    df_total_reag['Total'].sum()
+                    if 'Total' in df_total_reag.columns else 0
+                )
+                total_geral_str = (
+                    f"{simbolo} {_fmt_ptbr(total_geral)}{sufixo}"
+                )
+                n_total = len(df_total_reag)
+                with _st.expander(
+                    f"📊 **TOTAL** — Total: {total_geral_str}"
+                    f"  ({n_total} linha{'s' if n_total > 1 else ''})",
+                    expanded=False,
+                ):
+                    if separar_custo and 'Custo' in df_total_reag.columns:
+                        is_fixo_t = mask_custo_fixo(
+                            df_total_reag['Custo']
+                        )
+                        df_fixo_t = df_total_reag.loc[is_fixo_t]
+                        df_var_t = df_total_reag.loc[~is_fixo_t]
+
+                        if not df_fixo_t.empty:
+                            _st.markdown("**🟢 Custo Fixo**")
+                            _render_tabela_fmt(
+                                _st, df_fixo_t, colunas_num,
+                            )
+
+                        if not df_var_t.empty:
+                            _st.markdown("**🔵 Custo Variável**")
+                            _render_tabela_fmt(
+                                _st, df_var_t, colunas_num,
+                            )
+                    else:
+                        _render_tabela_fmt(
+                            _st, df_total_reag, colunas_num,
+                        )
 
         # ── Download Excel ──
         if _st.button(

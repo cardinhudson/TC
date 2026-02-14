@@ -132,32 +132,56 @@ def salvar_dados_equipe(dados):
 
 def carregar_dados_equipe():
     """Carrega os dados da equipe do arquivo JSON"""
+    _estrutura_vazia = {
+        'hudson': {
+            'cargo': '', 'empresa': '', 'experiencia': '',
+            'linkedin': '', 'foto': None,
+            'papel_projeto': 'Full-Stack Developer',
+            'descricao_papel': (
+                'Desenvolvendo tanto a interface quanto a '
+                'lógica e os cálculos do sistema'
+            ),
+        },
+        'lauro': {
+            'cargo': '', 'empresa': '', 'experiencia': '',
+            'linkedin': '', 'foto': None,
+            'papel_projeto': 'Full-Stack Developer',
+            'descricao_papel': (
+                'Desenvolvendo tanto a interface quanto a '
+                'lógica e os cálculos do sistema'
+            ),
+        },
+        'frederico': {
+            'cargo': 'Manufacturing Finance Controller',
+            'empresa': 'Stellantis',
+            'experiencia': '',
+            'linkedin': '', 'foto': None,
+            'papel_projeto': 'Tech Advisor',
+            'descricao_papel': (
+                'Orientação técnica estratégica, validações '
+                'e suporte de alto nível ao projeto'
+            ),
+        },
+    }
     try:
         base_path = get_base_path()
         dados_path = os.path.join(base_path, 'dados_equipe.json')
         if os.path.exists(dados_path):
             with open(dados_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                dados = json.load(f)
+            # Garantir que todos os membros e campos existam
+            for chave, padrao in _estrutura_vazia.items():
+                if chave not in dados:
+                    dados[chave] = padrao
+                else:
+                    for campo, valor in padrao.items():
+                        if campo not in dados[chave]:
+                            dados[chave][campo] = valor
+            return dados
     except Exception as e:
         st.warning(f"Aviso ao carregar dados: {e}")
-    
-    # Retorna estrutura vazia se não conseguir carregar
-    return {
-        'hudson': {
-            'cargo': '',
-            'empresa': '',
-            'experiencia': '',
-            'linkedin': '',
-            'foto': None
-        },
-        'lauro': {
-            'cargo': '',
-            'empresa': '',
-            'experiencia': '',
-            'linkedin': '',
-            'foto': None
-        }
-    }
+
+    return _estrutura_vazia
 
 def salvar_foto_base64(foto_bytes, nome_arquivo):
     """Converte foto para base64 para salvar no JSON"""
@@ -215,191 +239,230 @@ if indice_selecionado == "👥 Equipe do Projeto":
     st.header("👥 Equipe do Projeto")
     
     st.markdown("""
-    Esta seção apresenta informações sobre os membros da equipe responsáveis pelo desenvolvimento
-    e manutenção do Sistema TC, incluindo suas experiências profissionais e contribuições ao projeto.
+    Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento
+    e manutenção do **Sistema TC** — suas funções no projeto e perfis profissionais.
     """)
-    
-    st.markdown("---")
-    
-    # Carregar dados salvos
-    dados_equipe = carregar_dados_equipe()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🔧 Hudson Cardin")
-        
-        # Upload de foto para Hudson
-        foto_hudson = st.file_uploader(
-            "📸 Upload da foto do Hudson",
-            type=['png', 'jpg', 'jpeg'],
-            key="foto_hudson",
-            help="Faça upload de uma foto do perfil do Hudson (formato: PNG, JPG, JPEG)"
-        )
-        
-        # Mostrar foto salva ou nova foto
-        if foto_hudson is not None:
-            st.image(foto_hudson, width=200, caption="Hudson Cardin")
-            # Salvar nova foto
-            dados_equipe['hudson']['foto'] = salvar_foto_base64(foto_hudson.read(), "hudson.jpg")
-        elif dados_equipe['hudson']['foto']:
-            # Mostrar foto salva
-            foto_bytes = carregar_foto_base64(dados_equipe['hudson']['foto'])
-            if foto_bytes:
-                st.image(foto_bytes, width=200, caption="Hudson Cardin")
-            else:
-                st.info("👤 Aguardando upload da foto")
-        else:
-            st.info("👤 Aguardando upload da foto")
-        
-        # Campos para informações do Hudson
-        st.markdown("**📋 Informações Profissionais:**")
-        
-        with st.expander("✏️ Editar informações do Hudson", expanded=False):
-            with st.form("form_hudson"):
-                cargo_hudson = st.text_input(
-                    "💼 Cargo atual:", 
-                    value=dados_equipe['hudson']['cargo'],
-                    placeholder="Ex: Analista de Sistemas", 
-                    key="cargo_hudson"
-                )
-                empresa_hudson = st.text_input(
-                    "🏢 Empresa:", 
-                    value=dados_equipe['hudson']['empresa'],
-                    placeholder="Ex: Empresa XYZ", 
-                    key="empresa_hudson"
-                )
-                experiencia_hudson = st.text_area(
-                    "🎯 Experiência:", 
-                    value=dados_equipe['hudson']['experiencia'],
-                    placeholder="Descreva a experiência profissional...", 
-                    key="exp_hudson"
-                )
-                linkedin_hudson = st.text_input(
-                    "🔗 LinkedIn:", 
-                    value=dados_equipe['hudson']['linkedin'],
-                    placeholder="https://linkedin.com/in/hudson-cardin", 
-                    key="linkedin_hudson"
-                )
-                
-                if st.form_submit_button("💾 Salvar informações do Hudson", use_container_width=True):
-                    dados_equipe['hudson']['cargo'] = cargo_hudson
-                    dados_equipe['hudson']['empresa'] = empresa_hudson
-                    dados_equipe['hudson']['experiencia'] = experiencia_hudson
-                    dados_equipe['hudson']['linkedin'] = linkedin_hudson
-                    
-                    if salvar_dados_equipe(dados_equipe):
-                        st.success("✅ Informações do Hudson salvas com sucesso!")
-                        st.rerun()
-        
-        # Expander para perfil profissional
-        with st.expander("👨‍💻 Perfil Profissional", expanded=False):
-            if dados_equipe['hudson']['cargo'] and dados_equipe['hudson']['empresa']:
-                st.write(f"💼 **{dados_equipe['hudson']['cargo']}** na **{dados_equipe['hudson']['empresa']}**")
-            elif dados_equipe['hudson']['cargo']:
-                st.write(f"💼 **{dados_equipe['hudson']['cargo']}**")
-            elif dados_equipe['hudson']['empresa']:
-                st.write(f"🏢 **{dados_equipe['hudson']['empresa']}**")
-            else:
-                st.write("💼 *Cargo não informado*")
-            
-            if dados_equipe['hudson']['experiencia']:
-                st.write(f"🎯 {dados_equipe['hudson']['experiencia']}")
-            else:
-                st.write("🎯 *Experiência não informada*")
-            
-            if dados_equipe['hudson']['linkedin']:
-                st.markdown(f"🔗 [Perfil no LinkedIn]({dados_equipe['hudson']['linkedin']})")
-            else:
-                st.write("🔗 *LinkedIn não informado*")
 
-    with col2:
-        st.subheader("📊 Lauro Paiva Junior")
-        
-        # Upload de foto para Lauro
-        foto_lauro = st.file_uploader(
-            "📸 Upload da foto do Lauro",
-            type=['png', 'jpg', 'jpeg'],
-            key="foto_lauro",
-            help="Faça upload de uma foto do perfil do Lauro (formato: PNG, JPG, JPEG)"
-        )
-        
-        # Mostrar foto salva ou nova foto
-        if foto_lauro is not None:
-            st.image(foto_lauro, width=200, caption="Lauro Paiva Junior")
-            # Salvar nova foto
-            dados_equipe['lauro']['foto'] = salvar_foto_base64(foto_lauro.read(), "lauro.jpg")
-        elif dados_equipe['lauro']['foto']:
-            # Mostrar foto salva
-            foto_bytes = carregar_foto_base64(dados_equipe['lauro']['foto'])
-            if foto_bytes:
-                st.image(foto_bytes, width=200, caption="Lauro Paiva Junior")
-            else:
-                st.info("👤 Aguardando upload da foto")
-        else:
-            st.info("👤 Aguardando upload da foto")
-        
-        # Campos para informações do Lauro
-        st.markdown("**📋 Informações Profissionais:**")
-        
-        with st.expander("✏️ Editar informações do Lauro", expanded=False):
-            with st.form("form_lauro"):
-                cargo_lauro = st.text_input(
-                    "💼 Cargo atual:", 
-                    value=dados_equipe['lauro']['cargo'],
-                    placeholder="Ex: Analista Financeiro", 
-                    key="cargo_lauro"
+    # CSS para cards da equipe
+    st.markdown("""
+    <style>
+        .team-badge-fullstack {
+            display: inline-block;
+            background: linear-gradient(135deg, #7C3AED, #6D28D9);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+        .team-badge-advisor {
+            display: inline-block;
+            background: linear-gradient(135deg, #2563EB, #1D4ED8);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+        .team-role-desc {
+            font-size: 0.82rem;
+            color: #9CA3AF;
+            font-style: italic;
+            margin-top: 2px;
+            margin-bottom: 8px;
+        }
+        .team-photo-box {
+            width: 180px;
+            height: 200px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin: 0 auto 8px auto;
+            background: transparent;
+        }
+        .team-photo-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .team-photo-placeholder {
+            color: #6B7280;
+            font-size: 3rem;
+            line-height: 1;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    dados_equipe = carregar_dados_equipe()
+
+    # ── Definição dos membros ──
+    membros = [
+        {
+            'key': 'hudson',
+            'nome': 'Hudson Cardin',
+            'icone': '🔧',
+            'badge_class': 'team-badge-fullstack',
+        },
+        {
+            'key': 'lauro',
+            'nome': 'Lauro Paiva Junior',
+            'icone': '📊',
+            'badge_class': 'team-badge-fullstack',
+        },
+        {
+            'key': 'frederico',
+            'nome': 'Frederico Cesar de Jesus',
+            'icone': '🧭',
+            'badge_class': 'team-badge-advisor',
+        },
+    ]
+
+    cols = st.columns(3)
+
+    for col, membro in zip(cols, membros):
+        k = membro['key']
+        dados_m = dados_equipe.get(k, {})
+        papel = dados_m.get('papel_projeto', '')
+        desc_papel = dados_m.get('descricao_papel', '')
+
+        with col:
+            # ── Cabeçalho: nome + badge ──
+            st.subheader(f"{membro['icone']} {membro['nome']}")
+
+            if papel:
+                st.markdown(
+                    f'<span class="{membro["badge_class"]}">'
+                    f'{papel}</span>',
+                    unsafe_allow_html=True,
                 )
-                empresa_lauro = st.text_input(
-                    "🏢 Empresa:", 
-                    value=dados_equipe['lauro']['empresa'],
-                    placeholder="Ex: Empresa ABC", 
-                    key="empresa_lauro"
+            if desc_papel:
+                st.markdown(
+                    f'<p class="team-role-desc">{desc_papel}</p>',
+                    unsafe_allow_html=True,
                 )
-                experiencia_lauro = st.text_area(
-                    "🎯 Experiência:", 
-                    value=dados_equipe['lauro']['experiencia'],
-                    placeholder="Descreva a experiência profissional...", 
-                    key="exp_lauro"
+
+            # ── Foto (container fixo 180×200) ──
+            foto_up = st.file_uploader(
+                f"📸 Foto de {membro['nome']}",
+                type=['png', 'jpg', 'jpeg'],
+                key=f"foto_{k}",
+                help="Upload da foto de perfil (PNG, JPG, JPEG)",
+            )
+            _foto_b64_src = None
+            if foto_up is not None:
+                _raw = foto_up.read()
+                dados_equipe[k]['foto'] = salvar_foto_base64(
+                    _raw, f"{k}.jpg"
                 )
-                linkedin_lauro = st.text_input(
-                    "🔗 LinkedIn:", 
-                    value=dados_equipe['lauro']['linkedin'],
-                    placeholder="https://linkedin.com/in/lauro-paiva", 
-                    key="linkedin_lauro"
+                _foto_b64_src = (
+                    'data:image/jpeg;base64,'
+                    + base64.b64encode(_raw).decode()
                 )
-                
-                if st.form_submit_button("💾 Salvar informações do Lauro", use_container_width=True):
-                    dados_equipe['lauro']['cargo'] = cargo_lauro
-                    dados_equipe['lauro']['empresa'] = empresa_lauro
-                    dados_equipe['lauro']['experiencia'] = experiencia_lauro
-                    dados_equipe['lauro']['linkedin'] = linkedin_lauro
-                    
-                    if salvar_dados_equipe(dados_equipe):
-                        st.success("✅ Informações do Lauro salvas com sucesso!")
-                        st.rerun()
-        
-        # Expander para perfil profissional
-        with st.expander("👨‍💼 Perfil Profissional", expanded=False):
-            if dados_equipe['lauro']['cargo'] and dados_equipe['lauro']['empresa']:
-                st.write(f"💼 **{dados_equipe['lauro']['cargo']}** na **{dados_equipe['lauro']['empresa']}**")
-            elif dados_equipe['lauro']['cargo']:
-                st.write(f"💼 **{dados_equipe['lauro']['cargo']}**")
-            elif dados_equipe['lauro']['empresa']:
-                st.write(f"🏢 **{dados_equipe['lauro']['empresa']}**")
+            elif dados_m.get('foto'):
+                _foto_b64_src = (
+                    'data:image/jpeg;base64,' + dados_m['foto']
+                )
+
+            if _foto_b64_src:
+                st.markdown(
+                    f'<div class="team-photo-box">'
+                    f'<img src="{_foto_b64_src}" '
+                    f'alt="{membro["nome"]}"/>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
             else:
-                st.write("💼 *Cargo não informado*")
-            
-            if dados_equipe['lauro']['experiencia']:
-                st.write(f"🎯 {dados_equipe['lauro']['experiencia']}")
-            else:
-                st.write("🎯 *Experiência não informada*")
-            
-            if dados_equipe['lauro']['linkedin']:
-                st.markdown(f"🔗 [Perfil no LinkedIn]({dados_equipe['lauro']['linkedin']})")
-            else:
-                st.write("🔗 *LinkedIn não informado*")
-    
+                st.markdown(
+                    '<div class="team-photo-box">'
+                    '<span class="team-photo-placeholder">'
+                    '👤</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+            # ── Edição ──
+            with st.expander(
+                f"✏️ Editar informações", expanded=False
+            ):
+                with st.form(f"form_{k}"):
+                    _papel = st.text_input(
+                        "🎯 Papel no Projeto:",
+                        value=dados_m.get('papel_projeto', ''),
+                        key=f"papel_{k}",
+                    )
+                    _desc_papel = st.text_input(
+                        "📝 Descrição do Papel:",
+                        value=dados_m.get('descricao_papel', ''),
+                        key=f"desc_papel_{k}",
+                    )
+                    _cargo = st.text_input(
+                        "💼 Cargo:",
+                        value=dados_m.get('cargo', ''),
+                        key=f"cargo_{k}",
+                    )
+                    _empresa = st.text_input(
+                        "🏢 Empresa:",
+                        value=dados_m.get('empresa', ''),
+                        key=f"empresa_{k}",
+                    )
+                    _exp = st.text_area(
+                        "🎯 Experiência:",
+                        value=dados_m.get('experiencia', ''),
+                        key=f"exp_{k}",
+                    )
+                    _linkedin = st.text_input(
+                        "🔗 LinkedIn:",
+                        value=dados_m.get('linkedin', ''),
+                        key=f"linkedin_{k}",
+                    )
+                    if st.form_submit_button(
+                        "💾 Salvar", use_container_width=True
+                    ):
+                        dados_equipe[k]['papel_projeto'] = _papel
+                        dados_equipe[k]['descricao_papel'] = _desc_papel
+                        dados_equipe[k]['cargo'] = _cargo
+                        dados_equipe[k]['empresa'] = _empresa
+                        dados_equipe[k]['experiencia'] = _exp
+                        dados_equipe[k]['linkedin'] = _linkedin
+                        if salvar_dados_equipe(dados_equipe):
+                            st.success("✅ Salvo com sucesso!")
+                            st.rerun()
+
+            # ── Perfil Profissional ──
+            with st.expander("👨‍💻 Perfil Profissional", expanded=False):
+                if dados_m.get('cargo') and dados_m.get('empresa'):
+                    st.write(
+                        f"💼 **{dados_m['cargo']}** "
+                        f"na **{dados_m['empresa']}**"
+                    )
+                elif dados_m.get('cargo'):
+                    st.write(f"💼 **{dados_m['cargo']}**")
+                elif dados_m.get('empresa'):
+                    st.write(f"🏢 **{dados_m['empresa']}**")
+                else:
+                    st.write("💼 *Cargo não informado*")
+
+                if dados_m.get('experiencia'):
+                    st.write(f"🎯 {dados_m['experiencia']}")
+                else:
+                    st.write("🎯 *Experiência não informada*")
+
+                if dados_m.get('linkedin'):
+                    st.markdown(
+                        f"🔗 [Perfil no LinkedIn]"
+                        f"({dados_m['linkedin']})"
+                    )
+                else:
+                    st.write("🔗 *LinkedIn não informado*")
+
     st.markdown("---")
     
     st.markdown("""

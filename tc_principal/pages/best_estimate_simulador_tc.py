@@ -371,6 +371,60 @@ def get_oficinas_budget_opcoes(ano_selecionado_param):
     except Exception:
         return []
 
+
+@st.cache_data(ttl=1800, max_entries=5)
+def get_veiculos_budget_opcoes(ano_selecionado_param):
+    """Obtém lista de veículos presentes no Budget (custos e volume) (histórico consolidado BUD)."""
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        caminho_budget_custo = os.path.join(
+            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_principal_historico_BUD.parquet"
+        )
+        caminho_budget_vol = os.path.join(
+            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+        )
+
+        veiculos_set = set()
+
+        if os.path.exists(caminho_budget_custo):
+            try:
+                df_budget = pd.read_parquet(caminho_budget_custo, columns=["Veículo", "Ano"])
+            except Exception:
+                df_budget = pd.read_parquet(caminho_budget_custo)
+
+            if df_budget is not None and not df_budget.empty and 'Veículo' in df_budget.columns:
+                if (
+                    ano_selecionado_param is not None
+                    and ano_selecionado_param != "Todos"
+                    and 'Ano' in df_budget.columns
+                ):
+                    try:
+                        df_budget = df_budget[df_budget['Ano'] == int(ano_selecionado_param)].copy()
+                    except Exception:
+                        pass
+                veiculos_set.update(df_budget['Veículo'].dropna().astype(str).unique().tolist())
+
+        if os.path.exists(caminho_budget_vol):
+            try:
+                df_vol = pd.read_parquet(caminho_budget_vol)
+            except Exception:
+                df_vol = pd.read_parquet(caminho_budget_vol)
+
+            if df_vol is not None and not df_vol.empty and 'Veículo' in df_vol.columns:
+                if (
+                    ano_selecionado_param is not None
+                    and ano_selecionado_param != "Todos"
+                    and 'Ano' in df_vol.columns
+                ):
+                    try:
+                        df_vol = df_vol[df_vol['Ano'] == int(ano_selecionado_param)].copy()
+                    except Exception:
+                        pass
+                veiculos_set.update(df_vol['Veículo'].dropna().astype(str).unique().tolist())
+        return sorted(veiculos_set)
+    except Exception:
+        return []
+
 # Botão de atualizar dados na sidebar (após definir todas as funções com cache)
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
@@ -2816,38 +2870,38 @@ config_forecast_temp = {
 }
 
 # ====================================================================
-# 🧩 Referência por Oficina (Realizado x Budget) — simples e opcional
+# 🧩 Referência por Modelo/Veículo (Realizado x Budget) — simples e opcional
 # ====================================================================
-# Mantém o comportamento atual por padrão (tudo Realizado). Quando uma oficina
-# estiver marcada como Budget, o BE usa Budget mês-a-mês (jan com jan, etc.).
+# Mantém o comportamento atual por padrão (tudo Realizado). Quando um modelo
+# estiver marcado como Budget, o BE usa Budget mês-a-mês (jan com jan, etc.).
 try:
-    if 'oficinas_ref_budget_tc' not in st.session_state:
-        st.session_state.oficinas_ref_budget_tc = []
+    if 'modelos_ref_budget_tc' not in st.session_state:
+        st.session_state.modelos_ref_budget_tc = []
 
-    oficinas_ref_opcoes = []
-    if 'df_filtrado' in locals() and df_filtrado is not None and 'Oficina' in df_filtrado.columns:
-        oficinas_ref_opcoes.extend(df_filtrado['Oficina'].dropna().astype(str).unique().tolist())
-    # Incluir também oficinas que só existam no Budget
+    modelos_ref_opcoes = []
+    if 'df_filtrado' in locals() and df_filtrado is not None and 'Veículo' in df_filtrado.columns:
+        modelos_ref_opcoes.extend(df_filtrado['Veículo'].dropna().astype(str).unique().tolist())
+    # Incluir também veículos que só existam no Budget
     try:
-        oficinas_ref_opcoes.extend(get_oficinas_budget_opcoes(ultimo_ano_dados))
+        modelos_ref_opcoes.extend(get_veiculos_budget_opcoes(ultimo_ano_dados))
     except Exception:
         pass
 
-    oficinas_ref_opcoes = sorted({o.strip() for o in oficinas_ref_opcoes if isinstance(o, str) and o.strip() and o.strip().lower() != 'todos'})
+    modelos_ref_opcoes = sorted({o.strip() for o in modelos_ref_opcoes if isinstance(o, str) and o.strip() and o.strip().lower() != 'todos'})
 
-    with st.expander("🔁 Referência por oficina (Realizado x Budget)", expanded=False):
-        st.caption("Padrão: Realizado (não altera o que já funciona). Se marcar uma oficina, o BE passa a usar Budget mês-a-mês para essa oficina.")
-        st.session_state.oficinas_ref_budget_tc = st.multiselect(
-            "Oficinas com referência no Budget:",
-            options=oficinas_ref_opcoes,
-            default=st.session_state.oficinas_ref_budget_tc,
-            help="Use quando a oficina não tem realizado suficiente, mas tem Budget. O cálculo compara mês com mês (jan com jan, etc.).",
+    with st.expander("🔁 Referência por modelo/veículo (Realizado x Budget)", expanded=False):
+        st.caption("Padrão: Realizado (não altera o que já funciona). Se marcar um modelo, o BE passa a usar Budget mês-a-mês para esse modelo.")
+        st.session_state.modelos_ref_budget_tc = st.multiselect(
+            "Modelos com referência no Budget:",
+            options=modelos_ref_opcoes,
+            default=st.session_state.modelos_ref_budget_tc,
+            help="Use quando o modelo não tem realizado suficiente, mas tem Budget. O cálculo compara mês com mês (jan com jan, etc.).",
         )
 
-    config_forecast_temp['oficinas_ref_budget_tc'] = st.session_state.oficinas_ref_budget_tc
+    config_forecast_temp['modelos_ref_budget_tc'] = st.session_state.modelos_ref_budget_tc
 except Exception:
     # Se algo der errado aqui, não bloquear o simulador.
-    config_forecast_temp['oficinas_ref_budget_tc'] = st.session_state.get('oficinas_ref_budget_tc', [])
+    config_forecast_temp['modelos_ref_budget_tc'] = st.session_state.get('modelos_ref_budget_tc', [])
 
 # Botão unificado para aplicar todas as configurações
 col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
@@ -3312,7 +3366,7 @@ if aplicar_config_forecast:
     periodos_restantes = config_forecast_aplicada.get('periodos_restantes', [])
     periodos_para_media = config_forecast_aplicada.get('periodos_para_media', [])
     meses_excluir_media = config_forecast_aplicada.get('meses_excluir_media', [])
-    oficinas_ref_budget = config_forecast_aplicada.get('oficinas_ref_budget_tc', [])
+    modelos_ref_budget = config_forecast_aplicada.get('modelos_ref_budget_tc', [])
     
     # 🆕 NOVA FUNCIONALIDADE: Gerar arquivos diretamente nesta página
     # Os arquivos serão criados aqui, não na página de visualização
@@ -3335,8 +3389,8 @@ if aplicar_config_forecast:
     adicionar_mensagem("info", f"   - Último período: {config_forecast_aplicada.get('ultimo_periodo_dados', 'N/A')}")
     adicionar_mensagem("info", f"   - Períodos para média: {periodos_para_media}")
     adicionar_mensagem("info", f"   - Períodos a prever: {periodos_restantes}")
-    if oficinas_ref_budget:
-        adicionar_mensagem("info", f"   - Oficinas referência Budget: {oficinas_ref_budget}")
+    if modelos_ref_budget:
+        adicionar_mensagem("info", f"   - Modelos referência Budget: {modelos_ref_budget}")
     
     # 🔧 DEBUG: Verificar se as configurações foram obtidas corretamente
     adicionar_mensagem("info", "🔍 **Iniciando geração de arquivos de forecast...**")
@@ -3596,6 +3650,21 @@ if aplicar_config_forecast:
                 
                 # Correspondência exata (MESMA LÓGICA DO FORECAST COPY)
                 df_base_para_media = df_base_filtrado_ano[df_base_filtrado_ano['Período_Norm'].isin(periodos_normalizados)].copy()
+                
+                if len(df_base_para_media) == 0:
+                    # 🔧 CORREÇÃO: Se os períodos selecionados NÃO têm ano (ex: ["janeiro"])
+                    # mas Período_Norm tem ano (ex: "janeiro 2026"), comparar só pelo mês.
+                    selecao_sem_ano = all(
+                        ' ' not in str(p).strip() or not str(p).strip().split(' ', 1)[1].isdigit()
+                        for p in periodos_normalizados
+                    )
+                    if selecao_sem_ano:
+                        periodos_so_mes = {str(p).strip().lower().split(' ', 1)[0] for p in periodos_normalizados}
+                        df_base_filtrado_ano['_Mes_Norm_tmp'] = df_base_filtrado_ano['Período_Norm'].astype(str).str.split(' ', n=1).str[0]
+                        df_base_para_media = df_base_filtrado_ano[df_base_filtrado_ano['_Mes_Norm_tmp'].isin(periodos_so_mes)].copy()
+                        df_base_para_media = df_base_para_media.drop(columns=['_Mes_Norm_tmp'], errors='ignore')
+                        df_base_filtrado_ano = df_base_filtrado_ano.drop(columns=['_Mes_Norm_tmp'], errors='ignore')
+                        adicionar_mensagem("info", f"📊 Correspondência por mês (sem ano): {periodos_so_mes} → {len(df_base_para_media):,} linhas")
                 
                 if len(df_base_para_media) > 0:
                     adicionar_mensagem("success", f"✅ Períodos encontrados: {len(periodos_normalizados)} períodos, {len(df_base_para_media):,} linhas")
@@ -4030,7 +4099,21 @@ if aplicar_config_forecast:
 
                                 tem_oficina_no_vol_para_media = 'Oficina' in df_vol_para_media.columns
 
-                                if tem_veiculo_no_vol_para_media:
+                                # 🔧 CORREÇÃO CRÍTICA: Se o volume tem Veículo mas os dados de custo NÃO têm,
+                                # devemos agregar os volumes de todos os veículos (soma) por período.
+                                # Caso contrário, o merge falha e a proporção volume fica sempre 1.0,
+                                # anulando completamente a sensibilidade (Fixo/Variável).
+                                custo_tem_veiculo = 'Veículo' in df_base_filtrado.columns
+
+                                if tem_veiculo_no_vol_para_media and not custo_tem_veiculo:
+                                    # Volume tem Veículo mas custo NÃO → somar veículos por período
+                                    # TC Veículos: volume de produção é COMUM para todas as oficinas,
+                                    # variação existe apenas por modelo. Somamos para obter volume TOTAL.
+                                    adicionar_mensagem("info", "📊 Volume tem Veículo mas custo não → somando volumes de todos os veículos por período (volume total de produção)")
+                                    colunas_groupby_vol_medio = ['Período']
+                                    chaves_volume_base = []
+                                    # NÃO incluir Oficina no groupby — volume é igual para toda oficina
+                                elif tem_veiculo_no_vol_para_media:
                                     colunas_groupby_vol_medio = ['Veículo', 'Período']
                                     chaves_volume_base = ['Veículo']
                                     if tem_oficina_no_vol_para_media:
@@ -4046,19 +4129,31 @@ if aplicar_config_forecast:
                                 if 'Ano' in df_vol_para_media.columns:
                                     colunas_groupby_vol_medio.append('Ano')
 
+                                # ETAPA 1: Agregar volume por período.
+                                # Quando custo NÃO tem Veículo (TC Veículos), usar .sum()
+                                # para obter volume TOTAL de produção (soma de todos os veículos).
+                                # Quando custo TEM Veículo, usar .mean() (por veículo individual).
+                                _vol_agg_fn = 'sum' if (tem_veiculo_no_vol_para_media and not custo_tem_veiculo) else 'mean'
                                 df_vol_medio = df_vol_para_media.groupby(
                                     colunas_groupby_vol_medio,
                                     as_index=False,
                                     dropna=False,
-                                )['Volume'].mean()
+                                )['Volume'].agg(_vol_agg_fn)
                             
-                                # ETAPA 2: Calcular volume médio mensal (média dos meses selecionados do ano correto) (MESMA LÓGICA DO FORECAST COPY linha 5588-5590)
-                                volume_base = df_vol_medio.groupby(
-                                    chaves_volume_base,
-                                    as_index=False,
-                                    dropna=False,
-                                )['Volume'].mean()
-                                volume_base.rename(columns={'Volume': 'Volume_Medio_Historico'}, inplace=True)
+                                # ETAPA 2: Calcular volume médio mensal (média dos períodos selecionados)
+                                if chaves_volume_base:
+                                    volume_base = df_vol_medio.groupby(
+                                        chaves_volume_base,
+                                        as_index=False,
+                                        dropna=False,
+                                    )['Volume'].mean()
+                                    volume_base.rename(columns={'Volume': 'Volume_Medio_Historico'}, inplace=True)
+                                else:
+                                    # Sem chaves de agrupamento → média geral de todos os períodos
+                                    volume_base = pd.DataFrame({
+                                        'Volume_Medio_Historico': [df_vol_medio['Volume'].mean()]
+                                    })
+                                adicionar_mensagem("info", f"📊 Volume_Medio_Historico calculado com agg='{_vol_agg_fn}': {volume_base['Volume_Medio_Historico'].iloc[0] if len(volume_base) > 0 else 'N/A':,.0f}")
 
                                 if 'Veículo' in chaves_volume_base:
                                     adicionar_mensagem("success", f"✅ Volume médio histórico calculado: {len(volume_base):,} combinações {'Oficina/' if 'Oficina' in chaves_volume_base else ''}Veículo")
@@ -4071,13 +4166,23 @@ if aplicar_config_forecast:
                                 volume_base = None
                     else:
                         # Se não há períodos selecionados, calcular média de todos os volumes
-                        # Se não há períodos selecionados, calcular média de todos os volumes
                         tem_veiculo_no_vol_historico = (
                             'Veículo' in df_vol_historico.columns
                             and df_vol_historico['Veículo'].notna().any()
                         )
                         tem_oficina_fallback = 'Oficina' in df_vol_historico.columns
-                        if tem_veiculo_no_vol_historico:
+                        custo_tem_veiculo_fb = 'Veículo' in df_base_filtrado.columns
+
+                        if tem_veiculo_no_vol_historico and not custo_tem_veiculo_fb:
+                            # 🔧 Volume tem Veículo mas custo não → somar veículos por período, depois média
+                            _gb_cols_sum = (['Oficina', 'Período'] if tem_oficina_fallback else ['Período'])
+                            vol_total_periodo = df_vol_historico.groupby(_gb_cols_sum, as_index=False, dropna=False)['Volume'].sum()
+                            _gb_cols_avg = (['Oficina'] if tem_oficina_fallback else [])
+                            if _gb_cols_avg:
+                                volume_base = vol_total_periodo.groupby(_gb_cols_avg, as_index=False, dropna=False)['Volume'].mean()
+                            else:
+                                volume_base = pd.DataFrame({'Volume': [vol_total_periodo['Volume'].mean()]})
+                        elif tem_veiculo_no_vol_historico:
                             _gb_cols = (['Oficina', 'Veículo'] if tem_oficina_fallback else ['Veículo'])
                             volume_base = df_vol_historico.groupby(_gb_cols, as_index=False, dropna=False)['Volume'].mean()
                         elif tem_oficina_fallback:
@@ -4220,6 +4325,85 @@ if aplicar_config_forecast:
                             anos_vol_disponiveis = sorted(df_vol_por_mes['Ano'].dropna().unique())
                             adicionar_mensagem("info", f"📊 Anos disponíveis no volume: {anos_vol_disponiveis}")
             
+            # ============================================================
+            # 🆕 Volume BUD como fallback universal para sensibilidade
+            # ============================================================
+            # Quando volume real não está disponível para um período,
+            # usar volume do Budget para criar variação significativa.
+            # Sem isso, proporcao_volume = 1.0 e sensibilidade não tem efeito.
+            _vol_bud_global = None
+            try:
+                _caminho_vol_bud = os.path.join('dados', 'TC_Principal', 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
+                if os.path.exists(_caminho_vol_bud):
+                    _vol_bud_global = pd.read_parquet(_caminho_vol_bud)
+                    _vol_bud_global = _fix_mojibake_cols(_vol_bud_global)
+                    for _c_txt in ['Oficina', 'Veículo', 'Período']:
+                        if _c_txt in _vol_bud_global.columns:
+                            _vol_bud_global[_c_txt] = _vol_bud_global[_c_txt].astype('string').str.strip()
+                    if 'Ano' in _vol_bud_global.columns:
+                        _vol_bud_global['Ano'] = pd.to_numeric(_vol_bud_global['Ano'], errors='coerce')
+                    adicionar_mensagem("info", f"📊 Volume BUD fallback: {len(_vol_bud_global):,} linhas carregadas")
+            except Exception:
+                _vol_bud_global = None
+
+            def _buscar_volume_bud_periodo(periodo_str_param, df_fc):
+                """Tenta buscar volume BUD para um período específico.
+                Retorna pd.Series (mapeado ao index de df_fc) ou None."""
+                if _vol_bud_global is None or _vol_bud_global.empty:
+                    return None
+                if 'Volume' not in _vol_bud_global.columns:
+                    return None
+                try:
+                    p_str = str(periodo_str_param).strip()
+                    p_mes = p_str.split(' ', 1)[0].strip() if ' ' in p_str else p_str
+                    p_ano = None
+                    if ' ' in p_str:
+                        ano_part = p_str.split(' ', 1)[1].strip()
+                        if ano_part.isdigit():
+                            p_ano = int(ano_part)
+
+                    df_vb = _vol_bud_global.copy()
+                    if 'Período' in df_vb.columns:
+                        df_vb = df_vb[df_vb['Período'].astype(str).str.strip().str.capitalize() == p_mes.capitalize()]
+                    if p_ano and 'Ano' in df_vb.columns:
+                        df_vb = df_vb[df_vb['Ano'] == p_ano]
+                    if df_vb.empty:
+                        return None
+
+                    _gb = []
+                    if 'Oficina' in df_vb.columns:
+                        _gb.append('Oficina')
+                    # 🔧 CORREÇÃO: Só usar Veículo se existir tanto no volume BUD quanto nos dados de custo
+                    usa_veic = 'Veículo' in df_vb.columns and df_vb['Veículo'].notna().any() and 'Veículo' in df_fc.columns
+                    if usa_veic:
+                        _gb.append('Veículo')
+
+                    if _gb:
+                        df_vb = df_vb.groupby(_gb, as_index=False, dropna=False)['Volume'].sum()
+                        vol_dict = {tuple(str(r[c]) for c in _gb): float(r['Volume']) for _, r in df_vb.iterrows()}
+                        vals = []
+                        cnt_found = 0
+                        for ix in df_fc.index:
+                            chave = tuple(str(df_fc.loc[ix, c]) if c in df_fc.columns else '' for c in _gb)
+                            if chave in vol_dict:
+                                vals.append(vol_dict[chave])
+                                cnt_found += 1
+                            elif 'Volume_Medio_Historico' in df_fc.columns:
+                                vals.append(float(df_fc.loc[ix, 'Volume_Medio_Historico']))
+                            else:
+                                vals.append(0.0)
+                        if cnt_found > 0:
+                            adicionar_mensagem("info", f"📊 Volume BUD fallback para '{periodo_str_param}': {cnt_found:,}/{len(df_fc):,} linhas mapeadas")
+                            return pd.Series(vals, index=df_fc.index)
+                    else:
+                        vol_total = float(df_vb['Volume'].sum())
+                        if vol_total > 0:
+                            adicionar_mensagem("info", f"📊 Volume BUD fallback total para '{periodo_str_param}': {vol_total:,.0f}")
+                            return pd.Series([vol_total] * len(df_fc), index=df_fc.index)
+                    return None
+                except Exception:
+                    return None
+
             # 🔧 DEBUG: Verificar se há períodos para calcular
             adicionar_mensagem("info", "🔍 **Verificando dados para cálculo do forecast...**")
             
@@ -4239,12 +4423,12 @@ if aplicar_config_forecast:
                     df_forecast_completo[col_txt] = df_forecast_completo[col_txt].astype('string').str.strip()
 
             # ============================================================
-            # 🆕 Budget como referência por oficina (opcional)
+            # 🆕 Budget como referência por modelo/veículo (opcional)
             # ============================================================
-            oficinas_ref_budget_set = {str(o).strip() for o in (oficinas_ref_budget or []) if str(o).strip()}
+            modelos_ref_budget_set = {str(o).strip() for o in (modelos_ref_budget or []) if str(o).strip()}
             usa_budget_ref = None
-            if oficinas_ref_budget_set and 'Oficina' in df_forecast_completo.columns:
-                usa_budget_ref = df_forecast_completo['Oficina'].astype('string').str.strip().isin(oficinas_ref_budget_set)
+            if modelos_ref_budget_set and 'Veículo' in df_forecast_completo.columns:
+                usa_budget_ref = df_forecast_completo['Veículo'].astype('string').str.strip().isin(modelos_ref_budget_set)
             else:
                 usa_budget_ref = pd.Series(False, index=df_forecast_completo.index)
 
@@ -4337,7 +4521,7 @@ if aplicar_config_forecast:
             budget_vol_dicts = []    # lista de (cols_key, dict)
             budget_has_veiculo = False
             try:
-                if oficinas_ref_budget_set:
+                if modelos_ref_budget_set:
                     caminho_budget_custo = os.path.join('dados', 'TC_Principal', 'historico_consolidado', 'BUD', 'df_principal_historico_BUD.parquet')
                     caminho_budget_vol = os.path.join('dados', 'TC_Principal', 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
                     if os.path.exists(caminho_budget_custo) and os.path.exists(caminho_budget_vol):
@@ -4359,11 +4543,11 @@ if aplicar_config_forecast:
                         if 'Custo' in df_budget_custo.columns:
                             df_budget_custo['Custo'] = df_budget_custo['Custo'].apply(_norm_custo)
 
-                        # Filtrar apenas oficinas selecionadas para Budget
-                        if 'Oficina' in df_budget_custo.columns:
-                            df_budget_custo = df_budget_custo[df_budget_custo['Oficina'].astype('string').str.strip().isin(oficinas_ref_budget_set)].copy()
-                        if 'Oficina' in df_budget_vol.columns:
-                            df_budget_vol = df_budget_vol[df_budget_vol['Oficina'].astype('string').str.strip().isin(oficinas_ref_budget_set)].copy()
+                        # Filtrar apenas modelos/veículos selecionados para Budget
+                        if 'Veículo' in df_budget_custo.columns:
+                            df_budget_custo = df_budget_custo[df_budget_custo['Veículo'].astype('string').str.strip().isin(modelos_ref_budget_set)].copy()
+                        if 'Veículo' in df_budget_vol.columns:
+                            df_budget_vol = df_budget_vol[df_budget_vol['Veículo'].astype('string').str.strip().isin(modelos_ref_budget_set)].copy()
 
                         # Filtrar anos/meses de forecast (mês-a-mês)
                         anos_forecast = []
@@ -4397,27 +4581,27 @@ if aplicar_config_forecast:
                         budget_has_veiculo = ('Veículo' in df_budget_vol.columns and df_budget_vol['Veículo'].notna().any())
 
                         # ============================================================
-                        # 🧩 Seed: oficinas só no Budget (sem histórico)
+                        # 🧩 Seed: modelos/veículos só no Budget (sem histórico)
                         # ============================================================
-                        # Problema observado: algumas oficinas (ex.: "REGIONALIZAÇÃO J516" e
-                        # "REGIONALIZAÇÃO TODOS") existem no BUD (custo/volume) mas NÃO existem
-                        # na base histórica df_principal_historico.parquet. Como o simulador parte do
-                        # histórico para montar o df_forecast_completo, essas oficinas nunca entram
-                        # nos arquivos gerados (forecast_completo/df_principal_historico_forecast),
-                        # resultando em gráficos vazios quando filtradas.
-                        # Solução: quando a oficina foi marcada como "referência no Budget", criar
+                        # Problema observado: alguns modelos/veículos existem no BUD (custo/volume)
+                        # mas NÃO existem na base histórica df_principal_historico.parquet. Como o
+                        # simulador parte do histórico para montar o df_forecast_completo, esses
+                        # modelos nunca entram nos arquivos gerados (forecast_completo/
+                        # df_principal_historico_forecast), resultando em gráficos vazios quando
+                        # filtrados.
+                        # Solução: quando o modelo foi marcado como "referência no Budget", criar
                         # linhas-base a partir do BUD apenas para carregar as dimensões (Oficina/
                         # Veículo/Type05/Type06/Account/Custo) e permitir o cálculo mês-a-mês.
                         try:
                             if (
-                                oficinas_ref_budget_set
+                                modelos_ref_budget_set
                                 and df_budget_custo is not None
                                 and not df_budget_custo.empty
                                 and df_forecast_completo is not None
-                                and 'Oficina' in df_forecast_completo.columns
+                                and 'Veículo' in df_forecast_completo.columns
                             ):
-                                oficinas_no_historico = set(
-                                    df_forecast_completo['Oficina']
+                                modelos_no_historico = set(
+                                    df_forecast_completo['Veículo']
                                     .astype('string')
                                     .str.strip()
                                     .dropna()
@@ -4425,17 +4609,17 @@ if aplicar_config_forecast:
                                     .tolist()
                                 )
 
-                                oficinas_sem_historico = [
-                                    o for o in sorted(oficinas_ref_budget_set)
-                                    if o not in oficinas_no_historico
+                                modelos_sem_historico = [
+                                    o for o in sorted(modelos_ref_budget_set)
+                                    if o not in modelos_no_historico
                                 ]
 
-                                if oficinas_sem_historico:
+                                if modelos_sem_historico:
                                     df_seed = df_budget_custo[
-                                        df_budget_custo['Oficina']
+                                        df_budget_custo['Veículo']
                                         .astype('string')
                                         .str.strip()
-                                        .isin(oficinas_sem_historico)
+                                        .isin(modelos_sem_historico)
                                     ].copy()
 
                                     # Garantir colunas necessárias ao simulador
@@ -4470,11 +4654,11 @@ if aplicar_config_forecast:
                                     )
 
                                     # Recalcular máscara após inserir linhas
-                                    usa_budget_ref = df_forecast_completo['Oficina'].astype('string').str.strip().isin(oficinas_ref_budget_set)
+                                    usa_budget_ref = df_forecast_completo['Veículo'].astype('string').str.strip().isin(modelos_ref_budget_set)
 
                                     adicionar_mensagem(
                                         'success',
-                                        f"✅ Budget ref: adicionadas {len(df_seed):,} linhas seed para oficinas sem histórico: {', '.join(oficinas_sem_historico)}",
+                                        f"✅ Budget ref: adicionadas {len(df_seed):,} linhas seed para modelos sem histórico: {', '.join(modelos_sem_historico)}",
                                     )
                         except Exception:
                             pass
@@ -4602,9 +4786,12 @@ if aplicar_config_forecast:
                     
                     if not vol_mes_df.empty:
                         # Se nesse mês/ano o volume não tem Veículo preenchido, trabalhar em nível de Oficina.
+                        # 🔧 CORREÇÃO CRÍTICA: Só usar Veículo como chave se os dados de custo
+                        # também têm Veículo. Caso contrário, somar todos os veículos (volume total).
                         usa_veiculo_no_mes = (
                             'Veículo' in vol_mes_df.columns
                             and vol_mes_df['Veículo'].notna().any()
+                            and 'Veículo' in df_forecast_completo.columns
                         )
                         usa_oficina_no_mes = 'Oficina' in vol_mes_df.columns
                         
@@ -4645,16 +4832,27 @@ if aplicar_config_forecast:
                         volume_mes_serie = pd.Series(volume_valores, index=df_forecast_completo.index)
                         adicionar_mensagem("info", f"📊 Volume para '{periodo}': {volume_encontrado_count:,} encontrados, {volume_medio_count:,} usando médio histórico")
                     else:
-                        adicionar_mensagem("warning", f"⚠️ Volume não encontrado para '{periodo}'. Usando volume médio histórico.")
+                        # 🆕 CORREÇÃO: Tentar volume BUD antes de cair para Volume_Medio_Historico
+                        _vol_bud_serie = _buscar_volume_bud_periodo(periodo, df_forecast_completo)
+                        if _vol_bud_serie is not None:
+                            volume_mes_serie = _vol_bud_serie
+                            adicionar_mensagem("info", f"📊 Volume BUD usado como fallback para '{periodo}' (sensibilidade ativa)")
+                        else:
+                            adicionar_mensagem("warning", f"⚠️ Volume não encontrado para '{periodo}'. Usando volume médio histórico (sensibilidade neutra).")
+                            if 'Volume_Medio_Historico' in df_forecast_completo.columns:
+                                volume_mes_serie = df_forecast_completo['Volume_Medio_Historico'].copy()
+                            else:
+                                volume_mes_serie = pd.Series(0.0, index=df_forecast_completo.index)
+                else:
+                    # 🆕 CORREÇÃO: Tentar volume BUD antes de cair para Volume_Medio_Historico
+                    _vol_bud_serie = _buscar_volume_bud_periodo(periodo, df_forecast_completo)
+                    if _vol_bud_serie is not None:
+                        volume_mes_serie = _vol_bud_serie
+                    else:
                         if 'Volume_Medio_Historico' in df_forecast_completo.columns:
                             volume_mes_serie = df_forecast_completo['Volume_Medio_Historico'].copy()
                         else:
                             volume_mes_serie = pd.Series(0.0, index=df_forecast_completo.index)
-                else:
-                    if 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                        volume_mes_serie = df_forecast_completo['Volume_Medio_Historico'].copy()
-                    else:
-                        volume_mes_serie = pd.Series(0.0, index=df_forecast_completo.index)
                 
                 # Calcular forecast linha a linha (MESMA LÓGICA DO FORECAST COPY linha 6379-6452)
                 df_forecast_completo[periodo] = 0.0

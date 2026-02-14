@@ -18,8 +18,12 @@ from tc_principal.shared import (
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
     load_custo_fp_veiculo,
+    load_custo_fp_veiculo_real,
+    load_forecast_completo,
+    load_percentual_rateio_veiculos_real, ratear_be_por_veiculo,
     normalizar_periodo, ordenar_por_mes,
-    calcular_flex_budget, aplicar_fator_df,
+    calcular_flex_budget, calcular_flex_budget_detalhado,
+    aplicar_fator_df,
     converter_moeda_df, obter_sufixo_fator, calcular_cpu,
     extrair_redis,
     _pivotar_detalhado, _pivotar_flex, render_secao_tabela_detalhe,
@@ -84,10 +88,12 @@ def _load_forecast(ano=None):
 # ═══════════════════════════════════════════════════════════
 
 def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
-                         simbolo, sufixo, ordem_per, tem_ano=False):
+                         simbolo, sufixo, ordem_per, tem_ano=False,
+                         col_tipo=None):
     """
     Cria gráfico de Custo FP por Período — cópia da Home TC.
-    Usa scheme='purples' para degradê nas barras.
+    Se col_tipo for informado, usa cor nominal (Histórico=roxo escuro,
+    BE=roxo claro); senão, degradê 'purples' contínuo.
     """
     try:
         coluna = 'Custo FP'
@@ -119,7 +125,29 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
             if n_periodos else 260
         )
 
-        # ── Barras com degradê roxo (purples) ──
+        # ── Barras com cor por tipo (Histórico / Forecast) ──
+        if col_tipo and col_tipo in df_periodo.columns:
+            _cor_encode = alt.Color(
+                f'{col_tipo}:N', title='Origem',
+                scale=alt.Scale(
+                    domain=['Histórico', 'BE'],
+                    range=['#4C1D95', '#C4B5FD'],
+                ),
+                legend=alt.Legend(
+                    title='Origem', orient='right',
+                    titleFontSize=10, labelFontSize=9,
+                ),
+            )
+        else:
+            _cor_encode = alt.Color(
+                f'{coluna}:Q', title=coluna,
+                scale=alt.Scale(scheme='purples'),
+                legend=alt.Legend(
+                    title=coluna, orient='right',
+                    titleFontSize=10, labelFontSize=9,
+                ),
+            )
+
         grafico_barras = alt.Chart(df_periodo).mark_bar().encode(
             x=alt.X(
                 f'{coluna_periodo}:N', title='Período', sort=ordem_per,
@@ -129,14 +157,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 f'{coluna}:Q', title=titulo_y,
                 axis=alt.Axis(grid=False, domain=True, ticks=True)
             ),
-            color=alt.Color(
-                f'{coluna}:Q', title=coluna,
-                scale=alt.Scale(scheme='purples'),
-                legend=alt.Legend(
-                    title=coluna, orient='right',
-                    titleFontSize=10, labelFontSize=9
-                )
-            ),
+            color=_cor_encode,
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
                 alt.Tooltip(f'{coluna}:Q', title=coluna, format=',.2f')
@@ -425,7 +446,7 @@ df_tempo_veic = load_tempo_veiculos(ano)
 
 # ── Carregar dados rateados por veículo (apenas BUD — forecast não tem) ──
 df_veic_bud_raw = load_custo_fp_veiculo(ano)
-df_veic_real_raw = None  # ← forecast não tem rateio por veículo
+df_veic_real_raw = load_custo_fp_veiculo_real(ano)
 
 if df_principal is None:
     st.error(f"❌ Dados do TC Veículos não encontrados para {ano}")
@@ -467,14 +488,18 @@ if usar_rateado and df_veic_bud_raw is not None:
         _df_base_bud['Custo FP'] = _df_base_bud['Custo FP Veiculo']
     df = aplicar_filtros(_df_base_bud, filtros_sel)
 
-    # BE: forecast não tem rateio — usar consolidado filtrado por oficina/custo/periodo
+    # BE: filtrar por veículo se a coluna existir no forecast
     df_be = None
     if df_be_raw is not None:
         _df_be_temp = normalizar_periodo(df_be_raw.copy())
-        _filtros_be = {
-            k: v for k, v in filtros_sel.items()
-            if k not in ('veiculos', 'veiculo_todos')
-        }
+        # Se o forecast tem coluna Veículo, incluir filtro de veículo
+        if 'Veículo' in _df_be_temp.columns:
+            _filtros_be = filtros_sel.copy()
+        else:
+            _filtros_be = {
+                k: v for k, v in filtros_sel.items()
+                if k not in ('veiculos', 'veiculo_todos')
+            }
         _df_be_filt = aplicar_filtros(_df_be_temp, _filtros_be)
         if not _df_be_filt.empty:
             df_be = _df_be_filt
@@ -516,6 +541,16 @@ tem_ano_df = 'Ano' in df.columns
 df_flex = calcular_flex_budget(
     df, df_vol_bud, df_vol_actual, tem_ano=tem_ano_df
 )
+
+# ── Flex detalhado (com dimensões Oficina/Type05/06/Account/Custo) ──
+df_flex_det = calcular_flex_budget_detalhado(
+    df, df_vol_bud, df_vol_actual,
+    col_custo='Custo FP', tem_ano=tem_ano_df,
+)
+if df_flex_det is not None:
+    _cv_flex = ['Flex_Bud']
+    df_flex_det = aplicar_fator_df(df_flex_det, _cv_flex, fator)
+    df_flex_det = converter_moeda_df(df_flex_det, _cv_flex, moeda, taxas)
 
 # ── df_bud = Budget, df = BE (ou Budget se sem BE) ──
 df_bud = df.copy()
@@ -646,11 +681,44 @@ with tab1:
             _bud_t1['Custo FP'] = _bud_t1['Custo FP Veiculo']
         df_bud = aplicar_filtros(_bud_t1, _filtros_t1)
 
-        # BE: sem rateio — usar consolidado filtrado por oficina
+        # Real: filtrar por veículo usando dados rateados
+        _real_t1 = None
+        if df_veic_real_raw is not None:
+            _r_t1 = normalizar_periodo(df_veic_real_raw.copy())
+            if 'Custo FP Veiculo' in _r_t1.columns:
+                _r_t1['Custo FP'] = _r_t1['Custo FP Veiculo']
+            _rt_real = aplicar_filtros(_r_t1, _filtros_t1)
+            if not _rt_real.empty:
+                _real_t1 = _rt_real
+
+        # BE: ratear por veículo usando percentuais Real e filtrar
         _be_t1 = None
         if _raw_df_be is not None:
             _filtros_be_t1 = {'oficinas': _ofi_t1, 'periodos': _per_t1}
-            _rt = aplicar_filtros(_raw_df_be, _filtros_be_t1)
+            if 'Veículo' in _raw_df_be.columns and _sel_veic_t1 != 'Todos':
+                # forecast já tem coluna Veículo — filtrar diretamente
+                _filtros_be_t1['veiculos'] = [_sel_veic_t1]
+                _rt = aplicar_filtros(_raw_df_be, _filtros_be_t1)
+            else:
+                # forecast NÃO tem Veículo → ratear usando percentuais Real
+                _pct_be_t1 = load_percentual_rateio_veiculos_real(ano)
+                _be_rateado_t1 = ratear_be_por_veiculo(
+                    _raw_df_be, _pct_be_t1,
+                )
+                if (
+                    _be_rateado_t1 is not None
+                    and 'Veículo' in _be_rateado_t1.columns
+                ):
+                    if 'Custo FP Veiculo' in _be_rateado_t1.columns:
+                        _be_rateado_t1['Custo FP'] = (
+                            _be_rateado_t1['Custo FP Veiculo']
+                        )
+                    _filtros_be_t1['veiculos'] = [_sel_veic_t1]
+                    _rt = aplicar_filtros(
+                        _be_rateado_t1, _filtros_be_t1
+                    )
+                else:
+                    _rt = aplicar_filtros(_raw_df_be, _filtros_be_t1)
             if not _rt.empty:
                 _be_t1 = _rt
 
@@ -666,6 +734,7 @@ with tab1:
             ]
     else:
         df_bud = aplicar_filtros(_raw_df_principal, _filtros_t1)
+        _real_t1 = None
         _be_t1 = None
         if _raw_df_be is not None:
             _rt = aplicar_filtros(_raw_df_be, _filtros_t1)
@@ -690,6 +759,11 @@ with tab1:
         cols_val = [c for c in COLUNAS_MONETARIAS if c in df_bud.columns]
         df_bud = aplicar_fator_df(df_bud, cols_val, fator)
         df_bud = converter_moeda_df(df_bud, cols_val, moeda, taxas)
+
+        if _real_t1 is not None:
+            _cv_r1 = [c for c in COLUNAS_MONETARIAS if c in _real_t1.columns]
+            _real_t1 = aplicar_fator_df(_real_t1, _cv_r1, fator)
+            _real_t1 = converter_moeda_df(_real_t1, _cv_r1, moeda, taxas)
 
         if _be_t1 is not None:
             _cv_t1 = [c for c in COLUNAS_MONETARIAS if c in _be_t1.columns]
@@ -810,19 +884,26 @@ with tab1:
 
     tem_ano = 'Ano' in df.columns
 
-    # ── Barras = BE ──
+    # ── Barras = BE (preservar coluna Tipo para cor) ──
     df_periodo = None
+    _col_tipo_graf = None
     if 'Custo FP' in df.columns:
         df_be_graf = df.copy()
         cols_val_be = [c for c in COLUNAS_MONETARIAS if c in df_be_graf.columns]
+        # Preservar Tipo (Histórico/BE) para diferenciar cores no gráfico
+        _tem_tipo = 'Tipo' in df_be_graf.columns
+        _grp_cols_per = ['Período']
         if tem_ano and 'Ano' in df_be_graf.columns:
-            df_periodo = df_be_graf.groupby(
-                ['Ano', 'Período'], as_index=False
-            ).agg({c: 'sum' for c in cols_val_be})
+            _grp_cols_per = ['Ano', 'Período']
+        if _tem_tipo:
+            _grp_cols_per_tipo = _grp_cols_per + ['Tipo']
         else:
-            df_periodo = df_be_graf.groupby(
-                'Período', as_index=False
-            ).agg({c: 'sum' for c in cols_val_be})
+            _grp_cols_per_tipo = _grp_cols_per
+        df_periodo = df_be_graf.groupby(
+            _grp_cols_per_tipo, as_index=False
+        ).agg({c: 'sum' for c in cols_val_be})
+        if _tem_tipo:
+            _col_tipo_graf = 'Tipo'
         df_periodo = ordenar_por_mes(df_periodo)
         df_periodo['Período'] = df_periodo['Período'].astype(str)
         if tem_ano and 'Ano' in df_periodo.columns:
@@ -875,7 +956,8 @@ with tab1:
         chart_placeholder = st.empty()
         grafico_final = create_periodo_chart(
             df_periodo, df_flex, tipo, label_valor,
-            simbolo, sufixo, ordem_per, tem_ano
+            simbolo, sufixo, ordem_per, tem_ano,
+            col_tipo=_col_tipo_graf,
         )
 
         try:
@@ -2319,52 +2401,278 @@ with tab5:
 with tab6:
     st.subheader("📋 Dados Detalhados")
 
-    # Seletor de visualização Fixo/Variável/Total
+    # Seletor de visualização: Total ou Fixo/Variável
     _col_viz, _ = st.columns([1.3, 3])
     with _col_viz:
-        filtro_custo_tab6 = st.radio(
+        modo_tab6 = st.radio(
             "📊 **Visualização:**",
-            ["Total", "Fixo", "Variável"],
+            ["Total", "Fixo/Variável"],
             index=0, horizontal=True,
             key="be_tab6_viz",
         )
 
     col_valor_tab6 = 'Custo FP'
 
-    # ═══ Seção 1: Budget / Flex Bud ═══
-    st.markdown("### 📊 Tabelas Budget / Flex Bud Totais")
+    # ═══════════════════════════════════════════════════════
+    # 📊 TABELAS TC TOTAL
+    # ═══════════════════════════════════════════════════════
+    st.markdown("## 📊 Tabelas TC Total")
 
-    # Tabela 1 — Budget Total
-    piv_bud, ofc_bud = _pivotar_detalhado(
-        df_bud, col_valor_tab6,
-        filtro_custo=filtro_custo_tab6,
-    )
+    # Tabela — Budget Total
+    piv_bud_t6, ofc_bud_t6 = _pivotar_detalhado(df_bud, col_valor_tab6)
     render_secao_tabela_detalhe(
-        piv_bud, ofc_bud, "Budget Total", "💰",
-        "be_bud", ano, simbolo, sufixo, expanded=True,
+        piv_bud_t6, ofc_bud_t6, "Budget Total", "💰",
+        "be_bud", ano, simbolo, sufixo,
+        expanded=True, modo=modo_tab6,
     )
 
-    # Tabela 2 — Flex Budget
-    piv_flex, ofc_flex = _pivotar_flex(
-        df_flex, filtro_custo=filtro_custo_tab6,
-    )
+    # Tabela — Flex Budget Total
+    if df_flex_det is not None and not df_flex_det.empty:
+        piv_flex_d, ofc_flex_d = _pivotar_detalhado(
+            df_flex_det, 'Flex_Bud',
+        )
+        render_secao_tabela_detalhe(
+            piv_flex_d, ofc_flex_d, "Flex Budget", "📐",
+            "be_flex", ano, simbolo, sufixo,
+            expanded=False, modo=modo_tab6,
+        )
+    else:
+        piv_flex_t6, ofc_flex_t6 = _pivotar_flex(df_flex)
+        render_secao_tabela_detalhe(
+            piv_flex_t6, ofc_flex_t6, "Flex Budget", "📐",
+            "be_flex", ano, simbolo, sufixo,
+            expanded=False, modo=modo_tab6,
+        )
+
+    # Tabela — Real Total (dados reais filtrados)
+    _df_real_tab6 = None
+    try:
+        if _raw_df_principal is not None and not _raw_df_principal.empty:
+            _rt6 = aplicar_filtros(_raw_df_principal, filtros_sel)
+            if not _rt6.empty:
+                _cv_rt6 = [c for c in COLUNAS_MONETARIAS if c in _rt6.columns]
+                _rt6 = aplicar_fator_df(_rt6, _cv_rt6, fator)
+                _rt6 = converter_moeda_df(_rt6, _cv_rt6, moeda, taxas)
+                _df_real_tab6 = _rt6
+    except Exception:
+        pass
+
+    if _df_real_tab6 is not None:
+        piv_real_t6, ofc_real_t6 = _pivotar_detalhado(_df_real_tab6, col_valor_tab6)
+        render_secao_tabela_detalhe(
+            piv_real_t6, ofc_real_t6, "Real Total", "✅",
+            "be_real_rt", ano, simbolo, sufixo,
+            expanded=False, modo=modo_tab6,
+        )
+
+    # Tabela — Best Estimate Total
+    piv_be_t6, ofc_be_t6 = _pivotar_detalhado(df, col_valor_tab6)
     render_secao_tabela_detalhe(
-        piv_flex, ofc_flex, "Flex Budget", "📐",
-        "be_flex", ano, simbolo, sufixo, expanded=False,
+        piv_be_t6, ofc_be_t6, "Best Estimate Total", "🔮",
+        "be_real", ano, simbolo, sufixo,
+        expanded=False, modo=modo_tab6,
     )
 
-    # ═══ Seção 2: Real / BE ═══
-    st.markdown("### 🔮 Tabelas Real / BE Totais")
+    # ═══════════════════════════════════════════════════════
+    # 🚗 TABELAS TC POR VEÍCULOS
+    # ═══════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("## 🚗 Tabelas TC Por Veículos")
 
-    # Tabela 3 — BE Total (df = BE nesta página)
-    piv_be, ofc_be = _pivotar_detalhado(
-        df, col_valor_tab6,
-        filtro_custo=filtro_custo_tab6,
-    )
-    render_secao_tabela_detalhe(
-        piv_be, ofc_be, "Best Estimate Total", "🔮",
-        "be_real", ano, simbolo, sufixo, expanded=True,
-    )
+    # ── Budget por Veículo ──
+    veiculos_bud = []
+    _df_veic_bud_tab6 = None
+    if df_veic_bud_raw is not None:
+        _vb = normalizar_periodo(df_veic_bud_raw.copy())
+        if 'Custo FP Veiculo' in _vb.columns:
+            _vb['Custo FP'] = _vb['Custo FP Veiculo']
+        _cv_vb = [c for c in COLUNAS_MONETARIAS if c in _vb.columns]
+        _vb = aplicar_fator_df(_vb, _cv_vb, fator)
+        _vb = converter_moeda_df(_vb, _cv_vb, moeda, taxas)
+        if not _vb.empty:
+            _df_veic_bud_tab6 = _vb
+
+    with st.expander("💰 Budget Por Veículo", expanded=False):
+        if _df_veic_bud_tab6 is not None and 'Veículo' in _df_veic_bud_tab6.columns:
+            veiculos_bud = sorted(
+                _df_veic_bud_tab6['Veículo'].dropna().unique()
+            )
+            for veic in veiculos_bud:
+                _dv = _df_veic_bud_tab6[
+                    _df_veic_bud_tab6['Veículo'] == veic
+                ].copy()
+                if _dv.empty:
+                    continue
+                piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
+                render_secao_tabela_detalhe(
+                    piv_v, ofc_v,
+                    f"Budget — {veic}", "🚗",
+                    f"be_vbud_{veic}", ano, simbolo, sufixo,
+                    expanded=False, modo=modo_tab6,
+                )
+        else:
+            st.info("ℹ️ Dados de Budget por veículo não disponíveis.")
+
+    # ── Flex Budget por Veículo ──
+    with st.expander("📐 Flex Budget Por Veículo", expanded=False):
+        if _df_veic_bud_tab6 is not None and 'Veículo' in _df_veic_bud_tab6.columns:
+            for veic in veiculos_bud:
+                _dv_fb = _df_veic_bud_tab6[
+                    _df_veic_bud_tab6['Veículo'] == veic
+                ].copy()
+                if _dv_fb.empty:
+                    continue
+                _vol_bud_v = None
+                _vol_act_v = None
+                if _raw_df_vol_bud is not None and 'Veículo' in _raw_df_vol_bud.columns:
+                    _vol_bud_v = _raw_df_vol_bud[
+                        _raw_df_vol_bud['Veículo'] == veic
+                    ].copy()
+                if _raw_df_vol_actual is not None and 'Veículo' in _raw_df_vol_actual.columns:
+                    _vol_act_v = _raw_df_vol_actual[
+                        _raw_df_vol_actual['Veículo'] == veic
+                    ].copy()
+                # Tentar versão detalhada (preserva dimensões)
+                _fx_v_det = calcular_flex_budget_detalhado(
+                    _dv_fb, _vol_bud_v, _vol_act_v,
+                    col_custo='Custo FP',
+                    tem_ano='Ano' in _dv_fb.columns,
+                )
+                if _fx_v_det is not None and not _fx_v_det.empty:
+                    piv_fv, ofc_fv = _pivotar_detalhado(
+                        _fx_v_det, 'Flex_Bud',
+                    )
+                else:
+                    # Fallback: versão agregada
+                    _fx_v = calcular_flex_budget(
+                        _dv_fb, _vol_bud_v, _vol_act_v,
+                        tem_ano='Ano' in _dv_fb.columns,
+                    )
+                    if _fx_v is not None and not _fx_v.empty:
+                        piv_fv, ofc_fv = _pivotar_flex(_fx_v)
+                    else:
+                        continue
+                render_secao_tabela_detalhe(
+                    piv_fv, ofc_fv,
+                    f"Flex Budget — {veic}", "📐",
+                    f"be_vflex_{veic}", ano, simbolo, sufixo,
+                    expanded=False, modo=modo_tab6,
+                )
+        else:
+            st.info("ℹ️ Dados de Flex Budget por veículo não disponíveis.")
+
+    # ── Real por Veículo ──
+    _df_veic_real_tab6 = None
+    if df_veic_real_raw is not None:
+        _vr = normalizar_periodo(df_veic_real_raw.copy())
+        if 'Custo FP Veiculo' in _vr.columns:
+            _vr['Custo FP'] = _vr['Custo FP Veiculo']
+        _cv_vr = [c for c in COLUNAS_MONETARIAS if c in _vr.columns]
+        _vr = aplicar_fator_df(_vr, _cv_vr, fator)
+        _vr = converter_moeda_df(_vr, _cv_vr, moeda, taxas)
+        if not _vr.empty:
+            _df_veic_real_tab6 = _vr
+
+    with st.expander("✅ Real Por Veículo", expanded=False):
+        if _df_veic_real_tab6 is not None and 'Veículo' in _df_veic_real_tab6.columns:
+            veiculos_real = sorted(
+                _df_veic_real_tab6['Veículo'].dropna().unique()
+            )
+            for veic in veiculos_real:
+                _dv = _df_veic_real_tab6[
+                    _df_veic_real_tab6['Veículo'] == veic
+                ].copy()
+                if _dv.empty:
+                    continue
+                piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
+                render_secao_tabela_detalhe(
+                    piv_v, ofc_v,
+                    f"Real — {veic}", "🚗",
+                    f"be_vreal_{veic}", ano, simbolo, sufixo,
+                    expanded=False, modo=modo_tab6,
+                )
+        else:
+            st.info("ℹ️ Dados Real por veículo não disponíveis.")
+
+    # ── Best Estimate por Veículo (rateio igual ao Real) ──
+    _df_be_fc = None
+    try:
+        _fc = load_forecast_completo()
+        if _fc is not None and not _fc.empty:
+            _fc = normalizar_periodo(_fc)
+            if 'Tipo' in _fc.columns:
+                _fc = _fc[_fc['Tipo'] == 'BE'].copy()
+            if ano and ano != 'Todos' and 'Ano' in _fc.columns:
+                try:
+                    _fc = _fc[_fc['Ano'] == int(ano)].copy()
+                except (ValueError, TypeError):
+                    pass
+            _cv = [c for c in COLUNAS_MONETARIAS if c in _fc.columns]
+            _fc = aplicar_fator_df(_fc, _cv, fator)
+            _fc = converter_moeda_df(_fc, _cv, moeda, taxas)
+            if not _fc.empty:
+                _df_be_fc = _fc
+    except Exception:
+        pass
+
+    with st.expander("🔮 Best Estimate Por Veículo", expanded=False):
+        if _df_be_fc is not None and 'Veículo' in _df_be_fc.columns:
+            # BE já tem coluna Veículo
+            veiculos_be = sorted(
+                _df_be_fc['Veículo'].dropna().unique()
+            )
+            for veic in veiculos_be:
+                _dv = _df_be_fc[
+                    _df_be_fc['Veículo'] == veic
+                ].copy()
+                if _dv.empty:
+                    continue
+                piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
+                render_secao_tabela_detalhe(
+                    piv_v, ofc_v,
+                    f"Best Estimate — {veic}", "🔮",
+                    f"be_vbe_{veic}", ano, simbolo, sufixo,
+                    expanded=False, modo=modo_tab6,
+                )
+        elif _df_be_fc is not None:
+            # Ratear BE por veículo usando percentuais Real
+            _pct_real = load_percentual_rateio_veiculos_real(ano)
+            _df_be_veic = ratear_be_por_veiculo(
+                _df_be_fc, _pct_real,
+            )
+            if (
+                _df_be_veic is not None
+                and 'Veículo' in _df_be_veic.columns
+            ):
+                if 'Custo FP Veiculo' in _df_be_veic.columns:
+                    _df_be_veic['Custo FP'] = (
+                        _df_be_veic['Custo FP Veiculo']
+                    )
+                veiculos_be = sorted(
+                    _df_be_veic['Veículo'].dropna().unique()
+                )
+                for veic in veiculos_be:
+                    _dv = _df_be_veic[
+                        _df_be_veic['Veículo'] == veic
+                    ].copy()
+                    if _dv.empty:
+                        continue
+                    piv_v, ofc_v = _pivotar_detalhado(
+                        _dv, col_valor_tab6,
+                    )
+                    render_secao_tabela_detalhe(
+                        piv_v, ofc_v,
+                        f"Best Estimate — {veic}", "🔮",
+                        f"be_vbe_{veic}", ano, simbolo, sufixo,
+                        expanded=False, modo=modo_tab6,
+                    )
+            else:
+                st.info(
+                    "ℹ️ Dados de BE por veículo não disponíveis "
+                    "(percentuais de rateio Real não encontrados)."
+                )
+        else:
+            st.info("ℹ️ Dados de BE por veículo não disponíveis.")
 
 st.divider()
 
