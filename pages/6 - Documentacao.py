@@ -70,7 +70,7 @@ versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
 # Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus"
 texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
@@ -103,7 +103,7 @@ st.title("📚 Documentação Completa do Sistema TC")
 
 
 def _ir_para_especificacao_tecnica() -> None:
-    st.session_state["indice_documentacao"] = "🧾 Especificação Técnica (Reescrita com IA)"
+    st.session_state["indice_documentacao"] = "🧾 Especificação Técnica"
     st.rerun()
 
 # Função para detectar caminho base correto
@@ -220,12 +220,11 @@ indice_selecionado = st.sidebar.radio(
         "📐 Regras e Cálculo",
         "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
         "🏗️ Arquitetura e Estrutura",
-        "🧾 Especificação Técnica (Reescrita com IA)",
+        "🧾 Especificação Técnica",
         "📥 Guia de Extração de Dados",
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
-        "🆕 Mudanças recentes / Changelog",
     ],
     key="indice_documentacao"
 )
@@ -467,18 +466,32 @@ if indice_selecionado == "👥 Equipe do Projeto":
     
     st.markdown("""
     ### 🎯 Objetivos do Projeto
-    
-    **🎯 Objetivos Principais:**
-    - 📈 **Análise avançada de custos** com visualizações interativas
-    - ⚡ **Performance otimizada** para grandes volumes (70%+ redução de memória)
-    - 📊 **Dashboards especializados:** TC Ext, Forecast, Waterfall Analysis
-    - 🔄 **Cálculo Flex Bud:** Budget flexível ajustado por volume
-    - 📉 **Sistema de Forecast:** Previsões baseadas em média histórica
-    - 🌊 **Análise Waterfall:** Comparação entre períodos com FLEX
-    - 📥 **Exportação Excel:** Downloads formatados e filtrados
-    - 🚀 **Cache inteligente:** TTL e otimização de tipos de dados
-    - 📦 **Formato Parquet:** Dados comprimidos e otimizados
-    - 🎨 **Interface moderna:** Tabs organizadas e gráficos com gradientes
+
+    O **Sistema TC** é uma plataforma de análise de custos industriais composta por dois módulos
+    complementares, cada um atendendo um nível de granularidade diferente:
+
+    **📊 TC Extendido (TC Ext)**
+    - Análise de custos por oficina, conta e período
+    - Visualização Normal (Custo Total) e CPU (Custo por Unidade)
+    - Dashboard interativo com filtros (Ano, Período, Oficina, USI, Veículo)
+    - Flex Budget: ajuste do orçamento pela proporção de volume realizado
+    - Waterfall Analysis: decomposição de variações entre períodos
+    - Exportação Excel completa com formatação profissional
+
+    **🚗 TC Veículos (TC Principal)**
+    - Cadeia completa: Despesa Primária → Custo FA → Custo FP → D&A → FP sem Dedicada
+    - Rateio proporcional por veículo (tempo de produção)
+    - 6 tabs especializadas: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo de Produção, Dados Detalhados
+    - Best Estimate: simulador de premissas (sensibilidade, inflação, volume) com geração de Forecast
+    - Análise de Best Estimate: layout da Home alimentado por dados de Forecast
+
+    **🔧 Capacidades Transversais**
+    - 🚀 Cache inteligente com TTL e otimização de tipos de dados
+    - 📦 Dados em formato Parquet comprimido
+    - 💱 Conversão multi-moeda (BRL, USD, EUR) com taxas do banco de dados
+    - 📊 Fator de escala configurável (Nenhum / K / M)
+    - 🎨 Interface moderna com tabs, gráficos Altair e gradientes
+    - ⚡ Performance otimizada para grandes volumes (70%+ redução de memória)
     """)
 
 # ==========================================
@@ -622,11 +635,59 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         **Filtros globais:** Afetam KPIs, gráficos e Análise Flex simultaneamente.
         """)
 
+    with st.expander("📈 **Sensibilidade e Volume (Best Estimate)**", expanded=False):
+        st.markdown("""
+        ### 🔮 Premissas do Simulador BE
+
+        O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflação**
+        e **volume** para projetar cenários futuros:
+
+        **Fórmula Geral:**
+        ```
+        BE = Média_Histórica × Fator_Variação × Fator_Inflação
+        ```
+
+        Onde:
+        - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
+        - `Fator_Inflação` = 1 + (Inflação / 100)
+        - `Variação_Volume` = (Volume_Futuro / Volume_Médio_Histórico) − 1
+
+        **Sensibilidade (impacto do volume no custo):**
+        - Controla o quanto a variação de volume afeta o custo
+        - Pode ser configurada por oficina (Type 06) ou global
+        - Custo Fixo: sensibilidade = 0% → custo não varia com o volume
+        - Custo Variável: sensibilidade = 100% → custo varia proporcionalmente ao volume
+
+        **Volume:**
+        - Define o volume de produção projetado por veículo
+        - Usado para calcular a variação de volume, Flex Budget e CPU do Forecast
+        - Quando o custo não tem dimensão Veículo, o volume médio é usado diretamente (`.mean()`)
+        - Quando há Veículo, o volume é somado por grupo (`.sum()`)
+
+        **Inflação:**
+        - Aplica % de reajuste sobre **todos** os custos (fixos e variáveis)
+        - É aplicada **após** o ajuste por sensibilidade
+        - Fórmula: `Custo_Final = Custo_Ajustado_Sensibilidade × (1 + Inflação/100)`
+
+        **Resultado por tipo de custo:**
+        - **Custo Fixo BE** = Média Histórica × (1 + Inflação%) — sem ajuste de volume
+        - **Custo Variável BE** = Média Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%)
+
+        ### 📊 Geração de Forecast
+
+        O simulador gera arquivos em `dados/TC_Principal/Forecast/`:
+        - `forecast_completo.parquet` — Dados projetados mês a mês
+        - `premissas.json` — Premissas utilizadas (sensibilidade, inflação, volume)
+
+        Estes dados alimentam a página **Best Estimate (Análise)**, que usa o mesmo
+        layout da Home (com gráficos e KPIs) mas com dados de Forecast.
+        """)
+
 # ==========================================
-# SEÇÃO 2: REGRAS E CÁLCULO
+# SEÇÃO 2: REGRAS E CÁLCULO — TC EXTENDIDO
 # ==========================================
 elif indice_selecionado == "📐 Regras e Cálculo":
-    st.header("📐 Regras e Cálculo")
+    st.header("📐 Regras e Cálculo — TC Extendido")
 
     st.warning(
         "⚠️ **Seção legada/complementar:** a referência oficial e atualizada de regras de cálculo "
@@ -2116,6 +2177,11 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         - **Fixo/Variável**: Expanders `💰 Fixo` e `💰 Variável`, cada um com sub-expanders por `Type 05` → tabela por `Account`
         - **Total**: Expanders direto por `Type 05` → tabela por `Account`
 
+        **Expander TOTAL:**
+        - Re-agrega **todas** as linhas das oficinas por `(Type 05, Type 06, Account, Custo)`
+        - Mostra tabela detalhada com todas as contas (não apenas 1 linha sintética)
+        - Mesmo layout dos expanders por oficina
+
         ### 📋 Tabela Flex por Account
 
         | Coluna | Cálculo |
@@ -2141,6 +2207,12 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         - **Linha pontilhada**: Flex BUD (laranja, `strokeDash=[10,5]`)
         - **Delta**: Gráfico inferior com `Real − Flex BUD` (verde/vermelho)
         - Biblioteca: **Altair** com `data_transformers.disable_max_rows()`
+
+        ### 🎨 Cores do Best Estimate
+        Na página de **Análise BE**, os gráficos por período usam codificação por cor
+        na coluna `Tipo` para diferenciar meses:
+        - 🟣 **Roxo escuro** (`#4C1D95`): meses **Históricos** (realizados)
+        - 🟣 **Roxo claro** (`#C4B5FD`): meses de **Best Estimate** (projetados)
 
         ### 📊 Volume
         - **Barras**: Volume Budget (degradê verde)
@@ -2173,7 +2245,7 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
 # SEÇÃO 2: CÁLCULO POR TABELAS/GRÁFICOS
 # ==========================================
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
-    st.header("🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)")
+    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Extendido")
 
     st.info(
         "Consulta rápida para evitar divergências entre gráfico e tabela. "
@@ -2242,6 +2314,13 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         │   ├── df_vol_veiculos_actual.parquet       # Volume Realizado
         │   ├── df_veiculos_custo_fp.parquet         # Custo FP Real rateado
         │   └── df_veiculos_cpu.parquet              # CPU Real
+        ├── Forecast/
+        │   ├── forecast_completo.parquet            # Projeção BE mês a mês
+        │   └── premissas.json                       # Premissas do simulador
+        └── historico_consolidado/
+            ├── df_principal_historico.parquet        # Multi-ano consolidado
+            └── BUD/
+                └── df_principal_historico_BUD.parquet
         ```
 
         ### 📋 Schema — Principal BUD
@@ -2282,11 +2361,14 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         ```
         tc_principal/
         ├── __init__.py
-        ├── shared.py           # Constantes, loaders, helpers
-        ├── ui_components.py    # Sidebar filters, CSS, KPIs
+        ├── shared.py              # Constantes, loaders, helpers, ratear_be_por_veiculo()
+        ├── ui_components.py       # Sidebar filters, CSS, KPIs
         └── pages/
             ├── __init__.py
-            └── home_tc.py      # Página principal (6 tabs)
+            ├── home_tc.py                      # Página principal (6 tabs)
+            ├── best_estimate_simulador_tc.py   # Simulador de premissas BE
+            ├── best_estimate_analise_tc.py     # Dashboard de análise BE
+            └── waterfall_tc.py                 # Análise Waterfall (Real + Budget)
         ```
 
         ### ⚙️ Filtros — Arquitetura Unificada
@@ -2368,7 +2450,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
 # SEÇÃO 2: ARQUITETURA E ESTRUTURA
 # ==========================================
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
-    st.header("🏗️ Arquitetura e Estrutura do Projeto")
+    st.header("🏗️ Arquitetura e Estrutura — TC Extendido")
 
     st.warning(
         "⚠️ **Seção legada/complementar:** a arquitetura e contratos canônicos (estrutura do projeto, "
@@ -2832,7 +2914,7 @@ plotly>=5.0.0
 # ==========================================
 # TC VEÍCULOS: ESPECIFICAÇÃO TÉCNICA
 # ==========================================
-elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)" and modulo_doc == "🚗 TC Veículos":
+elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "🚗 TC Veículos":
     st.header("🧾 Especificação Técnica — TC Veículos")
 
     st.markdown(
@@ -2867,8 +2949,8 @@ elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)" an
 # ==========================================
 # SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
 # ==========================================
-elif indice_selecionado == "🧾 Especificação Técnica (Reescrita com IA)":
-    st.header("🧾 Especificação Técnica (Reescrita com IA)")
+elif indice_selecionado == "🧾 Especificação Técnica":
+    st.header("🧾 Especificação Técnica — TC Extendido")
 
     st.markdown(
         """
@@ -3010,7 +3092,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados" and modulo_doc == 
 # SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS
 # ==========================================
 elif indice_selecionado == "📥 Guia de Extração de Dados":
-    st.header("📥 Guia Completo de Extração de Dados")
+    st.header("📥 Guia de Extração de Dados — TC Extendido")
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
@@ -4679,33 +4761,177 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
 elif indice_selecionado == "🔮 Guia de Best Estimate" and modulo_doc == "🚗 TC Veículos":
     st.header("🔮 Guia de Best Estimate — TC Veículos")
 
-    st.warning(
-        "⚠️ O módulo **TC Veículos** ainda não possui funcionalidade de Best Estimate / Forecast. "
-        "Esta funcionalidade está disponível apenas no módulo **TC Extendido**."
-    )
-
     st.markdown("""
-    ### 📋 Status
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
+    <h2 style="color: white; margin: 0;">🔮 Best Estimate — TC Veículos</h2>
+    <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
+            Simulador de premissas e análise de Forecast para o módulo TC Veículos
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    O Best Estimate atualmente está implementado apenas para o **TC Extendido**, onde:
-    - O **Simulador** define premissas (sensibilidade, inflação) e gera arquivos em `dados/TC_Ext/Forecast/`
-    - A **Análise de Best Estimate** usa o layout da Home, alimentado pelos dados de Forecast
+    with st.expander("📋 **Visão Geral do Best Estimate**", expanded=True):
+        st.markdown("""
+        ### 🔮 O que é o Best Estimate?
 
-    ### 🚀 Próximos Passos
+        O Best Estimate (BE) no TC Veículos projeta custos futuros com base na **média histórica**
+        dos meses já realizados, ajustada por premissas de **sensibilidade**, **inflação** e **volume**.
 
-    Para o TC Veículos, os seguintes itens estão planejados:
-    - Integração do pipeline de Forecast com dados de `dados/TC_Principal/Forecast/`
-    - Simulador específico com premissas por veículo
-    - Análise de Best Estimate com visão rateada por modelo
-    """)
+        O sistema é dividido em duas páginas:
+        - **Simulador** (`2 - Best Estimate - Simulador.py`): onde o usuário configura premissas e gera o Forecast
+        - **Análise** (`best_estimate_analise_tc.py`): dashboard que exibe Real + Forecast no mesmo layout da Home
 
-    st.info("💡 Para acessar o Best Estimate do TC Extendido, selecione '📊 TC Extendido' no seletor de módulo acima.")
+        ### 📂 Dados Gerados
+
+        | Arquivo | Descrição |
+        |---------|-----------|
+        | `dados/TC_Principal/Forecast/forecast_completo.parquet` | Projeção mês a mês com coluna `Tipo = 'BE'` |
+        | `dados/TC_Principal/Forecast/premissas.json` | Premissas aplicadas |
+        """)
+
+    with st.expander("⚙️ **Simulador — Premissas**", expanded=False):
+        st.markdown("""
+        ### 🎛️ Configuração de Premissas
+
+        O simulador permite configurar os seguintes parâmetros:
+
+        | Premissa | Escopo | Efeito |
+        |----------|--------|--------|
+        | **Sensibilidade** | Por oficina (Type 06) ou global | Controla o quanto a variação de volume afeta o custo |
+        | **Inflação** | Por Type 06 ou global | Aplica % de reajuste sobre **todos** os custos (fixos e variáveis) |
+        | **Volume** | Por veículo | Volume de produção projetado para o mês futuro |
+
+        ### 📐 Fórmula Geral (linha a linha)
+
+        ```
+        BE = Média_Histórica × Fator_Variação × Fator_Inflação
+        ```
+
+        **Onde:**
+        - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
+        - `Fator_Inflação` = 1 + (Inflação / 100)
+        - `Variação_Volume` = (Volume_Mês_Futuro / Volume_Médio_Histórico) − 1
+
+        **Aplicação por tipo de custo:**
+
+        | Tipo | Sensibilidade | Fórmula resultante |
+        |------|---------------|--------------------|
+        | **Fixo** | 0% | `BE = Média_Histórica × 1,0 × (1 + Inflação%)` — sem ajuste de volume |
+        | **Variável** | 100% | `BE = Média_Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%)` |
+        | **Semi-variável** | 0% < s < 100% | `BE = Média_Histórica × (1 + Var_Volume × s) × (1 + Inflação%)` |
+
+        **Exemplo numérico:**
+        ```
+        Custo médio histórico: R$ 10.000
+        Volume histórico médio: 1.000 un | Volume futuro: 1.100 un
+        Sensibilidade: 50% | Inflação: 5%
+
+        Passo 1 — Variação de volume: 1.100 / 1.000 − 1 = +10%
+        Passo 2 — Ajuste por sensibilidade: 10% × 50% = 5%
+        Passo 3 — Fator de variação: 1 + 0,05 = 1,05
+        Passo 4 — Fator de inflação: 1 + 0,05 = 1,05
+        Passo 5 — BE = 10.000 × 1,05 × 1,05 = R$ 11.025
+        ```
+
+        - **CPU BE** = Custo BE Total / Volume Projetado
+
+        ### ⚠️ Regras Especiais
+
+        - Quando `chaves_volume_base = []` (custo sem dimensão Veículo), o sistema calcula
+          a média de volume diretamente sem `groupby`
+        - Para custos com Veículo, o volume é somado por grupo (`.sum()`)
+        - A inflação é aplicada **após** o ajuste por sensibilidade
+        - Sensibilidade por Type 06 sobrescreve a sensibilidade global (Fixo/Variável)
+        """)
+
+    with st.expander("📊 **Análise — Dashboard de Forecast**", expanded=False):
+        st.markdown("""
+        ### 📈 Layout da Análise BE
+
+        A página de Análise reutiliza o layout da Home TC Veículos, mas alimentada
+        pelos dados de `forecast_completo.parquet`:
+
+        - **KPIs**: Custo FP Real vs BE, com deltas e percentuais
+        - **Gráficos por período**: barras com diferenciação visual:
+          - 🟣 **Roxo escuro** (`#4C1D95`): meses Históricos (realizados)
+          - 🟣 **Roxo claro** (`#C4B5FD`): meses de Best Estimate (projetados)
+        - **Tabelas**: Análise Flex com dados reais + projetados
+
+        ### 🔄 Fluxo de Atualização
+
+        ```
+        Simulador → gera forecast_completo.parquet
+            ↓
+        Análise BE → lê forecast + real
+            ↓
+        Unifica com coluna Tipo (Histórico / BE)
+            ↓
+        Exibe em gráficos e tabelas
+        ```
+        """)
+
+    with st.expander("🚗 **Rateio BE por Veículo**", expanded=False):
+        st.markdown("""
+        ### 📊 Função `ratear_be_por_veiculo()`
+
+        Quando dados de BE não possuem a coluna `Veículo`, é necessário distribuir
+        o custo proporcionalmente usando os mesmos percentuais do Real:
+
+        ```
+        CustoFP_Veículo_BE = CustoFP_BE × Percentual(Veículo, Oficina)
+        ```
+
+        **Parâmetros:**
+        - `df_be`: DataFrame com dados do Best Estimate
+        - `df_percentual`: DataFrame com [Oficina, Veículo, Período, Percentual]
+        - `col_custo`: coluna a ratear (default: 'Custo FP')
+
+        **Tratamento de oficinas sem rateio:**
+        - Se uma oficina não tem percentual definido, o custo é dividido igualmente
+          entre todos os veículos conhecidos
+        """)
+
+    with st.expander("📥 **Integração com Waterfall**", expanded=False):
+        st.markdown("""
+        ### 🌊 BE no Waterfall
+
+        O Waterfall do TC Veículos integra dados de Best Estimate para meses futuros:
+
+        1. Carrega `forecast_completo.parquet` via `load_forecast_completo()`
+        2. Identifica meses de BE que **não existem** nos dados reais
+        3. Concatena dados reais + BE com coluna `Fonte` ('Real' ou 'BE')
+        4. Aplica rateio por veículo via `ratear_be_por_veiculo()` quando necessário
+
+        **Cores no gráfico Waterfall:**
+        - Barras de meses BE usam cores diferenciadas (BE) para distinguir do Real
+        - A coluna `Fonte` permite filtrar/identificar a origem dos dados
+        """)
+
+    with st.expander("🔧 **Pipeline Técnico**", expanded=False):
+        st.markdown("""
+        ### 📂 Arquivos Envolvidos
+
+        | Arquivo | Função |
+        |---------|--------|
+        | `pages/2 - Best Estimate - Simulador.py` | Página do simulador (tab Real + tab Budget) |
+        | `tc_principal/pages/best_estimate_simulador_tc.py` | Lógica do simulador TC Veículos |
+        | `tc_principal/pages/best_estimate_analise_tc.py` | Dashboard de análise BE |
+        | `tc_principal/shared.py` | `ratear_be_por_veiculo()`, loaders de forecast |
+
+        ### 💾 Armazenamento
+
+        ```
+        dados/TC_Principal/Forecast/
+        ├── forecast_completo.parquet
+        └── premissas.json
+        ```
+        """)
 
 # ==========================================
 # SEÇÃO 5: GUIA DE BEST ESTIMATE
 # ==========================================
 elif indice_selecionado == "🔮 Guia de Best Estimate":
-    st.header("🔮 Guia Completo de Best Estimate")
+    st.header("🔮 Guia de Best Estimate — TC Extendido")
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
@@ -5736,22 +5962,31 @@ elif indice_selecionado == "📊 Apresentação Visual":
         st.markdown(
             """
             **0:00–0:30 — Contexto**
-            - O que é o Portal TC e o objetivo (decisão rápida com dados de custo/volume).
+            - O que é o Portal TC e seu objetivo: decisão rápida com dados de custo/volume.
+            - Dois módulos: **TC Extendido** (agregado) e **TC Veículos** (rateado por modelo).
 
-            **0:30–1:30 — TC Ext (Home)**
+            **0:30–1:15 — TC Ext (Home)**
             - Mostrar filtros (Ano/Período/Oficina/Veículo) e alternância **Custo Total ↔ CPU**.
             - Reforçar a regra: em CPU, o total é **ponderado por volume** (`sum(Total)/sum(Volume)`).
 
-            **1:30–2:30 — Waterfall**
-            - Explicar “o que mudou” entre dois períodos e como o Flex Bud separa efeito volume/custo.
+            **1:15–2:00 — TC Veículos (Home)**
+            - Cadeia: Despesa Primária → FA → FP → D&A → FP sem Dedicada.
+            - 6 tabs: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo Produção, Dados Detalhados.
+            - Seleção de veículo específico aciona rateio por tempo de produção.
 
-            **2:30–4:00 — Best Estimate**
-            - **Simulador**: define premissas (sensibilidade/inflação) e gera arquivos em `dados/Forecast/`.
-            - **Best Estimate (Análise)**: usa o layout da Home, mas alimentado por Forecast; ideal para validar coerência.
+            **2:00–2:45 — Waterfall**
+            - Explicar "o que mudou" entre dois períodos e como o Flex Bud separa efeito volume/custo.
+            - Disponível nos dois módulos (TC Ext e TC Veículos).
+
+            **2:45–4:00 — Best Estimate**
+            - **Simulador**: define premissas (sensibilidade/inflação/volume) e gera `Forecast/`.
+            - **Análise BE**: layout da Home com Forecast. Cores: roxo escuro = Histórico, roxo claro = BE.
+            - Disponível para TC Ext e TC Veículos.
 
             **4:00–5:00 — Encerramento**
-            - Exportação (Excel) + rastreabilidade (diagnósticos de fonte de dados / atualização).
-            - Próximos passos: padronizar/expandir para TC Veículos conforme necessário.
+            - Exportação Excel com formatação profissional.
+            - Multi-moeda (BRL/USD/EUR) e fator de escala (K/M).
+            - Equipe: Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus.
             """
         )
         st.info(
@@ -5904,11 +6139,11 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
             "O que é o Sistema TC?",
             "Como funciona o Best Estimate?",
             "O que é Flex Bud?",
-            "Como processar dados?",
-            "Como funciona o versionamento?",
-            "Quais são as funcionalidades principais?",
-            "Como calcular médias históricas?",
-            "O que é sensibilidade no Best Estimate?",
+            "Como funciona o rateio por veículo?",
+            "Qual a diferença entre TC Ext e TC Veículos?",
+            "Como funciona a sensibilidade no simulador?",
+            "O que é CPU (Custo por Unidade)?",
+            "Como funciona o Waterfall?",
         ]
         
         cols = st.columns(2)
@@ -5936,44 +6171,6 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         import traceback
         st.code(traceback.format_exc())
 
-# ==========================================
-# SEÇÃO 8: MUDANÇAS RECENTES / CHANGELOG
-# ==========================================
-elif indice_selecionado == "🆕 Mudanças recentes / Changelog":
-        st.header("🆕 Mudanças recentes / Changelog")
-
-        st.info(
-                "📌 **Fonte única (single source of truth):** mantenha as regras e o comportamento do sistema "
-                "atualizados no arquivo `DOCUMENTACAO_SISTEMA_TC.md` (menu: **🧾 Especificação Técnica**). "
-                "As demais seções desta página podem conter detalhes complementares/legados."
-        )
-
-        with st.expander("🆕 Mudanças recentes (Jan/2026)", expanded=True):
-                st.markdown(
-                        """
-                        - **Best Estimate (Análise) no TC Ext:** substituição da análise legacy por uma página baseada na Home
-                            (`tc_ext/pages/be_analise_ext.py`), lendo os outputs do simulador em `dados/Forecast/`.
-                        - **Regra crítica de CPU reforçada:** em qualquer total/agrupamento, CPU é sempre `CPU = sum(Total) / sum(Volume)`.
-                            (Nunca somar/média de CPU diretamente.)
-                        - **Budget CPU por Veículo:** quando o volume do Budget não tem a dimensão `Veículo`, é necessário rateio
-                            (alocação por share de volume real) para estimar denominador por veículo.
-                        - **Gráficos por período:** removido o corte por “mês atual” quando há Forecast, evitando esconder Fev–Dez.
-                        - **Diagnósticos e sanidade:** expanders para provar fonte de dados (paths/mtimes/contagens) e checar CPU (Total/Volume).
-                        - **Tabelas detalhadas (CPU):** visão de volume/total por período para explicar variações do TOTAL mês a mês.
-                        """
-                )
-
-# Função para obter mês atual em português
-def obter_mes_atual():
-    """Retorna o mês atual em português"""
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    agora = datetime.now()
-    return meses[agora.month]
-
 # Rodapé
 st.markdown("---")
 mes_atual = obter_mes_atual()
@@ -5983,6 +6180,6 @@ st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
     📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
-    <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
+    <small>Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus</small>
 </div>
 """, unsafe_allow_html=True)

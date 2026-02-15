@@ -53,6 +53,7 @@ from tc_principal.shared import (
     mask_custo_fixo, aplicar_fator_df, converter_moeda_df,
     COLUNAS_MONETARIAS,
     load_forecast_completo, load_forecast_volume,
+    ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header, render_sidebar_global,
@@ -230,6 +231,35 @@ try:
                 _df_be_novos = _df_be_novos[[c for c in df_total.columns if c in _df_be_novos.columns]]
                 df_total = pd.concat([df_total, _df_be_novos], ignore_index=True)
                 _be_merged = True
+
+                # ═══ A1: Ratear dados BE por veículo (se BE não tem Veículo) ═══
+                if 'Veículo' in df_total.columns:
+                    _mask_be_sem_veic = (
+                        (df_total['Fonte'] == 'BE') &
+                        (df_total['Veículo'].isna() | (df_total['Veículo'].astype(str).str.strip() == ''))
+                    )
+                    if _mask_be_sem_veic.any():
+                        try:
+                            _ano_int = int(ano_selecionado) if ano_selecionado != "Todos" else None
+                            _anos_pct = [_ano_int] if _ano_int else descobrir_anos_tc_principal()
+                            _df_pct_all = []
+                            for _a in _anos_pct:
+                                _pct = load_percentual_rateio_veiculos_real(_a)
+                                if _pct is not None and not _pct.empty:
+                                    _df_pct_all.append(_pct)
+                            if _df_pct_all:
+                                _df_pct_concat = pd.concat(_df_pct_all, ignore_index=True)
+                                _df_be_sem_v = df_total[_mask_be_sem_veic].copy()
+                                _df_be_com_v = ratear_be_por_veiculo(_df_be_sem_v, _df_pct_concat, col_custo='Custo FP')
+                                if _df_be_com_v is not None and not _df_be_com_v.empty:
+                                    if 'Custo FP Veiculo' in _df_be_com_v.columns:
+                                        _df_be_com_v['Custo FP'] = _df_be_com_v['Custo FP Veiculo']
+                                    df_total = pd.concat(
+                                        [df_total[~_mask_be_sem_veic], _df_be_com_v],
+                                        ignore_index=True,
+                                    )
+                        except Exception:
+                            pass  # falha silenciosa — mantém dados originais
             else:
                 df_total['Fonte'] = 'Real'
         else:
@@ -620,7 +650,8 @@ else:
             _veic_opcoes_real = []
             if 'Veículo' in df_filtrado_waterfall_tc.columns:
                 _veic_opcoes_real = sorted(
-                    [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist() if v != 'Sem Veículo']
+                    [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist()
+                     if v and str(v).strip() and v != 'Sem Veículo']
                 )
             escopo_veiculo_real = st.radio(
                 "🚗 Escopo de Veículo:",
@@ -1674,6 +1705,18 @@ else:
                         cor_laranja = "#ff9800"
                         cor_amarela = "#ffd700"  # Amarelo para Flex Volume
                         cor_roxa = "#9b59b6"     # Roxo para Redis
+                        cor_be = "#C4B5FD"       # Roxo claro para barras BE
+                        cor_historico = "#4C1D95" # Roxo escuro para barras Histórico
+
+                        # Detectar se os períodos contêm dados de BE
+                        _m1_is_be = False
+                        _m2_is_be = False
+                        if 'Fonte' in df_analise.columns:
+                            if modo_comparacao == "Mês a Mês" and col_mes_waterfall_tc:
+                                _m1_fontes = df_analise[df_analise[col_mes_waterfall_tc].astype(str) == str(mes_inicial)]['Fonte'].unique()
+                                _m2_fontes = df_analise[df_analise[col_mes_waterfall_tc].astype(str) == str(mes_final)]['Fonte'].unique()
+                                _m1_is_be = 'BE' in _m1_fontes
+                                _m2_is_be = 'BE' in _m2_fontes
                         
                         # Criar anotações
                         annotations_custom = []
@@ -1793,6 +1836,35 @@ else:
                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
                             totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
                         ))
+
+                        # ═══ A3: Overlay BE nos totals (roxo claro / roxo escuro) ═══
+                        # Barra inicial (absolute)
+                        if _m1_is_be or _m2_is_be:
+                            # Barra inicial (primeiro item, measure=absolute)
+                            _cor_m1 = cor_be if _m1_is_be else cor_historico
+                            fig.add_trace(go.Bar(
+                                x=[labels_waterfall_tc[0]],
+                                y=[abs(values_waterfall_tc[0])],
+                                base=[min(0, values_waterfall_tc[0])],
+                                marker_color=_cor_m1,
+                                showlegend=True,
+                                name="BE" if _m1_is_be else "Histórico",
+                                hoverinfo="skip",
+                                width=0.6,
+                            ))
+                            # Barra final (último item, measure=total)
+                            _cor_m2 = cor_be if _m2_is_be else cor_historico
+                            _last = len(labels_waterfall_tc) - 1
+                            fig.add_trace(go.Bar(
+                                x=[labels_waterfall_tc[_last]],
+                                y=[abs(values_waterfall_tc[_last])],
+                                base=[min(0, values_waterfall_tc[_last])],
+                                marker_color=_cor_m2,
+                                showlegend=_cor_m2 != _cor_m1,
+                                name="BE" if _m2_is_be else "Histórico",
+                                hoverinfo="skip",
+                                width=0.6,
+                            ))
                         
                         # Adicionar overlay para "Flex Mês 1 - Mês 1" (amarelo)
                         if "Flex Mês 1 - Mês 1" in labels_waterfall_tc:
@@ -2847,7 +2919,8 @@ else:
                 _veic_opcoes_bud = []
                 if 'Veículo' in df_filtrado_waterfall_tc.columns:
                     _veic_opcoes_bud = sorted(
-                        [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist() if v != 'Sem Veículo']
+                        [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist()
+                         if v and str(v).strip() and v != 'Sem Veículo']
                     )
                 escopo_veiculo_budget = st.radio(
                     "🚗 Escopo de Veículo:",
