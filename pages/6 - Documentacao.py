@@ -349,13 +349,14 @@ if indice_selecionado == "👥 Equipe do Projeto":
                     unsafe_allow_html=True,
                 )
 
-            # ── Foto (container fixo 180×200) ──
-            foto_up = st.file_uploader(
-                f"📸 Foto de {membro['nome']}",
-                type=['png', 'jpg', 'jpeg'],
-                key=f"foto_{k}",
-                help="Upload da foto de perfil (PNG, JPG, JPEG)",
-            )
+            # ── Upload da foto (oculto por padrão) ──
+            with st.expander("📸 Upload da foto", expanded=False):
+                foto_up = st.file_uploader(
+                    f"📸 Foto de {membro['nome']}",
+                    type=['png', 'jpg', 'jpeg'],
+                    key=f"foto_{k}",
+                    help="Upload da foto de perfil (PNG, JPG, JPEG)",
+                )
             _foto_b64_src = None
             if foto_up is not None:
                 _raw = foto_up.read()
@@ -5948,9 +5949,9 @@ elif indice_selecionado == "📊 Apresentação Visual":
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Sistema TC</h2>
+        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Portal TC</h2>
         <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Apresentação completa de 5 minutos com todos os slides e diagramas visuais
+            Apresentação completa de 5 minutos — dois módulos (TC Extendido e TC Veículos) com slides visuais
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -5961,80 +5962,304 @@ elif indice_selecionado == "📊 Apresentação Visual":
         st.subheader("🎤 Roteiro sugerido (objetivo: clareza em 5 minutos)")
         st.markdown(
             """
-            **0:00–0:30 — Contexto**
-            - O que é o Portal TC e seu objetivo: decisão rápida com dados de custo/volume.
-            - Dois módulos: **TC Extendido** (agregado) e **TC Veículos** (rateado por modelo).
+            **0:00–0:30 — O que é o Portal TC**
+            - Plataforma de dashboards para decisão estratégica em custos de manufatura.
+            - Dois módulos complementares: **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo).
+            - Funcionalidades compartilhadas: Waterfall, Best Estimate, Extração, Multi-moeda.
 
-            **0:30–1:15 — TC Ext (Home)**
-            - Mostrar filtros (Ano/Período/Oficina/Veículo) e alternância **Custo Total ↔ CPU**.
-            - Reforçar a regra: em CPU, o total é **ponderado por volume** (`sum(Total)/sum(Volume)`).
+            ---
 
-            **1:15–2:00 — TC Veículos (Home)**
-            - Cadeia: Despesa Primária → FA → FP → D&A → FP sem Dedicada.
+            **0:30–1:30 — 📊 TC Extendido**
+            - Análise de **custo total agregado** e **CPU** (Custo por Unidade) — linhas secundárias.
+            - Coluna principal: `Total`. Dois modos: Custo Total ↔ CPU (`sum(Total)/sum(Volume)`).
+            - Filtros: Ano, Período, Oficina, Veículo, USI, Type 05/06, Account, filtros avançados.
+            - Regra crítica: CPU **nunca** é somada/mediada — sempre razão ponderada.
+            - Flex Budget: fixo inalterado; variável escala por `Vol_Real / Vol_BUD`.
+
+            ---
+
+            **1:30–3:00 — 🚗 TC Veículos**
+            - Análise de **custo de fabricação (Custo FP) por veículo** — cadeia completa.
+            - Cadeia: Despesa Primária + Custo FA = **Custo FP**; D&A Dedicado → FP sem Dedicada.
+            - **Rateio por veículo**: proporcional ao tempo de produção na oficina.
             - 6 tabs: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo Produção, Dados Detalhados.
-            - Seleção de veículo específico aciona rateio por tempo de produção.
+            - Seleção de veículo específico aciona rateio; "Todos" mostra consolidado.
 
-            **2:00–2:45 — Waterfall**
-            - Explicar "o que mudou" entre dois períodos e como o Flex Bud separa efeito volume/custo.
-            - Disponível nos dois módulos (TC Ext e TC Veículos).
+            ---
 
-            **2:45–4:00 — Best Estimate**
-            - **Simulador**: define premissas (sensibilidade/inflação/volume) e gera `Forecast/`.
-            - **Análise BE**: layout da Home com Forecast. Cores: roxo escuro = Histórico, roxo claro = BE.
-            - Disponível para TC Ext e TC Veículos.
+            **3:00–4:30 — 🔗 Funcionalidades compartilhadas**
+            - **Waterfall**: decompõe variações entre períodos (efeito volume vs efeito custo via Flex BUD).
+            - **Best Estimate**: Simulador (sensibilidade + inflação + volume → Forecast) + Análise (Home com dados projetados).
+              - Fórmula: `BE = Média × (1 + Var_Volume × Sensib) × (1 + Inflação)`.
+              - Cores: roxo escuro = Histórico, roxo claro = BE.
+            - Multi-moeda (BRL/USD/EUR), exportação Excel formatada, versionamento automático.
 
-            **4:00–5:00 — Encerramento**
-            - Exportação Excel com formatação profissional.
-            - Multi-moeda (BRL/USD/EUR) e fator de escala (K/M).
+            ---
+
+            **4:30–5:00 — Encerramento**
+            - Benefícios: horas → segundos, zero erros manuais, cenários "what-if".
             - Equipe: Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus.
             """
         )
         st.info(
-            "Dica: quando alguém questionar variações de TOTAL em CPU por mês, abra o expander "
-            "‘Volume por período’ para mostrar que a diferença vem do denominador (volume)."
+            "💡 **Dica**: se perguntarem sobre variações de TOTAL em CPU por mês, abra o expander "
+            "'Volume por período' para mostrar que a diferença vem do denominador (volume)."
         )
-    
+
     with tab_slides:
-        # Carregar e exibir apresentação
-        try:
-            # Caminho relativo à raiz do projeto
-            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            caminho_apresentacao = os.path.join(base_path, "APRESENTACAO_5_MINUTOS_VISUAL.md")
-            if os.path.exists(caminho_apresentacao):
-                with open(caminho_apresentacao, 'r', encoding='utf-8') as f:
-                    conteudo_apresentacao = f.read()
+        st.markdown(
+            """
+            Cada slide abaixo pode ser expandido individualmente.
+            O conteúdo segue o mesmo roteiro de 5 minutos.
+            """
+        )
 
-                # Limpar espaços extras no final das linhas e linhas vazias desnecessárias
-                linhas = conteudo_apresentacao.split('\n')
-                linhas_limpas = []
-                linha_anterior_vazia = False
+        # ── SLIDE 0 ──
+        with st.expander("👥 Slide 0 — Equipe e Introdução", expanded=True):
+            st.markdown("""
+### 📊 Portal TC — Sistema de Análise de Custos de Manufatura
 
-                for linha in linhas:
-                    # Remover espaços no final da linha
-                    linha_limpa = linha.rstrip()
-                    # Remover linhas vazias consecutivas (máximo 1)
-                    if not linha_limpa:
-                        if not linha_anterior_vazia:
-                            linhas_limpas.append('')
-                        linha_anterior_vazia = True
-                    else:
-                        linhas_limpas.append(linha_limpa)
-                        linha_anterior_vazia = False
+**Equipe:**
+- 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
+- 👨‍💻 **Lauro Paiva** — Full-Stack Developer (interface + lógica + cálculos)
+- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
 
-                # Remover linhas vazias no início e fim
-                while linhas_limpas and not linhas_limpas[0]:
-                    linhas_limpas.pop(0)
-                while linhas_limpas and not linhas_limpas[-1]:
-                    linhas_limpas.pop()
+---
 
-                conteudo_limpo = '\n'.join(linhas_limpas)
+**Objetivo:**
+Transformar dados brutos de custo industrial (Excel / SAPIENS) em **insights acionáveis** para a tomada de decisão, por meio de dashboards interativos que permitem:
 
-                # Exibir apresentação usando st.markdown
-                st.markdown(conteudo_limpo, unsafe_allow_html=True)
-            else:
-                st.warning("⚠️ Arquivo de apresentação não encontrado. Verifique se o arquivo APRESENTACAO_5_MINUTOS_VISUAL.md existe na raiz do projeto.")
-        except Exception as e:
-            st.error(f"❌ Erro ao carregar apresentação: {str(e)}")
+- Comparar **Real vs Budget** com ajuste por volume (Flex Budget)
+- Decompor variações entre períodos via **Waterfall**
+- Projetar cenários futuros com **Best Estimate** (sensibilidade, inflação, volume)
+- Exportar análises em **Excel formatado** com multi-moeda (BRL / USD / EUR)
+
+O sistema é composto por dois módulos complementares — **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo) — detalhados nos slides seguintes.
+            """)
+
+        # ── SLIDE 1 ──
+        with st.expander("📌 Slide 1 — O que é o Portal TC  *(0:00 – 0:30)*"):
+            st.markdown("""
+**Portal TC** — Dois módulos complementares em um único sistema de dashboards para decisão estratégica em custos de manufatura.
+
+| Módulo | Visão | Coluna de custo | Modo de exibição |
+|--------|-------|-----------------|------------------|
+| **📊 TC Extendido** | Agregada por oficina, período e veículo | `Total` | Custo Total ↔ CPU |
+| **🚗 TC Veículos** | Detalhada por modelo de veículo | `Custo FP` | Cadeia FA → FP → D&A |
+
+**Funcionalidades compartilhadas:** Waterfall · Best Estimate · Extração de Dados · Multi-moeda · Exportação Excel
+
+**🎯 Objetivo:**
+Transformar dados brutos (Excel / SAPIENS) em insights acionáveis — comparar Real vs Budget, decompor variações e projetar cenários futuros com Best Estimate.
+            """)
+
+        # ── SLIDE 2 ──
+        with st.expander("📊 Slide 2 — TC Extendido  *(0:30 – 1:30)*"):
+            st.markdown("""
+**Propósito:** Análise de custo total agregado e CPU (Custo por Unidade) por período, oficina e veículo — visão de linhas secundárias.
+
+**Coluna principal:** `Total`
+
+**Dois modos de visualização:**
+- 💰 **Custo Total** — `sum(Total)`, soma direta
+- 📏 **CPU** — `sum(Total) / sum(Volume)`, razão ponderada
+
+> ⚠️ **Regra crítica:** CPU nunca é somada ou mediada — sempre recalculada como razão ponderada.
+
+---
+
+**Filtros disponíveis:**
+- *Básicos:* Ano · Período · Oficina · Veículo · USI
+- *Custo:* Type 05 · Type 06 · Account · Fornecedor
+- *Avançados:* Type 07 · Material · Pedido · Ordem · Origem
+
+---
+
+**Flex Budget (TC Ext):**
+- *Custo Fixo:* Flex = Budget fixo (inalterado)
+- *Custo Variável:* Flex = Budget variável × (Volume Real / Volume Budget)
+- 🎯 Permite isolar: a variação veio do volume ou do custo?
+
+---
+
+**Dados:** `dados/TC_Ext/{ano}/` · Parquets: `df_final.parquet`, `df_vol.parquet`
+            """)
+
+        # ── SLIDE 3 ──
+        with st.expander("🚗 Slide 3 — TC Veículos  *(1:30 – 3:00)*"):
+            st.markdown("""
+**Propósito:** Análise detalhada do custo de fabricação (Custo FP) por veículo, com cadeia completa de custos e rateio proporcional ao tempo de produção.
+
+**Coluna principal:** `Custo FP`
+
+**Cadeia de custos:**
+- Despesa Primária + Custo FA (Fluxo Anexo) = **Custo FP** (Fabricação Principal)
+- D&A Dedicado = parcela atribuída diretamente ao veículo
+- FP sem Dedicada = Custo FP − D&A Dedicado
+
+---
+
+**Rateio proporcional ao tempo de produção:**
+
+1. `Percentual(v,o) = Tempo_Veíc(v,o) / Σ Tempo_Veíc(v,o)`
+2. `Custo_Rateado(v,o) = FP_sem_Dedicada(o) × Percentual(v,o)`
+3. `Custo_FP_Veíc(v,o) = Custo_Rateado(v,o) + D&A_Dedicado(v,o)`
+
+**Exemplo:**
+- Oficina Pintura — Veículo A: 40 min, Veículo B: 60 min
+- % Veíc A = 40%, % Veíc B = 60%
+- FP sem Dedicada = R$ 100.000 → Rateio A = R$ 40.000, Rateio B = R$ 60.000
+
+> Veículo = "Todos" → consolidado (sem rateio) · Veículo específico → dados rateados
+
+---
+
+**6 Tabs da Home TC Veículos:**
+
+| Tab | Conteúdo |
+|-----|----------|
+| 🚗 TC Veículos | KPIs resumo + Custo FP × Flex BUD por período |
+| 📊 Análise Flex | Fixo/Variável com hierarquia Type 05 → Account |
+| 📈 Volume | Budget vs Realizado por período e por veículo |
+| 🏢 Custos por Oficina | Custo FP e Rateio FA por oficina |
+| ⏱️ Tempo Produção | Tempo Veículo vs Tempo FA por oficina |
+| 📋 Dados Detalhados | Tabelas exportáveis de Real e Budget |
+
+---
+
+**Dados:** `dados/TC_Principal/{ano}/` · Budget em `BUD/` · Parquets: `df_principal`, `df_veiculos_custo_fp`, `df_vol_veiculos_actual`, `df_tempo_veiculos`, `df_dea_dedicado`, `df_volume_fa`
+
+**Filtros:** Oficina · Veículo (ativa rateio) · Type 05/06 · Account · Custo (Fixo/Variável)
+            """)
+
+        # ── SLIDE 4 ──
+        with st.expander("🔗 Slide 4 — Funcionalidades Compartilhadas  *(3:00 – 4:30)*"):
+            st.markdown("""
+**📈 Waterfall — "O que mudou entre dois períodos?"**
+- Compara dois períodos e decompõe a variação
+- O Flex Budget separa: *efeito Volume* vs *efeito Custo*
+- TC Ext: coluna `Total` · TC Veículos: cadeia Desp Primária → Redis → FA → D&A → FP
+
+---
+
+**🔮 Best Estimate — Projeções inteligentes**
+
+*Simulador:* define premissas e gera Forecast
+
+| Premissa | Descrição |
+|----------|-----------|
+| **Sensibilidade** | O quanto o custo responde ao volume (0% = fixo, 100% = variável) |
+| **Inflação** | % de reajuste sobre **todos** os custos (fixos e variáveis) |
+| **Volume** | Produção projetada por veículo/mês |
+
+**Fórmula:** `BE = Média_Histórica × (1 + Var_Volume × Sensib) × (1 + Inflação)`
+
+- Fixo: sensibilidade = 0% → sem ajuste de volume
+- Variável: sensibilidade = 100% → escala com volume
+- Inflação aplicada **após** sensibilidade, a **todos** os custos
+
+*Análise:* layout da Home com dados de Forecast
+- 🟣 Roxo escuro (`#4C1D95`) = meses Históricos
+- 🟣 Roxo claro (`#C4B5FD`) = meses Best Estimate
+
+**Saída:** `dados/*/Forecast/forecast_completo.parquet`
+
+---
+
+**🌐 Recursos transversais:**
+- 🔄 **Multi-moeda** — R$ · USD · EUR (câmbio em SQLite)
+- 📊 **Fator de escala** — Nenhum · K (÷1.000) · M (÷1.000.000) — nunca em CPU
+- 📤 **Exportação Excel** — downloads formatados com filtros aplicados
+- 🔄 **Versionamento** — automático, incrementa quando páginas mudam
+- ⚡ **Cache inteligente** — TTL + otimização de tipos
+- 📚 **Documentação** — página única e integrada no sistema
+            """)
+
+        # ── SLIDE 5 ──
+        with st.expander("📐 Slide 5 — Comparativo TC Ext vs TC Veículos"):
+            st.markdown("""
+| Aspecto | 📊 TC Extendido | 🚗 TC Veículos |
+|---------|----------------|----------------|
+| **Visão** | Agregada | Detalhada por veículo |
+| **Coluna de custo** | `Total` | `Custo FP` (cadeia) |
+| **Modo de exibição** | Custo Total ↔ CPU | Custo FP + cadeia |
+| **Rateio** | Não há | Proporcional (tempo) |
+| **Volume** | Simples | Por veículo + FA |
+| **Pasta de dados** | `dados/TC_Ext/` | `dados/TC_Principal/` |
+| **Filtros avançados** | Material, Pedido, Ordem, Origem… | Type 05/06, Account, Custo Fixo/Var |
+| **Tabs na Home** | Consolidada | 6 tabs especializadas |
+| **Flex Budget** | Total | Cadeia completa |
+| **Waterfall** | Coluna Total | Cadeia FA → FP → D&A |
+
+**Compartilhado:** Waterfall · Best Estimate · Extração · Export · Multi-moeda · Cache · Versionamento · Documentação
+            """)
+
+        # ── SLIDE 6 ──
+        with st.expander("🏗️ Slide 6 — Arquitetura Técnica"):
+            st.markdown("""
+**Estrutura modular:**
+- `app.py` — Portal / Router (`st.navigation`)
+  - `tc_ext/` — TC Extendido (home_ext, be_analise, normalizacao, metricas)
+  - `tc_principal/` — TC Veículos (home_tc, waterfall_tc, be_simulador, be_analise, extracao, shared)
+  - `tc_core/` — Camada compartilhada (paths, moeda, câmbio SQLite, UI)
+  - `pages/` — Páginas compartilhadas (Waterfall, Simulador, Extração, Documentação)
+
+---
+
+**Fluxo de dados:**
+1. **Entrada** — Excel (SAPIENS/Reporting)
+2. **Processamento** — Notebooks Python (ETL automatizado)
+3. **Armazenamento** — Parquet (70% menos memória)
+4. **Visualização** — Dashboard Streamlit interativo
+
+---
+
+**Stack tecnológico:**
+- 🐍 Python 3.13 — Linguagem principal
+- 🌐 Streamlit — Interface web interativa
+- 🐼 Pandas — Processamento de dados
+- 📦 Parquet — Armazenamento otimizado
+- 📊 Plotly / Altair — Visualizações interativas
+- 🗃️ SQLite — Câmbio persistido
+            """)
+
+        # ── SLIDE 7 ──
+        with st.expander("📈 Slide 7 — Resultados e Equipe  *(4:30 – 5:00)*"):
+            st.markdown("""
+**Benefícios alcançados:**
+- ⚡ **Eficiência** — De horas para segundos no processamento
+- ✅ **Precisão** — Zero erros manuais, cálculos padronizados
+- 💡 **Insights** — Visualizações claras e comparativas
+- 🔮 **Previsões** — Best Estimate com cenários "what-if"
+- 📈 **Escalabilidade** — Novos anos/períodos adicionados facilmente
+- 🔄 **Rastreabilidade** — Versionamento e documentação integrados
+
+---
+
+**Equipe:**
+- 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
+- 👨‍💻 **Lauro Paiva** — Full-Stack Developer (interface + lógica + cálculos)
+- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
+            """)
+
+        # ── FAQ ──
+        with st.expander("❓ Perguntas Frequentes"):
+            st.markdown("""
+**Qual a diferença entre TC Ext e TC Veículos?**
+TC Ext analisa custo total agregado (com CPU). TC Veículos detalha o custo por modelo de veículo, com cadeia de custos (FA→FP→D&A) e rateio por tempo de produção.
+
+**Como funciona o rateio por veículo?**
+O custo FP sem Dedicada é distribuído proporcionalmente ao tempo de produção de cada veículo na oficina. D&A Dedicado é somado diretamente ao veículo.
+
+**A inflação só se aplica a custos fixos?**
+Não. A inflação se aplica a **todos** os custos (fixos e variáveis), após o ajuste por sensibilidade.
+
+**Quanto tempo leva processar novos dados?**
+Menos de 1 minuto para um ano completo.
+
+**Os dados ficam na nuvem?**
+Não. Todos os dados ficam no servidor local, sem envio externo.
+            """)
 
 # ==========================================
 # SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO
