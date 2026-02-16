@@ -1,4 +1,4 @@
-# 📊 Portal TC
+# 📊 Stellantis Cost Intelligence (SCI)
 ## Apresentação Visual — 5 Minutos
 
 <div align="center">
@@ -13,12 +13,12 @@
 
 ---
 
-## 🎯 SLIDE 1: O QUE É O PORTAL TC
+## 🎯 SLIDE 1: O QUE É O SCI
 ### ⏱️ 30 segundos
 
 <div align="center">
 
-# 📊 Portal TC — Sistema de Análise de Custos
+# 📊 Stellantis Cost Intelligence (SCI) — Sistema de Análise de Custos
 
 ### Plataforma de Dashboards para decisão estratégica em custos de manufatura
 
@@ -31,7 +31,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│  📊 PORTAL TC — Dois módulos complementares em um único sistema     │
+│  📊 SCI — Dois módulos complementares em um único sistema     │
 │                                                                     │
 │  ┌────────────────────────────┐  ┌────────────────────────────────┐ │
 │  │  📊 TC EXTENDIDO           │  │  🚗 TC VEÍCULOS                │ │
@@ -556,7 +556,7 @@
 ### ⏱️ Timing Detalhado (5 minutos)
 
 ```
-SLIDE 1 — O que é o Portal TC         30 segundos
+SLIDE 1 — O que é o SCI              30 segundos
 SLIDE 2 — TC Extendido                1 minuto
 SLIDE 3 — TC Veículos                 1 minuto 30 segundos
 SLIDE 4 — Funcionalidades compart.    1 minuto 30 segundos
@@ -612,4 +612,4 @@ A: Não. Todos os dados ficam no servidor local, sem envio externo.
 
 ## 🚀 Boa Apresentação!
 
-**Portal TC — Transformando dados em decisões**
+**Stellantis Cost Intelligence (SCI) — Transformando dados em decisões**

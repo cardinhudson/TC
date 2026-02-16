@@ -10,7 +10,7 @@ from versionamento import obter_versao_atual
 
 # Configuração da página
 st.set_page_config(
-    page_title="Documentação - Sistema TC",
+    page_title="Documentação - Stellantis Cost Intelligence (SCI)",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -70,7 +70,7 @@ versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
 # Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus"
+texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus"
 texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
@@ -99,7 +99,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📚 Documentação Completa do Sistema TC")
+st.title("📚 Documentação — Stellantis Cost Intelligence (SCI)")
 
 
 def _ir_para_especificacao_tecnica() -> None:
@@ -225,6 +225,7 @@ indice_selecionado = st.sidebar.radio(
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
+        "🚀 Próximos Passos",
     ],
     key="indice_documentacao"
 )
@@ -239,7 +240,7 @@ if indice_selecionado == "👥 Equipe do Projeto":
     
     st.markdown("""
     Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento
-    e manutenção do **Sistema TC** — suas funções no projeto e perfis profissionais.
+    e manutenção do **Stellantis Cost Intelligence (SCI)** — suas funções no projeto e perfis profissionais.
     """)
 
     # CSS para cards da equipe
@@ -468,7 +469,7 @@ if indice_selecionado == "👥 Equipe do Projeto":
     st.markdown("""
     ### 🎯 Objetivos do Projeto
 
-    O **Sistema TC** é uma plataforma de análise de custos industriais composta por dois módulos
+    O **Stellantis Cost Intelligence (SCI)** é uma plataforma de análise de custos industriais composta por dois módulos
     complementares, cada um atendendo um nível de granularidade diferente:
 
     **📊 TC Extendido (TC Ext)**
@@ -4876,20 +4877,70 @@ elif indice_selecionado == "🔮 Guia de Best Estimate" and modulo_doc == "🚗 
         ### 📊 Função `ratear_be_por_veiculo()`
 
         Quando dados de BE não possuem a coluna `Veículo`, é necessário distribuir
-        o custo proporcionalmente usando os mesmos percentuais do Real:
+        o custo proporcionalmente usando os percentuais de rateio pré-processados
+        na extração Real.
+
+        #### Origem dos Percentuais (fonte única)
+
+        Os percentuais são gerados **uma única vez** na extração Real
+        (`processamento_dados_veiculos.py`), usando:
 
         ```
-        CustoFP_Veículo_BE = CustoFP_BE × Percentual(Veículo, Oficina)
+        Fase 3: Volume Actual (12 meses) → [Veículo, Período, Volume]
+        Fase 4: EST × Volume = Tempo Veic → [Oficina, Veículo, Período, EST, Volume, Tempo Veic]
+        Fase 12: Percentual = Tempo Veic / Σ(Tempo Veic por Oficina+Período)
         ```
 
-        **Parâmetros:**
+        O parquet resultante `df_veiculos_percentual_rateio.parquet` já contém
+        percentuais para **todos os 12 meses**, pois a aba "Volume Actual" do Excel
+        possui volumes planejados para o ano inteiro. Não há necessidade de
+        recalcular percentuais em runtime.
+
+        #### Fórmula de Rateio
+
+        ```
+        CustoFP_Veículo_BE = CustoFP_BE × Percentual(Veículo, Oficina, Período)
+        ```
+
+        #### Parâmetros
+
         - `df_be`: DataFrame com dados do Best Estimate
         - `df_percentual`: DataFrame com [Oficina, Veículo, Período, Percentual]
+          (gerado pela extração Real, fase12)
         - `col_custo`: coluna a ratear (default: 'Custo FP')
 
-        **Tratamento de oficinas sem rateio:**
-        - Se uma oficina não tem percentual definido, o custo é dividido igualmente
-          entre todos os veículos conhecidos
+        #### Proteção contra colisão de colunas
+
+        O `df_be` pode chegar com colunas `Veículo`, `Percentual` e
+        `Custo FP Veiculo` herdadas do `df_total` (que contém dados Real
+        já rateados). A função remove essas colunas antes do merge com
+        `df_percentual` para evitar sufixos `_x`/`_y` que causariam
+        KeyError silencioso.
+
+        #### Fallback
+
+        Se uma Oficina+Período não encontrar percentual no parquet,
+        o custo é distribuído igualitariamente entre todos os veículos
+        conhecidos (1/N). Isso serve como safety net e normalmente
+        não é acionado.
+
+        #### Pontos de Chamada (padronizado)
+
+        A função é chamada em **4 pontos** no sistema, todos com a mesma
+        assinatura simples:
+
+        | Arquivo | Contexto |
+        |---------|----------|
+        | `waterfall_tc.py` | Rateio de linhas BE no gráfico waterfall |
+        | `best_estimate_analise_tc.py` (tab1) | Rateio BE para filtro por veículo |
+        | `best_estimate_analise_tc.py` (tab6) | Tabela detalhada BE por veículo |
+        | `home_tc.py` (tab6) | Tabela detalhada BE por veículo na Home |
+
+        #### Tabela de Conferência
+
+        Na aba **Tempo de Produção** da página BE Análise, existe uma tabela
+        pivotada de percentuais (linhas = Oficina × Veículo, colunas = meses)
+        para conferência com a coluna R do Excel "EST veículos - Actual".
         """)
 
     with st.expander("📥 **Integração com Waterfall**", expanded=False):
@@ -4997,7 +5048,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         Prever os custos futuros com base em padrões históricos, ajustados para refletir mudanças esperadas
         em volume de produção e inflação, permitindo planejamento financeiro mais preciso.
         
-        **Aplicação no Sistema TC:**
+        **Aplicação no SCI:**
         O Best Estimate é usado para gerar previsões de custos para períodos futuros, permitindo comparações
         entre o que foi planejado (Budget), o que realmente aconteceu (Real) e o que se espera que aconteça
         (Best Estimate/Forecast).
@@ -5949,7 +6000,7 @@ elif indice_selecionado == "📊 Apresentação Visual":
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Portal TC</h2>
+        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Stellantis Cost Intelligence (SCI)</h2>
         <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
             Apresentação completa de 5 minutos — dois módulos (TC Extendido e TC Veículos) com slides visuais
         </p>
@@ -5962,7 +6013,7 @@ elif indice_selecionado == "📊 Apresentação Visual":
         st.subheader("🎤 Roteiro sugerido (objetivo: clareza em 5 minutos)")
         st.markdown(
             """
-            **0:00–0:30 — O que é o Portal TC**
+            **0:00–0:30 — O que é o Stellantis Cost Intelligence (SCI)**
             - Plataforma de dashboards para decisão estratégica em custos de manufatura.
             - Dois módulos complementares: **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo).
             - Funcionalidades compartilhadas: Waterfall, Best Estimate, Extração, Multi-moeda.
@@ -6017,7 +6068,7 @@ elif indice_selecionado == "📊 Apresentação Visual":
         # ── SLIDE 0 ──
         with st.expander("👥 Slide 0 — Equipe e Introdução", expanded=True):
             st.markdown("""
-### 📊 Portal TC — Sistema de Análise de Custos de Manufatura
+### 📊 Stellantis Cost Intelligence (SCI) — Sistema de Análise de Custos de Manufatura
 
 **Equipe:**
 - 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
@@ -6038,9 +6089,9 @@ O sistema é composto por dois módulos complementares — **TC Extendido** (vis
             """)
 
         # ── SLIDE 1 ──
-        with st.expander("📌 Slide 1 — O que é o Portal TC  *(0:00 – 0:30)*"):
+        with st.expander("📌 Slide 1 — O que é o SCI  *(0:00 – 0:30)*"):
             st.markdown("""
-**Portal TC** — Dois módulos complementares em um único sistema de dashboards para decisão estratégica em custos de manufatura.
+**Stellantis Cost Intelligence (SCI)** — Dois módulos complementares em um único sistema de dashboards para decisão estratégica em custos de manufatura.
 
 | Módulo | Visão | Coluna de custo | Modo de exibição |
 |--------|-------|-----------------|------------------|
@@ -6361,7 +6412,7 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         st.subheader("💡 Perguntas Sugeridas")
         
         perguntas_sugeridas = [
-            "O que é o Sistema TC?",
+            "O que é o Stellantis Cost Intelligence (SCI)?",
             "Como funciona o Best Estimate?",
             "O que é Flex Bud?",
             "Como funciona o rateio por veículo?",
@@ -6396,6 +6447,455 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         import traceback
         st.code(traceback.format_exc())
 
+# ==========================================
+# SEÇÃO: PRÓXIMOS PASSOS
+# ==========================================
+elif indice_selecionado == "🚀 Próximos Passos":
+    st.header("🚀 Próximos Passos — TC Copilot")
+
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+        <h2 style="color: white; margin: 0;">🚀 Próximos Passos — TC Copilot</h2>
+        <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">Visão completa, escopo funcional, plano técnico e roadmap</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    Este documento apresenta a **visão completa**, o **escopo funcional**, o **plano técnico**,
+    o **processo corporativo** para obter acesso à API de IA da Stellantis, e o **roadmap** necessário
+    para desenvolver o **Agente de Inteligência Artificial do TC Veículos** — uma evolução estratégica
+    que permitirá análises automáticas, resumos diários, identificação de variações e comentários
+    inteligentes sobre o desempenho das oficinas e dos modelos.
+    """)
+
+    # ------------------------------------------------------------------
+    # 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)
+    # ------------------------------------------------------------------
+    with st.expander("🟦 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)", expanded=False):
+        st.markdown("""
+        Antes de iniciar o desenvolvimento do agente, é **obrigatório** seguir o processo corporativo
+        da Stellantis para obter acesso à API oficial **GENAI Gateway**, que conecta os modelos de
+        LLMs usados internamente (GPT, Llama, Mistral, Cohere etc.).
+
+        ---
+
+        #### 0.1 – O que é o GENAI Gateway
+
+        A Stellantis disponibiliza uma plataforma corporativa de IA generativa chamada:
+
+        ✔️ **GENAI Platform / GENAI Gateway**
+
+        Ela oferece:
+        - Acesso seguro a modelos LLM empresariais
+        - Suporte a **GPT‑4**, **Llama 3**, **Mistral**, **Cohere**, **Bedrock**, **Azure OpenAI**
+        - Funções de:
+          - Embeddings
+          - Vetorizações
+          - Vector Store (OpenSearch)
+          - Criação de workspaces
+          - Upload de documentos da área
+          - Agentes customizados internos
+
+        Toda comunicação é feita via API corporativa utilizando:
+        - **OAuth2** (PingFederate)
+        - **mTLS** (certificado digital cliente)
+        - **GraphQL**
+
+        > 🔒 Esta é a **única forma segura e aprovada** de usar LLMs dentro da Stellantis.
+
+        ---
+
+        #### 0.2 – Passo a Passo Oficial para Obter Acesso
+
+        **Passo 1 — Submeter o caso de uso no Brightidea (AI Use Case Factory)**
+
+        Registrar a iniciativa no portal corporativo informando:
+        - Descrição do problema
+        - Caso de uso
+        - Valor financeiro estimado
+        - Impacto esperado
+        - Unidade envolvida
+        - Benefícios gerados
+
+        **Passo 2 — Avaliação pelo GenAI Ambassador**
+
+        Após o envio no Brightidea, um GenAI Ambassador fará:
+        - Avaliação técnica inicial
+        - Validação do alinhamento estratégico
+        - Análise de riscos
+        - Triagem de viabilidade de implementação
+
+        **Passo 3 — Passar pelo EA Gate (Enterprise Architecture Gate)**
+
+        Existem duas aprovações possíveis:
+        - **EA Gate 1** → libera uso da API para testes / POC
+        - **EA Gate 2** → libera uso em produção
+
+        A arquitetura revisa: segurança, alinhamento com políticas corporativas, aderência à plataforma GENAI, impacto em dados e estruturas internas.
+
+        **Passo 4 — Solicitar credenciais PingFederate (OAuth2)**
+
+        A API exige: `client_id`, `client_secret`, endpoint do PingFederate.
+        Sem isso, nenhuma chamada à API será aceita.
+
+        **Passo 5 — Solicitar certificado mTLS (dupla autenticação)**
+
+        É necessário gerar:
+        - Certificado digital cliente
+        - Chave privada
+        - Registro no CMP da Stellantis
+
+        Esse certificado deve ser enviado em todas as requisições API junto com o token OAuth2.
+
+        **Passo 6 — (Se necessário) solicitar conta cloud corporativa**
+
+        Dependendo da complexidade, pode ser solicitado pela TI uma conta AWS/Azure para:
+        - Hospedar seu agente
+        - Armazenar documentos corporativos
+        - Gerenciar o vector store
+
+        **Passo 7 — Testar no GENAI Playground e StellAI Lab**
+
+        Antes da integração:
+        - **GENAI Playground** → testes de prompts
+        - **StellAI Lab** → testes avançados e prototipagem de agentes
+
+        **Passo 8 — Integrar o TC Veículos ao GENAI Gateway**
+
+        Após aprovação e credenciais liberadas:
+        - Conectar ao endpoint GraphQL
+        - Configurar tokens e certificados
+        - Acionar modelos de IA
+        - Criar embeddings e vector store
+        - Integrar com parquets e tabelas do TC Veículos
+        """)
+
+    # ------------------------------------------------------------------
+    # 1) Visão Geral do Agente de IA
+    # ------------------------------------------------------------------
+    with st.expander("🟦 1) Visão Geral do Agente de IA", expanded=False):
+        st.markdown("""
+        O **TC Copilot** será uma camada inteligente dentro do projeto, responsável por:
+
+        - Responder perguntas sobre dados do TC Veículos
+        - Gerar resumos diários automáticos
+        - Identificar as maiores variações por oficina e modelo
+        - Apontar deltas relevantes e tendências
+        - Analisar **Budget × Real × Best Estimate (BE)**
+        - Explicar desvios de FP, FA, CPU, Flex Budget e Rateios
+        - Detectar anomalias de custo
+        - Gerar comentários e insights automáticos para diretoria
+
+        O agente será capaz de entender tanto perguntas simples quanto análises profundas.
+
+        > **Exemplo:** *"Explique os principais impactos do mês e destaque qual oficina teve o maior desvio."*
+        """)
+
+    # ------------------------------------------------------------------
+    # 2) O que o Agente será capaz de fazer
+    # ------------------------------------------------------------------
+    with st.expander("🟦 2) O que o Agente será capaz de fazer", expanded=False):
+        st.markdown("""
+        #### ✔ Perguntas sobre dados
+        - Qual oficina teve maior aumento no FP?
+        - Qual modelo apresentou maior CPU?
+        - Onde aconteceu o maior desvio do Real × Budget?
+
+        #### ✔ Resumos automáticos
+        - Resumo diário consolidado
+        - Resumo semanal de performance
+        - Comentário executivo do mês
+
+        #### ✔ Insights automáticos
+        - Identificação de anomalias
+        - Tendências por oficina
+        - Comportamento por modelo
+        - Drivers principais de aumento de custo
+
+        #### ✔ Suporte operacional
+        - Comparação entre plantas
+        - Explicações de rateio
+        - Análises de volume × custo
+        """)
+
+    # ------------------------------------------------------------------
+    # 3) Como o Agente irá funcionar tecnicamente
+    # ------------------------------------------------------------------
+    with st.expander("🟦 3) Como o Agente irá funcionar tecnicamente", expanded=False):
+        st.markdown("""
+        O agente será composto por **três camadas**:
+
+        #### 3.1 – Base de Conhecimento
+        Alimentada com:
+        - Parquets do TC Veículos e TC Ext
+        - Tabelas consolidadas de FA, FP, CPU
+        - BE, Budget, Real
+        - Flex Budget
+        - Tabelas de debug
+        - Dados por oficina e modelo
+
+        Esses dados serão indexados no **vector store** da plataforma GENAI.
+
+        #### 3.2 – LLM Corporativo Stellantis
+        O agente irá usar:
+        - GPT‑4 corporativo
+        - Llama 3
+        - Mistral
+        - Cohere
+        - Ou qualquer modelo disponibilizado
+
+        Através do **GENAI Gateway**.
+
+        #### 3.3 – Camada de raciocínio
+        O agente executará:
+        1. Recebe a pergunta
+        2. Entende qual dado procurar
+        3. Busca no vector store
+        4. Faz cálculos (CPU, FP, FA, BE etc)
+        5. Gera resposta estruturada
+        """)
+
+    # ------------------------------------------------------------------
+    # 4) Checklist para acessar a API GENAI
+    # ------------------------------------------------------------------
+    with st.expander("🟦 4) Checklist para acessar a API GENAI", expanded=False):
+        st.markdown("""
+        - [ ] Enviar caso no Brightidea
+        - [ ] Passar pela avaliação do GenAI Ambassador
+        - [ ] Ser aprovado no EA Gate
+        - [ ] Solicitar credenciais PingFederate
+        - [ ] Solicitar certificado mTLS
+        - [ ] Integrar com GENAI Playground
+        - [ ] Criar account cloud se necessário
+        - [ ] Construir workspace e knowledge base
+        - [ ] Conectar o sistema ao GENAI Gateway
+        """)
+
+    # ------------------------------------------------------------------
+    # 5) Diagrama de Alto Nível
+    # ------------------------------------------------------------------
+    with st.expander("🟦 5) Diagrama de Alto Nível", expanded=False):
+        st.markdown("""
+        ```
+        Usuário
+           ↓
+        SCI (Stellantis Cost Intelligence) – Pergunta
+           ↓
+        TC Copilot (Agente de IA)
+           ↓
+        GENAI Gateway – LLM Corporativo
+           ↓
+        Vector Store + Embeddings (parquets do TC)
+           ↓
+        Raciocínio do Agente
+           ↓
+        Resposta Inteligente
+        ```
+        """)
+
+    # ------------------------------------------------------------------
+    # 6) Roadmap de Implementação
+    # ------------------------------------------------------------------
+    with st.expander("🟦 6) Roadmap de Implementação", expanded=False):
+        st.markdown("""
+        #### Fase 1 – Preparação dos dados
+        - Consolidar parquets
+        - Organizar base de conhecimento
+        - Documentar variáveis e métricas
+
+        #### Fase 2 – Integração GENAI
+        - Obter credenciais
+        - Criar chamada básica via GraphQL
+        - Criar embeddings da base interna
+
+        #### Fase 3 – Construção das habilidades
+        - Perguntas operacionais
+        - Resumos automáticos
+        - Análise por oficina
+        - Identificação de anomalias
+
+        #### Fase 4 – Produção
+        - Teste interno
+        - Validação com diretoria
+        - Logs e auditoria
+        - Publicação final
+        """)
+
+    # ------------------------------------------------------------------
+    # 7) Exemplos de perguntas
+    # ------------------------------------------------------------------
+    with st.expander("🟦 7) Exemplos de perguntas que o Agente poderá responder", expanded=False):
+        st.markdown("""
+        - *"Resumo diário do Real × Budget."*
+        - *"Quem puxou o delta de FP da oficina BS?"*
+        - *"Qual modelo teve maior CPU no mês?"*
+        - *"Faça um comentário executivo do mês."*
+        - *"Mostre as oficinas com maior variação de FA."*
+        """)
+
+    # ------------------------------------------------------------------
+    # 8) Considerações de Segurança
+    # ------------------------------------------------------------------
+    with st.expander("🟦 8) Considerações de Segurança", expanded=False):
+        st.markdown("""
+        - 🔒 Nenhum dado sai da Stellantis
+        - 🔐 Toda comunicação usa **mTLS + PingFederate**
+        - ✅ A API GENAI é homologada pela TI
+        - 📂 O agente só acessa dados internos do TC
+        - 📋 Logs de auditoria são mantidos
+        """)
+
+    # ------------------------------------------------------------------
+    # 9) Conclusão Executiva
+    # ------------------------------------------------------------------
+    with st.expander("🟦 9) Conclusão Executiva", expanded=False):
+        st.markdown("""
+        O **TC Copilot** é um avanço estratégico que:
+
+        - ✅ Aumenta a eficiência do time
+        - ✅ Reduz retrabalhos técnicos
+        - ✅ Acelera análises complexas
+        - ✅ Melhora a qualidade das explicações executivas
+        - ✅ Fortalece governança e transparência
+        - ✅ Suporta tomadas de decisão críticas
+
+        O projeto está alinhado com a **estratégia global de IA da Stellantis** e utiliza as
+        tecnologias oficiais aprovadas, garantindo **segurança, escalabilidade e compliance**.
+        """)
+
+    # ------------------------------------------------------------------
+    # 10) Preenchimento do formulário Brightidea
+    # ------------------------------------------------------------------
+    with st.expander("🟦 10) Preenchimento do Formulário Brightidea (AI Use Case Factory)", expanded=False):
+        st.markdown("""
+        Formulário oficial:
+
+        👉 [https://stellantis.brightidea.com/AIUseCaseFactory](https://stellantis.brightidea.com/AIUseCaseFactory)
+
+        Abaixo estão as respostas em formato corporativo para submissão oficial.
+
+        ---
+
+        #### 1) LLM Alvo (se conhecido)
+        **Resposta recomendada:**
+
+        **GPT‑4 (Azure OpenAI via GENAI Gateway)**
+
+        **Justificativa curta (opcional):**
+
+        O GPT‑4 é atualmente o modelo com melhor capacidade analítica, contextual e interpretativa
+        disponível no GENAI Gateway, sendo recomendado para uso corporativo em casos de análise
+        financeira, variações industriais e comentários executivos.
+
+        #### 2) Plataforma alvo (se conhecida)
+        **Resposta recomendada:**
+
+        **Azure (Microsoft)**
+
+        **Justificativa opcional:**
+
+        O projeto TC Veículos é baseado em Python/Streamlit, e o modelo GPT‑4 via Azure OpenAI possui
+        integração direta com o GENAI Gateway. Além disso, Azure oferece melhor compatibilidade com
+        autenticação PingFederate + mTLS e atende os requisitos corporativos de aplicações internas não
+        baseadas em Databricks.
+
+        #### 3) Descrição do Caso de Uso
+        Desenvolvimento de um Agente de IA especializado em Controladoria Industrial para o projeto
+        TC Veículos. O agente terá capacidade de responder perguntas sobre custos, variações, BE, CPU,
+        FA/FP, análises por oficina, anomalias, desvios relevantes e tendências.
+        Será integrado ao GENAI Gateway para permitir interpretação contextual das bases internas
+        (parquets, tabelas consolidadas e históricos). O objetivo é reduzir o tempo de análise,
+        automatizar resumos executivos e apoiar decisões de gestão industrial e financeira.
+
+        #### 4) Problema que o caso de uso resolve
+        Hoje, análises de custo, CPU, Budget vs Real, Best Estimate e variações por oficina demandam
+        grande esforço manual, cruzamento de bases, interpretação de dados e elaboração de comentários
+        executivos. As equipes gastam tempo analisando planilhas e dashboards, o que atrasa a tomada de
+        decisão. O agente de IA automatiza essa leitura e gera análises inteligentes, resumos diários e
+        respostas sob demanda.
+
+        #### 5) Benefícios esperados (resposta executiva)
+        - Redução de tempo de análise (ganho operacional significativo)
+        - Maior precisão nas análises de variação
+        - Identificação automática de anomalias
+        - Comentários executivos gerados instantaneamente
+        - Padronização de análises entre plantas
+        - Visibilidade imediata de impactos por oficina e modelo
+        - Redução de retrabalho nas rotinas de controladoria
+        - Suporte direto à diretoria com análises inteligentes
+
+        #### 6) Justificativa de valor (obrigatório para Brightidea)
+        O projeto já existe (TC — Transformation Cost) e entrega um portal analítico em Python/Streamlit.
+        Utilizamos pandas/NumPy para cálculos e Parquet como base de dados/histórico para performance e consistência.
+        Hoje já analisamos Budget, Real, BE e Flex, com métricas como FA, FP e CPU, além de rateios por oficina/veículo conforme regras vigentes.
+        Os painéis principais incluem Waterfall e Best Estimate (Simulador), suportando leitura executiva e simulações.
+        O TC Copilot é uma funcionalidade incremental para automatizar resumos e insights sobre as mesmas bases, regras e telas,
+        reduzindo esforço manual e melhorando padronização, sem expor dados fora do ambiente corporativo.
+
+        #### 7) Dados envolvidos (informar no formulário)
+        O agente utilizará exclusivamente dados internos já existentes no projeto TC Veículos e TC Ext:
+        - Parquets consolidados
+        - Tabelas de Budget, Real, BE, Flex
+        - Rateios por modelo
+        - CPU por veículo
+        - Informações por oficina
+        - Tabelas de debug
+
+        Todos permanecem armazenados em repositórios corporativos internos e seguirão as diretrizes de
+        segurança Stellantis.
+
+        #### 8) Sensibilidade dos dados
+        Dados internos de custos, volumes, rateios e métricas industriais.
+        Não há envio de informações externas.
+        Todo processamento ocorre dentro do ambiente GENAI autorizado.
+
+        O acesso via API exige obrigatoriamente:
+        - PingFederate OAuth2
+        - mTLS com certificado
+        - Autorização controlada por grupo
+
+        #### 9) Arquitetura sugerida (texto para o EA Gate)
+        ```
+        Usuário → SCI — Stellantis Cost Intelligence (interface Streamlit)
+                  → TC Copilot (Python)
+                     → GENAI Gateway (GraphQL + OAuth2 + mTLS)
+                         → LLM (Azure OpenAI / GPT‑4)
+                         → Vector Store / Embeddings
+                     → Dados internos (parquets e tabelas do SCI)
+        ```
+
+        **Foco:**
+        - Zero dados externos
+        - Zero exposição pública
+        - Tudo dentro dos padrões de segurança Stellantis
+
+        #### 10) Por que este caso deve ser aprovado pelo GenAI Ambassador e EA Gate
+        O caso está totalmente alinhado com o uso corporativo aprovado de IA generativa na Stellantis,
+        aproveitando o GENAI Gateway para garantir segurança, compliance, performance e governança.
+        O agente trabalha somente com dados internos e entrega alto valor para tomada de decisão
+        industrial e financeira.
+
+        #### 11) Resposta para “Por que você precisa da API LLM?”
+        Para permitir análise automatizada, contextual e inteligente de informações complexas, unindo
+        dados financeiros, industriais e operacionais do projeto TC Veículos em uma camada de raciocínio
+        baseada em LLM — conforme diretriz oficial da Stellantis para uso de IA generativa via GENAI
+        Gateway.
+
+        #### 12) Resposta para “Este projeto terá uso em produção?”
+        **Opção piloto (POC):**
+
+        Inicialmente como POC (EA Gate 1), com evolução planejada para produção após validações
+        internas.
+
+        **Opção produção:**
+
+        Sim, objetivo final é uso produtivo diário nas análises de controladoria industrial.
+
+        #### 13) Resposta para “O sistema será integrado a qual ambiente?”
+        Será integrado ao Stellantis Cost Intelligence (SCI), atualmente baseado em Python/Streamlit, já utilizado
+        para análises internas de custos industriais.
+        """)
+
 # Rodapé
 st.markdown("---")
 mes_atual = obter_mes_atual()
@@ -6403,7 +6903,7 @@ ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus</small>
 </div>

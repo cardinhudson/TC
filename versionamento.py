@@ -1,5 +1,5 @@
 """
-Sistema de Versionamento Automático do Sistema TC
+Sistema de Versionamento Automático do Stellantis Cost Intelligence (SCI)
 
 Este módulo gerencia a versão do sistema de forma automática.
 A versão incrementa automaticamente a cada execução seguindo o padrão:

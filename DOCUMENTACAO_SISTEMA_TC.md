@@ -52,7 +52,7 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 - **TC Veículos — Real no gráfico**: o gráfico de Custo FP por Período em `home_tc.py` agora exibe:
   - **Barras roxas (largas)**: Budget
   - **Barras azuis (estreitas)**: Real (quando disponível, via `load_principal_real`)
-  - **Linha laranja pontilhada**: Flex Bud (cálculo já usa Volume Actual)
+  - **Linha vermelha pontilhada**: Flex Bud (cálculo já usa Volume Actual)
   - **Delta**: Real - Flex Bud (anteriormente Budget - Flex Bud)
   - KPIs "Total" renomeados para "Real" quando há dados reais disponíveis
 - **Rateio de veículos Real**: já implementado nas fases 11-16 de `processamento_dados_veiculos.py`.
@@ -84,6 +84,61 @@ Todas as páginas do módulo TC Veículos foram implementadas com funcionalidade
 | `load_forecast_completo()` | Forecast (Real + BE) |
 | `load_forecast_volume()` | Volume do Forecast |
 
+## 1.4) Mudanças recentes — Fev/2026 (Simulador BE + Gráficos TC Veículos)
+
+### Custos Específicos — Tabela Editável (`st.data_editor`)
+
+O formulário "➕ Adicionar Custo" nos simuladores BE (TC Ext e TC Veículos) foi substituído por uma **tabela editável** usando `st.data_editor`:
+
+- **Layout**: tabela com colunas `Oficina`, `Account`, `Jan`, `Fev`, ..., `Dez`, `Descrição`
+  - `Oficina`: `SelectboxColumn` com oficinas disponíveis nos dados
+  - `Account`: `SelectboxColumn` com Accounts disponíveis (auto-lookup de Type 06/05/Custo/USI no save)
+  - `Jan` a `Dez`: `NumberColumn` (formato `R$ %.2f`) — o usuário coloca o valor no mês desejado
+  - `Descrição`: texto livre
+- **Referência Account**: expander com tabela de referência Account → Type 06/Type 05/Custo/USI
+- **Preview**: ao preencher, mostra preview das linhas que serão criadas com Types resolvidos
+- **Salvamento**: ao clicar "💾 Salvar Custos", cada mês com valor > 0 gera uma linha no parquet
+  - Salva valor total (sem rateio por veículo)
+  - Colunas: `Oficina`, `Período`, `Total`/`Custo FP`, `Account`, `Type 06`, `Type 05`, `Custo`, `USI`, `Descrição`, `Ano`, `Tipo='BE Manual'`
+  - Storage: `dados/TC_Ext/Forecast/custos_especificos.parquet` (TC Ext) / `dados/TC_Principal/Forecast/custos_especificos.parquet` (TC Veículos)
+- **Rateio por veículo**: movido para a **geração do forecast** (merge). No merge:
+  - Para cada custo específico, chama `buscar_rateios_arquivo(oficina, periodo, ano)` para obter % por veículo
+  - Expande em N linhas (CC21, CC22, CC24, CC24 5L, CC24 7L, J516) com `valor_rateado = total × rateio_veiculo`
+  - Se rateio não encontrado → distribuição igual (1/6 por veículo)
+- **Coluna Veículo removida** do editor (custo sempre se aplica a todos; rateio é automático)
+- **Campos removidos**: `Tipo_Aplicacao`, `Mes_Inicial`, `Meses_Especificos` — substituídos pelas colunas de meses Jan-Dez (mais flexível: valores diferentes por mês)
+- Tab "📋 Visualizar Custos" com AgGrid (visualização + deleção via checkboxes) permanece inalterada
+
+### Gráfico BE Analysis — Flex Bud vermelho + legenda unificada
+
+No gráfico de Custo FP por Período em `tc_principal/pages/best_estimate_analise_tc.py`:
+
+- **Linha Flex Bud**: cor alterada de `#FF6B35` (laranja) para **`#DC2626` (vermelho)**
+- **Legendas unificadas**: as 2 legendas separadas (barras à direita + Flex Bud embaixo) foram unificadas em **1 legenda na parte inferior** com 3 itens:
+  - `Histórico` (#4C1D95 — roxo escuro)
+  - `BE` (#C4B5FD — roxo claro)
+  - `Flex Bud` (#DC2626 — vermelho)
+- Pontos e rótulos Flex Bud também em vermelho (`#DC2626`)
+
+### Tempo de Produção — Cores roxas, data labels e gráfico de evolução
+
+No dashboard Home TC Veículos (`tc_principal/pages/home_tc.py`), aba "Tempo de Produção":
+
+- **Cores**: todos os gráficos de tempo trocaram de azul (#4A90E2) para **gradiente roxo** (#7C3AED escuro, #C4B5FD claro)
+- **Data labels** (`mark_text`): adicionados em todos os gráficos de barras de tempo (formato `,.1f`)
+- **Conversor minutos ↔ horas**: toggle `st.radio` no topo da seção permite alternar a unidade de exibição entre minutos e horas. Fator de conversão `÷ 60` aplicado automaticamente em:
+  - Gráfico "Tempo Veículo por Oficina"
+  - Gráfico "Tempo Veículo vs Tempo FA"
+  - Tabela "EST e Tempo por Veículo e Oficina" (coluna renomeada para incluir unidade)
+  - Texto indicativo: "⏱️ Valores exibidos em **minutos/horas**"
+
+### Novo gráfico: Evolução Tempo Veículo vs Tempo FA por Período
+
+Adicionado **antes** dos gráficos existentes de tempo, com layout em 2 colunas:
+
+- **Coluna esquerda — Barras empilhadas**: evolução mensal de Tempo Veíc + Tempo FA empilhados por período. Total no topo de cada barra. Cores roxas (#7C3AED / #C4B5FD). Eixo X ordenado por `ORDEM_MESES`.
+- **Coluna direita — Linhas % por oficina**: `% Tempo Veículo = Tempo Veic / (Tempo Veic + Tempo FA)` por oficina/período. Uma linha por oficina (BS, GS, PL, PS, QY, SM). Eixo Y em formato percentual (`.0%`).
+
 ---
 
 ## 2) Stack, execução e ambiente
@@ -111,7 +166,7 @@ As versões estão travadas em `requirements.txt` por estabilidade do Streamlit/
 ## 3) Estrutura do repositório (módulos e responsabilidades)
 
 ### Arquivos principais
-- `app.py`: **Portal TC** (menu/roteamento) que agrupa:
+- `app.py`: **Stellantis Cost Intelligence (SCI)** (menu/roteamento) que agrupa:
   - TC Ext (Linhas Secundárias)
   - TC Veículos
   - Documentação (única, global)
@@ -518,4 +573,4 @@ Uma reescrita deve passar nos seguintes critérios:
 
 ---
 
-**Última atualização:** 2026-01-25
+**Última atualização:** 2026-02-15

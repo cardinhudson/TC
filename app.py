@@ -11,13 +11,13 @@ from tc_principal.pages.debug_calculos_tc import (
 
 
 st.set_page_config(
-    page_title="TC | Portal",
+    page_title="SCI | Stellantis Cost Intelligence",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("Portal TC")
+st.title("Stellantis Cost Intelligence (SCI)")
 st.caption("Selecione o módulo no menu lateral.")
 
 PAGES = {

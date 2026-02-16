@@ -1,4 +1,4 @@
-# 📝 Instruções para Commit - Sistema TC
+# 📝 Instruções para Commit - Stellantis Cost Intelligence (SCI)
 
 ## ✅ Configuração Concluída
 

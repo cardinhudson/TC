@@ -199,7 +199,7 @@ def render_header():
         pass
 
     # Montar textos do cabeçalho (igual TC Ext)
-    texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_str} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+    texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_str} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
     texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
     st.markdown(f"""
@@ -294,7 +294,8 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
             st.stop()
 
         opcoes_ano = ["Todos"] + list(anos) if incluir_todos else list(anos)
-        ano = st.selectbox("📅 Ano", opcoes_ano, index=0, key=f'{page_key}_ano')
+        idx_ano_padrao = 1 if incluir_todos else 0
+        ano = st.selectbox("📅 Ano", opcoes_ano, index=idx_ano_padrao, key=f'{page_key}_ano')
 
         st.divider()
 

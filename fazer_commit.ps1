@@ -1,4 +1,4 @@
-# Script para fazer commit das alterações do sistema TC
+# Script para fazer commit das alterações do Stellantis Cost Intelligence (SCI)
 # Data: 15/01/2026
 
 Write-Host "🚀 Preparando commit das alterações..." -ForegroundColor Cyan

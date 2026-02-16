@@ -148,7 +148,7 @@ versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
 # Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
 texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
@@ -1729,6 +1729,8 @@ else:
                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
                             totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
                         ))
+                        # Forçar largura do waterfall para alinhar com overlays go.Bar
+                        fig.update_traces(width=0.8, selector=dict(type="waterfall"))
                         
                         # Adicionar overlay para "Flex Mês 1 - Mês 1" (amarelo)
                         if "Flex Mês 1 - Mês 1" in labels_waterfall:
@@ -1754,13 +1756,11 @@ else:
                                 y=[abs(valor_flex)],
                                 base=[base_flex],
                                 marker_color=cor_amarela,
-                                marker_line=dict(width=2, color=cor_amarela),
+                                marker_line=dict(width=0),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,  # Mesma largura padrão do Plotly Waterfall
-                                offsetgroup='1',  # Mesmo grupo do waterfall principal
-                                alignmentgroup='1'  # Alinhar com o waterfall principal
+                                width=0.8,
                             ))
                         
                         # Adicionar overlay para "Outros" (laranja)
@@ -1787,13 +1787,11 @@ else:
                                 y=[abs(valor_outros)],
                                 base=[base_outros],
                                 marker_color=cor_laranja,
-                                marker_line=dict(width=2, color=cor_laranja),
+                                marker_line=dict(width=0),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,  # Mesma largura padrão do Plotly Waterfall
-                                offsetgroup='1',  # Mesmo grupo do waterfall principal
-                                alignmentgroup='1'  # Alinhar com o waterfall principal
+                                width=0.8,
                             ))
                         
                         # Calcular range do eixo Y
@@ -1849,6 +1847,7 @@ else:
                         
                         # Atualizar layout (sem título no gráfico)
                         fig.update_layout(
+                            barmode='overlay',  # Sobreposição exata dos overlays
                             title="",  # Remover título do gráfico completamente
                             xaxis_title="Categoria / Período",
                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
@@ -3635,6 +3634,8 @@ else:
                                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
                                             totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
                                         ))
+                                        # Forçar largura do waterfall para alinhar com overlays go.Bar
+                                        fig.update_traces(width=0.8, selector=dict(type="waterfall"))
                                         
                                         # Adicionar overlay para "Flex Bud - BUD" (amarelo)
                                         if "Flex Bud - BUD" in labels_waterfall:
@@ -3651,13 +3652,11 @@ else:
                                                 y=[abs(valor_flex)],
                                                 base=[base_flex],
                                                 marker_color=cor_amarela,
-                                                marker_line=dict(width=2, color=cor_amarela),
+                                                marker_line=dict(width=0),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
                                                 width=0.8,
-                                                offsetgroup='1',
-                                                alignmentgroup='1'
                                             ))
                                         
                                         # Adicionar overlay para "Outros" (laranja)
@@ -3680,13 +3679,11 @@ else:
                                                 y=[abs(valor_outros)],
                                                 base=[base_outros],
                                                 marker_color=cor_laranja,
-                                                marker_line=dict(width=2, color=cor_laranja),
+                                                marker_line=dict(width=0),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
                                                 width=0.8,
-                                                offsetgroup='1',
-                                                alignmentgroup='1'
                                             ))
                                         
                                         # Calcular range do eixo Y
@@ -3741,6 +3738,7 @@ else:
                                         
                                         # Atualizar layout (sem título no gráfico)
                                         fig.update_layout(
+                                            barmode='overlay',  # Sobreposição exata dos overlays
                                             title="",  # Remover título do gráfico completamente
                                             xaxis_title="Categoria",
                                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
@@ -4303,7 +4301,7 @@ ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

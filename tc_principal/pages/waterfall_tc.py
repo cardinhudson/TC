@@ -250,7 +250,9 @@ try:
                             if _df_pct_all:
                                 _df_pct_concat = pd.concat(_df_pct_all, ignore_index=True)
                                 _df_be_sem_v = df_total[_mask_be_sem_veic].copy()
-                                _df_be_com_v = ratear_be_por_veiculo(_df_be_sem_v, _df_pct_concat, col_custo='Custo FP')
+                                _df_be_com_v = ratear_be_por_veiculo(
+                                    _df_be_sem_v, _df_pct_concat, col_custo='Custo FP',
+                                )
                                 if _df_be_com_v is not None and not _df_be_com_v.empty:
                                     if 'Custo FP Veiculo' in _df_be_com_v.columns:
                                         _df_be_com_v['Custo FP'] = _df_be_com_v['Custo FP Veiculo']
@@ -1223,7 +1225,13 @@ else:
                     if not periodos_validos or not meses_selecionados or len(meses_selecionados) < 2:
                         st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
                     elif df_m1.empty or df_m2.empty:
-                        st.warning("⚠️ Não há dados suficientes para os períodos selecionados.")
+                        _msg_vazio = []
+                        if df_m1.empty:
+                            _msg_vazio.append(f"Período inicial ({mes_inicial if modo_comparacao == 'Mês a Mês' else ano_inicial})")
+                        if df_m2.empty:
+                            _msg_vazio.append(f"Período final ({mes_final if modo_comparacao == 'Mês a Mês' else ano_final})")
+                        _veiculo_info = f" para veículo '{escopo_veiculo_real}'" if escopo_veiculo_real != 'Todos (TC Total)' else ''
+                        st.warning(f"⚠️ Não há dados suficientes{_veiculo_info}. Sem dados em: {', '.join(_msg_vazio)}.")
                     else:
                         # Calcular totais por dimensão selecionada
                         # IMPORTANTE: No modo CPU, usar volumes do df_volume (não do df_m1/df_m2)
@@ -1836,35 +1844,8 @@ else:
                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
                             totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
                         ))
-
-                        # ═══ A3: Overlay BE nos totals (roxo claro / roxo escuro) ═══
-                        # Barra inicial (absolute)
-                        if _m1_is_be or _m2_is_be:
-                            # Barra inicial (primeiro item, measure=absolute)
-                            _cor_m1 = cor_be if _m1_is_be else cor_historico
-                            fig.add_trace(go.Bar(
-                                x=[labels_waterfall_tc[0]],
-                                y=[abs(values_waterfall_tc[0])],
-                                base=[min(0, values_waterfall_tc[0])],
-                                marker_color=_cor_m1,
-                                showlegend=True,
-                                name="BE" if _m1_is_be else "Histórico",
-                                hoverinfo="skip",
-                                width=0.6,
-                            ))
-                            # Barra final (último item, measure=total)
-                            _cor_m2 = cor_be if _m2_is_be else cor_historico
-                            _last = len(labels_waterfall_tc) - 1
-                            fig.add_trace(go.Bar(
-                                x=[labels_waterfall_tc[_last]],
-                                y=[abs(values_waterfall_tc[_last])],
-                                base=[min(0, values_waterfall_tc[_last])],
-                                marker_color=_cor_m2,
-                                showlegend=_cor_m2 != _cor_m1,
-                                name="BE" if _m2_is_be else "Histórico",
-                                hoverinfo="skip",
-                                width=0.6,
-                            ))
+                        # Forçar largura do waterfall para alinhar com overlays go.Bar
+                        fig.update_traces(width=0.8, selector=dict(type="waterfall"))
                         
                         # Adicionar overlay para "Flex Mês 1 - Mês 1" (amarelo)
                         if "Flex Mês 1 - Mês 1" in labels_waterfall_tc:
@@ -1890,13 +1871,11 @@ else:
                                 y=[abs(valor_flex)],
                                 base=[base_flex],
                                 marker_color=cor_amarela,
-                                marker_line=dict(width=2, color=cor_amarela),
+                                marker_line=dict(width=0),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,  # Mesma largura padrão do Plotly Waterfall
-                                offsetgroup='1',  # Mesmo grupo do waterfall principal
-                                alignmentgroup='1'  # Alinhar com o waterfall principal
+                                width=0.8,
                             ))
                         
                         # Adicionar overlay para "Outros" (laranja)
@@ -1923,13 +1902,11 @@ else:
                                 y=[abs(valor_outros)],
                                 base=[base_outros],
                                 marker_color=cor_laranja,
-                                marker_line=dict(width=2, color=cor_laranja),
+                                marker_line=dict(width=0),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,  # Mesma largura padrão do Plotly Waterfall
-                                offsetgroup='1',  # Mesmo grupo do waterfall principal
-                                alignmentgroup='1'  # Alinhar com o waterfall principal
+                                width=0.8,
                             ))
                         
                         # Adicionar overlay para "Redis" (roxo)
@@ -1951,13 +1928,11 @@ else:
                                 y=[abs(valor_redis)],
                                 base=[base_redis],
                                 marker_color=cor_roxa,
-                                marker_line=dict(width=2, color=cor_roxa),
+                                marker_line=dict(width=0),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
                                 width=0.8,
-                                offsetgroup='1',
-                                alignmentgroup='1'
                             ))
                         
                         # Calcular range do eixo Y
@@ -2013,6 +1988,7 @@ else:
                         
                         # Atualizar layout (sem título no gráfico)
                         fig.update_layout(
+                            barmode='overlay',
                             title="",  # Remover título do gráfico completamente
                             xaxis_title="Categoria / Período",
                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
@@ -3837,6 +3813,8 @@ else:
                                             decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
                                             totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
                                         ))
+                                        # Forçar largura do waterfall para alinhar com overlays go.Bar
+                                        fig.update_traces(width=0.8, selector=dict(type="waterfall"))
                                         
                                         # Adicionar overlay para "Flex Bud - BUD" (amarelo)
                                         if "Flex Bud - BUD" in labels_waterfall_tc:
@@ -3853,13 +3831,11 @@ else:
                                                 y=[abs(valor_flex)],
                                                 base=[base_flex],
                                                 marker_color=cor_amarela,
-                                                marker_line=dict(width=2, color=cor_amarela),
+                                                marker_line=dict(width=0),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
                                                 width=0.8,
-                                                offsetgroup='1',
-                                                alignmentgroup='1'
                                             ))
                                         
                                         # Adicionar overlay para "Outros" (laranja)
@@ -3882,13 +3858,11 @@ else:
                                                 y=[abs(valor_outros)],
                                                 base=[base_outros],
                                                 marker_color=cor_laranja,
-                                                marker_line=dict(width=2, color=cor_laranja),
+                                                marker_line=dict(width=0),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
                                                 width=0.8,
-                                                offsetgroup='1',
-                                                alignmentgroup='1'
                                             ))
                                         
                                         # Calcular range do eixo Y
@@ -3943,6 +3917,7 @@ else:
                                         
                                         # Atualizar layout (sem título no gráfico)
                                         fig.update_layout(
+                                            barmode='overlay',
                                             title="",  # Remover título do gráfico completamente
                                             xaxis_title="Categoria",
                                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
@@ -4499,7 +4474,7 @@ _meses_pt = {1:'Janeiro',2:'Fevereiro',3:'Março',4:'Abril',5:'Maio',6:'Junho',
 _agora = datetime.now()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {_versao_str} | {_meses_pt[_agora.month]} {_agora.year}
+    📚 Stellantis Cost Intelligence (SCI) | Versão {_versao_str} | {_meses_pt[_agora.month]} {_agora.year}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

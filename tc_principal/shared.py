@@ -232,6 +232,18 @@ def load_tempo_veiculos_real(ano):
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
+def load_volume_veiculos_real(ano):
+    """Volume de veículos Real (processado da aba 'Volume Actual')."""
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_vol_veiculos.parquet')
+    if not os.path.exists(caminho):
+        return None
+    df = pd.read_parquet(caminho)
+    if 'Volume' in df.columns:
+        df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+    return df
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
 def load_comparativo(ano):
     """Comparativo Real × Budget."""
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_comparativo_real_budget.parquet')
@@ -273,11 +285,18 @@ def load_percentual_rateio_veiculos_real(ano):
 def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
     """
     Distribui dados de BE (ou qualquer df com Custo FP por Oficina/Período)
-    por veículo, usando os mesmos percentuais de tempo do Real.
+    por veículo, usando os percentuais de rateio pré-processados na extração.
 
-    Lógica idêntica ao rateio Real:
-      Custo FP Veiculo = Custo FP × Percentual
-      (merge por Oficina + Período)
+    Os percentuais são gerados na extração Real (fase12) usando a fórmula:
+      Tempo Veic  = EST × Volume  (fase4)
+      Percentual  = Tempo Veic / Σ(Tempo Veic por Oficina+Período) (fase12)
+
+    O parquet de percentuais (`df_veiculos_percentual_rateio.parquet`) já
+    contém dados para todos os 12 meses, pois usa Volume Actual (12 meses)
+    e EST (constante anual). Não há necessidade de recalcular.
+
+    Fallback: se alguma Oficina+Período não encontrar percentual, distribui
+    igualitariamente (1/N veículos) como último recurso.
 
     Parâmetros
     ----------
@@ -285,6 +304,7 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
         Dados do Best Estimate com colunas [Oficina, Período, Custo FP, ...].
     df_percentual : DataFrame
         Percentuais de rateio com [Oficina, Veículo, Período, Percentual].
+        Gerado pela extração Real (fase12).
     col_custo : str
         Coluna de custo a ratear (default: 'Custo FP').
 
@@ -300,17 +320,31 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
     if col_custo not in df_be.columns:
         return None
 
+    # ── Evitar colisão de colunas no merge ──
+    # Se df_be já tem Veículo/Percentual/Custo FP Veiculo (vindas do df_total
+    # que herda essas colunas do pipeline Real), remover antes do merge
+    # para evitar sufixos _x/_y que causavam KeyError silencioso.
+    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo']
+    df_be_limpo = df_be.drop(
+        columns=[c for c in colunas_dropar if c in df_be.columns],
+        errors='ignore',
+    )
+
     pct = df_percentual[['Oficina', 'Veículo', 'Período', 'Percentual']].copy()
 
     # Merge: expande BE para granularidade de veículo
-    df = pd.merge(df_be, pct, on=['Oficina', 'Período'], how='left')
+    df = pd.merge(df_be_limpo, pct, on=['Oficina', 'Período'], how='left')
 
-    # Linhas sem veículo (Oficinas que não têm rateio) → distribuir igual
+    # Identificar linhas sem veículo (Oficinas que não têm rateio)
     mask_sem = df['Veículo'].isna()
+
+    # ─── Fallback: distribuição igualitária (1/N) ───
     if mask_sem.any():
         veiculos_unicos = pct['Veículo'].dropna().unique()
         if len(veiculos_unicos) > 0:
-            linhas_sem = df[mask_sem].drop(columns=['Veículo', 'Percentual'])
+            linhas_sem = df[mask_sem].drop(
+                columns=['Veículo', 'Percentual'], errors='ignore',
+            )
             expansoes = []
             for v in veiculos_unicos:
                 tmp = linhas_sem.copy()

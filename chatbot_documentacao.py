@@ -1,5 +1,5 @@
 """
-Chatbot de Documentação do Sistema TC
+Chatbot de Documentação do Stellantis Cost Intelligence (SCI)
 
 Sistema de busca e resposta baseado na documentação completa do sistema.
 Utiliza embeddings vetoriais (sentence-transformers) e FAISS para busca semântica local.

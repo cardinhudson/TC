@@ -16,7 +16,8 @@ from tc_principal.shared import (
     ORDEM_MESES, CORES_VEICULOS, COLUNAS_MONETARIAS,
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
-    load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
+    load_tempo_veiculos, load_tempo_veiculos_real,
+    load_dea_dedicado, load_volume_fa, load_volume_fa_real,
     load_custo_fp_veiculo, load_custo_fp_veiculo_real,
     load_forecast_completo,
     load_percentual_rateio_veiculos_real, ratear_be_por_veiculo,
@@ -43,6 +44,27 @@ meses_pt = {
     5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
     9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
 }
+
+
+def _carregar_rateios_manuais():
+    """Carrega rateios manuais (QY/GS/SM) do arquivo raiz do projeto."""
+    caminho = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'rateios_manuais.json'
+    )
+    padrao = {'QY': 0.087526, 'GS': 0.086982, 'SM': 0.075452}
+    try:
+        if os.path.exists(caminho):
+            with open(caminho, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return {
+                'QY': float(data.get('QY', padrao['QY'])),
+                'GS': float(data.get('GS', padrao['GS'])),
+                'SM': float(data.get('SM', padrao['SM'])),
+            }
+    except Exception:
+        pass
+    return padrao
 
 
 def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo, ordem_per, tem_ano=False):
@@ -1805,6 +1827,25 @@ def render():
 
     # ── TAB 5: Tempo de Produção / Custo FP por Veículo ──
     with tab5:
+        # ── Filtros no topo da aba ──
+        _col_filtro1, _col_filtro2, _ = st.columns([1.5, 1.5, 3])
+        with _col_filtro1:
+            unidade_tempo = st.radio(
+                "🕒 Unidade de tempo",
+                ["Minutos", "Horas"],
+                horizontal=True,
+                key="home_unidade_tempo_tab5"
+            )
+        with _col_filtro2:
+            fonte_dados_tempo = st.radio(
+                "📊 Fonte dos dados",
+                ["Budget", "Real"],
+                horizontal=True,
+                key="home_fonte_dados_tempo"
+            )
+        fator_tempo = 1.0 if unidade_tempo == "Minutos" else 1.0 / 60.0
+        label_tempo = "min" if unidade_tempo == "Minutos" else "h"
+
         st.subheader("Custo FP por Veículo")
 
         # Custo FP por Veículo (análogo ao TC Ext por Veíc)
@@ -1887,49 +1928,266 @@ def render():
         # === Seção adicional: Tempo de Produção (se houver dados) ===
         st.divider()
         st.markdown("### Tempo de Produção — Veículos vs Fluxo Anexo")
+        st.caption(f"📊 Fonte: **{fonte_dados_tempo}** | ⏱️ Unidade: **{unidade_tempo.lower()}**")
 
-        if df_tempo_veic is not None:
-            df_tv = normalizar_periodo(df_tempo_veic.copy())
+        # Carregar dados conforme fonte selecionada (Budget ou Real)
+        if fonte_dados_tempo == "Real":
+            _df_tv_src = load_tempo_veiculos_real(ano)
+            _df_fa_src = load_volume_fa_real(ano)
+        else:
+            _df_tv_src = load_tempo_veiculos(ano)
+            _df_fa_src = load_volume_fa(ano)
+
+        if _df_tv_src is not None:
+            df_tv = normalizar_periodo(_df_tv_src.copy())
+
+            # ── GRÁFICO DE EVOLUÇÃO: Tempo Veículo vs Tempo FA por Período ──
+            if _df_fa_src is not None:
+                df_fa_evo = normalizar_periodo(_df_fa_src.copy())
+                st.subheader("📈 Evolução Tempo Veículo vs Tempo FA por Período")
+
+                # Agregar por período
+                df_tv_per = df_tv.groupby('Período', as_index=False)['Tempo Veic'].sum()
+                df_fa_per = df_fa_evo.groupby('Período', as_index=False)['Tempo FA'].sum()
+                df_evo = pd.merge(df_tv_per, df_fa_per, on='Período', how='outer').fillna(0)
+                df_evo['Tempo Veic'] = df_evo['Tempo Veic'] * fator_tempo
+                df_evo['Tempo FA'] = df_evo['Tempo FA'] * fator_tempo
+                df_evo['Total'] = df_evo['Tempo Veic'] + df_evo['Tempo FA']
+
+                # Ordenar por mês
+                ordem_meses_cat = pd.CategoricalDtype(categories=ORDEM_MESES, ordered=True)
+                df_evo['Período'] = df_evo['Período'].astype(str).str.strip().str.capitalize()
+                df_evo['Período'] = df_evo['Período'].astype(ordem_meses_cat)
+                df_evo = df_evo.sort_values('Período').dropna(subset=['Período'])
+                ordem_per_evo = df_evo['Período'].astype(str).tolist()
+                df_evo['Período'] = df_evo['Período'].astype(str)
+
+                col_evo_e, col_evo_d = st.columns(2)
+
+                with col_evo_e:
+                    # Barras empilhadas (valores)
+                    df_evo_long = df_evo.melt(
+                        id_vars='Período', value_vars=['Tempo Veic', 'Tempo FA'],
+                        var_name='Tipo', value_name='Valor'
+                    )
+                    bar_evo = alt.Chart(df_evo_long).mark_bar().encode(
+                        x=alt.X('Período:N', sort=ordem_per_evo, title='Período'),
+                        y=alt.Y('Valor:Q', stack=True, title=f'Tempo ({label_tempo})'),
+                        color=alt.Color('Tipo:N',
+                            scale=alt.Scale(domain=['Tempo Veic', 'Tempo FA'],
+                                            range=['#7C3AED', '#C4B5FD'])),
+                        tooltip=['Período:N', 'Tipo:N', alt.Tooltip('Valor:Q', format=',.1f')],
+                    ).properties(height=400, title=f'Evolução Tempo (empilhado) ({label_tempo})')
+
+                    # Rótulo de total no topo
+                    labels_evo = alt.Chart(df_evo).mark_text(
+                        align='center', dy=-10, fontSize=9, color='black', fontWeight='bold'
+                    ).encode(
+                        x=alt.X('Período:N', sort=ordem_per_evo),
+                        y=alt.Y('Total:Q'),
+                        text=alt.Text('Total:Q', format=',.1f'),
+                    )
+                    st.altair_chart(bar_evo + labels_evo, use_container_width=True)
+
+                with col_evo_d:
+                    # ── Rateio FA real (mesma fórmula do processamento) ──
+                    # Automáticas (BS, PS, PL): Rateio FA = TFA / (TFA + TVeic)
+                    # Manuais (QY, GS, SM): Rateio FA = fator × taxa_pdr
+                    #   taxa_pdr = ∑TFA_global / ∑TVeic_global (excluindo GS/SM do denom)
+                    OFICINAS_AUTO = {'BS', 'PS', 'PL'}
+                    OFICINAS_MANUAL = {'QY', 'GS', 'SM'}
+                    OFICINAS_EXCLUIR_DENOM = {'GS', 'SM'}
+
+                    rateios_manuais = _carregar_rateios_manuais()
+
+                    # Agregar Tempo FA por (Oficina, Período)
+                    df_tfa_agg = df_fa_evo.groupby(['Oficina', 'Período'], as_index=False)['Tempo FA'].sum()
+                    df_tfa_agg.rename(columns={'Tempo FA': 'TFA'}, inplace=True)
+                    df_tfa_agg['Oficina_norm'] = df_tfa_agg['Oficina'].astype(str).str.strip().str.upper()
+                    df_tfa_agg['Período'] = df_tfa_agg['Período'].astype(str).str.strip().str.capitalize()
+                    df_tfa_agg = df_tfa_agg[df_tfa_agg['Período'].isin(ordem_per_evo)]
+
+                    # Agregar Tempo Veic por (Oficina, Período)
+                    df_tvc_agg = df_tv.groupby(['Oficina', 'Período'], as_index=False)['Tempo Veic'].sum()
+                    df_tvc_agg.rename(columns={'Tempo Veic': 'TVeic'}, inplace=True)
+                    df_tvc_agg['Oficina_norm'] = df_tvc_agg['Oficina'].astype(str).str.strip().str.upper()
+                    df_tvc_agg['Período'] = df_tvc_agg['Período'].astype(str).str.strip().str.capitalize()
+
+                    # Merge TFA + TVeic
+                    df_rateio = pd.merge(df_tfa_agg, df_tvc_agg[['Oficina_norm', 'Período', 'TVeic']],
+                                         on=['Oficina_norm', 'Período'], how='outer')
+                    df_rateio['TFA'] = df_rateio['TFA'].fillna(0)
+                    df_rateio['TVeic'] = df_rateio['TVeic'].fillna(0)
+                    # Preencher Oficina se veio do merge outer
+                    if df_rateio['Oficina'].isna().any():
+                        df_rateio['Oficina'] = df_rateio['Oficina'].fillna(df_rateio['Oficina_norm'])
+
+                    # Calcular taxa_pdr global por período (excluindo GS/SM do denominador TVeic)
+                    tfa_global = df_tfa_agg.groupby('Período', as_index=False)['TFA'].sum()
+                    tfa_global.rename(columns={'TFA': 'TFA_global'}, inplace=True)
+                    df_tvc_filt = df_tvc_agg[~df_tvc_agg['Oficina_norm'].isin(OFICINAS_EXCLUIR_DENOM)]
+                    tvc_global = df_tvc_filt.groupby('Período', as_index=False)['TVeic'].sum()
+                    tvc_global.rename(columns={'TVeic': 'TVC_global'}, inplace=True)
+                    taxa_prod = pd.merge(tfa_global, tvc_global, on='Período', how='outer').fillna(0)
+                    taxa_prod['taxa_pdr'] = np.where(
+                        taxa_prod['TVC_global'] > 0,
+                        taxa_prod['TFA_global'] / taxa_prod['TVC_global'],
+                        0.0
+                    )
+
+                    # Calcular Rateio FA
+                    df_rateio = pd.merge(df_rateio, taxa_prod[['Período', 'taxa_pdr']], on='Período', how='left')
+                    df_rateio['taxa_pdr'] = df_rateio['taxa_pdr'].fillna(0)
+                    df_rateio['Rateio FA'] = 0.0
+
+                    # Automáticas: TFA / (TFA + TVeic)
+                    mask_auto = df_rateio['Oficina_norm'].isin(OFICINAS_AUTO)
+                    denom_auto = df_rateio.loc[mask_auto, 'TFA'] + df_rateio.loc[mask_auto, 'TVeic']
+                    df_rateio.loc[mask_auto, 'Rateio FA'] = np.where(
+                        denom_auto > 0,
+                        df_rateio.loc[mask_auto, 'TFA'] / denom_auto,
+                        np.nan
+                    )
+
+                    # Manuais: fator × taxa_pdr
+                    for ofi in OFICINAS_MANUAL:
+                        mask_ofi = df_rateio['Oficina_norm'] == ofi
+                        fator_man = float(rateios_manuais.get(ofi, 0.0))
+                        df_rateio.loc[mask_ofi, 'Rateio FA'] = fator_man * df_rateio.loc[mask_ofi, 'taxa_pdr']
+
+                    # Garantir que oficinas manuais apareçam mesmo sem dados
+                    periodos_existentes = df_rateio['Período'].unique()
+                    for ofi in OFICINAS_MANUAL:
+                        if ofi not in df_rateio['Oficina_norm'].values:
+                            fator_man = float(rateios_manuais.get(ofi, 0.0))
+                            novas = pd.DataFrame({
+                                'Oficina': ofi,
+                                'Oficina_norm': ofi,
+                                'Período': periodos_existentes,
+                                'TFA': 0.0,
+                                'TVeic': 0.0,
+                                'taxa_pdr': taxa_prod.set_index('Período')['taxa_pdr'].reindex(periodos_existentes).fillna(0).values,
+                                'Rateio FA': 0.0,
+                            })
+                            novas['Rateio FA'] = fator_man * novas['taxa_pdr']
+                            df_rateio = pd.concat([df_rateio, novas], ignore_index=True)
+
+                    # Períodos sem dados reais (taxa_pdr=0) → NaN para não plotar zeros
+                    mask_manual_all = df_rateio['Oficina_norm'].isin(OFICINAS_MANUAL)
+                    df_rateio.loc[mask_manual_all & (df_rateio['taxa_pdr'] == 0), 'Rateio FA'] = np.nan
+
+                    # Filtrar só períodos válidos e remover NaN para não plotar zeros
+                    df_rateio = df_rateio[df_rateio['Período'].isin(ordem_per_evo)]
+                    df_rateio = df_rateio.dropna(subset=['Rateio FA'])
+
+                    line_pct = alt.Chart(df_rateio).mark_line(point=True, strokeWidth=2).encode(
+                        x=alt.X('Período:N', sort=ordem_per_evo, title='Período'),
+                        y=alt.Y('Rateio FA:Q', title='Rateio FA (%)', axis=alt.Axis(format='.1%')),
+                        color=alt.Color('Oficina:N', title='Oficina'),
+                        tooltip=[
+                            'Oficina:N', 'Período:N',
+                            alt.Tooltip('Rateio FA:Q', format='.2%', title='Rateio FA'),
+                            alt.Tooltip('TFA:Q', format=',.1f', title='Tempo FA'),
+                            alt.Tooltip('TVeic:Q', format=',.1f', title='Tempo Veic'),
+                        ],
+                    ).properties(height=400, title=f'Rateio FA por Oficina ({fonte_dados_tempo})')
+                    st.altair_chart(line_pct, use_container_width=True)
+
+                st.divider()
+
             col_c, col_d = st.columns(2)
 
             with col_c:
                 df_tv_of = df_tv.groupby('Oficina', as_index=False)['Tempo Veic'].sum()
+                df_tv_of['Tempo Veic'] = df_tv_of['Tempo Veic'] * fator_tempo
                 bar_tv = (alt.Chart(df_tv_of).mark_bar(
-                    color='#4A90E2', cornerRadiusTopLeft=3, cornerRadiusTopRight=3,
+                    color='#7C3AED', cornerRadiusTopLeft=3, cornerRadiusTopRight=3,
                 ).encode(
                     x=alt.X('Oficina:N', sort='-y'),
-                    y=alt.Y('Tempo Veic:Q'),
-                    tooltip=['Oficina:N', alt.Tooltip('Tempo Veic:Q', format=',')],
-                ).properties(height=400, title='Tempo Veículo por Oficina'))
-                st.altair_chart(bar_tv, use_container_width=True)
+                    y=alt.Y('Tempo Veic:Q', title=f'Tempo Veic ({label_tempo})'),
+                    tooltip=['Oficina:N', alt.Tooltip('Tempo Veic:Q', format=',.1f')],
+                ).properties(height=400, title=f'Tempo Veículo por Oficina ({label_tempo})'))
+                labels_tv = bar_tv.mark_text(
+                    align='center', dy=-10, fontSize=9, color='black'
+                ).encode(text=alt.Text('Tempo Veic:Q', format=',.1f'))
+                st.altair_chart(bar_tv + labels_tv, use_container_width=True)
 
             with col_d:
-                df_fa_tempo = load_volume_fa(ano)
-                if df_fa_tempo is not None:
-                    df_fa_tempo = normalizar_periodo(df_fa_tempo)
+                if _df_fa_src is not None:
+                    df_fa_tempo = normalizar_periodo(_df_fa_src.copy())
                     df_fa_agg = df_fa_tempo.groupby('Oficina', as_index=False)['Tempo FA'].sum()
                     df_tv_agg = df_tv.groupby('Oficina', as_index=False)['Tempo Veic'].sum()
                     df_comp_tempo = pd.merge(df_tv_agg, df_fa_agg, on='Oficina', how='outer').fillna(0)
+                    df_comp_tempo['Tempo Veic'] = df_comp_tempo['Tempo Veic'] * fator_tempo
+                    df_comp_tempo['Tempo FA'] = df_comp_tempo['Tempo FA'] * fator_tempo
                     df_comp_long = df_comp_tempo.melt(
                         id_vars='Oficina', value_vars=['Tempo Veic', 'Tempo FA'],
                         var_name='Tipo', value_name='Tempo',
                     )
                     bar_comp = (alt.Chart(df_comp_long).mark_bar().encode(
                         x=alt.X('Oficina:N', sort='-y'),
-                        y='Tempo:Q',
+                        y=alt.Y('Tempo:Q', title=f'Tempo ({label_tempo})'),
                         color=alt.Color('Tipo:N',
                                         scale=alt.Scale(domain=['Tempo Veic', 'Tempo FA'],
-                                                        range=['#4A90E2', '#27ae60'])),
+                                                        range=['#7C3AED', '#C4B5FD'])),
                         xOffset='Tipo:N',
-                        tooltip=['Oficina:N', 'Tipo:N', alt.Tooltip('Tempo:Q', format=',')],
-                    ).properties(height=400, title='Tempo Veículo vs Tempo FA'))
-                    st.altair_chart(bar_comp, use_container_width=True)
+                        tooltip=['Oficina:N', 'Tipo:N', alt.Tooltip('Tempo:Q', format=',.1f')],
+                    ).properties(height=400, title=f'Tempo Veículo vs Tempo FA ({label_tempo})'))
+                    labels_comp = bar_comp.mark_text(
+                        align='center', dy=-10, fontSize=9, color='black'
+                    ).encode(text=alt.Text('Tempo:Q', format=',.1f'))
+                    st.altair_chart(bar_comp + labels_comp, use_container_width=True)
 
-            st.markdown("**EST e Tempo por Veículo e Oficina**")
+            st.markdown(f"**EST e Tempo por Veículo e Oficina ({label_tempo})**")
             df_tv_tab = df_tv.groupby(['Oficina', 'Veículo'], as_index=False).agg({
                 'EST': 'first', 'Volume': 'sum', 'Tempo Veic': 'sum',
             }).sort_values(['Oficina', 'Tempo Veic'], ascending=[True, False])
+            df_tv_tab['Tempo Veic'] = df_tv_tab['Tempo Veic'] * fator_tempo
+            df_tv_tab = df_tv_tab.rename(columns={'Tempo Veic': f'Tempo Veic ({label_tempo})'})
             st.dataframe(df_tv_tab, use_container_width=True, hide_index=True)
+
+            # ── Tabela de Percentuais de Rateio (conferência com Excel) ──
+            st.divider()
+            st.markdown("### 📊 Percentuais de Rateio por Veículo")
+            st.caption(
+                "Conferência: valores idênticos à coluna R da aba "
+                "\"EST veículos - Actual\" do Excel"
+            )
+            _df_pct_home = load_percentual_rateio_veiculos_real(ano)
+            if _df_pct_home is not None and not _df_pct_home.empty:
+                _pct = _df_pct_home.copy()
+                _pct['Período'] = _pct['Período'].astype(str).str.strip().str.capitalize()
+                # Criar label Oficina × Veículo
+                _pct['Oficina_Veículo'] = _pct['Oficina'].astype(str) + ' — ' + _pct['Veículo'].astype(str)
+                # Pivotar: meses como colunas
+                _ordem_m = [m.capitalize() for m in ORDEM_MESES]
+                _piv = _pct.pivot_table(
+                    index='Oficina_Veículo', columns='Período',
+                    values='Percentual', aggfunc='first',
+                )
+                _cols_ord = [m for m in _ordem_m if m in _piv.columns]
+                _piv = _piv[_cols_ord]
+                _piv = _piv.reset_index()
+                # Formatar como percentual
+                _fmt = {c: '{:.2%}'.format for c in _cols_ord}
+                st.dataframe(
+                    _piv.style.format(_fmt, na_rep='—'),
+                    use_container_width=True, hide_index=True, height=500,
+                )
+                # Verificar soma = 100%
+                _soma_pct = _pct.groupby(
+                    ['Oficina', 'Período'], as_index=False
+                )['Percentual'].sum()
+                _min_s, _max_s = _soma_pct['Percentual'].min(), _soma_pct['Percentual'].max()
+                if abs(_min_s - 1.0) < 0.001 and abs(_max_s - 1.0) < 0.001:
+                    st.success("✅ Soma dos percentuais = 100% em todas as Oficinas/Períodos")
+                else:
+                    st.warning(
+                        f"⚠️ Soma dos percentuais: min={_min_s:.4f}, max={_max_s:.4f} "
+                        "(esperado: 1.0000)"
+                    )
+            else:
+                st.info("Dados de percentual de rateio não disponíveis.")
         else:
             st.info("Dados de tempo de produção não disponíveis.")
 
@@ -2216,7 +2474,7 @@ def render():
         pass
     st.markdown(f"""
     <div style='text-align: center; color: #666; padding: 20px;'>
-        📚 Documentação Completa do Sistema TC | Versão {versao_rodape} | {mes_rodape} {ano_rodape}
+        📚 Stellantis Cost Intelligence (SCI) | Versão {versao_rodape} | {mes_rodape} {ano_rodape}
         <br>
         <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
     </div>

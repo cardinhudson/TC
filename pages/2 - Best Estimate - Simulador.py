@@ -103,7 +103,7 @@ versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
 # Montar textos do cabeçalho
-texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
 texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
@@ -493,7 +493,8 @@ opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
 
 # Inicializar session_state para manter valores dos filtros
 if 'filtro_ano_simulador' not in st.session_state:
-    st.session_state.filtro_ano_simulador = "Todos"
+    # Padrão: ano mais recente (primeiro da lista decrescente)
+    st.session_state.filtro_ano_simulador = str(anos_disponiveis[0]) if anos_disponiveis else "Todos"
 
 # Seletor de ano
 ano_selecionado = st.sidebar.selectbox(
@@ -2460,11 +2461,9 @@ df_custos_especificos = carregar_custos_especificos()
 # Definir colunas da tabela (mesmas do forecast)
 # NOTA: Usamos apenas 'Custo' (original), não 'Tipo_Custo' (redundante)
 colunas_tabela_custos = [
-    'Oficina', 'Veículo', 'Ano', 'Período', 'Custo',
-    'Total', 'Valor', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
-    'Type 05', 'Type 06', 'Account', 'CC21%', 'CC22%', 'CC24%', 
-    'CC24 5L%', 'CC24 7L%', 'J516%', 'Tipo_Aplicacao', 
-    'Mes_Inicial', 'Meses_Especificos', 'Descricao'
+    'Oficina', 'Ano', 'Período', 'Custo',
+    'Total', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
+    'Type 05', 'Type 06', 'Account', 'Descricao'
 ]
 
 # Inicializar DataFrame se vazio
@@ -2802,361 +2801,203 @@ with tab_visualizar:
         st.info("ℹ️ Nenhum custo específico cadastrado ainda.")
 
 with tab_adicionar:
-    st.markdown("#### ➕ Adicionar Novo Custo Específico")
-    
-    # Obter opções de Oficina e Veículo dos dados
-    oficinas_disponiveis = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
-    veiculos_disponiveis = ["Todos"] + sorted(df_filtrado['Veículo'].dropna().unique().tolist()) if df_filtrado is not None and 'Veículo' in df_filtrado.columns else ["Todos"]
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        oficina_selecionada = st.selectbox("Oficina:", oficinas_disponiveis)
-        
-        # Campo Account (Type 07)
-        accounts_disponiveis = ["Nenhum"] + sorted(df_filtrado['Account'].dropna().unique().tolist()) if df_filtrado is not None and 'Account' in df_filtrado.columns else ["Nenhum"]
-        
-        # Inicializar session_state para armazenar informações do Account (usar chaves diferentes dos widgets)
-        if 'account_info_cache' not in st.session_state:
-            st.session_state.account_info_cache = {}
-        
-        # Inicializar session_state para os valores dos campos
-        if 'type06_valor' not in st.session_state:
-            st.session_state.type06_valor = ""
-        if 'type05_valor' not in st.session_state:
-            st.session_state.type05_valor = ""
-        if 'custo_valor' not in st.session_state:
-            st.session_state.custo_valor = ""
-        if 'tipo_custo_auto' not in st.session_state:
-            st.session_state.tipo_custo_auto = "Variável"
-        if 'usi_valor' not in st.session_state:
-            st.session_state.usi_valor = ""
-        
-        # Função callback para atualizar campos quando Account mudar
-        def atualizar_campos_account():
-            account_atual = st.session_state.account_selectbox
-            if account_atual and account_atual != "Nenhum":
-                # Verificar se já temos as informações em cache
-                if account_atual in st.session_state.account_info_cache:
-                    cache_info = st.session_state.account_info_cache[account_atual]
-                    st.session_state.type06_valor = cache_info.get('Type 06', '')
-                    st.session_state.type05_valor = cache_info.get('Type 05', '')
-                    st.session_state.custo_valor = cache_info.get('Custo', '')
-                    st.session_state.usi_valor = cache_info.get('USI', '')
-                    st.session_state.tipo_custo_auto = cache_info.get('Tipo_Custo', 'Variável')
-                    
-                    # Atualizar também os valores dos widgets diretamente
-                    st.session_state.type06_display = st.session_state.type06_valor
-                    st.session_state.type05_display = st.session_state.type05_valor
-                    st.session_state.custo_display = st.session_state.custo_valor
-                else:
-                    # Buscar informações do Account
+    st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
+    st.info("📝 Preencha a tabela abaixo com os custos. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor > 0 gerará uma linha no forecast. O rateio por veículo será aplicado automaticamente na geração do forecast.")
+
+    # Obter opções dinâmicas
+    oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
+    accounts_disponiveis_editor = sorted(df_filtrado['Account'].dropna().unique().tolist()) if df_filtrado is not None and 'Account' in df_filtrado.columns else []
+
+    # Referência Account → Type 06 / Type 05 / Custo
+    with st.expander("📋 Referência Account → Type 06 / Type 05 / Custo", expanded=False):
+        if df_filtrado is not None and not df_filtrado.empty:
+            cols_ref = [c for c in ['Account', 'Type 06', 'Type 05', 'Custo', 'USI'] if c in df_filtrado.columns]
+            if cols_ref:
+                df_ref = df_filtrado[cols_ref].drop_duplicates().dropna(subset=['Account']).sort_values('Account')
+                st.dataframe(df_ref, hide_index=True, use_container_width=True)
+        else:
+            st.info("Sem dados de referência disponíveis.")
+
+    # Abreviações de meses
+    MESES_EDITOR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    MESES_COMPLETOS = {
+        'Jan': 'Janeiro', 'Fev': 'Fevereiro', 'Mar': 'Março', 'Abr': 'Abril',
+        'Mai': 'Maio', 'Jun': 'Junho', 'Jul': 'Julho', 'Ago': 'Agosto',
+        'Set': 'Setembro', 'Out': 'Outubro', 'Nov': 'Novembro', 'Dez': 'Dezembro'
+    }
+
+    # DataFrame vazio para o editor
+    df_editor_template = pd.DataFrame(columns=['Oficina', 'Account'] + MESES_EDITOR + ['Descrição'])
+
+    # Configuração das colunas
+    editor_column_config = {
+        "Oficina": st.column_config.SelectboxColumn(
+            "Oficina", options=oficinas_disponiveis_editor, required=True, width="medium"
+        ),
+        "Account": st.column_config.SelectboxColumn(
+            "Account", options=accounts_disponiveis_editor, width="medium"
+        ),
+        "Descrição": st.column_config.TextColumn(
+            "Descrição", default="", max_chars=200, width="medium"
+        ),
+    }
+    for mes in MESES_EDITOR:
+        editor_column_config[mes] = st.column_config.NumberColumn(
+            mes, default=0.0, min_value=0.0, format="R$ %.2f", width="small"
+        )
+
+    # Editor
+    edited_df = st.data_editor(
+        df_editor_template,
+        column_config=editor_column_config,
+        num_rows="dynamic",
+        hide_index=True,
+        use_container_width=True,
+        key="custos_editor_ext"
+    )
+
+    # Preview dos custos que serão criados
+    if edited_df is not None and not edited_df.empty:
+        linhas_preview = []
+        for _, row in edited_df.iterrows():
+            if pd.isna(row.get('Oficina')):
+                continue
+            for mes in MESES_EDITOR:
+                valor = row.get(mes, 0)
+                if pd.notna(valor) and float(valor) > 0:
+                    # Buscar info do Account
+                    info_acc = {}
+                    acc = row.get('Account')
+                    if pd.notna(acc) and str(acc).strip():
+                        df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
+                        if df_para_buscar is not None:
+                            info_acc = buscar_info_por_account(str(acc), df_para_buscar)
+                    linhas_preview.append({
+                        'Oficina': row['Oficina'],
+                        'Período': MESES_COMPLETOS[mes],
+                        'Total (R$)': float(valor),
+                        'Account': acc if pd.notna(acc) else '',
+                        'Type 06': info_acc.get('Type 06', ''),
+                        'Type 05': info_acc.get('Type 05', ''),
+                        'Custo': info_acc.get('Custo', ''),
+                    })
+        if linhas_preview:
+            st.markdown(f"**📊 Preview: {len(linhas_preview)} linha(s) serão criadas no forecast**")
+            df_preview = pd.DataFrame(linhas_preview)
+            # Pivotar: meses em colunas para facilitar visualização
+            id_cols = [c for c in ['Oficina', 'Account', 'Type 05', 'Type 06', 'Custo'] if c in df_preview.columns]
+            df_pivot = df_preview.pivot_table(
+                index=id_cols, columns='Período',
+                values='Total (R$)', aggfunc='sum'
+            ).reset_index()
+            # Ordenar colunas de meses
+            meses_ordem = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+            cols_meses = [m for m in meses_ordem if m in df_pivot.columns]
+            df_pivot = df_pivot[id_cols + cols_meses]
+            df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
+            # Formatar valores
+            fmt_cfg = {m: st.column_config.NumberColumn(m, format='R$ %.2f') for m in cols_meses + ['Total']}
+            st.dataframe(df_pivot, hide_index=True, use_container_width=True, column_config=fmt_cfg)
+
+    # Botão Salvar
+    if st.button("💾 Salvar Custos", type="primary", key="btn_salvar_custos_ext"):
+        if edited_df is None or edited_df.empty:
+            st.error("❌ Nenhum custo preenchido na tabela.")
+        else:
+            linhas_novas = []
+            erros = []
+            for idx_row, row in edited_df.iterrows():
+                if pd.isna(row.get('Oficina')):
+                    continue
+                
+                # Buscar info do Account
+                info_acc = {}
+                acc = row.get('Account')
+                if pd.notna(acc) and str(acc).strip():
                     df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
-                    
-                    if df_para_buscar is not None and not df_para_buscar.empty:
-                        info_account = buscar_info_por_account(account_atual, df_para_buscar)
+                    if df_para_buscar is not None:
+                        info_acc = buscar_info_por_account(str(acc), df_para_buscar)
+
+                tem_valor = False
+                for mes in MESES_EDITOR:
+                    valor = row.get(mes, 0)
+                    if pd.notna(valor) and float(valor) > 0:
+                        tem_valor = True
+                        periodo_completo = MESES_COMPLETOS[mes]
                         
-                        if info_account:
-                            # Preencher valores
-                            st.session_state.type06_valor = info_account.get('Type 06', '')
-                            st.session_state.type05_valor = info_account.get('Type 05', '')
-                            st.session_state.custo_valor = info_account.get('Custo', '')
-                            st.session_state.usi_valor = info_account.get('USI', '')
-                            
-                            # Atualizar também os valores dos widgets diretamente
-                            st.session_state.type06_display = st.session_state.type06_valor
-                            st.session_state.type05_display = st.session_state.type05_valor
-                            st.session_state.custo_display = st.session_state.custo_valor
-                            
-                            # Atualizar Tipo_Custo se encontrado
-                            if 'Tipo_Custo' in info_account:
-                                st.session_state.tipo_custo_auto = info_account['Tipo_Custo']
-                            else:
-                                st.session_state.tipo_custo_auto = "Variável"
-                            
-                            # Salvar no cache
-                            st.session_state.account_info_cache[account_atual] = {
-                                'Type 06': st.session_state.type06_valor,
-                                'Type 05': st.session_state.type05_valor,
-                                'Custo': st.session_state.custo_valor,
-                                'USI': st.session_state.usi_valor,
-                                'Tipo_Custo': st.session_state.tipo_custo_auto
-                            }
-                        else:
-                            # Limpar campos se não encontrou
-                            st.session_state.type06_valor = ""
-                            st.session_state.type05_valor = ""
-                            st.session_state.custo_valor = ""
-                            st.session_state.tipo_custo_auto = "Variável"
-                    else:
-                        # Limpar campos se não tem dados
-                        st.session_state.type06_valor = ""
-                        st.session_state.type05_valor = ""
-                        st.session_state.custo_valor = ""
-                        st.session_state.tipo_custo_auto = "Variável"
-            else:
-                # Limpar campos se nenhum Account selecionado
-                st.session_state.type06_valor = ""
-                st.session_state.type05_valor = ""
-                st.session_state.custo_valor = ""
-                st.session_state.tipo_custo_auto = "Variável"
-        
-        account_selecionado = st.selectbox(
-            "Account (Type 07):", 
-            accounts_disponiveis, 
-            help="Selecione o Account para buscar automaticamente Type 06, Type 05 e Custo",
-            key="account_selectbox"
-        )
-        
-        # Sempre verificar e atualizar após o selectbox (mesmo que não tenha mudado)
-        if account_selecionado and account_selecionado != "Nenhum":
-            # Verificar se o Account mudou ou se precisa buscar
-            account_anterior = st.session_state.get('account_anterior', None)
-            account_mudou = account_anterior != account_selecionado
-            
-            # Verificar se precisa buscar (Account mudou, não está no cache ou valores estão vazios)
-            precisa_buscar = (
-                account_mudou or
-                account_selecionado not in st.session_state.account_info_cache or
-                not st.session_state.type06_valor
-            )
-            
-            if precisa_buscar:
-                atualizar_campos_account()
-                st.session_state.account_anterior = account_selecionado
-                # Forçar atualização da interface
-                st.rerun()
-        else:
-            # Limpar campos se nenhum Account selecionado
-            if st.session_state.type06_valor or st.session_state.type05_valor or st.session_state.custo_valor:
-                st.session_state.type06_valor = ""
-                st.session_state.type05_valor = ""
-                st.session_state.custo_valor = ""
-                st.session_state.tipo_custo_auto = "Variável"
-                st.session_state.account_anterior = None
-        
-        tipo_aplicacao = st.radio(
-            "Tipo de Aplicação:",
-            ["Pontual (meses específicos)", "Constante (a partir de um mês)"],
-            help="Pontual: aplica apenas nos meses selecionados. Constante: aplica a partir do mês inicial até o final do forecast."
-        )
-    
-    with col2:
-        veiculo_selecionado = st.selectbox("Veículo:", veiculos_disponiveis, help="Selecione 'Todos' para aplicar a todos os veículos")
-        valor_total = st.number_input("Valor Total (R$):", min_value=0.0, value=0.0, step=1000.0, format="%.2f")
-        descricao = st.text_input("Descrição do Custo:", placeholder="Ex: Manutenção preventiva")
-    
-    # Campos para Type 06, Type 05 e Custo (preenchidos automaticamente)
-    # Usar session_state diretamente nos widgets para garantir atualização
-    col_type1, col_type2, col_type3 = st.columns(3)
-    with col_type1:
-        # Usar key diferente e atualizar via session_state
-        if 'type06_display' not in st.session_state:
-            st.session_state.type06_display = st.session_state.get('type06_valor', '')
-        else:
-            # Atualizar o valor do widget se o valor mudou
-            if st.session_state.get('type06_valor', '') != st.session_state.type06_display:
-                st.session_state.type06_display = st.session_state.get('type06_valor', '')
-        type06_display = st.text_input("Type 06:", value=st.session_state.type06_display, key="type06_display", disabled=True, help="Preenchido automaticamente ao selecionar Account")
-    with col_type2:
-        if 'type05_display' not in st.session_state:
-            st.session_state.type05_display = st.session_state.get('type05_valor', '')
-        else:
-            if st.session_state.get('type05_valor', '') != st.session_state.type05_display:
-                st.session_state.type05_display = st.session_state.get('type05_valor', '')
-        type05_display = st.text_input("Type 05:", value=st.session_state.type05_display, key="type05_display", disabled=True, help="Preenchido automaticamente ao selecionar Account")
-    with col_type3:
-        if 'custo_display' not in st.session_state:
-            st.session_state.custo_display = st.session_state.get('custo_valor', '')
-        else:
-            if st.session_state.get('custo_valor', '') != st.session_state.custo_display:
-                st.session_state.custo_display = st.session_state.get('custo_valor', '')
-        custo_display = st.text_input("Custo:", value=st.session_state.custo_display, key="custo_display", disabled=True, help="Preenchido automaticamente ao selecionar Account (determina Tipo_Custo: Fixo ou Variável)")
-    
-    # Mostrar mensagem se informações foram encontradas
-    if account_selecionado and account_selecionado != "Nenhum" and st.session_state.type06_valor:
-        st.success(f"✅ Informações encontradas para Account '{account_selecionado}' - Tipo_Custo: {st.session_state.tipo_custo_auto}")
-    
-    # Configuração de meses baseado no tipo de aplicação
-    if tipo_aplicacao == "Pontual (meses específicos)":
-        meses_selecionados = st.multiselect(
-            "Selecione os meses específicos:",
-            options=periodos_restantes if periodos_restantes else meses_ano,
-            help="Selecione os meses onde este custo será aplicado"
-        )
-        mes_inicial = None
-    else:  # Constante
-        mes_inicial = st.selectbox(
-            "Mês inicial:",
-            options=periodos_restantes if periodos_restantes else meses_ano,
-            help="A partir deste mês, o custo será aplicado em todos os meses seguintes"
-        )
-        meses_selecionados = None
-    
-    # Rateio por veículo - busca automática do arquivo original
-    st.markdown("#### 📊 Rateio por Veículo")
-    st.info("ℹ️ Os rateios serão buscados automaticamente do arquivo 'Reporting fluxo anexo.xlsx' baseado em Oficina e Período. O sistema criará uma linha para cada veículo com o valor rateado.")
-    
-    # Buscar rateios automaticamente quando Oficina e Período estiverem disponíveis
-    rateios_preview = {}
-    if oficina_selecionada and periodos_restantes:
-        # Usar o primeiro período disponível para buscar rateios (preview)
-        periodo_para_buscar = periodos_restantes[0]
-        rateios_preview = buscar_rateios_arquivo(oficina_selecionada, periodo_para_buscar, ano_selecionado)
-        
-        if rateios_preview:
-            st.success(f"✅ Rateios encontrados para Oficina '{oficina_selecionada}' e Período '{periodo_para_buscar}':")
-            # Mostrar preview dos rateios
-            for veiculo_pct, percentual in rateios_preview.items():
-                veiculo_nome = veiculo_pct.replace('%', '')
-                st.text(f"   • {veiculo_nome}: {percentual*100:.2f}%")
-        else:
-            st.warning(f"⚠️ Nenhum rateio encontrado para Oficina '{oficina_selecionada}' e Período '{periodo_para_buscar}'. Os rateios serão buscados ao salvar.")
-    
-    # Botão para adicionar
-    if st.button("➕ Adicionar Custo", type="primary"):
-        # Validações
-        if valor_total <= 0:
-            st.error("❌ O valor total deve ser maior que zero.")
-        elif tipo_aplicacao == "Pontual (meses específicos)" and not meses_selecionados:
-            st.error("❌ Selecione pelo menos um mês para aplicação pontual.")
-        elif tipo_aplicacao == "Constante (a partir de um mês)" and not mes_inicial:
-            st.error("❌ Selecione o mês inicial para aplicação constante.")
-        else:
-            # Determinar períodos que serão aplicados
-            periodos_aplicar = []
-            if tipo_aplicacao == "Pontual (meses específicos)" and meses_selecionados:
-                periodos_aplicar = meses_selecionados
-            elif tipo_aplicacao == "Constante (a partir de um mês)" and mes_inicial:
-                # Todos os períodos a partir do mês inicial
-                if periodos_restantes:
-                    idx_inicial = periodos_restantes.index(mes_inicial) if mes_inicial in periodos_restantes else 0
-                    periodos_aplicar = periodos_restantes[idx_inicial:]
-            
-            if not periodos_aplicar:
-                st.error("❌ Nenhum período selecionado para aplicação.")
-            else:
-                # Determinar quais veículos serão incluídos
-                veiculos = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
-                linhas_novas = []
-                
-                # Se um veículo específico foi selecionado (não "Todos"), aplicar 100% para ele
-                veiculo_especifico = None
-                if veiculo_selecionado and veiculo_selecionado != "Todos":
-                    veiculo_especifico = veiculo_selecionado
-                    # Validar se o veículo selecionado está na lista
-                    if veiculo_especifico not in veiculos:
-                        st.error(f"❌ Veículo '{veiculo_especifico}' não é válido.")
-                    else:
-                        st.info(f"ℹ️ Veículo específico selecionado: '{veiculo_especifico}'. Rateio será 100% para este veículo.")
-                
-                for periodo in periodos_aplicar:
-                    # Se um veículo específico foi selecionado, aplicar 100% para ele
-                    if veiculo_especifico:
-                        # Criar rateio manual: 100% para o veículo selecionado, 0% para os outros
-                        rateios_periodo = {}
-                        for veiculo in veiculos:
-                            veiculo_pct = f"{veiculo}%"
-                            if veiculo == veiculo_especifico:
-                                rateios_periodo[veiculo_pct] = 1.0  # 100%
-                            else:
-                                rateios_periodo[veiculo_pct] = 0.0  # 0%
-                    else:
-                        # Buscar rateios do arquivo para este período específico
-                        rateios_periodo = buscar_rateios_arquivo(oficina_selecionada, periodo, ano_selecionado)
-                        
-                        # Se não encontrou rateios, usar distribuição igual
-                        if not rateios_periodo or all(v == 0.0 for v in rateios_periodo.values()):
-                            st.warning(f"⚠️ Rateios não encontrados para {periodo}. Será usado rateio igual para todos os veículos.")
-                            veiculos_pct = ['CC21%', 'CC22%', 'CC24%', 'CC24 5L%', 'CC24 7L%', 'J516%']
-                            rateio_igual = 1.0 / len(veiculos_pct)
-                            for veiculo_pct in veiculos_pct:
-                                rateios_periodo[veiculo_pct] = rateio_igual
-                    
-                    # Criar uma linha para cada veículo (ou apenas para o veículo selecionado)
-                    veiculos_para_criar = [veiculo_especifico] if veiculo_especifico else veiculos
-                    
-                    for veiculo in veiculos_para_criar:
-                        veiculo_pct = f"{veiculo}%"
-                        rateio_veiculo = rateios_periodo.get(veiculo_pct, 0.0)
-                        
-                        # Se rateio é 0, pular este veículo (a menos que seja o veículo específico)
-                        if rateio_veiculo == 0.0 and not veiculo_especifico:
-                            continue
-                        
-                        # Calcular valor rateado para este veículo
-                        valor_rateado = valor_total * rateio_veiculo
-                        
-                        # Determinar o ano para preencher automaticamente
+                        # Determinar ano
                         ano_para_custo = None
                         if ano_selecionado and ano_selecionado != "Todos":
-                            # Se ano selecionado é um número, usar diretamente
                             try:
                                 ano_para_custo = int(ano_selecionado)
                             except (ValueError, TypeError):
-                                ano_para_custo = None
-                        
-                        # Se não conseguiu determinar o ano, tentar extrair do período
-                        if ano_para_custo is None and periodo:
-                            periodo_str = str(periodo)
-                            # Tentar extrair ano do período (formato: "Janeiro 2024" ou "2024 Janeiro")
-                            anos_encontrados = re.findall(r'\b(20\d{2})\b', periodo_str)
-                            if anos_encontrados:
-                                try:
-                                    ano_para_custo = int(anos_encontrados[0])
-                                except (ValueError, TypeError):
-                                    pass
-                        
-                        # Se ainda não tem ano, usar o ano atual
+                                pass
                         if ano_para_custo is None:
-                            ano_para_custo = datetime.now().year
-                        
-                        # Criar registro para este veículo e período
-                        # Usar 'Custo' (padrão do projeto) em vez de 'Tipo_Custo' (redundante)
+                            from datetime import datetime as dt_now
+                            ano_para_custo = dt_now.now().year
+
                         novo_custo = {
-                            'Oficina': oficina_selecionada,
-                            'Veículo': veiculo,
-                            'Período': periodo,
-                            'Custo': st.session_state.custo_valor if st.session_state.custo_valor else st.session_state.tipo_custo_auto,
-                            'Total': valor_rateado,  # Valor já rateado para este veículo
-                            'Tipo_Aplicacao': tipo_aplicacao,
-                            'Mes_Inicial': mes_inicial if tipo_aplicacao == "Constante (a partir de um mês)" else None,
-                            'Meses_Especificos': ','.join(meses_selecionados) if meses_selecionados else None,
-                            'Descricao': descricao if descricao else "Sem descrição",
+                            'Oficina': row['Oficina'],
+                            'Período': periodo_completo,
+                            'Total': float(valor),
+                            'Custo': info_acc.get('Custo', ''),
+                            'Descricao': row.get('Descrição', 'Sem descrição') if pd.notna(row.get('Descrição')) else 'Sem descrição',
                             'Ano': ano_para_custo,
-                            'Tipo': 'BE Manual'  # Marcar como BE Manual (custo específico)
+                            'Tipo': 'BE Manual',
                         }
-                        
-                        # Adicionar Account, Type 06, Type 05, Custo e USI se preenchidos
-                        if account_selecionado and account_selecionado != "Nenhum":
-                            novo_custo['Account'] = account_selecionado
-                        if st.session_state.type06_valor:
-                            novo_custo['Type 06'] = st.session_state.type06_valor
-                        if st.session_state.type05_valor:
-                            novo_custo['Type 05'] = st.session_state.type05_valor
-                        if st.session_state.custo_valor:
-                            novo_custo['Custo'] = st.session_state.custo_valor
-                        if st.session_state.usi_valor:
-                            novo_custo['USI'] = st.session_state.usi_valor
-                        
-                        # Adicionar rateio usado (para referência)
-                        novo_custo[veiculo_pct] = rateio_veiculo
-                        
+                        if pd.notna(acc) and str(acc).strip():
+                            novo_custo['Account'] = str(acc)
+                        if info_acc.get('Type 06'):
+                            novo_custo['Type 06'] = info_acc['Type 06']
+                        if info_acc.get('Type 05'):
+                            novo_custo['Type 05'] = info_acc['Type 05']
+                        if info_acc.get('USI'):
+                            novo_custo['USI'] = info_acc['USI']
+
                         linhas_novas.append(novo_custo)
                 
-                # Adicionar todas as linhas ao DataFrame
-                if linhas_novas:
-                    df_custos_especificos = pd.concat([df_custos_especificos, pd.DataFrame(linhas_novas)], ignore_index=True)
-                    
-                    # Salvar
-                    if salvar_custos_especificos(df_custos_especificos):
-                        st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico adicionada(s) com sucesso!")
-                        # Limpar cache do Account para forçar nova busca na próxima vez
-                        if account_selecionado and account_selecionado != "Nenhum":
-                            if account_selecionado in st.session_state.account_info_cache:
-                                del st.session_state.account_info_cache[account_selecionado]
-                        st.rerun()
-                else:
-                    st.error("❌ Nenhuma linha foi criada. Verifique os rateios disponíveis.")
+                if not tem_valor and pd.notna(row.get('Oficina')):
+                    erros.append(f"Linha {idx_row+1}: nenhum mês com valor > 0")
+
+            if erros:
+                for e in erros:
+                    st.warning(f"⚠️ {e}")
+            
+            if linhas_novas:
+                df_custos_especificos = pd.concat(
+                    [df_custos_especificos, pd.DataFrame(linhas_novas)], 
+                    ignore_index=True
+                )
+                if salvar_custos_especificos(df_custos_especificos):
+                    st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico salva(s) com sucesso!")
+                    st.rerun()
+            else:
+                st.error("❌ Nenhuma linha válida para salvar.")
+
+    # ── Base de dados completa (expander) ──
+    with st.expander("📂 Base de Dados Completa — Custos Específicos", expanded=False):
+        _df_full = carregar_custos_especificos()
+        if _df_full is not None and not _df_full.empty:
+            # Garantir colunas
+            _colunas_exibir = [
+                'Oficina', 'Ano', 'Período', 'Account', 'Custo',
+                'Type 05', 'Type 06', 'USI',
+                'Total', 'Centocst', 'Fornec.', 'Fornecedor',
+                'Descricao', 'Tipo'
+            ]
+            _cols_presentes = [c for c in _colunas_exibir if c in _df_full.columns]
+            _extras = [c for c in _df_full.columns if c not in _cols_presentes]
+            _df_show = _df_full[_cols_presentes + _extras].copy()
+            st.dataframe(
+                _df_show,
+                use_container_width=True,
+                hide_index=True,
+                height=400,
+            )
+            st.caption(f"Total de registros: {len(_df_show)}")
+        else:
+            st.info("Nenhum custo específico cadastrado.")
 
 st.markdown("---")
 
@@ -5462,19 +5303,16 @@ if aplicar_config_forecast:
             adicionar_mensagem("info", f"📊 Linhas de forecast criadas: {linhas_forecast_criadas}")
             adicionar_mensagem("info", f"📊 Total de DataFrames em linhas_finais: {len(linhas_finais)}")
             
-            # 💰 ADICIONAR CUSTOS ESPECÍFICOS COMO LINHAS SEPARADAS NO FORECAST
+            # 💰 ADICIONAR CUSTOS ESPECÍFICOS COM RATEIO POR VEÍCULO NO FORECAST
             df_custos_especificos_para_forecast = carregar_custos_especificos()
             if not df_custos_especificos_para_forecast.empty:
                 adicionar_mensagem("info", f"💰 Carregando {len(df_custos_especificos_para_forecast):,} linha(s) de custos específicos para incluir no forecast")
                 
-                # Filtrar apenas custos que se aplicam aos períodos de forecast
+                veiculos_rateio = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
                 linhas_custos_especificos = []
                 
                 for idx, custo_row in df_custos_especificos_para_forecast.iterrows():
-                    # Verificar se este custo se aplica a algum período de forecast
-                    tipo_aplicacao = custo_row.get('Tipo_Aplicacao', None)
                     periodo_custo = custo_row.get('Período', None)
-                    
                     if pd.isna(periodo_custo):
                         continue
                     
@@ -5493,59 +5331,63 @@ if aplicar_config_forecast:
                             mes_forecast = periodo_forecast_str.split(' ', 1)[0].strip().capitalize()
                         else:
                             mes_forecast = periodo_forecast_str.capitalize()
-                        
                         if mes_custo == mes_forecast:
                             periodos_aplicaveis.append(periodo_forecast)
                     
-                    # Se o custo se aplica a algum período de forecast, criar linha
                     if periodos_aplicaveis:
-                        # Criar linha para cada período aplicável
+                        oficina_custo = custo_row.get('Oficina', '')
+                        valor_total = custo_row.get('Total', 0.0)
+                        if pd.isna(valor_total):
+                            valor_total = 0.0
+                        valor_total = float(valor_total)
+                        
                         for periodo_aplicavel in periodos_aplicaveis:
-                            linha_custo = {}
-                            
-                            # Copiar todas as colunas do custo
-                            for col in df_custos_especificos_para_forecast.columns:
-                                if col not in ['Tipo_Aplicacao', 'Mes_Inicial', 'Meses_Especificos']:
-                                    linha_custo[col] = custo_row.get(col, None)
-                            
-                            # Ajustar Período para o formato do forecast
                             periodo_str = str(periodo_aplicavel).strip()
                             if ' ' in periodo_str:
                                 mes_nome = periodo_str.split(' ', 1)[0].strip().capitalize()
-                                linha_custo['Período'] = mes_nome
-                                
-                                # Extrair ano
-                                partes = periodo_str.split(' ', 1)
-                                if len(partes) == 2 and partes[1].isdigit():
-                                    linha_custo['Ano'] = int(partes[1])
                             else:
-                                linha_custo['Período'] = periodo_str.strip().capitalize()
+                                mes_nome = periodo_str.strip().capitalize()
                             
-                            # Garantir que Total e Valor estejam preenchidos
-                            if 'Total' not in linha_custo or pd.isna(linha_custo.get('Total')):
-                                if 'Valor' in linha_custo and pd.notna(linha_custo.get('Valor')):
-                                    linha_custo['Total'] = linha_custo['Valor']
-                                else:
-                                    linha_custo['Total'] = 0.0
+                            # Buscar rateios por veículo para esta oficina/período
+                            rateios = buscar_rateios_arquivo(oficina_custo, periodo_aplicavel, ano_selecionado)
+                            if not rateios or all(v == 0.0 for v in rateios.values()):
+                                rateio_igual = 1.0 / len(veiculos_rateio)
+                                rateios = {f"{v}%": rateio_igual for v in veiculos_rateio}
                             
-                            if 'Valor' not in linha_custo or pd.isna(linha_custo.get('Valor')):
-                                if 'Total' in linha_custo and pd.notna(linha_custo.get('Total')):
-                                    linha_custo['Valor'] = linha_custo['Total']
-                                else:
-                                    linha_custo['Valor'] = 0.0
-                            
-                            # Marcar como BE Manual (custo específico/manual)
-                            linha_custo['Tipo'] = 'BE Manual'
-                            
-                            # Adicionar descrição se não existir
-                            if 'Descricao' not in linha_custo or pd.isna(linha_custo.get('Descricao')):
-                                linha_custo['Descricao'] = 'Custo Específico'
-                            
-                            linhas_custos_especificos.append(linha_custo)
+                            # Criar uma linha por veículo
+                            for veiculo in veiculos_rateio:
+                                veiculo_pct = f"{veiculo}%"
+                                rateio = rateios.get(veiculo_pct, 0.0)
+                                if rateio == 0.0:
+                                    continue
+                                
+                                valor_rateado = valor_total * rateio
+                                
+                                linha_custo = {}
+                                for col in df_custos_especificos_para_forecast.columns:
+                                    if col not in ['Tipo_Aplicacao', 'Mes_Inicial', 'Meses_Especificos']:
+                                        linha_custo[col] = custo_row.get(col, None)
+                                
+                                linha_custo['Período'] = mes_nome
+                                linha_custo['Veículo'] = veiculo
+                                linha_custo['Total'] = valor_rateado
+                                linha_custo['Valor'] = valor_rateado
+                                linha_custo[veiculo_pct] = rateio
+                                linha_custo['Tipo'] = 'BE Manual'
+                                
+                                if 'Ano' not in linha_custo or pd.isna(linha_custo.get('Ano')):
+                                    partes = periodo_str.split(' ', 1)
+                                    if len(partes) == 2 and partes[1].strip().isdigit():
+                                        linha_custo['Ano'] = int(partes[1].strip())
+                                
+                                if 'Descricao' not in linha_custo or pd.isna(linha_custo.get('Descricao')):
+                                    linha_custo['Descricao'] = 'Custo Específico'
+                                
+                                linhas_custos_especificos.append(linha_custo)
                 
                 if linhas_custos_especificos:
                     df_custos_especificos_forecast = pd.DataFrame(linhas_custos_especificos)
-                    adicionar_mensagem("success", f"✅ {len(df_custos_especificos_forecast):,} linha(s) de custos específicos adicionada(s) ao forecast")
+                    adicionar_mensagem("success", f"✅ {len(df_custos_especificos_forecast):,} linha(s) de custos específicos (com rateio por veículo) adicionada(s) ao forecast")
                     linhas_finais.append(df_custos_especificos_forecast)
                 else:
                     adicionar_mensagem("info", f"ℹ️ Nenhum custo específico se aplica aos períodos de forecast selecionados")
@@ -6137,7 +5979,7 @@ ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>
