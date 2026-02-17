@@ -547,6 +547,82 @@ def get_filter_options(df, column_name):
         return ["Todos"] + opcoes
     return ["Todos"]
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# Forecast (BE) — carrega dados de Best Estimate para unificação Real/BE
+# ═══════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, max_entries=10, show_spinner=True)
+def _load_forecast_ext(ano_selecionado_param):
+    """Carrega dados de Forecast (Histórico + BE) do TC Ext.
+
+    Fonte: dados/TC_Ext/Forecast/forecast_completo.parquet
+    Normaliza coluna Tipo → 'Histórico' ou 'BE'.
+    """
+    try:
+        caminho = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        if not os.path.exists(caminho):
+            return None
+
+        df = pd.read_parquet(caminho)
+        df = padronizar_colunas(df)
+
+        # Filtrar por ano
+        if ano_selecionado_param and ano_selecionado_param != "Todos" and "Ano" in df.columns:
+            try:
+                df = df[df['Ano'] == int(ano_selecionado_param)].copy()
+            except (ValueError, TypeError):
+                pass
+
+        # Normalizar períodos
+        if 'Período' in df.columns:
+            _map_meses_fc = {
+                'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
+                'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
+                'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
+                'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro',
+            }
+            df['Período'] = (
+                df['Período'].astype(str).str.strip().str.lower()
+                .map(_map_meses_fc).fillna(df['Período'])
+            )
+
+        # Normalizar coluna Tipo → Histórico / BE
+        if 'Tipo' in df.columns:
+            def _norm_tipo(v):
+                if pd.isna(v):
+                    return 'BE'
+                txt = str(v).replace('\ufffd', '').strip().lower()
+                txt = (
+                    unicodedata.normalize('NFKD', txt)
+                    .encode('ascii', 'ignore')
+                    .decode('ascii')
+                )
+                if 'hist' in txt:
+                    return 'Histórico'
+                return 'BE'
+            df['Tipo'] = df['Tipo'].apply(_norm_tipo)
+
+        # Converter colunas numéricas
+        for col in ['Valor', 'Total', 'Volume', 'CPU']:
+            if col in df.columns and df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Otimizar tipos
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                unique_ratio = df[col].nunique() / max(len(df), 1)
+                if unique_ratio < 0.5:
+                    df[col] = df[col].astype('category')
+        for col in df.select_dtypes(include=['float64']).columns:
+            df[col] = pd.to_numeric(df[col], downcast='float')
+        for col in df.select_dtypes(include=['int64']).columns:
+            df[col] = pd.to_numeric(df[col], downcast='integer')
+
+        return df
+    except Exception:
+        return None
+
+
 # Continuar apenas se estivermos na página principal
 if is_main_page:
     # ═══ Bloco Taxas/Tipo/Fator removido — já fornecido por render_sidebar_global ═══
@@ -574,6 +650,11 @@ if is_main_page:
         import traceback
         st.error(f"Detalhes: {traceback.format_exc()}")
         st.stop()
+
+    # ── Carregar Forecast (BE) para toggle Real/BE ──
+    df_forecast_ext = _load_forecast_ext(ano_selecionado)
+    if df_forecast_ext is not None:
+        df_forecast_ext = df_forecast_ext.copy()
 
     # Aplicar fator de conversão nas colunas Total e BUD (antes de qualquer processamento)
     # Isso simplifica os cálculos pois o fator é aplicado uma única vez na origem
@@ -4569,6 +4650,23 @@ if is_main_page:
         df_para_grafico_periodo = pd.DataFrame()
     
     with tab1:
+        # ── Toggle Real / BE (Simulado) ──
+        st.markdown("---")
+        _fonte_dados_ext = st.radio(
+            "📊 Fonte de Dados",
+            ["Real", "BE (Simulado)"],
+            index=0,
+            horizontal=True,
+            key="t1_fonte_dados_ext",
+        )
+        _usar_be_ext = _fonte_dados_ext == "BE (Simulado)"
+        if _usar_be_ext and (df_forecast_ext is None or df_forecast_ext.empty):
+            st.warning(
+                "⚠️ Forecast (Best Estimate) não encontrado para o ano selecionado. "
+                "Exibindo Real como fallback."
+            )
+            _usar_be_ext = False
+
         # Exibir gráfico por Período
         # No modo CPU, a coluna 'CPU' pode não existir ainda em df_visualizacao,
         # mas será criada dentro do bloco. Verificar apenas se 'Período' existe.
@@ -4717,6 +4815,75 @@ if is_main_page:
                         df_grafico_periodo['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
                     ].copy()
         
+        # ════════════════════════════════════════════════════════════════
+        # 🔀 Substituir dados do gráfico por Forecast (BE) se selecionado
+        # ════════════════════════════════════════════════════════════════
+        if _usar_be_ext and df_forecast_ext is not None and not df_forecast_ext.empty:
+            _be_chart_data = df_forecast_ext.copy()
+
+            # Aplicar fator de conversão (mesma lógica do Real)
+            if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+                if fator_conversao == "K (milhares)" and 'Total' in _be_chart_data.columns:
+                    _be_chart_data['Total'] = _be_chart_data['Total'] / 1000
+                elif fator_conversao == "M (Milhões)" and 'Total' in _be_chart_data.columns:
+                    _be_chart_data['Total'] = _be_chart_data['Total'] / 1000000
+
+            # Aplicar conversão de moeda
+            if moeda_codigo != "BRL" and 'Total' in _be_chart_data.columns:
+                _be_chart_data = _core_converter_coluna_moeda(
+                    _be_chart_data, 'Total', moeda_codigo, taxas_cambio
+                )
+
+            # Aplicar filtro de Oficina do gráfico
+            if oficina_selecionadas_grafico and "Todos" not in oficina_selecionadas_grafico:
+                if 'Oficina' in _be_chart_data.columns:
+                    _be_chart_data = _be_chart_data[
+                        _be_chart_data['Oficina'].astype(str).isin(oficina_selecionadas_grafico)
+                    ].copy()
+
+            # Aplicar filtro de Veículo do gráfico
+            if veiculo_selecionados_grafico and "Todos" not in veiculo_selecionados_grafico:
+                if 'Veículo' in _be_chart_data.columns:
+                    _be_chart_data = _be_chart_data[
+                        _be_chart_data['Veículo'].astype(str).isin(veiculo_selecionados_grafico)
+                    ].copy()
+
+            # Aplicar filtros da sidebar (Oficina principal)
+            _ofi_sidebar = st.session_state.get('filtro_oficina_tc_ext', ["Todos"])
+            if _ofi_sidebar and "Todos" not in _ofi_sidebar and 'Oficina' in _be_chart_data.columns:
+                _be_chart_data = _be_chart_data[
+                    _be_chart_data['Oficina'].astype(str).isin([str(x) for x in _ofi_sidebar])
+                ].copy()
+
+            # Aplicar filtro de Veículo da sidebar
+            _veic_sidebar = st.session_state.get('filtro_veiculo_tc_ext', ["Todos"])
+            if _veic_sidebar and "Todos" not in _veic_sidebar and 'Veículo' in _be_chart_data.columns:
+                _be_chart_data = _be_chart_data[
+                    _be_chart_data['Veículo'].astype(str).isin([str(x) for x in _veic_sidebar])
+                ].copy()
+
+            # Preparar modo CPU se necessário
+            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                if 'Total' in _be_chart_data.columns and 'Volume' in _be_chart_data.columns:
+                    _be_chart_data['Volume'] = pd.to_numeric(
+                        _be_chart_data['Volume'], errors='coerce'
+                    ).fillna(0)
+                    _be_chart_data['Total'] = pd.to_numeric(
+                        _be_chart_data['Total'], errors='coerce'
+                    ).fillna(0)
+                    _be_chart_data['CPU'] = np.where(
+                        (_be_chart_data['Volume'].notna()) & (_be_chart_data['Volume'] != 0),
+                        _be_chart_data['Total'] / _be_chart_data['Volume'],
+                        0,
+                    )
+                    coluna_visualizacao_grafico = 'CPU'
+                else:
+                    coluna_visualizacao_grafico = 'Total' if 'Total' in _be_chart_data.columns else 'Valor'
+            else:
+                coluna_visualizacao_grafico = 'Total' if 'Total' in _be_chart_data.columns else 'Valor'
+
+            df_grafico_periodo = _be_chart_data.copy()
+
         # IMPORTANTE: Quando "Todos" está selecionado, garantir que todos os períodos de todos os anos sejam mostrados
         # O create_period_chart já faz o agrupamento correto por Ano e Período quando há coluna Ano
         
@@ -4731,6 +4898,14 @@ if is_main_page:
             # Carregar dados de budget
             df_budget = load_budget_data(ano_selecionado)
             df_budget_vol = load_budget_volume_data(ano_selecionado)
+
+            # 🔧 CORREÇÃO CRÍTICA: Fazer .copy() para evitar mutação do cache
+            # Sem isso, o fator é aplicado diretamente no DataFrame em cache,
+            # causando dupla aplicação na próxima renderização
+            if df_budget is not None:
+                df_budget = df_budget.copy()
+            if df_budget_vol is not None:
+                df_budget_vol = df_budget_vol.copy()
 
             def _aplicar_filtro_selecionado(df_in, coluna_filtro, chave_state):
                 if df_in is None or coluna_filtro not in df_in.columns:
@@ -5117,10 +5292,11 @@ if is_main_page:
         
         # Exibir título do gráfico após os filtros para evitar sobreposição
         st.markdown("<br>", unsafe_allow_html=True)
+        _label_fonte = "BE (Simulado)" if _usar_be_ext else "Real"
         if tipo_visualizacao == "CPU (Custo por Unidade)":
-            st.subheader("📊 CPU por Período")
+            st.subheader(f"📊 CPU por Período — {_label_fonte}")
         else:
-            st.subheader("📊 Soma do Valor por Período")
+            st.subheader(f"📊 Soma do Valor por Período — {_label_fonte}")
 
         # Validar dados antes de criar gráfico
         if df_grafico_periodo is None or df_grafico_periodo.empty:

@@ -6,8 +6,8 @@ reais de produção de veículos.
 Segue a mesma lógica metodológica do Budget (processamento_dados_veiculos_BUD.py),
 com as seguintes diferenças:
   - Fonte de custo: aba 'Sapiens' (header=1) — dados já por linha/período
-  - Redis: já está presente como linhas na aba Sapiens (Account='Redis')
-  - Sem fase separada de Redis (não há aba massa - REDIS)
+  - Redis: EXCLUÍDO do Sapiens; vem da aba 'massa - REDIS' (mesma fonte do Budget)
+  - Fase 1B dedicada para massa-REDIS (Account real do Excel)
   - Volume/EST FA: aba 'Volume e EST PdR - Actual'
   - Tempo veículos: aba 'EST veículos - Actual'
   - Volume veículos: aba 'Volume Actual'
@@ -15,12 +15,13 @@ com as seguintes diferenças:
   - Saída: dados/TC_Principal/{ano}/ (raiz, sem subpasta BUD)
 
 Fases:
-   1. Sapiens             → Despesa Primaria (já por linha/período)
+   1. Sapiens             → Despesa Primaria (excluindo Redis)
+   1B.massa - REDIS       → linhas receita (Account real do Excel)
    2. Volume e EST PdR    → Vol FA + Tempo FA (aba Actual)
    3. Volume Actual       → volumes de veículos
    4. EST veículos Actual → merge com volume → Tempo Veic
    5. Rateio FA           → %FA por oficina (automático BS/PS/PL, manual QY/GS/SM)
-   6. Custo FA            → Rateio FA × Despesa Primaria (Rateio FA=0 para Redis)
+   6. Custo FA            → Rateio FA × Despesa Primaria
    7. Custo FP            → Despesa Primaria − Custo FA (fórmula unificada)
    8. D&A Dedicado        → carrega do Budget
    9. FP sem Dedicada     → Custo FP − D&A dedicado
@@ -64,6 +65,41 @@ from processamento_dados_veiculos_BUD import (
     _validar_abas_excel,
     normalizar_tipos_para_parquet,
 )
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CONSTANTES DE FILTROS
+# ═══════════════════════════════════════════════════════════════
+
+# Oficinas que não devem ser processadas (não existem no Budget)
+OFICINAS_INVALIDAS = ['Veículos', 'Projetos']
+
+
+def filtrar_oficinas_validas(df: pd.DataFrame, contexto: str = "") -> pd.DataFrame:
+    """
+    Remove linhas de oficinas inválidas (Veículos, Projetos).
+    
+    Args:
+        df: DataFrame com coluna 'Oficina'
+        contexto: String descritiva para a mensagem de log
+    
+    Returns:
+        DataFrame filtrado
+    """
+    if 'Oficina' not in df.columns:
+        return df
+    
+    antes = len(df)
+    mask_invalida = df['Oficina'].isin(OFICINAS_INVALIDAS)
+    linhas_removidas = mask_invalida.sum()
+    
+    df_filtrado = df[~mask_invalida].copy()
+    
+    if linhas_removidas > 0:
+        oficinas_encontradas = df[mask_invalida]['Oficina'].unique().tolist()
+        print(f"   ℹ️ {linhas_removidas} linhas excluídas{contexto} (oficinas inválidas: {oficinas_encontradas})")
+    
+    return df_filtrado
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -143,6 +179,7 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     # Validar abas obrigatórias para Real
     abas_obrigatorias = [
         'Sapiens',
+        'massa - REDIS',
         'Volume e EST PdR - Actual',
         'Volume Actual',
         'EST veículos - Actual',
@@ -164,6 +201,20 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
         rateios = {'QY': 0.0, 'GS': 0.0, 'SM': 0.0}
         print(f"   ⚠️ rateios_manuais.json não encontrado — usando zeros")
 
+    # ── Oficinas válidas (presentes no Budget) ──
+    # Usado para filtrar o Sapiens e massa-REDIS, excluindo oficinas
+    # como 'Projetos' que existem no Sapiens mas não no Budget/Excel.
+    caminho_bud_principal = os.path.join(pasta_bud, 'df_principal_BUD.parquet')
+    if os.path.exists(caminho_bud_principal):
+        _df_bud = pd.read_parquet(caminho_bud_principal, columns=['Oficina'])
+        oficinas_bud = sorted(_df_bud['Oficina'].dropna().unique().tolist())
+        # Remover oficinas inválidas da lista do Budget
+        oficinas_bud = [ofi for ofi in oficinas_bud if ofi not in OFICINAS_INVALIDAS]
+        del _df_bud
+    else:
+        oficinas_bud = None  # sem filtro se BUD não processado
+        print("   ⚠️ df_principal_BUD.parquet não encontrado — sem filtro de oficinas")
+
     config = {
         'ANO_ATUAL': ano,
         'PASTA_ANO': pasta_ano,
@@ -174,6 +225,7 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
         'CAMINHO_DEA_BUD': caminho_dea_bud,
         'TEM_DEA_BUD': tem_dea_bud,
         'RATEIOS_MANUAIS': rateios,
+        'OFICINAS_BUD': oficinas_bud,
     }
     return config
 
@@ -188,7 +240,7 @@ def fase1_sapiens(config: Dict) -> pd.DataFrame:
 
     Os dados já estão por linha/período (diferente do BDG que tem meses como colunas).
     Coluna 'Valor' é renomeada para 'Despesa Primaria'.
-    Redis já está presente como linhas com Account='Redis'.
+    Linhas com Account='Redis' são EXCLUÍDAS (fonte correta: aba massa - REDIS).
 
     Retorna DataFrame com colunas:
       Oficina, Account, Type 05, Type 06, Custo, Período, Despesa Primaria, ...
@@ -219,6 +271,29 @@ def fase1_sapiens(config: Dict) -> pd.DataFrame:
     df = df[df['Oficina'].notna() & (df['Oficina'] != '')]
     df = df[df['Despesa Primaria'] != 0]
 
+    # ═══ EXCLUIR linhas Redis do Sapiens ═══
+    # Os valores de Redis vêm da aba 'massa - REDIS' (mesma fonte do Budget),
+    # não do Sapiens. Excluir para evitar duplicação.
+    n_redis_sapiens = (df['Account'] == 'Redis').sum()
+    if n_redis_sapiens > 0:
+        df = df[df['Account'] != 'Redis'].copy()
+        print(f"   ℹ️ {n_redis_sapiens:,} linhas Redis excluídas do Sapiens (fonte correta: massa - REDIS)")
+
+    # ═══ EXCLUIR oficinas inválidas (camada 1: lista hardcoded) ═══
+    df = filtrar_oficinas_validas(df, "do Sapiens ")
+
+    # ═══ EXCLUIR oficinas ausentes no Budget (camada 2: validação cruzada) ═══
+    # Oficinas como 'Projetos' existem no Sapiens mas não no Budget/Excel.
+    # Filtrar para manter apenas oficinas válidas (presentes no BUD).
+    oficinas_bud = config.get('OFICINAS_BUD')
+    if oficinas_bud is not None:
+        mask_valida = df['Oficina'].isin(oficinas_bud)
+        n_excluidas = (~mask_valida).sum()
+        if n_excluidas > 0:
+            oficinas_removidas = sorted(df.loc[~mask_valida, 'Oficina'].unique().tolist())
+            df = df[mask_valida].copy()
+            print(f"   ℹ️ {n_excluidas:,} linhas adicionais excluídas (não existem no BUD: {oficinas_removidas})")
+
     # Remover coluna Ano se existir (será adicionada no salvamento)
     if 'Ano' in df.columns:
         df = df.drop(columns=['Ano'])
@@ -230,14 +305,101 @@ def fase1_sapiens(config: Dict) -> pd.DataFrame:
             df[col] = ''
 
     # Estatísticas
-    n_redis = (df['Account'] == 'Redis').sum()
     n_total = len(df)
-    print(f"   ✅ {n_total:,} linhas lidas ({n_redis:,} Redis)")
+    print(f"   ✅ {n_total:,} linhas lidas (Redis excluído)")
     print(f"   Oficinas: {sorted(df['Oficina'].unique())}")
     print(f"   Períodos: {len(df['Período'].unique())}")
     print(f"   Despesa Primária total: R$ {df['Despesa Primaria'].sum():,.2f}")
 
     return df
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FASE 1B — massa - REDIS (mesma fonte do Budget)
+# ═══════════════════════════════════════════════════════════════
+
+def fase1b_redis(config: Dict) -> pd.DataFrame:
+    """
+    Lê aba 'massa - REDIS' do Excel (mesma fonte do Budget).
+    Preserva as colunas dimensionais do Excel (Account, Type 05, Type 06, Custo).
+    Despesa Primaria é invertida (negativa, pois Redis é receita).
+
+    Retorna DataFrame com mesma estrutura da fase1_sapiens.
+    """
+    print("\n📊 FASE 1B — massa - REDIS (receita)")
+
+    caminho = config['CAMINHO_EXCEL']
+
+    # Verificar se a aba existe
+    try:
+        df = pd.read_excel(caminho, sheet_name='massa - REDIS')
+    except ValueError:
+        print("   ⚠️ Aba 'massa - REDIS' não encontrada — pulando")
+        return pd.DataFrame()
+
+    df = _corrigir_colunas_mojibake(df)
+
+    colunas_meses = _detectar_colunas_meses(df)
+    if not colunas_meses:
+        print("   ⚠️ Sem colunas de meses na aba 'massa - REDIS'")
+        return pd.DataFrame()
+
+    if 'Ano' in df.columns:
+        df = df.drop(columns=['Ano'])
+
+    colunas_dim = [c for c in df.columns if c not in colunas_meses]
+
+    df_melt = df.melt(
+        id_vars=colunas_dim,
+        value_vars=colunas_meses,
+        var_name='Período',
+        value_name='Despesa Primaria'
+    )
+
+    df_melt['Período'] = df_melt['Período'].apply(_normalizar_periodo)
+    df_melt['Despesa Primaria'] = pd.to_numeric(df_melt['Despesa Primaria'], errors='coerce').fillna(0)
+
+    # Inverter sinal: Redis é receita, deve ser negativo
+    df_melt['Despesa Primaria'] = -df_melt['Despesa Primaria'].abs()
+
+    # Remover linhas sem Oficina ou com DP = 0
+    df_melt = df_melt[df_melt['Oficina'].notna() & (df_melt['Oficina'] != '')]
+    df_melt = df_melt[df_melt['Despesa Primaria'] != 0]
+
+    # NÃO sobrescrever — usar valores do Excel
+    for col in ['Type 05', 'Type 06', 'Account', 'Custo']:
+        if col not in df_melt.columns:
+            print(f"   ⚠️ Coluna '{col}' ausente na aba massa - REDIS — criando vazia")
+            df_melt[col] = ''
+
+    # Marcar linhas como originadas da aba massa-REDIS (para KPI Redis na UI)
+    df_melt['_fonte_redis'] = True
+
+    # ═══ EXCLUIR oficinas inválidas (camada 1: lista hardcoded) ═══
+    df_melt = filtrar_oficinas_validas(df_melt, "do Redis ")
+
+    # ═══ EXCLUIR oficinas ausentes no Budget (camada 2: validação cruzada) ═══
+    oficinas_bud = config.get('OFICINAS_BUD')
+    if oficinas_bud is not None:
+        mask_valida = df_melt['Oficina'].isin(oficinas_bud)
+        n_excluidas = (~mask_valida).sum()
+        if n_excluidas > 0:
+            oficinas_removidas = sorted(df_melt.loc[~mask_valida, 'Oficina'].unique().tolist())
+            df_melt = df_melt[mask_valida].copy()
+            print(f"   ℹ️ {n_excluidas:,} linhas Redis adicionais excluídas (não existem no BUD: {oficinas_removidas})")
+
+    # Agregar por chaves para evitar duplicatas
+    chaves = ['Oficina', 'Período', 'Type 05', 'Type 06', 'Account', 'Custo', '_fonte_redis']
+    colunas_agg = [c for c in chaves if c in df_melt.columns]
+    df_melt = df_melt.groupby(colunas_agg, as_index=False)['Despesa Primaria'].sum()
+
+    n_total = len(df_melt)
+    accounts = sorted(df_melt['Account'].dropna().unique().tolist())
+    print(f"   ✅ {n_total:,} linhas de massa-REDIS")
+    print(f"   Accounts: {accounts}")
+    print(f"   Despesa Primária total: R$ {df_melt['Despesa Primaria'].sum():,.2f}")
+
+    return df_melt
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -516,8 +678,9 @@ def fase5_rateio_fa(config: Dict, df_fa: pd.DataFrame, df_tempo_veic: pd.DataFra
 def fase6_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.DataFrame:
     """
     Merge Rateio FA na tabela principal e calcula Custo FA.
-
-    Linhas Redis (Account='Redis') → Rateio FA = 0 (sem rateio).
+    Linhas Redis (_fonte_redis=True) NÃO participam do rateio FA:
+      - Custo FA = 0 para Redis (Redis vai integralmente para FP)
+      - Apenas linhas Sapiens recebem o rateio FA normalmente
 
     Retorna df_principal com colunas adicionais:
       Rateio FA, Custo FA
@@ -527,12 +690,15 @@ def fase6_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.Da
     df = pd.merge(df_principal, df_rateio, on=['Oficina', 'Período'], how='left')
     df['Rateio FA'] = df['Rateio FA'].fillna(0)
 
-    # Redis: forçar Rateio FA = 0
-    mask_redis = df['Account'] == 'Redis'
-    n_redis = mask_redis.sum()
-    if n_redis > 0:
-        df.loc[mask_redis, 'Rateio FA'] = 0
-        print(f"   ℹ️  {n_redis:,} linhas Redis → Rateio FA = 0")
+    # ═══ Redis NÃO participa do rateio FA ═══
+    # No Excel, massa FA é calculada apenas sobre massa primária (Sapiens).
+    # Redis é subtraído integralmente do FP, sem passar pelo FA.
+    if '_fonte_redis' in df.columns:
+        mask_redis = df['_fonte_redis'] == True
+        n_redis = mask_redis.sum()
+        if n_redis > 0:
+            df.loc[mask_redis, 'Rateio FA'] = 0
+            print(f"   ℹ️ {n_redis:,} linhas Redis com Rateio FA = 0 (vão integralmente para FP)")
 
     # Custo FA
     df['Custo FA'] = df['Rateio FA'] * df['Despesa Primaria']
@@ -548,10 +714,6 @@ def fase6_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.Da
 def fase7_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
     """
     Custo FP = Despesa Primaria − Custo FA.
-
-    Fórmula unificada (igual ao Budget redesenhado):
-    Redis tem DP negativo e FA=0, logo FP = DP (negativo).
-
     Prova cruzada: DP − FA − FP ≈ 0 para cada linha.
     """
     print("\n📊 FASE 7 — Custo FP")
@@ -571,12 +733,10 @@ def fase7_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
     dp_total = df['Despesa Primaria'].sum()
     fa_total = df['Custo FA'].sum()
     fp_total = df['Custo FP'].sum()
-    redis_total = df[df['Account'] == 'Redis']['Despesa Primaria'].sum()
 
     print(f"   Despesa Primária: R$ {dp_total:,.2f}")
     print(f"   Custo FA:         R$ {fa_total:,.2f}")
     print(f"   Custo FP:         R$ {fp_total:,.2f}")
-    print(f"   Redis (linhas):   R$ {redis_total:,.2f}")
 
     return df
 
@@ -1081,13 +1241,11 @@ def validacao_final(config: Dict, arquivos: Dict[str, str]) -> None:
             dp = df_p['Despesa Primaria'].sum()
             fa = df_p['Custo FA'].sum()
             fp = df_p['Custo FP'].sum()
-            redis = df_p[df_p['Account'] == 'Redis']['Despesa Primaria'].sum() if 'Account' in df_p.columns else 0
 
             print(f"\n   📊 RESUMO REAL:")
             print(f"      Despesa Primária:  R$ {dp:>18,.2f}")
             print(f"      Custo FA:          R$ {fa:>18,.2f}")
             print(f"      Custo FP:          R$ {fp:>18,.2f}")
-            print(f"      Redis (linhas):    R$ {redis:>18,.2f}")
 
             if 'FP sem Dedicada' in df_p.columns:
                 fps = df_p['FP sem Dedicada'].sum()
@@ -1207,9 +1365,28 @@ def processar_veiculos_real(ano: Optional[int] = None,
     log(f"   Excel: {config['CAMINHO_EXCEL']}")
     log(f"   Saída: {config['PASTA_SAIDA']}")
 
-    # 1. Sapiens → Despesa Primaria
-    log("\n📋 Fase 1/18: Leitura aba Sapiens...")
-    df_principal = fase1_sapiens(config)
+    # 1. Sapiens → Despesa Primaria (sem Redis)
+    log("\n📋 Fase 1/18: Leitura aba Sapiens (excluindo Redis)...")
+    df_sapiens = fase1_sapiens(config)
+
+    # 1B. massa - REDIS → linhas com Account real (receita)
+    log("\n📋 Fase 1B/18: massa - REDIS (receita)...")
+    df_redis = fase1b_redis(config)
+
+    # Concatenar Sapiens + massa-REDIS
+    if not df_redis.empty:
+        # Garantir _fonte_redis=False nas linhas Sapiens
+        if '_fonte_redis' not in df_sapiens.columns:
+            df_sapiens = df_sapiens.copy()
+            df_sapiens['_fonte_redis'] = False
+        df_principal = pd.concat([df_sapiens, df_redis], ignore_index=True)
+        df_principal['Despesa Primaria'] = df_principal['Despesa Primaria'].fillna(0)
+        df_principal['_fonte_redis'] = df_principal['_fonte_redis'].fillna(False)
+        log(f"   ✅ Sapiens ({len(df_sapiens):,}) + Redis ({len(df_redis):,}) = {len(df_principal):,} linhas")
+    else:
+        df_principal = df_sapiens
+        df_principal['_fonte_redis'] = False
+        log("   ℹ️ Sem dados Redis — usando apenas Sapiens")
 
     # 2. Volume e EST PdR (Actual)
     log("\n📋 Fase 2/18: Volume e EST PdR (Actual)...")

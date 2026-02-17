@@ -38,11 +38,6 @@ PAGES = {
             url_path="tc-ext-best-estimate-simulador",
         ),
         st.Page(
-            "tc_ext/pages/be_analise_ext.py",
-            title="Best Estimate (Análise)",
-            url_path="tc-ext-best-estimate-analise",
-        ),
-        st.Page(
             "pages/5 - Extração de Dados.py",
             title="Extração de Dados",
             url_path="tc-ext-extracao",
@@ -59,11 +54,6 @@ PAGES = {
             "tc_principal/pages/best_estimate_simulador_tc.py",
             title="Best Estimate (Simulador)",
             url_path="tc-best-estimate-simulador",
-        ),
-        st.Page(
-            "tc_principal/pages/best_estimate_analise_tc.py",
-            title="Best Estimate (Análise)",
-            url_path="tc-best-estimate-analise",
         ),
         st.Page(
             render_extracao_dados_tc,

@@ -171,11 +171,12 @@
 │  📐 Coluna principal de custo: Custo FP                             │
 │                                                                     │
 │  🔗 Cadeia de custos:                                               │
-│     ┌──────────────┐   ┌──────────┐   ┌──────────────┐            │
-│     │ Despesa      │ + │ Custo FA │ = │ Custo FP     │            │
-│     │ Primária     │   │ (Fluxo   │   │ (Fabricação  │            │
-│     │              │   │  Anexo)  │   │  Principal)  │            │
-│     └──────────────┘   └──────────┘   └──────────────┘            │
+│     ┌──────────────────────────────────────────────────────────┐   │
+│     │ Despesa Primária = Custo FA + Custo FP                    │   │
+│     │                                                          │   │
+│     │ Custo FA = Rateio FA × Despesa Primária                   │   │
+│     │ Custo FP = Despesa Primária − Custo FA                    │   │
+│     └──────────────────────────────────────────────────────────┘   │
 │                               │                                     │
 │                    ┌──────────▼──────────┐                          │
 │                    │ D&A Dedicado        │                          │
@@ -271,7 +272,7 @@
 │  Budget:    dados/TC_Principal/{ano}/BUD/                           │
 │  Histórico: dados/TC_Principal/historico_consolidado/               │
 │  Parquets:  df_principal, df_veiculos_custo_fp,                     │
-│             df_vol_veiculos_actual, df_tempo_veiculos,              │
+│             df_vol_veiculos (Real) / df_vol_veiculos_actual (Actual),│
 │             df_dea_dedicado, df_volume_fa                           │
 │                                                                     │
 │  🔍 FILTROS: Oficina · Veículo (ativa rateio) · Type 05/06 ·       │
@@ -321,7 +322,7 @@
 
 ---
 
-### 🔮 Best Estimate — Simulador + Análise
+### 🔮 Best Estimate — Simulador + consumo do Forecast
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -346,9 +347,8 @@
 │     Variável: sensibilidade = 100% → escala com volume              │
 │     Inflação aplicada APÓS sensibilidade, a TODOS os custos         │
 │                                                                     │
-│  📊 ANÁLISE: layout da Home com dados de Forecast                  │
-│     🟣 Roxo escuro (#4C1D95) = meses Históricos                    │
-│     🟣 Roxo claro  (#C4B5FD) = meses Best Estimate                 │
+│  📊 CONSUMO: a Home do TC Veículos usa os outputs do Forecast       │
+│     quando disponíveis (mantém regras de CPU e fator/moeda).        │
 │                                                                     │
 │  Saída: dados/*/Forecast/forecast_completo.parquet                  │
 │                                                                     │

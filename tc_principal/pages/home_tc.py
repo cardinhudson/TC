@@ -8,8 +8,12 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import os
 import json
+import unicodedata
+import hashlib
 from datetime import datetime
 
 from tc_principal.shared import (
@@ -17,8 +21,9 @@ from tc_principal.shared import (
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_tempo_veiculos_real,
-    load_dea_dedicado, load_volume_fa, load_volume_fa_real,
+    load_dea_dedicado, load_dea_dedicado_real, load_volume_fa, load_volume_fa_real,
     load_custo_fp_veiculo, load_custo_fp_veiculo_real,
+    load_custo_fp_veiculo_forecast_fresh,
     load_forecast_completo,
     load_percentual_rateio_veiculos_real, ratear_be_por_veiculo,
     normalizar_periodo, ordenar_por_mes,
@@ -67,252 +72,323 @@ def _carregar_rateios_manuais():
     return padrao
 
 
-def create_periodo_chart(df_periodo, df_flex, tipo, label_valor, simbolo, sufixo, ordem_per, tem_ano=False):
+_MAP_PER = {
+    'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
+    'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
+    'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
+    'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro',
+}
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def _load_forecast(ano=None):
+    """Carrega forecast_completo.parquet (Histórico + BE)."""
+    caminho = os.path.join(
+        "dados", "TC_Principal", "Forecast", "forecast_completo.parquet"
+    )
+    if not os.path.exists(caminho):
+        return None
+    df = pd.read_parquet(caminho)
+    df = normalizar_periodo(df)
+    if 'Período' in df.columns:
+        df['Período'] = (
+            df['Período'].astype(str).str.strip().str.lower()
+            .map(_MAP_PER).fillna(df['Período'])
+        )
+    for c in COLUNAS_MONETARIAS + ['Total', 'Volume', 'CPU']:
+        if c in df.columns and df[c].dtype == 'object':
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+    if ano and ano != "Todos" and 'Ano' in df.columns:
+        try:
+            df = df[df['Ano'] == int(ano)].copy()
+        except (ValueError, TypeError):
+            pass
+    # Normalizar coluna Tipo: Histórico / BE
+    if 'Tipo' in df.columns:
+        def _norm_tipo(v):
+            if pd.isna(v):
+                return 'BE'
+            txt = str(v).replace('\ufffd', '').strip().lower()
+            txt = (
+                unicodedata.normalize('NFKD', txt)
+                .encode('ascii', 'ignore')
+                .decode('ascii')
+            )
+            if 'hist' in txt:
+                return 'Histórico'
+            return 'BE'
+        df['Tipo'] = df['Tipo'].apply(_norm_tipo)
+    return df
+
+
+def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
+                         simbolo, sufixo, ordem_per, tem_ano=False,
+                         col_tipo=None, modo_be=False):
     """
-    Cria gráfico de Custo FP por Período — copiado do padrão TC Ext.
-    Usa scheme='purples' para degradê nas barras.
-    df_periodo já contém Real (quando disponível) ou Budget.
+    Cria gráfico de Custo FP por Período usando Plotly (resolução definitiva
+    do bug de renderização do Altair).
+
+    Modo Real  → barras com degradê roxo contínuo, Flex Bud laranja pontilhada.
+    Modo BE    → barras Histórico roxo escuro + BE roxo claro, Flex Bud laranja.
+    Delta      → mini-barras verde (negativo = bom) / vermelho (positivo = ruim).
     """
     try:
+        # Garantir ordem_per único (remover duplicados mantendo ordem)
+        ordem_per = list(dict.fromkeys(ordem_per)) if ordem_per else []
+        
         coluna = 'Custo FP'
         titulo_y = f'{label_valor} ({simbolo}{sufixo})'
 
-        # Limpar dados
-        df_periodo = df_periodo.replace([np.inf, -np.inf], 0)
-        df_periodo[coluna] = df_periodo[coluna].fillna(0)
-        df_periodo = df_periodo.copy().reset_index(drop=True)
+        # ── Preparar dados ──
+        df_p = df_periodo.copy()
+        df_p[coluna] = pd.to_numeric(df_p[coluna], errors='coerce').fillna(0)
+        df_p = df_p.replace([np.inf, -np.inf], 0)
 
-        # Determinar coluna do período para eixo X
-        if tem_ano and 'Ano' in df_periodo.columns:
-            df_periodo['Período_Completo'] = df_periodo['Período'].astype(str) + ' ' + df_periodo['Ano'].astype(str)
-            coluna_periodo = 'Período_Completo'
+        # Coluna do período para eixo X
+        if tem_ano and 'Ano' in df_p.columns:
+            df_p['_x_label'] = df_p['Período'].astype(str) + ' ' + df_p['Ano'].astype(str)
         else:
-            coluna_periodo = 'Período'
+            df_p['_x_label'] = df_p['Período'].astype(str)
 
-        # Garantir dados numéricos
-        df_periodo[coluna] = pd.to_numeric(df_periodo[coluna], errors='coerce').fillna(0)
+        x_col = '_x_label'
+        _usar_tipo = bool(col_tipo and col_tipo in df_p.columns)
 
-        n_periodos = len(ordem_per) if ordem_per else 0
-        altura_grafico = min(520, max(260, 18 * n_periodos + 120)) if n_periodos else 260
+        # ── Decidir número de subplots ──
+        tem_flex = False
+        df_flex_p = _preparar_flex(df_flex, tem_ano, tipo, ordem_per)
+        if df_flex_p is not None and len(df_flex_p) > 0:
+            tem_flex = True
 
-        # ── Barras com degradê roxo (purples) ──
-        grafico_barras = alt.Chart(df_periodo).mark_bar().encode(
-            x=alt.X(
-                f'{coluna_periodo}:N',
-                title='Período',
-                sort=ordem_per,
-                axis=alt.Axis(grid=False, domain=True, ticks=True)
-            ),
-            y=alt.Y(f'{coluna}:Q', title=titulo_y, axis=alt.Axis(grid=False, domain=True, ticks=True)),
-            color=alt.Color(
-                f'{coluna}:Q',
-                title=coluna,
-                scale=alt.Scale(scheme='purples'),
-                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=9)
-            ),
-            tooltip=[
-                alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                alt.Tooltip(f'{coluna}:Q', title=coluna, format=',.2f')
-            ]
-        ).properties(height=altura_grafico, width=900)
+        n_rows = 2 if tem_flex else 1
+        row_heights = [0.162, 0.838] if tem_flex else [1.0]
 
-        # ── Rótulos nas barras ──
-        rotulos = grafico_barras.mark_text(
-            align='center', baseline='middle', dy=-10,
-            color='black', fontSize=9
-        ).encode(
-            text=alt.Text(f'{coluna}:Q', format=',.2f')
-        ).transform_filter(
-            (alt.datum[coluna] != None) & (alt.datum[coluna] != 0)
+        fig = make_subplots(
+            rows=n_rows, cols=1, shared_xaxes=True,
+            vertical_spacing=0.17,
+            row_heights=row_heights,
         )
 
-        # ── Linha Flex Bud (pontilhada laranja) ──
-        linha_flex = None
-        df_flex_p = None
-        if df_flex is not None and len(df_flex) > 0:
-            colunas_flex = ['Período', 'Flex_Bud']
-            if tem_ano and 'Ano' in df_flex.columns:
-                colunas_flex.insert(0, 'Ano')
+        # ════════════════════════════════════════
+        # BARRAS PRINCIPAIS (último subplot = embaixo)
+        # ════════════════════════════════════════
+        bar_row = n_rows  # última linha
 
-            df_flex_p = df_flex[colunas_flex].copy()
-            df_flex_p['Período'] = df_flex_p['Período'].astype(str)
+        if _usar_tipo and modo_be:
+            # ── Modo BE: empilhar Histórico (escuro) + BE (claro) por período ──
+            _cores_tipo = {'Histórico': '#4C1D95', 'BE': '#C4B5FD'}
+            for tipo_val in ['Histórico', 'BE']:
+                mask = df_p[col_tipo] == tipo_val
+                sub = df_p[mask].copy()
+                if sub.empty:
+                    continue
+                # Agregar por x_label (um valor por período por tipo)
+                sub_agg = sub.groupby(x_col, as_index=False)[coluna].sum()
+                # Ordenar
+                sub_agg[x_col] = pd.Categorical(sub_agg[x_col], categories=ordem_per, ordered=True)
+                sub_agg = sub_agg.sort_values(x_col)
 
-            if tem_ano and 'Ano' in df_flex_p.columns:
-                df_flex_p['Ano'] = df_flex_p['Ano'].astype(str)
-                df_flex_p['Período_Completo'] = df_flex_p['Período'] + ' ' + df_flex_p['Ano']
+                fig.add_trace(go.Bar(
+                    x=sub_agg[x_col].astype(str),
+                    y=sub_agg[coluna],
+                    name=tipo_val,
+                    marker_color=_cores_tipo.get(tipo_val, '#C4B5FD'),
+                    text=sub_agg[coluna],
+                    texttemplate='%{y:,.2f}',
+                    textposition='outside',
+                    cliponaxis=False,
+                    textfont=dict(size=9, color=_cores_tipo.get(tipo_val, '#C4B5FD')),
+                    hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>' + tipo_val + '</extra>',
+                ), row=bar_row, col=1)
+        else:
+            # ── Modo Real: degradê roxo contínuo ──
+            # Agregar por período (sem Tipo)
+            df_agg = df_p.groupby(x_col, as_index=False)[coluna].sum()
+            df_agg[x_col] = pd.Categorical(df_agg[x_col], categories=ordem_per, ordered=True)
+            df_agg = df_agg.sort_values(x_col)
 
-            df_flex_p = ordenar_por_mes(df_flex_p)
+            vals = df_agg[coluna].values
+            v_min = vals.min() if len(vals) > 0 else 0
+            v_max = vals.max() if len(vals) > 0 else 1
+            if v_max == v_min:
+                v_max = v_min + 1
 
-            if tipo == 'CPU (Custo por Unidade)' and 'Vol_Actual' in df_flex.columns:
-                colunas_vol_merge = ['Período', 'Vol_Actual']
-                if tem_ano and 'Ano' in df_flex.columns:
-                    colunas_vol_merge.insert(0, 'Ano')
-                    merge_on = ['Ano', 'Período']
+            # Gerar cores roxo degradê (mais claro → mais escuro proporcional ao valor)
+            bar_colors = []
+            for v in vals:
+                t = (v - v_min) / (v_max - v_min) if v_max > v_min else 0.5
+                # Interpolar de roxo claro (#D8B4FE) a roxo escuro (#4C1D95)
+                r = int(216 + t * (76 - 216))
+                g = int(180 + t * (29 - 180))
+                b = int(254 + t * (149 - 254))
+                bar_colors.append(f'rgb({r},{g},{b})')
+
+            fig.add_trace(go.Bar(
+                x=df_agg[x_col].astype(str),
+                y=df_agg[coluna],
+                name='Real',
+                marker_color=bar_colors,
+                text=df_agg[coluna],
+                texttemplate='%{y:,.2f}',
+                textposition='outside',
+                cliponaxis=False,
+                textfont=dict(size=9, color=bar_colors),
+                hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>Real</extra>',
+                showlegend=False,
+            ), row=bar_row, col=1)
+
+        # ════════════════════════════════════════
+        # LINHA FLEX BUD (laranja pontilhada)
+        # ════════════════════════════════════════
+        if tem_flex and df_flex_p is not None:
+            # Garantir ordem
+            if x_col == '_x_label':
+                if tem_ano and 'Ano' in df_flex_p.columns:
+                    df_flex_p['_x_label'] = df_flex_p['Período'].astype(str) + ' ' + df_flex_p['Ano'].astype(str)
                 else:
-                    merge_on = 'Período'
-                df_flex_vol = df_flex[colunas_vol_merge].copy()
-                df_flex_vol['Período'] = df_flex_vol['Período'].astype(str)
-                if tem_ano and 'Ano' in df_flex_vol.columns:
-                    df_flex_vol['Ano'] = df_flex_vol['Ano'].astype(str)
-                df_flex_p = df_flex_p.merge(df_flex_vol, on=merge_on, how='left')
-                df_flex_p['Vol_Actual'] = df_flex_p['Vol_Actual'].fillna(0)
-                df_flex_p['Flex_Bud'] = calcular_cpu(df_flex_p['Flex_Bud'], df_flex_p['Vol_Actual'])
+                    df_flex_p['_x_label'] = df_flex_p['Período'].astype(str)
+            df_flex_p[x_col] = pd.Categorical(df_flex_p[x_col], categories=ordem_per, ordered=True)
+            df_flex_p = df_flex_p.sort_values(x_col)
 
-            df_flex_p = df_flex_p.replace([np.inf, -np.inf], 0)
-            df_flex_p['Flex_Bud'] = df_flex_p['Flex_Bud'].fillna(0)
-            df_flex_p = df_flex_p.copy().reset_index(drop=True)
+            fig.add_trace(go.Scatter(
+                x=df_flex_p[x_col].astype(str),
+                y=df_flex_p['Flex_Bud'],
+                name='Flex Bud',
+                mode='lines+markers+text',
+                line=dict(color='#FF6B35', width=2, dash='dot'),
+                marker=dict(color='#FF6B35', size=7),
+                text=df_flex_p['Flex_Bud'],
+                texttemplate='%{y:,.2f}',
+                textposition='top center',
+                cliponaxis=False,
+                textfont=dict(size=9, color='#FF6B35'),
+                hovertemplate='%{x}<br>Flex Bud: %{y:,.2f}<extra>Flex Bud</extra>',
+            ), row=bar_row, col=1)
 
-            if df_flex_p['Flex_Bud'].abs().sum() == 0:
-                df_flex_p = None
+            # ════════════════════════════════════════
+            # DELTA (mini-barras no topo)
+            # ════════════════════════════════════════
+            delta_label = 'BE' if modo_be else 'Real'
+            delta_titulo = f'Delta ({delta_label} - Flex Bud)'
 
-        if df_flex_p is not None and len(df_flex_p) > 0:
-            # Adicionar coluna de legenda
-            df_flex_p['Tipo'] = 'Flex Bud'
+            # Agregar período sem Tipo para comparar com Flex
+            delta_real = df_p.groupby(x_col, as_index=False)[coluna].sum()
+            delta_flex_agg = df_flex_p.groupby(x_col, as_index=False)['Flex_Bud'].sum()
+            delta_data = delta_real.merge(delta_flex_agg, on=x_col, how='left')
+            delta_data['Flex_Bud'] = delta_data['Flex_Bud'].fillna(0)
+            delta_data['Delta'] = delta_data[coluna] - delta_data['Flex_Bud']
+            delta_data[x_col] = pd.Categorical(delta_data[x_col], categories=ordem_per, ordered=True)
+            delta_data = delta_data.sort_values(x_col)
 
-            line_flex = alt.Chart(df_flex_p).mark_line(
-                strokeDash=[10, 5], strokeWidth=1.5, opacity=0.8
-            ).encode(
-                x=alt.X(f'{coluna_periodo}:N', title='Período', sort=ordem_per,
-                         axis=alt.Axis(grid=False, domain=True, ticks=True)),
-                y=alt.Y('Flex_Bud:Q', title=titulo_y, axis=alt.Axis(grid=False, domain=True, ticks=True)),
-                color=alt.Color(
-                    'Tipo:N', title='Legenda',
-                    scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#8B5CF6', '#FF6B35']),
-                    legend=alt.Legend(
-                        title='Legenda', orient='bottom', titleFontSize=10, labelFontSize=9,
-                        titleAnchor='middle', direction='horizontal', symbolType='square'
-                    )
-                ),
-                strokeDash=alt.StrokeDash(
-                    'Tipo:N', scale=alt.Scale(domain=['Real', 'Flex Bud'], range=[[0], [10, 5]]),
-                    legend=None
-                ),
-                tooltip=[
-                    alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                    alt.Tooltip('Flex_Bud:Q', format=',.2f', title='Flex Bud')
-                ]
+            delta_colors = ['#00AA00' if d < 0 else '#FF0000' for d in delta_data['Delta']]
+
+            fig.add_trace(go.Bar(
+                x=delta_data[x_col].astype(str),
+                y=delta_data['Delta'],
+                name=delta_titulo,
+                marker_color=delta_colors,
+                width=0.315,
+                text=delta_data['Delta'],
+                texttemplate='%{y:,.2f}',
+                textposition='outside',
+                cliponaxis=False,
+                textfont=dict(size=8, color=delta_colors),
+                hovertemplate='%{x}<br>Delta: %{y:,.2f}<extra>' + delta_titulo + '</extra>',
+                showlegend=False,
+            ), row=1, col=1)
+
+            fig.update_yaxes(title_text=delta_titulo, row=1, col=1,
+                             showgrid=False, zeroline=True,
+                             zerolinecolor='#EEEEEE', zerolinewidth=1,
+                             tickfont=dict(size=8))
+            fig.update_xaxes(
+                row=1, col=1,
+                showline=True,
+                linecolor='#F2F2F2',
+                linewidth=1,
+                ticks='',
             )
 
-            pontos_flex = alt.Chart(df_flex_p).mark_circle(
-                size=80, opacity=0.9
-            ).encode(
-                x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
-                y='Flex_Bud:Q',
-                color=alt.Color(
-                    'Tipo:N', scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#8B5CF6', '#FF6B35']),
-                    legend=None
-                ),
-                tooltip=[
-                    alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                    alt.Tooltip('Flex_Bud:Q', format=',.2f', title='Flex Bud')
-                ]
-            )
+        # ════════════════════════════════════════
+        # LAYOUT FINAL
+        # ════════════════════════════════════════
+        n_periodos = len(ordem_per) if ordem_per else 1
+        altura = min(620, max(350, 22 * n_periodos + 180))
 
-            rotulos_flex = alt.Chart(df_flex_p).mark_text(
-                align='center', baseline='bottom', dy=-15,
-                color='#FF6B35', fontSize=9, fontWeight='bold'
-            ).encode(
-                x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
-                y='Flex_Bud:Q',
-                text=alt.Text('Flex_Bud:Q', format=',.2f')
-            )
+        fig.update_yaxes(title_text=titulo_y, row=bar_row, col=1,
+                 showgrid=False, automargin=True)
+        fig.update_xaxes(title_text='Período', row=bar_row, col=1,
+                         categoryorder='array', categoryarray=ordem_per,
+                         automargin=True, title_standoff=20)
+        if tem_flex:
+            fig.update_xaxes(showticklabels=False, row=1, col=1,
+                             categoryorder='array', categoryarray=ordem_per)
+            fig.update_xaxes(showline=False, row=1, col=1)
+            fig.update_xaxes(showline=False, row=bar_row, col=1)
 
-            linha_flex = line_flex + pontos_flex + rotulos_flex
+        _altura_base = altura + (100 if tem_flex else 0)
+        _altura_final = int(_altura_base * 1.24) if tem_flex else _altura_base
 
-        # ── Gráfico Delta (Real - Flex Bud) ──
-        grafico_delta = None
-        if df_flex_p is not None and len(df_flex_p) > 0:
-            try:
-                # df_periodo já contém Real (quando disponível)
-                delta_data = df_periodo[[coluna_periodo, coluna]].copy()
-                delta_data = delta_data.merge(
-                    df_flex_p[[coluna_periodo, 'Flex_Bud']],
-                    on=coluna_periodo, how='left'
-                )
-                delta_data['Flex_Bud'] = delta_data['Flex_Bud'].fillna(0)
-                delta_data[coluna] = delta_data[coluna].fillna(0)
-                delta_data['Delta'] = delta_data[coluna] - delta_data['Flex_Bud']
+        fig.update_layout(
+            height=_altura_final,
+            barmode='stack' if (_usar_tipo and modo_be) else 'group',
+            legend=dict(
+                orientation='h', yanchor='top', y=-0.24,
+                xanchor='center', x=0.5, font=dict(size=10),
+            ),
+            margin=dict(l=60, r=30, t=130, b=130),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+        )
 
-                delta_min_abs = abs(delta_data['Delta'].min())
-                delta_max_abs = abs(delta_data['Delta'].max())
-                delta_abs_max = max(delta_min_abs, delta_max_abs)
-                delta_min = -delta_abs_max if delta_abs_max > 0 else -1
-                delta_max = delta_abs_max if delta_abs_max > 0 else 1
-
-                grafico_delta = alt.Chart(delta_data).mark_bar(size=20).encode(
-                    x=alt.X(f'{coluna_periodo}:N', title='', sort=ordem_per,
-                             axis=alt.Axis(grid=False, domain=False, ticks=False, labels=False)),
-                    y=alt.Y('Delta:Q', title='Delta (Real - Flex Bud)',
-                             axis=alt.Axis(grid=False, domain=True, ticks=True, labels=True)),
-                    color=alt.Color(
-                        'Delta:Q', title='Delta',
-                        scale=alt.Scale(
-                            domain=[delta_min, 0, delta_max],
-                            range=['#00AA00', '#FFFFFF', '#FF0000'],
-                            type='linear', nice=False
-                        ),
-                        legend=None
-                    ),
-                    tooltip=[
-                        alt.Tooltip(f'{coluna_periodo}:N', title='Período'),
-                        alt.Tooltip('Delta:Q', title='Delta (Real - Flex Bud)', format=',.2f'),
-                        alt.Tooltip(f'{coluna}:Q', title='Real', format=',.2f'),
-                        alt.Tooltip('Flex_Bud:Q', title='Flex Bud', format=',.2f')
-                    ]
-                ).properties(height=38)
-
-                rotulos_delta_pos = alt.Chart(
-                    delta_data[delta_data['Delta'] >= 0]
-                ).mark_text(
-                    align='center', baseline='bottom', dy=-12, fontSize=9, fontWeight='bold'
-                ).encode(
-                    x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
-                    y='Delta:Q',
-                    text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color('Delta:Q',
-                        scale=alt.Scale(domain=[0, delta_max], range=['#FFFFFF', '#FF0000'],
-                                        type='linear', nice=False), legend=None)
-                )
-
-                rotulos_delta_neg = alt.Chart(
-                    delta_data[delta_data['Delta'] < 0]
-                ).mark_text(
-                    align='center', baseline='top', dy=12, fontSize=9, fontWeight='bold'
-                ).encode(
-                    x=alt.X(f'{coluna_periodo}:N', sort=ordem_per),
-                    y='Delta:Q',
-                    text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color('Delta:Q',
-                        scale=alt.Scale(domain=[delta_min, 0], range=['#00AA00', '#FFFFFF'],
-                                        type='linear', nice=False), legend=None)
-                )
-
-                grafico_delta = grafico_delta + rotulos_delta_pos + rotulos_delta_neg
-            except Exception as e:
-                grafico_delta = None
-
-        # ── Combinar tudo (padrão TC Ext) ──
-        if linha_flex is not None:
-            grafico_principal = alt.layer(
-                grafico_barras, rotulos, linha_flex
-            ).resolve_scale(x='shared', y='shared')
-        else:
-            grafico_principal = grafico_barras + rotulos
-
-        if grafico_delta is not None:
-            grafico_final = alt.vconcat(
-                grafico_delta, grafico_principal
-            ).resolve_scale(x='shared')
-        else:
-            grafico_final = grafico_principal
-
-        return grafico_final
+        return fig
 
     except Exception as e:
         st.error(f"❌ Erro ao criar gráfico: {str(e)}")
         import traceback
         st.code(traceback.format_exc())
         return None
+
+
+def _preparar_flex(df_flex, tem_ano, tipo, ordem_per):
+    """Prepara dados do Flex Budget para o gráfico."""
+    if df_flex is None or len(df_flex) == 0:
+        return None
+
+    colunas_flex = ['Período', 'Flex_Bud']
+    if tem_ano and 'Ano' in df_flex.columns:
+        colunas_flex.insert(0, 'Ano')
+
+    df_flex_p = df_flex[colunas_flex].copy()
+    df_flex_p['Período'] = df_flex_p['Período'].astype(str)
+
+    if tem_ano and 'Ano' in df_flex_p.columns:
+        df_flex_p['Ano'] = df_flex_p['Ano'].astype(str)
+
+    df_flex_p = ordenar_por_mes(df_flex_p)
+
+    if tipo == 'CPU (Custo por Unidade)' and 'Vol_Actual' in df_flex.columns:
+        colunas_vol_merge = ['Período', 'Vol_Actual']
+        if tem_ano and 'Ano' in df_flex.columns:
+            colunas_vol_merge.insert(0, 'Ano')
+            merge_on = ['Ano', 'Período']
+        else:
+            merge_on = 'Período'
+        df_flex_vol = df_flex[colunas_vol_merge].copy()
+        df_flex_vol['Período'] = df_flex_vol['Período'].astype(str)
+        if tem_ano and 'Ano' in df_flex_vol.columns:
+            df_flex_vol['Ano'] = df_flex_vol['Ano'].astype(str)
+        df_flex_p = df_flex_p.merge(df_flex_vol, on=merge_on, how='left')
+        df_flex_p['Vol_Actual'] = df_flex_p['Vol_Actual'].fillna(0)
+        df_flex_p['Flex_Bud'] = calcular_cpu(df_flex_p['Flex_Bud'], df_flex_p['Vol_Actual'])
+
+    df_flex_p = df_flex_p.replace([np.inf, -np.inf], 0)
+    df_flex_p['Flex_Bud'] = df_flex_p['Flex_Bud'].fillna(0)
+    df_flex_p = df_flex_p.reset_index(drop=True)
+
+    if df_flex_p['Flex_Bud'].abs().sum() == 0:
+        return None
+
+    return df_flex_p
 
 
 def render():
@@ -333,6 +409,7 @@ def render():
     # ── Carregar dados ──
     df_principal = load_principal(ano)
     df_real_raw = load_principal_real(ano)
+    df_be_raw = _load_forecast(ano)
     df_vol_bud = load_volume_bud(ano)
     df_vol_actual = load_volume_actual(ano)
     df_tempo_veic = load_tempo_veiculos(ano)
@@ -340,6 +417,7 @@ def render():
     # ── Carregar dados rateados por veículo ──
     df_veic_bud_raw = load_custo_fp_veiculo(ano)
     df_veic_real_raw = load_custo_fp_veiculo_real(ano)
+    df_veic_be_raw = load_custo_fp_veiculo_forecast_fresh()  # Forecast com veículo (cache invalidado por mtime)
 
     if df_principal is None:
         st.error(f"❌ Dados do TC Veículos não encontrados para {ano}")
@@ -351,6 +429,7 @@ def render():
     # ── Cópias raw para filtros locais da Tab 1 ──
     _raw_df_principal = df_principal.copy()
     _raw_df_real = normalizar_periodo(df_real_raw.copy()) if df_real_raw is not None else None
+    _raw_df_be = normalizar_periodo(df_be_raw.copy()) if df_be_raw is not None else None
     _raw_df_vol_bud = normalizar_periodo(df_vol_bud.copy()) if df_vol_bud is not None else None
     _raw_df_vol_actual = normalizar_periodo(df_vol_actual.copy()) if df_vol_actual is not None else None
 
@@ -414,16 +493,17 @@ def render():
     # ── Budget Flex (calculado com dados filtrados) ──
     tem_ano_df = 'Ano' in df.columns
     df_flex = calcular_flex_budget(df, df_vol_bud, df_vol_actual, tem_ano=tem_ano_df)
+    # IMPORTANTE: NÃO aplicar fator/moeda aqui - df já tem fator/moeda aplicados,
+    # então Flex_Bud calculado a partir dele já está na escala correta
 
     # ── Flex detalhado (com dimensões Oficina/Type05/06/Account/Custo) ──
     df_flex_det = calcular_flex_budget_detalhado(
         df, df_vol_bud, df_vol_actual,
         col_custo='Custo FP', tem_ano=tem_ano_df,
     )
-    if df_flex_det is not None:
-        _cv_flex = ['Flex_Bud']
-        df_flex_det = aplicar_fator_df(df_flex_det, _cv_flex, fator)
-        df_flex_det = converter_moeda_df(df_flex_det, _cv_flex, moeda, taxas)
+    # NOTA: df_flex_det já herda a escala (fator/moeda) do df de entrada,
+    # pois Flex_Bud = (Custo / Vol_Bud) * Vol_Actual usa valores já convertidos.
+    # NÃO reaplicar fator/moeda aqui para evitar dupla conversão.
 
     # ── df_bud = Budget, df = Real (ou Budget se sem Real) ──
     df_bud = df.copy()
@@ -442,7 +522,7 @@ def render():
     else:
         soma = {c: df[c].sum() for c in cols_val if c in df.columns}
 
-    # Redis vem das linhas com Account='Redis', não de coluna separada
+    # Redis vem de linhas originadas da aba massa-REDIS (marcadas com _fonte_redis), não de coluna separada
     redis_total = extrair_redis(df)
     if tipo == 'CPU (Custo por Unidade)' and vol_total > 0:
         redis_val = redis_total / vol_total
@@ -479,6 +559,20 @@ def render():
 
     with tab1:
         st.markdown("---")
+
+        _fonte_dados_t1 = st.radio(
+            "📊 Fonte de Dados",
+            ["Real", "BE (Simulado)"],
+            index=0,
+            horizontal=True,
+            key="t1_fonte_dados",
+        )
+        _usar_be_t1 = _fonte_dados_t1 == "BE (Simulado)"
+        if _usar_be_t1 and (_raw_df_be is None or _raw_df_be.empty):
+            st.warning(
+                "⚠️ Forecast (Best Estimate) não encontrado. "
+                "Exibindo Real como fallback."
+            )
 
         # ════════════════════════════════════════
         # 🔍 Filtros da Aba (Oficina + Veículo)
@@ -529,6 +623,7 @@ def render():
         if _sel_veic_t1 != "Todos":
             _filtros_t1['veiculos'] = [_sel_veic_t1]
         _usar_rateado_t1 = _sel_veic_t1 != "Todos"
+        _be_t1 = None
 
         if _usar_rateado_t1 and df_veic_bud_raw is not None:
             _bud_t1 = normalizar_periodo(df_veic_bud_raw.copy())
@@ -545,6 +640,52 @@ def render():
                 if not _rt.empty:
                     _real_t1 = _rt
 
+            if _raw_df_be is not None:
+                _filtros_be_t1 = {'oficinas': _ofi_t1, 'periodos': _per_t1}
+                
+                # PRIORIDADE: Usar arquivo pré-gerado (df_veic_be_raw)
+                if df_veic_be_raw is not None and not df_veic_be_raw.empty:
+                    _be_veic_raw_t1 = normalizar_periodo(df_veic_be_raw.copy())
+                    if 'Custo FP Veiculo' in _be_veic_raw_t1.columns:
+                        _be_veic_raw_t1['Custo FP'] = _be_veic_raw_t1['Custo FP Veiculo']
+                    _filtros_be_t1['veiculos'] = [_sel_veic_t1]
+                    _rt_be = aplicar_filtros(_be_veic_raw_t1, _filtros_be_t1)
+                    if not _rt_be.empty:
+                        _be_t1 = _rt_be
+                else:
+                    # Fallback: verificar se dados originais têm veículo
+                    _be_tem_veiculo = (
+                        'Veículo' in _raw_df_be.columns
+                        and _raw_df_be['Veículo'].notna().any()
+                        and _sel_veic_t1 in _raw_df_be['Veículo'].values
+                    )
+                    if _be_tem_veiculo and _sel_veic_t1 != 'Todos':
+                        _filtros_be_t1['veiculos'] = [_sel_veic_t1]
+                        _rt_be = aplicar_filtros(_raw_df_be, _filtros_be_t1)
+                    else:
+                        # Último fallback: ratear em runtime (mesma lógica do Real)
+                        _pct_be_t1 = load_percentual_rateio_veiculos_real(ano)
+                        _dea_be_t1 = load_dea_dedicado_real(ano)
+                        _be_rateado_t1 = ratear_be_por_veiculo(
+                            _raw_df_be, _pct_be_t1, df_dea=_dea_be_t1
+                        )
+                        if (
+                            _be_rateado_t1 is not None
+                            and 'Veículo' in _be_rateado_t1.columns
+                        ):
+                            if 'Custo FP Veiculo' in _be_rateado_t1.columns:
+                                _be_rateado_t1['Custo FP'] = (
+                                    _be_rateado_t1['Custo FP Veiculo']
+                                )
+                            _filtros_be_t1['veiculos'] = [_sel_veic_t1]
+                            _rt_be = aplicar_filtros(
+                                _be_rateado_t1, _filtros_be_t1
+                            )
+                        else:
+                            _rt_be = aplicar_filtros(_raw_df_be, _filtros_be_t1)
+                    if not _rt_be.empty:
+                        _be_t1 = _rt_be
+
             df_vol_bud = _raw_df_vol_bud.copy() if _raw_df_vol_bud is not None else None
             if df_vol_bud is not None and 'Veículo' in df_vol_bud.columns:
                 df_vol_bud = df_vol_bud[df_vol_bud['Veículo'] == _sel_veic_t1]
@@ -558,6 +699,10 @@ def render():
                 _rt = aplicar_filtros(_raw_df_real, _filtros_t1)
                 if not _rt.empty:
                     _real_t1 = _rt
+            if _raw_df_be is not None:
+                _rt_be = aplicar_filtros(_raw_df_be, _filtros_t1)
+                if not _rt_be.empty:
+                    _be_t1 = _rt_be
             df_vol_bud = _raw_df_vol_bud.copy() if _raw_df_vol_bud is not None else None
             df_vol_actual = _raw_df_vol_actual.copy() if _raw_df_vol_actual is not None else None
 
@@ -579,13 +724,29 @@ def render():
                 _real_t1 = aplicar_fator_df(_real_t1, _cv_t1, fator)
                 _real_t1 = converter_moeda_df(_real_t1, _cv_t1, moeda, taxas)
 
+            if _be_t1 is not None:
+                _cv_be_t1 = [c for c in COLUNAS_MONETARIAS if c in _be_t1.columns]
+                _be_t1 = aplicar_fator_df(_be_t1, _cv_be_t1, fator)
+                _be_t1 = converter_moeda_df(_be_t1, _cv_be_t1, moeda, taxas)
+
             tem_real = _real_t1 is not None
-            df = _real_t1 if tem_real else df_bud.copy()
+            tem_be_t1 = _be_t1 is not None
+            if _usar_be_t1:
+                if tem_be_t1:
+                    df = _be_t1
+                elif tem_real:
+                    df = _real_t1.copy()
+                else:
+                    df = df_bud.copy()
+            else:
+                df = _real_t1 if tem_real else df_bud.copy()
 
             _tem_ano_t1 = 'Ano' in df.columns
             df_flex = calcular_flex_budget(
                 df_bud, df_vol_bud, df_vol_actual, tem_ano=_tem_ano_t1
             )
+            # IMPORTANTE: NÃO aplicar fator/moeda - já aplicado em df_bud
+            
             vol_total = (
                 df_vol_bud['Volume'].sum()
                 if df_vol_bud is not None and 'Volume' in df_vol_bud.columns
@@ -598,7 +759,11 @@ def render():
         # ════════════════════════════════════════
         # 📊 Resumo TC Veículos (KPIs dentro da tab)
         # ════════════════════════════════════════
-        st.subheader("📊 Resumo TC Veículos")
+        st.subheader(
+            "📊 Resumo Best Estimate"
+            if _usar_be_t1 else
+            "📊 Resumo TC Veículos"
+        )
 
         # Calcular BUD e Flex BUD usando dados do Budget (já filtrados pela sidebar)
         df_resumo_bud = df_bud.copy()
@@ -655,11 +820,20 @@ def render():
         with k3:
             render_kpi("Flex BUD", _fmt_val(flex_exibir))
         with k4:
-            render_kpi("Real - Flex Bud", _fmt_val(total_menos_flex))
+            render_kpi(
+                "BE - Flex Bud" if _usar_be_t1 else "Real - Flex Bud",
+                _fmt_val(total_menos_flex)
+            )
         with k5:
-            render_kpi("Real", _fmt_val(total_exibir))
+            render_kpi(
+                "Best Estimate" if _usar_be_t1 else "Real",
+                _fmt_val(total_exibir)
+            )
         with k6:
-            render_kpi("Real / Flex Bud", f"{total_div_flex:.0%}")
+            render_kpi(
+                "BE / Flex Bud" if _usar_be_t1 else "Real / Flex Bud",
+                f"{total_div_flex:.0%}"
+            )
 
         render_kpi_spacer()
 
@@ -676,32 +850,39 @@ def render():
         st.divider()
 
         # ════════════════════════════════════════
-        # Gráfico: Custo FP por Período + Real + Linha Flex BUD pontilhada
+        # Gráfico: Custo FP por Período + Série selecionada + Linha Flex BUD
         # ════════════════════════════════════════
-        st.markdown("### Custo FP por Período — Real")
+        st.markdown(
+            "### Custo FP por Período — Best Estimate"
+            if _usar_be_t1 else
+            "### Custo FP por Período — Real"
+        )
 
         # Detectar se há coluna Ano (padrão TC Ext)
         tem_ano = 'Ano' in df.columns
 
-        # ── Barras = somente Real ──
+        # ── Barras = série selecionada (Real ou BE) ──
         df_periodo = None
+        _col_tipo_graf = None
         if 'Custo FP' in df.columns:
-            df_real_graf = df.copy()
-            cols_val_real = [c for c in COLUNAS_MONETARIAS if c in df_real_graf.columns]
-            if tem_ano and 'Ano' in df_real_graf.columns:
-                df_periodo = df_real_graf.groupby(['Ano', 'Período'], as_index=False).agg({
-                    c: 'sum' for c in cols_val_real
-                })
-            else:
-                df_periodo = df_real_graf.groupby('Período', as_index=False).agg({
-                    c: 'sum' for c in cols_val_real
-                })
+            df_graf = df.copy()
+            cols_val_graf = [c for c in COLUNAS_MONETARIAS if c in df_graf.columns]
+            _grp_cols_per = ['Período']
+            if tem_ano and 'Ano' in df_graf.columns:
+                _grp_cols_per = ['Ano', 'Período']
+            # No modo BE, incluir Tipo no agrupamento para cores Histórico/BE
+            if _usar_be_t1 and 'Tipo' in df_graf.columns:
+                _grp_cols_per = _grp_cols_per + ['Tipo']
+                _col_tipo_graf = 'Tipo'
+            df_periodo = df_graf.groupby(_grp_cols_per, as_index=False).agg({
+                c: 'sum' for c in cols_val_graf
+            })
             df_periodo = ordenar_por_mes(df_periodo)
             df_periodo['Período'] = df_periodo['Período'].astype(str)
             if tem_ano and 'Ano' in df_periodo.columns:
                 df_periodo['Ano'] = df_periodo['Ano'].astype(str)
 
-            # Aplicar CPU ao Real se necessário
+            # Aplicar CPU à série selecionada se necessário
             if tipo == 'CPU (Custo por Unidade)' and df_vol_actual is not None:
                 vol_act_norm = df_vol_actual.copy()
                 cols_agrup_vol = ['Ano', 'Período'] if tem_ano and 'Ano' in vol_act_norm.columns else ['Período']
@@ -712,7 +893,7 @@ def render():
                 df_periodo = df_periodo.merge(vol_per, on=cols_agrup_vol, how='left')
                 df_periodo['Volume'] = df_periodo['Volume'].fillna(0)
                 if df_periodo['Volume'].sum() > 0:
-                    for c in cols_val_real:
+                    for c in cols_val_graf:
                         if c in df_periodo.columns:
                             df_periodo[c] = calcular_cpu(
                                 df_periodo[c], df_periodo['Volume']
@@ -720,7 +901,11 @@ def render():
 
         # Ordenação cronológica usando lista filtrada de ORDEM_MESES
         if df_periodo is None or len(df_periodo) == 0 or 'Custo FP' not in df_periodo.columns:
-            st.info("ℹ️ Nenhum dado de Realizado disponível para exibir no gráfico.")
+            st.info(
+                "ℹ️ Nenhum dado de Best Estimate disponível para exibir no gráfico."
+                if _usar_be_t1 else
+                "ℹ️ Nenhum dado de Realizado disponível para exibir no gráfico."
+            )
         else:
             # Criar lista de ordem de períodos
             if tem_ano and 'Período_Completo' not in df_periodo.columns:
@@ -734,25 +919,24 @@ def render():
             if tem_ano:
                 ordem_per = df_periodo['Período_Completo'].tolist()
             
-            # PADRÃO TC EXT: Criar placeholder PRIMEIRO
-            chart_placeholder = st.empty()
-            
             # Criar gráfico usando função separada (padrão TC Ext)
             grafico_final = create_periodo_chart(
-                df_periodo, df_flex, tipo, label_valor, 
-                simbolo, sufixo, ordem_per, tem_ano
+                df_periodo, df_flex, tipo, label_valor,
+                simbolo, sufixo, ordem_per, tem_ano,
+                col_tipo=_col_tipo_graf,
+                modo_be=_usar_be_t1,
             )
-            
-            # PADRÃO TC EXT: Renderizar no placeholder (sem key para evitar conflito de re-render)
+
+            # Renderizar gráfico diretamente (sem placeholder)
             try:
                 if grafico_final is not None:
-                    chart_placeholder.altair_chart(grafico_final, use_container_width=True)
+                    st.plotly_chart(grafico_final, use_container_width=True)
                 else:
-                    chart_placeholder.warning("⚠️ O gráfico não pôde ser criado.")
+                    st.warning("⚠️ O gráfico não pôde ser criado.")
             except Exception as e:
                 import traceback
-                chart_placeholder.error(f"❌ Erro ao renderizar gráfico: {str(e)}")
-                chart_placeholder.code(traceback.format_exc())
+                st.error(f"❌ Erro ao renderizar gráfico: {str(e)}")
+                st.code(traceback.format_exc())
 
         st.divider()
 
@@ -903,7 +1087,10 @@ def render():
             with kr4:
                 render_kpi("Total - Flex", f"{simbolo} {total_real_diff:+,.2f}{sufixo}")
             with kr5:
-                render_kpi("Total Real", f"{simbolo} {total_real:,.2f}{sufixo}")
+                render_kpi(
+                    "Best Estimate" if _usar_be_t1 else "Total Real",
+                    f"{simbolo} {total_real:,.2f}{sufixo}"
+                )
             with kr6:
                 render_kpi("Total / Flex", f"{total_ratio:.0%}")
 
@@ -1246,6 +1433,429 @@ def render():
                 "ℹ️ Dados de categoria (Custo) não disponíveis para "
                 "análise Flex."
             )
+
+        # ════════════════════════════════════════
+        # 🔍 VALIDAÇÃO DE CONSISTÊNCIA COMPLETA
+        # ════════════════════════════════════════
+        st.markdown("---")
+        with st.expander("🔍 Validação de Consistência de Dados (Todos os Datasets)", expanded=False):
+            st.markdown("""
+            **Objetivo:** Garantir a confiabilidade do projeto comparando **TODOS** os datasets:
+            - 📋 **Dados Detalhados** (Tab 6 - valores diretos)
+            - 📊 **Agregação por Período** (como aparecem nos gráficos)
+            
+            **Validando:** Budget, Flex Budget, Real, Best Estimate (Total e Por Veículo)
+            """)
+            
+            try:
+                # ══════════════════════════════════════════════
+                # FUNÇÃO AUXILIAR: Validar consistência dataset
+                # ══════════════════════════════════════════════
+                def _validar_dataset(df_raw, col_valor, nome_dataset, icone):
+                    """Valida se total direto = total agregado por período"""
+                    if df_raw is None or df_raw.empty or col_valor not in df_raw.columns:
+                        return None
+                    
+                    # Total direto (como no Tab 6) - arredondado para 2 casas
+                    total_direto = round(float(df_raw[col_valor].sum()), 2)
+                    
+                    # Agregar por período (como no gráfico)
+                    tem_ano = 'Ano' in df_raw.columns
+                    grp_cols = ['Ano', 'Período'] if tem_ano else ['Período']
+                    
+                    df_periodo_agg = df_raw.groupby(grp_cols, as_index=False)[col_valor].sum()
+                    total_periodo = round(float(df_periodo_agg[col_valor].sum()), 2)
+                    
+                    # Diferença em valor absoluto (arredondado para 2 casas)
+                    diff_valor = round(total_periodo - total_direto, 2)
+                    
+                    # Calcular diferença percentual
+                    if total_direto > 0:
+                        diff_perc = round(((total_periodo - total_direto) / total_direto) * 100, 2)
+                    else:
+                        diff_perc = 0.0
+                    
+                    # Status baseado na diferença em valor (mais preciso após arredondamento)
+                    if abs(diff_valor) < 0.01:
+                        status = "✅"
+                        status_text = "OK"
+                    elif abs(diff_perc) < 1.0:
+                        status = "⚠️"
+                        status_text = "Pequena dif."
+                    else:
+                        status = "❌"
+                        status_text = "INCONSISTENTE"
+                    
+                    return {
+                        'icone': icone,
+                        'nome': nome_dataset,
+                        'total_direto': total_direto,
+                        'total_periodo': total_periodo,
+                        'diff_valor': diff_valor,
+                        'diff_perc': diff_perc,
+                        'status': status,
+                        'status_text': status_text,
+                    }
+                
+                # ══════════════════════════════════════════════
+                # PREPARAR DADOS (sem filtros, com fator/moeda)
+                # ══════════════════════════════════════════════
+                _cols_mon = [c for c in COLUNAS_MONETARIAS if c in df_principal.columns]
+                
+                # 1. Budget Total
+                _df_bud_val = normalizar_periodo(_raw_df_principal.copy())
+                _df_bud_val = aplicar_fator_df(_df_bud_val, _cols_mon, fator)
+                _df_bud_val = converter_moeda_df(_df_bud_val, _cols_mon, moeda, taxas)
+                
+                # 2. Flex Budget Total
+                # NOTA: df_flex já vem com fator/moeda aplicados (calculado a partir de df convertido)
+                # NÃO reaplicar fator/moeda para evitar dupla conversão
+                _df_flex_val = None
+                if df_flex is not None and not df_flex.empty:
+                    _df_flex_val = normalizar_periodo(df_flex.copy())
+                    # Flex_Bud já está na escala correta
+                
+                # 3. Real Total
+                _df_real_val = None
+                if _raw_df_real is not None and not _raw_df_real.empty:
+                    _df_real_val = normalizar_periodo(_raw_df_real.copy())
+                    _cols_r = [c for c in COLUNAS_MONETARIAS if c in _df_real_val.columns]
+                    _df_real_val = aplicar_fator_df(_df_real_val, _cols_r, fator)
+                    _df_real_val = converter_moeda_df(_df_real_val, _cols_r, moeda, taxas)
+                
+                # 4. Best Estimate Total
+                _df_be_val = None
+                if _raw_df_be is not None and not _raw_df_be.empty:
+                    _df_be_val = normalizar_periodo(_raw_df_be.copy())
+                    _cols_be = [c for c in COLUNAS_MONETARIAS if c in _df_be_val.columns]
+                    _df_be_val = aplicar_fator_df(_df_be_val, _cols_be, fator)
+                    _df_be_val = converter_moeda_df(_df_be_val, _cols_be, moeda, taxas)
+                
+                # 5. Budget Por Veículo
+                _df_vbud_val = None
+                if df_veic_bud_raw is not None and not df_veic_bud_raw.empty:
+                    _df_vbud_val = normalizar_periodo(df_veic_bud_raw.copy())
+                    if 'Custo FP Veiculo' in _df_vbud_val.columns:
+                        _df_vbud_val['Custo FP'] = _df_vbud_val['Custo FP Veiculo']
+                    _cols_vb = [c for c in COLUNAS_MONETARIAS if c in _df_vbud_val.columns]
+                    _df_vbud_val = aplicar_fator_df(_df_vbud_val, _cols_vb, fator)
+                    _df_vbud_val = converter_moeda_df(_df_vbud_val, _cols_vb, moeda, taxas)
+                
+                # 6. Flex Budget Por Veículo (calcular a partir de Budget Por Veículo)
+                _df_vflex_val = None
+                if _df_vbud_val is not None and df_vol_bud is not None:
+                    try:
+                        _df_vflex_val = calcular_flex_budget_detalhado(
+                            _df_vbud_val, df_vol_bud.copy(), df_vol_actual.copy() if df_vol_actual is not None else None
+                        )
+                        if _df_vflex_val is not None and 'Flex_Bud' in _df_vflex_val.columns:
+                            # Já está com fator/moeda aplicados
+                            pass
+                    except Exception:
+                        _df_vflex_val = None
+                
+                # 7. Real Por Veículo
+                _df_vreal_val = None
+                if df_veic_real_raw is not None and not df_veic_real_raw.empty:
+                    _df_vreal_val = normalizar_periodo(df_veic_real_raw.copy())
+                    if 'Custo FP Veiculo' in _df_vreal_val.columns:
+                        _df_vreal_val['Custo FP'] = _df_vreal_val['Custo FP Veiculo']
+                    _cols_vr = [c for c in COLUNAS_MONETARIAS if c in _df_vreal_val.columns]
+                    _df_vreal_val = aplicar_fator_df(_df_vreal_val, _cols_vr, fator)
+                    _df_vreal_val = converter_moeda_df(_df_vreal_val, _cols_vr, moeda, taxas)
+                
+                # 8. Best Estimate Por Veículo (prioridade: arquivo pré-gerado)
+                _df_vbe_val = None
+                
+                # Prioridade: usar arquivo pré-gerado (igual Budget/Real)
+                if df_veic_be_raw is not None and not df_veic_be_raw.empty:
+                    try:
+                        _df_vbe_val = normalizar_periodo(df_veic_be_raw.copy())
+                        _df_vbe_val = aplicar_filtros(_df_vbe_val, {k: v for k, v in filtros_sel.items() if k != 'Veículo'})
+                        if _df_vbe_val is not None and 'Custo FP Veiculo' in _df_vbe_val.columns:
+                            _df_vbe_val['Custo FP'] = _df_vbe_val['Custo FP Veiculo']
+                        _cols_vbe = [c for c in COLUNAS_MONETARIAS if c in _df_vbe_val.columns]
+                        _df_vbe_val = aplicar_fator_df(_df_vbe_val, _cols_vbe, fator)
+                        _df_vbe_val = converter_moeda_df(_df_vbe_val, _cols_vbe, moeda, taxas)
+                    except Exception:
+                        _df_vbe_val = None
+                
+                # Fallback: ratear em runtime se arquivo não existe (mesma lógica do Real)
+                if _df_vbe_val is None and _df_be_val is not None:
+                    try:
+                        _pct_rateio = load_percentual_rateio_veiculos_real(ano)
+                        _dea_rateio = load_dea_dedicado_real(ano)
+                        if _pct_rateio is not None:
+                            _df_vbe_val = ratear_be_por_veiculo(_df_be_val, _pct_rateio, df_dea=_dea_rateio)
+                            if _df_vbe_val is not None and 'Custo FP Veiculo' in _df_vbe_val.columns:
+                                _df_vbe_val['Custo FP'] = _df_vbe_val['Custo FP Veiculo']
+                    except Exception:
+                        _df_vbe_val = None
+                
+                # ══════════════════════════════════════════════
+                # FUNÇÃO AUXILIAR: Validar Total vs Por Veículo
+                # ══════════════════════════════════════════════
+                def _validar_total_vs_veiculo(df_total, df_veic, col_valor, nome, icone):
+                    """Valida se Total == Soma(Por Veículo) para detectar erros de escala"""
+                    if df_total is None or df_total.empty or col_valor not in df_total.columns:
+                        return None
+                    if df_veic is None or df_veic.empty or col_valor not in df_veic.columns:
+                        return None
+                    
+                    total_val = round(float(df_total[col_valor].sum()), 2)
+                    veic_val = round(float(df_veic[col_valor].sum()), 2)
+                    
+                    diff_valor = round(veic_val - total_val, 2)
+                    
+                    if total_val > 0:
+                        diff_perc = round(((veic_val - total_val) / total_val) * 100, 2)
+                    else:
+                        diff_perc = 0.0
+                    
+                    # Detectar erro de escala (ex: K vs M = 1000x diferença)
+                    if total_val > 0 and veic_val > 0:
+                        ratio = veic_val / total_val
+                        if ratio > 500:  # Por Veículo é 500x+ maior que Total
+                            return {
+                                'icone': icone, 'nome': f'{nome}: ESCALA ERRADA',
+                                'total_direto': total_val, 'total_periodo': veic_val,
+                                'diff_valor': diff_valor, 'diff_perc': diff_perc,
+                                'status': "❌", 'status_text': "ESCALA!",
+                            }
+                        elif ratio < 0.002:  # Por Veículo é 500x+ menor que Total
+                            return {
+                                'icone': icone, 'nome': f'{nome}: ESCALA ERRADA',
+                                'total_direto': total_val, 'total_periodo': veic_val,
+                                'diff_valor': diff_valor, 'diff_perc': diff_perc,
+                                'status': "❌", 'status_text': "ESCALA!",
+                            }
+                    
+                    if abs(diff_valor) < 0.01:
+                        status, status_text = "✅", "OK"
+                    elif abs(diff_perc) < 1.0:
+                        status, status_text = "⚠️", "Pequena dif."
+                    else:
+                        status, status_text = "❌", "INCONSISTENTE"
+                    
+                    return {
+                        'icone': icone, 'nome': nome,
+                        'total_direto': total_val, 'total_periodo': veic_val,
+                        'diff_valor': diff_valor, 'diff_perc': diff_perc,
+                        'status': status, 'status_text': status_text,
+                    }
+                
+                # ══════════════════════════════════════════════
+                # EXECUTAR VALIDAÇÕES
+                # ══════════════════════════════════════════════
+                resultados = []
+                resultados_cruzados = []
+                
+                # Validações internas (Total Direto vs Agregado)
+                for df_val, col, nome, icone in [
+                    (_df_bud_val, 'Custo FP', 'Budget', '💰'),
+                    (_df_flex_val, 'Flex_Bud', 'Flex Budget', '📐'),
+                    (_df_real_val, 'Custo FP', 'Real', '✅'),
+                    (_df_be_val, 'Custo FP', 'Best Estimate', '🔮'),
+                ]:
+                    r = _validar_dataset(df_val, col, nome, icone)
+                    if r: resultados.append(r)
+                
+                # Validações cruzadas (Total vs Por Veículo)
+                for df_t, df_v, col, nome, icone in [
+                    (_df_bud_val, _df_vbud_val, 'Custo FP', 'Budget: Total vs Veículo', '🚗💰'),
+                    (_df_flex_val, _df_vflex_val, 'Flex_Bud', 'Flex Budget: Total vs Veículo', '🚗📐'),
+                    (_df_real_val, _df_vreal_val, 'Custo FP', 'Real: Total vs Veículo', '🚗✅'),
+                    (_df_be_val, _df_vbe_val, 'Custo FP', 'Best Estimate: Total vs Veículo', '🚗🔮'),
+                ]:
+                    r = _validar_total_vs_veiculo(df_t, df_v, col, nome, icone)
+                    if r: resultados_cruzados.append(r)
+                
+                # ══════════════════════════════════════════════
+                # RENDERIZAR TABELA HTML
+                # ══════════════════════════════════════════════
+                # TABELA 1: Validações INTERNAS (Direto vs Agregado)
+                # ══════════════════════════════════════════════
+                if len(resultados) > 0:
+                    st.markdown("#### 📊 Validação Interna (Direto vs Agregado)")
+                    html = f"""
+                    <style>
+                    .validacao-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-family: 'Segoe UI', sans-serif;
+                        font-size: 12px;
+                        margin: 10px 0;
+                    }}
+                    .validacao-table th {{
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 10px 6px;
+                        text-align: center;
+                        font-weight: 600;
+                        border-bottom: 2px solid #764ba2;
+                        font-size: 11px;
+                    }}
+                    .validacao-table td {{
+                        padding: 8px 6px;
+                        border-bottom: 1px solid #e5e7eb;
+                    }}
+                    .validacao-table tr:hover {{
+                        background-color: #f9fafb;
+                    }}
+                    .valor-num {{
+                        text-align: right;
+                        font-family: 'Consolas', monospace;
+                        font-weight: 500;
+                    }}
+                    .status-ok {{ color: #10b981; font-weight: bold; }}
+                    .status-warn {{ color: #f59e0b; font-weight: bold; }}
+                    .status-erro {{ color: #ef4444; font-weight: bold; }}
+                    .diff-positivo {{ color: #ef4444; }}
+                    .diff-negativo {{ color: #10b981; }}
+                    .diff-zero {{ color: #6b7280; }}
+                    </style>
+                    <table class="validacao-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Status</th>
+                                <th style="text-align: left;">Dataset</th>
+                                <th>Total Direto</th>
+                                <th>Total Agregado</th>
+                                <th>Diferença ({simbolo})</th>
+                                <th>Erro %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    """
+                    
+                    for res in resultados:
+                        status_class = "status-ok" if res['status'] == "✅" else ("status-warn" if res['status'] == "⚠️" else "status-erro")
+                        
+                        # Classe para diferença em valor
+                        if abs(res['diff_valor']) < 0.01:
+                            diff_class = "diff-zero"
+                        elif res['diff_valor'] > 0:
+                            diff_class = "diff-positivo"
+                        else:
+                            diff_class = "diff-negativo"
+                        
+                        html += f"""
+                        <tr>
+                            <td style="text-align: center; font-size: 16px;">{res['status']}</td>
+                            <td style="text-align: left;"><strong>{res['icone']} {res['nome']}</strong></td>
+                            <td class="valor-num">{simbolo}{res['total_direto']:,.2f}{sufixo}</td>
+                            <td class="valor-num">{simbolo}{res['total_periodo']:,.2f}{sufixo}</td>
+                            <td class="valor-num {diff_class}">{res['diff_valor']:+,.2f}{sufixo}</td>
+                            <td class="valor-num {status_class}">{res['diff_perc']:+.2f}%</td>
+                        </tr>
+                        """
+                    
+                    html += """
+                        </tbody>
+                    </table>
+                    """
+                    
+                    st.markdown(html, unsafe_allow_html=True)
+                
+                # ══════════════════════════════════════════════
+                # TABELA 2: Validações CRUZADAS (Total vs Por Veículo)
+                # ══════════════════════════════════════════════
+                if len(resultados_cruzados) > 0:
+                    st.markdown("#### 🔗 Validação Cruzada (Total vs Por Veículo)")
+                    
+                    html2 = f"""
+                    <table class="validacao-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Status</th>
+                                <th style="text-align: left;">Comparação</th>
+                                <th>Total</th>
+                                <th>Σ Veículos</th>
+                                <th>Diferença ({simbolo})</th>
+                                <th>Erro %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    """
+                    
+                    for res in resultados_cruzados:
+                        status_class = "status-ok" if res['status'] == "✅" else ("status-warn" if res['status'] == "⚠️" else "status-erro")
+                        if abs(res['diff_valor']) < 0.01:
+                            diff_class = "diff-zero"
+                        elif res['diff_valor'] > 0:
+                            diff_class = "diff-positivo"
+                        else:
+                            diff_class = "diff-negativo"
+                        
+                        html2 += f"""
+                        <tr>
+                            <td style="text-align: center; font-size: 16px;">{res['status']}</td>
+                            <td style="text-align: left;"><strong>{res['icone']} {res['nome']}</strong></td>
+                            <td class="valor-num">{simbolo}{res['total_direto']:,.2f}{sufixo}</td>
+                            <td class="valor-num">{simbolo}{res['total_periodo']:,.2f}{sufixo}</td>
+                            <td class="valor-num {diff_class}">{res['diff_valor']:+,.2f}{sufixo}</td>
+                            <td class="valor-num {status_class}">{res['diff_perc']:+.2f}%</td>
+                        </tr>
+                        """
+                    
+                    html2 += """
+                        </tbody>
+                    </table>
+                    """
+                    
+                    st.markdown(html2, unsafe_allow_html=True)
+                    
+                    # Resumo combinado
+                    st.markdown("---")
+                    all_results = resultados + resultados_cruzados
+                    ok_count = sum(1 for r in all_results if r['status'] == "✅")
+                    warn_count = sum(1 for r in all_results if r['status'] == "⚠️")
+                    erro_count = sum(1 for r in all_results if r['status'] == "❌")
+                    
+                    col_s1, col_s2, col_s3 = st.columns(3)
+                    with col_s1:
+                        st.metric("✅ Consistentes", f"{ok_count}/{len(all_results)}")
+                    with col_s2:
+                        st.metric("⚠️ Pequenas Dif.", f"{warn_count}/{len(all_results)}")
+                    with col_s3:
+                        st.metric("❌ Inconsistentes", f"{erro_count}/{len(all_results)}")
+                    
+                    if erro_count == 0 and warn_count == 0:
+                        st.success("🎉 **Todos os datasets estão consistentes!** A integridade dos dados está garantida.")
+                    elif erro_count == 0:
+                        st.info("ℹ️ Pequenas diferenças detectadas (< 1%) - provavelmente arredondamento.")
+                    else:
+                        st.error(f"⚠️ {erro_count} validação(ões) com erro - investigar processamento.")
+                
+                elif len(resultados) > 0:
+                    # Só validações internas, sem cruzadas
+                    st.markdown("---")
+                    ok_count = sum(1 for r in resultados if r['status'] == "✅")
+                    warn_count = sum(1 for r in resultados if r['status'] == "⚠️")
+                    erro_count = sum(1 for r in resultados if r['status'] == "❌")
+                    
+                    col_s1, col_s2, col_s3 = st.columns(3)
+                    with col_s1:
+                        st.metric("✅ Consistentes", f"{ok_count}/{len(resultados)}")
+                    with col_s2:
+                        st.metric("⚠️ Pequenas Dif.", f"{warn_count}/{len(resultados)}")
+                    with col_s3:
+                        st.metric("❌ Inconsistentes", f"{erro_count}/{len(resultados)}")
+                    
+                    if erro_count == 0 and warn_count == 0:
+                        st.success("🎉 **Todos os datasets estão consistentes!** A integridade dos dados está garantida.")
+                    elif erro_count == 0:
+                        st.info("ℹ️ Pequenas diferenças detectadas (< 1%) - provavelmente arredondamento.")
+                    else:
+                        st.error(f"⚠️ {erro_count} validação(ões) com erro - investigar processamento.")
+                
+                else:
+                    st.warning("⚠️ Nenhum dataset disponível para validação.")
+            
+            except Exception as e:
+                st.error(f"❌ Erro ao calcular validação: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
 
     # ── Restaurar estado global após tab1 ──
     df_bud = _save_df_bud
@@ -2247,29 +2857,36 @@ def render():
         )
 
         # Tabela — Best Estimate Total
+        # IMPORTANTE: Usar mesmos filtros da Tab 1 (sidebar) para consistência
+        # EXCETO filtro de veículo (para permitir rateio correto posteriormente)
         _df_be_tab6 = None
+        _df_be_tab6_com_filtro_veiculo = None
         try:
-            _fc = load_forecast_completo()
-            if _fc is not None and not _fc.empty:
-                _fc = normalizar_periodo(_fc)
-                if 'Tipo' in _fc.columns:
-                    _fc = _fc[_fc['Tipo'] == 'BE'].copy()
-                if ano and ano != 'Todos' and 'Ano' in _fc.columns:
-                    try:
-                        _fc = _fc[_fc['Ano'] == int(ano)].copy()
-                    except (ValueError, TypeError):
-                        pass
-                _cv = [c for c in COLUNAS_MONETARIAS if c in _fc.columns]
-                _fc = aplicar_fator_df(_fc, _cv, fator)
-                _fc = converter_moeda_df(_fc, _cv, moeda, taxas)
+            if _raw_df_be is not None and not _raw_df_be.empty:
+                # Criar filtros SEM veículo para BE Por Veículo poder ratear
+                filtros_sem_veiculo = {k: v for k, v in filtros_sel.items() if k != 'Veículo'}
+                
+                _fc = _raw_df_be.copy()
+                _fc = aplicar_filtros(_fc, filtros_sem_veiculo)
+                
                 if not _fc.empty:
+                    _cv = [c for c in COLUNAS_MONETARIAS if c in _fc.columns]
+                    _fc = aplicar_fator_df(_fc, _cv, fator)
+                    _fc = converter_moeda_df(_fc, _cv, moeda, taxas)
                     _df_be_tab6 = _fc
+                    
+                    # Para tabela BE Total, aplicar também filtro de veículo
+                    if 'Veículo' in filtros_sel and filtros_sel['Veículo']:
+                        _df_be_tab6_com_filtro_veiculo = aplicar_filtros(_fc.copy(), {'Veículo': filtros_sel['Veículo']})
+                    else:
+                        _df_be_tab6_com_filtro_veiculo = _fc.copy()
         except Exception:
             pass
 
-        if _df_be_tab6 is not None:
+        _df_be_para_tabela = _df_be_tab6_com_filtro_veiculo if _df_be_tab6_com_filtro_veiculo is not None else _df_be_tab6
+        if _df_be_para_tabela is not None:
             piv_be, ofc_be = _pivotar_detalhado(
-                _df_be_tab6, col_valor_tab6,
+                _df_be_para_tabela, col_valor_tab6,
             )
             render_secao_tabela_detalhe(
                 piv_be, ofc_be, "Best Estimate", "🔮",
@@ -2399,52 +3016,41 @@ def render():
             else:
                 st.info("ℹ️ Dados Real por veículo não disponíveis.")
 
-        # ── Best Estimate por Veículo (rateio igual ao Real) ──
+        # ── Best Estimate por Veículo ──
+        # PRIORIDADE: Usar arquivo pré-gerado (forecast_veiculos_custo_fp.parquet)
+        # FALLBACK: Ratear em runtime usando percentuais Real
         with st.expander("🔮 Best Estimate Por Veículo", expanded=False):
-            if _df_be_tab6 is not None and 'Veículo' in _df_be_tab6.columns:
-                # BE já tem coluna Veículo
-                veiculos_be = sorted(
-                    _df_be_tab6['Veículo'].dropna().unique()
-                )
-                for veic in veiculos_be:
-                    _dv = _df_be_tab6[
-                        _df_be_tab6['Veículo'] == veic
-                    ].copy()
-                    if _dv.empty:
-                        continue
-                    piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
-                    render_secao_tabela_detalhe(
-                        piv_v, ofc_v,
-                        f"Best Estimate — {veic}", "🔮",
-                        f"home_vbe_{veic}", ano, simbolo, sufixo,
-                        expanded=False, modo=modo_tab6,
-                    )
-            elif _df_be_tab6 is not None:
-                # Ratear BE por veículo usando percentuais Real
-                _pct_real = load_percentual_rateio_veiculos_real(ano)
-                _df_be_veic = ratear_be_por_veiculo(
-                    _df_be_tab6, _pct_real,
-                )
-                if (
-                    _df_be_veic is not None
-                    and 'Veículo' in _df_be_veic.columns
-                ):
-                    if 'Custo FP Veiculo' in _df_be_veic.columns:
-                        _df_be_veic['Custo FP'] = (
-                            _df_be_veic['Custo FP Veiculo']
-                        )
-                    veiculos_be = sorted(
-                        _df_be_veic['Veículo'].dropna().unique()
-                    )
+            _df_be_veic_tab6 = None
+            
+            # Tentar usar arquivo pré-gerado (igual Budget/Real)
+            if df_veic_be_raw is not None and not df_veic_be_raw.empty:
+                _vbe = normalizar_periodo(df_veic_be_raw.copy())
+                
+                # Aplicar filtros (exceto Veículo para mostrar todos)
+                filtros_sem_veiculo = {k: v for k, v in filtros_sel.items() if k != 'Veículo'}
+                _vbe = aplicar_filtros(_vbe, filtros_sem_veiculo)
+                
+                if not _vbe.empty:
+                    # Usar 'Custo FP Veiculo' como 'Custo FP'
+                    if 'Custo FP Veiculo' in _vbe.columns:
+                        _vbe['Custo FP'] = _vbe['Custo FP Veiculo']
+                    
+                    # Aplicar fator/moeda
+                    _cv_vbe = [c for c in COLUNAS_MONETARIAS if c in _vbe.columns]
+                    _vbe = aplicar_fator_df(_vbe, _cv_vbe, fator)
+                    _vbe = converter_moeda_df(_vbe, _cv_vbe, moeda, taxas)
+                    _df_be_veic_tab6 = _vbe
+            
+            # Usar arquivo pré-gerado se disponível
+            if _df_be_veic_tab6 is not None and 'Veículo' in _df_be_veic_tab6.columns:
+                veiculos_be = sorted(_df_be_veic_tab6['Veículo'].dropna().unique())
+                
+                if len(veiculos_be) > 0:
                     for veic in veiculos_be:
-                        _dv = _df_be_veic[
-                            _df_be_veic['Veículo'] == veic
-                        ].copy()
+                        _dv = _df_be_veic_tab6[_df_be_veic_tab6['Veículo'] == veic].copy()
                         if _dv.empty:
                             continue
-                        piv_v, ofc_v = _pivotar_detalhado(
-                            _dv, col_valor_tab6,
-                        )
+                        piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
                         render_secao_tabela_detalhe(
                             piv_v, ofc_v,
                             f"Best Estimate — {veic}", "🔮",
@@ -2452,14 +3058,48 @@ def render():
                             expanded=False, modo=modo_tab6,
                         )
                 else:
-                    st.info(
-                        "ℹ️ Dados de BE por veículo não disponíveis "
-                        "(percentuais de rateio Real não encontrados)."
+                    st.info("ℹ️ Nenhum veículo encontrado nos dados de BE.")
+            
+            # Fallback: ratear em runtime se arquivo não existe
+            elif _df_be_tab6 is not None and not _df_be_tab6.empty:
+                st.info("ℹ️ Arquivo com veículo não encontrado. Aplicando rateio...")
+                
+                _df_be_para_ratear = _df_be_tab6.drop(columns=['Veículo'], errors='ignore')
+                _pct_real = load_percentual_rateio_veiculos_real(ano)
+                _dea_real = load_dea_dedicado_real(ano)
+                
+                if _pct_real is None or _pct_real.empty:
+                    st.warning(
+                        "⚠️ Percentuais de rateio Real não encontrados. "
+                        "Execute o processamento Real ou regenere o Forecast."
                     )
+                else:
+                    _df_be_veic = ratear_be_por_veiculo(_df_be_para_ratear, _pct_real, df_dea=_dea_real)
+                    
+                    if _df_be_veic is not None and 'Veículo' in _df_be_veic.columns:
+                        if 'Custo FP Veiculo' in _df_be_veic.columns:
+                            _df_be_veic['Custo FP'] = _df_be_veic['Custo FP Veiculo']
+                        
+                        veiculos_be = sorted(_df_be_veic['Veículo'].dropna().unique())
+                        
+                        for veic in veiculos_be:
+                            _dv = _df_be_veic[_df_be_veic['Veículo'] == veic].copy()
+                            if _dv.empty:
+                                continue
+                            piv_v, ofc_v = _pivotar_detalhado(_dv, col_valor_tab6)
+                            render_secao_tabela_detalhe(
+                                piv_v, ofc_v,
+                                f"Best Estimate — {veic}", "🔮",
+                                f"home_vbe_{veic}", ano, simbolo, sufixo,
+                                expanded=False, modo=modo_tab6,
+                            )
+                    else:
+                        st.error(
+                            "❌ Erro ao ratear BE por veículo. "
+                            "Regenere o Forecast no BE Simulador."
+                        )
             else:
-                st.info(
-                    "ℹ️ Dados de BE por veículo não disponíveis."
-                )
+                st.info("ℹ️ Dados de BE por veículo não disponíveis. Gere um Forecast primeiro.")
 
     st.divider()
 

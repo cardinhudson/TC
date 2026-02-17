@@ -8,6 +8,8 @@ Padrão atual recomendado: `.venv/` (mais comum em projetos modernos).
 
 Compatibilidade: se você já usa `venv/`, o projeto continua funcionando — mas as instruções abaixo assumem `.venv/`.
 
+Observação prática: neste repositório podem existir automações (ex.: tasks do VS Code) apontando para `venv/`. Se o seu ambiente estiver em `.venv/`, ajuste o caminho da task (ou crie o ambiente com o mesmo nome esperado).
+
 ## Como Usar no Outro PC
 
 ### Opção 1: Recriar o Ambiente Virtual (Recomendado)
@@ -35,7 +37,7 @@ Como ambientes virtuais não são portáveis entre diferentes sistemas operacion
    
    **No Linux/Mac:**
    ```bash
-   source venv/bin/activate
+   source .venv/bin/activate
    ```
 
 4. **Instale as dependências:**

@@ -61,6 +61,7 @@ Regras críticas:
 - Nunca somar/média de CPU (nem em totais).
 - Totais em tabelas e gráficos devem usar $\sum Total / \sum Volume$ no mesmo recorte.
 - Ao combinar custo e volume, preservar linhas que existam apenas no volume (custo = 0) usando `merge how='outer'`.
+- CPU é uma razão; no dashboard, se o usuário aplicar `Fator` (K/M) nos custos antes do cálculo, a CPU exibida também escala com o fator. Para CPU “sem escala”, usar `Fator = Nenhum`.
 
 Helper recomendado:
 - `cpu_por_chaves(...)` em `tc_ext/metricas_tc_ext.py`.

@@ -61,6 +61,8 @@ O sistema foi desenhado para trabalhar com dados em **Parquet** (performático) 
 
 Todas as páginas do módulo TC Veículos foram implementadas com funcionalidade completa, deixando de ser stubs:
 
+**Nota de contexto (linha do tempo):** apesar do título desta seção, o conteúdo descreve o estado consolidado do módulo conforme implementado e mantido até **Fev/2026** neste repositório.
+
 ### Alterações de infraestrutura
 - **Paths corrigidos** (Bloco 1): 25+ referências de caminhos quebrados consertadas em `tc_exports.py`, `pages/1 - Waterfall.py`, `pages/6 - Documentacao.py`, `pages/2 - Best Estimate - Simulador.py`, `tc_ext/pages/home_ext.py`.
 - **Renomeação UI** (Bloco 2): "TC Principal" / "Planta Principal" → "TC Veículos" em todos os arquivos Python e Markdown.
@@ -70,7 +72,7 @@ Todas as páginas do módulo TC Veículos foram implementadas com funcionalidade
 ### Páginas implementadas
 - **Waterfall TC Veículos** (`waterfall_tc.py`, ~375 linhas): 3 tabs (💰 Budget, 📊 Real, 📈 Budget vs Real) com waterfalls Plotly de decomposição (Desp.Primária→Redis→CustoFA→D&ADed→CustoFP), gráficos mensais, análise por oficina e bridge Budget→Flex→Real.
 - **BE Simulador TC Veículos** (`best_estimate_simulador_tc.py`, ~480 linhas): geração de Forecast (Real + simulação futura) com parâmetros de sensibilidade fixo/variável, simulador de volume por veículo, rateio FA, e salvamento em `dados/TC_Principal/Forecast/`.
-- **BE Análise TC Veículos** (`best_estimate_analise_tc.py`, ~490 linhas): 4 tabs (🔮 Visão Forecast, 📊 KPIs e CPU, 📈 Tendências Mensais, 🏭 Análise por Oficina) espelhando a Home, alimentado por dados de Forecast com fallback para Budget.
+- **Debug de Cálculos TC Veículos** (`debug_calculos_tc.py`): auditoria (parquets, fechamentos e provas cruzadas) para rastrear FA/FP/D&A/rateios/CPU.
 
 ### Loaders adicionados em `shared.py`
 | Função | Descrição |
@@ -109,15 +111,10 @@ O formulário "➕ Adicionar Custo" nos simuladores BE (TC Ext e TC Veículos) f
 - **Campos removidos**: `Tipo_Aplicacao`, `Mes_Inicial`, `Meses_Especificos` — substituídos pelas colunas de meses Jan-Dez (mais flexível: valores diferentes por mês)
 - Tab "📋 Visualizar Custos" com AgGrid (visualização + deleção via checkboxes) permanece inalterada
 
-### Gráfico BE Analysis — Flex Bud vermelho + legenda unificada
+### Forecast (TC Veículos) — onde aparece no sistema
 
-No gráfico de Custo FP por Período em `tc_principal/pages/best_estimate_analise_tc.py`:
-
-- **Linha Flex Bud**: cor alterada de `#FF6B35` (laranja) para **`#DC2626` (vermelho)**
-- **Legendas unificadas**: as 2 legendas separadas (barras à direita + Flex Bud embaixo) foram unificadas em **1 legenda na parte inferior** com 3 itens:
-  - `Histórico` (#4C1D95 — roxo escuro)
-  - `BE` (#C4B5FD — roxo claro)
-  - `Flex Bud` (#DC2626 — vermelho)
+- O Forecast é gerado no simulador (`tc_principal/pages/best_estimate_simulador_tc.py`) e salvo em `dados/TC_Principal/Forecast/`.
+- A Home do TC Veículos consome esses outputs quando disponíveis (mantendo as regras de CPU e de fator/moeda).
 - Pontos e rótulos Flex Bud também em vermelho (`#DC2626`)
 
 ### Tempo de Produção — Cores roxas, data labels e gráfico de evolução
@@ -281,11 +278,13 @@ Regra: totais, gráficos e exportações devem usar os DataFrames de cálculo (s
 ## 6) Conversões e formatação
 
 ### 6.1 Fator de conversão (K/M)
-- Apenas em **Custo Total**.
+- Aplicado às **colunas monetárias** exibidas (custos/receitas), antes dos cálculos subsequentes.
 - `K`: divide valores por 1.000
 - `M`: divide valores por 1.000.000
 
-Regra crítica: **não aplicar fator K/M diretamente em CPU**, porque CPU é uma razão.
+Regra crítica (CPU): CPU é uma razão; **não faz sentido aplicar K/M no valor final**.
+No dashboard, o fator K/M é aplicado nas colunas monetárias antes do cálculo, então a CPU exibida também escala com o fator.
+Para CPU em unidade monetária “real”, usar `Fator = Nenhum`.
 
 ### 6.2 Conversão de moeda (BRL, USD, EUR)
 A interface recebe taxas no formato:
@@ -301,7 +300,7 @@ Conversão aplicada multiplicando:
 $$\text{ValorMoeda} = \text{ValorBRL} \times \text{taxa\_brl\_para\_moeda}$$
 
 Regra de ordem:
-1) (se Custo Total) aplicar K/M
+1) aplicar K/M nas colunas monetárias (quando selecionado)
 2) aplicar conversão de moeda
 3) então executar cálculos (CPU/Flex Bud/etc.)
 
@@ -328,6 +327,9 @@ Importante:
 - Evitar calcular CPU a partir de um merge de Volume em dados de custo muito detalhados (ex.: por conta/material), porque isso **duplica Volume** e distorce o resultado. O correto é agregar custo e volume separadamente no mesmo nível e só então dividir.
 
 Nunca calcular CPU linha a linha e depois tirar média/soma.
+
+Observação de implementação (dashboard): o sistema aplica fator/moeda nas colunas de custo e depois recalcula CPU como `Total/Volume`.
+Ou seja: a CPU acompanha a moeda selecionada e também é afetada pelo fator K/M se ele estiver ativo.
 
 Tratamento de zeros:
 - se `Volume == 0` ou nulo → CPU = 0 (ou NaN dependendo do contexto de exibição; o sistema usa 0 em várias tabelas).
@@ -515,29 +517,632 @@ $$Total_{Flex} = Total_{Fixo} + Total_{NaoFixo} \times \frac{Volume_{Real}}{Volu
 
 ---
 
-## 10) Processamento de dados (ETL)
+## 10) Processamento de Dados — TC Ext (Linhas Secundárias)
 
-### 10.1 Real
-Fonte: Excel (ex.: `Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`).
-Processamento:
+> Estes pipelines processam dados do TC Ext. Para o TC Veículos, veja a **seção 14**.
+
+### 10.1 Real (TC Ext)
+Fonte: Excel (`Reporting fluxo anexo.xlsx` + `Dados SAPIENS.xlsx`).
+Processamento (`processamento_dados.py`):
 - Ler planilhas, limpar colunas duplicadas/Unnamed.
 - Normalizar período.
 - Garantir numéricos (especialmente `Volume`).
 Saída anual:
-- `dados/<ANO>/df_final.parquet`
-- `dados/<ANO>/df_vol.parquet`
+- `dados/TC_Ext/<ANO>/df_final.parquet`
+- `dados/TC_Ext/<ANO>/df_vol.parquet`
 
 Consolidação:
-- gerar/atualizar `dados/historico_consolidado/df_final_historico.parquet` e `df_vol_historico.parquet`.
+- `dados/TC_Ext/historico_consolidado/df_final_historico.parquet` e `df_vol_historico.parquet`.
 
-### 10.2 Budget
-Processamento similar, com saídas em:
-- `dados/<ANO>/BUD/df_final_BUD.parquet`
-- `dados/<ANO>/BUD/df_vol_BUD.parquet`
+### 10.2 Budget (TC Ext)
+Processamento (`processamento_dados_BUD.py`), com saídas em:
+- `dados/TC_Ext/<ANO>/BUD/df_final_BUD.parquet`
+- `dados/TC_Ext/<ANO>/BUD/df_vol_BUD.parquet`
 
 Consolidação:
-- `dados/historico_consolidado/BUD/df_final_historico_BUD.parquet`
-- `dados/historico_consolidado/BUD/df_vol_historico_BUD.parquet`
+- `dados/TC_Ext/historico_consolidado/BUD/df_final_historico_BUD.parquet`
+- `dados/TC_Ext/historico_consolidado/BUD/df_vol_historico_BUD.parquet`
+
+---
+
+## 14) Processamento de Dados — TC Veículos (Passo a Passo)
+
+> Esta seção documenta com 100% de fidelidade ao código cada etapa dos pipelines de processamento do módulo TC Veículos. Todos os nomes de colunas, fórmulas e ordem de execução são os **exatos** do código.
+
+### 14.1 Constantes Globais
+
+| Constante | Valor | Arquivo |
+|-----------|-------|---------|
+| `OFICINAS_RATEIO_AUTOMATICO` | `['BS', 'PS', 'PL']` | `processamento_dados_veiculos_BUD.py` |
+| `OFICINAS_RATEIO_MANUAL` | `['QY', 'GS', 'SM']` | `processamento_dados_veiculos_BUD.py` |
+| `OFICINAS_EXCLUIR_DENOM_TAXA_PDR` | `['GS', 'SM']` | `processamento_dados_veiculos_BUD.py` |
+
+**Fatores de rateio manual** (`rateios_manuais.json`):
+```json
+{"QY": 0.087526, "GS": 0.086982, "SM": 0.075452}
+```
+
+### 14.2 Arquivo Excel Fonte
+
+**Arquivo:** `dados/TC_Principal/{ano}/Reporting veículos.xlsx`
+
+**Abas utilizadas pelo Pipeline Real:**
+| Aba | Conteúdo |
+|-----|----------|
+| `Sapiens` | Despesas primárias (formato longo — 1 linha por período) |
+| `massa - REDIS` | Receita Redis (formato wide — meses como colunas) |
+| `Volume e EST PdR - Actual` | Volume FA e EST (peças) por oficina |
+| `Volume Actual` | Volume de veículos por período |
+| `EST veículos - Actual` | EST (tempo padrão) por veículo e oficina |
+
+**Abas adicionais utilizadas pelo Pipeline Budget:**
+| Aba | Conteúdo |
+|-----|----------|
+| `massa primária - BDG` | Despesas primárias Budget (formato wide) |
+| `Volume e EST PdR - BDG` | Volume FA e EST Budget |
+| `Volume BDG` | Volume de veículos Budget |
+| `EST veículos - BDG` | EST por veículo Budget |
+| `massa - D&A dedicado` | D&A Dedicado por veículo/oficina |
+
+---
+
+### 14.3 Pipeline Real (Sapiens) — `processamento_dados_veiculos.py`
+
+**Função orquestradora:** `processar_veiculos_real(ano)`
+
+**Pasta de saída:** `dados/TC_Principal/{ano}/` (raiz, sem subpasta BUD)
+
+#### Fase 0 — Configuração do Ambiente
+**Função:** `configurar_ambiente(ano)`
+1. Define caminhos para pastas de dados, BUD e histórico
+2. Localiza `Reporting veículos.xlsx`
+3. Valida existência das 5 abas obrigatórias
+4. Carrega `rateios_manuais.json`
+5. **Detecta oficinas válidas** lendo `df_principal_BUD.parquet` (coluna `Oficina`, valores únicos) → armazena em `config['OFICINAS_BUD']` para filtro posterior
+
+#### Fase 1 — Sapiens → Despesa Primária
+**Função:** `fase1_sapiens(config)`
+1. Lê aba `Sapiens` com `header=1`
+2. Remove colunas duplicadas (sufixo `.1`, `.2`)
+3. Corrige mojibake nos nomes de colunas (`Per�odo` → `Período`)
+4. Aplica alias de colunas (`N°conta → Nºconta`, `Veiculo → Veículo`, etc.)
+5. Exige colunas: `Oficina`, `Account`, `Período`, `Valor`
+6. **Renomeia** `Valor` → `Despesa Primaria`
+7. Converte `Despesa Primaria` para numérico (`pd.to_numeric`, errors='coerce', fillna 0)
+8. Normaliza `Período` (capitaliza: `janeiro → Janeiro`, corrige mojibake)
+9. Remove linhas onde `Oficina` é NaN ou vazia
+10. Remove linhas onde `Despesa Primaria == 0`
+11. **⚠️ EXCLUI linhas com `Account == 'Redis'`** — Redis vem da aba própria, não do Sapiens
+12. **⚠️ EXCLUI oficinas ausentes no Budget** — filtra por `config['OFICINAS_BUD']` usando `isin()`
+13. Remove coluna `Ano` se existir
+14. Garante existência de `Type 05`, `Type 06`, `Custo` (cria vazias se ausentes)
+
+**Formato:** os dados do Sapiens já vêm no formato **longo** (1 linha por período) — não requer melt.
+
+#### Fase 1B — massa - REDIS → Receita
+**Função:** `fase1b_redis(config)`
+1. Lê aba `massa - REDIS`
+2. Corrige mojibake nas colunas
+3. Detecta colunas de meses (prefixo `jan`, `fev`, `mar`, etc.)
+4. Remove coluna `Ano` se existir
+5. **Melt** colunas de meses → `Período` + `Despesa Primaria`
+6. Normaliza `Período`
+7. Converte `Despesa Primaria` para numérico
+8. **⚠️ Inversão de sinal:** `Despesa Primaria = -abs(Despesa Primaria)` — Redis é receita, SEMPRE fica negativo
+9. Remove linhas sem `Oficina` ou com `Despesa Primaria == 0`
+10. Garante colunas `Type 05`, `Type 06`, `Account`, `Custo` (preserva valores do Excel se existirem)
+11. **Marca** coluna `_fonte_redis = True`
+12. Exclui oficinas ausentes no Budget
+13. **Agrega** por `[Oficina, Período, Type 05, Type 06, Account, Custo, _fonte_redis]` somando `Despesa Primaria`
+
+#### Concatenação — Sapiens + Redis
+1. Marca `_fonte_redis = False` nas linhas do Sapiens
+2. `pd.concat([df_sapiens, df_redis], ignore_index=True)` → `df_principal`
+3. Preenche NaN em `Despesa Primaria` com 0 e `_fonte_redis` com `False`
+
+#### Fase 2 — Volume e EST PdR (Actual) → Tempo FA
+**Função:** `fase2_volume_est_fa(config)`
+1. Lê aba `Volume e EST PdR - Actual` (header detectado automaticamente)
+2. Corrige mojibake, renomeia: `ref* → REF FER`, `oficina → Oficina`, `est → EST`
+3. Exige `Oficina`, `EST`; converte `EST` para numérico
+4. Detecta colunas de meses, **melt** → `Período` + `Vol FA`
+5. Normaliza `Período`, converte `Vol FA` para numérico
+6. **Calcula:**
+
+$$\text{Tempo FA} = \text{Vol FA} \times \text{EST}$$
+
+7. Remove linhas sem `Oficina`
+
+#### Fase 3 — Volume Veículos (Actual)
+**Função:** `fase3_volume_veiculos(config)`
+1. Lê aba `Volume Actual` com `header=1`
+2. Renomeia primeira coluna para `Veículo`
+3. Remove linhas `Veículo` = 'total', 'nan', ''
+4. **Melt** colunas de meses → `Período` + `Volume`
+5. Normaliza `Período`, converte `Volume` para numérico
+
+> **Nota:** Esta aba NÃO tem coluna `Oficina` — é volume por Veículo/Período apenas.
+
+#### Fase 4 — Tempo Veículos (EST × Volume)
+**Função:** `fase4_tempo_veiculos(config, df_vol)`
+1. Lê aba `EST veículos - Actual` com `header=1`
+2. Renomeia colunas: `oficina → Oficina`, `est → EST`, `veículo/modelo → Veículo`
+3. Mantém apenas `[Oficina, Veículo, EST]`
+4. Converte `EST` para numérico
+5. **Merge inner** com `df_vol` (Fase 3) em `[Veículo]`
+6. **Calcula:**
+
+$$\text{Tempo Veic} = \text{Volume} \times \text{EST}$$
+
+#### Fase 5 — Rateio FA ⭐
+**Função:** `fase5_rateio_fa(config, df_fa, df_tempo_veic)`
+
+> Esta é a fase mais complexa e crítica do pipeline.
+
+**Preparação:**
+1. Agrega `Tempo FA` por `(Oficina, Período)` → `Tempo FA Total`
+2. Agrega `Tempo Veic` por `(Oficina, Período)` → `Tempo Veic Total`
+3. **Merge outer** dos dois (garante que oficinas que existem apenas em um lado sejam incluídas)
+4. Preenche NaN com 0
+
+**Rateio Automático** (oficinas **BS, PS, PL**):
+
+$$\text{Rateio FA} = \frac{\text{Tempo FA Total}}{\text{Tempo FA Total} + \text{Tempo Veic Total}}$$
+
+Se denominador = 0, Rateio FA = 0.
+
+**Rateio Manual** (oficinas **QY, GS, SM**):
+
+Para cada período único:
+1. Calcula tempo FA global (TODAS as oficinas naquele período):
+
+$$\text{TFA}_{\text{global}} = \sum_{\text{todas oficinas}} \text{Tempo FA Total}_{\text{período}}$$
+
+2. Calcula tempo veículo global, **excluindo GS e SM do denominador**:
+
+$$\text{TVC}_{\text{global}} = \sum_{\substack{\text{todas oficinas} \\ \text{exceto GS, SM}}} \text{Tempo Veic Total}_{\text{período}}$$
+
+3. Calcula taxa PdR:
+
+$$\text{Taxa PdR} = \frac{\text{TFA}_{\text{global}}}{\text{TVC}_{\text{global}}}$$
+
+4. Para cada oficina manual, aplica o fator do JSON:
+
+$$\text{Rateio FA} = \text{fator\_manual} \times \text{Taxa PdR}$$
+
+Onde `fator_manual` é: QY = 0.087526, GS = 0.086982, SM = 0.075452.
+
+5. Se a combinação (Oficina, Período) não existir nos dados, uma nova linha é criada.
+6. **Clipa** todos os valores de `Rateio FA` ao intervalo **[0, 1]**.
+
+**Saída:** DataFrame com colunas `[Oficina, Período, Rateio FA]`
+
+#### Fase 6 — Custo FA
+**Função:** `fase6_custo_fa(df_principal, df_rateio)`
+1. **Merge left** de `df_principal` com `df_rateio` em `[Oficina, Período]`
+2. Preenche `Rateio FA` NaN com 0
+3. **⚠️ Regra Redis:** para linhas onde `_fonte_redis == True`, força `Rateio FA = 0` — **Redis NÃO participa do rateio FA e vai integralmente para FP**
+4. **Calcula:**
+
+$$\text{Custo FA} = \text{Rateio FA} \times \text{Despesa Primaria}$$
+
+#### Fase 7 — Custo FP
+**Função:** `fase7_custo_fp(df_principal)`
+
+$$\text{Custo FP} = \text{Despesa Primaria} - \text{Custo FA}$$
+
+**Prova cruzada:** valida que $|\text{DP} - \text{FA} - \text{FP}| < 0{,}01$ para cada linha.
+
+#### Fase 8 — D&A Dedicado (do Budget)
+**Função:** `fase8_dea_dedicado(config)`
+1. Carrega `df_dea_dedicado_BUD.parquet` da pasta BUD
+2. Se não existir, retorna `None` (D&A = 0 nas fases seguintes)
+
+> **Nota:** Para o Real, a D&A vem do Budget (não muda mês a mês).
+
+#### Fase 9 — FP sem Dedicada
+**Função:** `fase9_fp_sem_dedicada(df_principal, df_dea)`
+
+Se D&A disponível:
+1. Agrega D&A por `[Oficina, Account, Período]` → `_dea_grupo`
+2. Merge com `df_principal`
+3. **Distribuição pro-rata por Custo FP:**
+
+$$\text{D\&A dedicado}_{\text{linha}} = \text{D\&A}_{\text{grupo}} \times \frac{\text{Custo FP}_{\text{linha}}}{\sum \text{Custo FP}_{\text{grupo}}}$$
+
+4. **Calcula:**
+
+$$\text{FP sem Dedicada} = \text{Custo FP} - \text{D\&A dedicado}$$
+
+Se D&A indisponível: `D&A dedicado = 0` e `FP sem Dedicada = Custo FP`.
+
+#### Fase 10 — Salvamento Principal
+**Função:** `fase10_salvamento(config, ...)`
+
+Adiciona coluna `Ano` e salva na pasta `dados/TC_Principal/{ano}/`:
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `df_principal.parquet` | Tabela principal (DP, FA, FP, D&A, FP sem Ded) |
+| `df_volume_fa.parquet` | Volume FA + Tempo FA |
+| `df_tempo_veiculos.parquet` | Tempo veículos (EST × Volume) |
+| `df_vol_veiculos.parquet` | Volumes veículos (Actual) |
+| `df_dea_dedicado.parquet` | D&A Dedicado (se disponível) |
+
+#### Fase 11 — Isolamento FP sem D&A
+**Função:** `fase11_custo_fp_sem_da(df_principal)`
+
+Extrai subconjunto de colunas para rastreabilidade: `[Oficina, Account, Período, Type 05, Type 06, Custo, Custo FP, D&A dedicado, FP sem Dedicada]`
+
+#### Fase 12 — Percentual de Rateio por Veículo
+**Função:** `fase12_percentual_rateio_veiculos(df_tempo_veic)`
+1. Agrega `Tempo Veic` por `(Oficina, Período)` → `Total_Tempo_Oficina`
+2. **Calcula:**
+
+$$\text{Percentual} = \frac{\text{Tempo Veic}_{\text{veículo}}}{\text{Total\_Tempo\_Oficina}}$$
+
+3. **Validação:** $\sum \text{Percentual} = 1{,}0$ por `(Oficina, Período)`
+
+#### Fase 13 — Custo Rateado por Veículo
+**Função:** `fase13_custo_rateado_veiculos(df_principal, df_percentual)`
+1. Merge de `df_principal` × `df_percentual` em `[Oficina, Período]` → **expande** cada linha para N veículos
+2. Fallback para linhas sem veículo: distribuição pro-rata pela média do período
+3. **Calcula:**
+
+$$\text{Custo Rateado} = \text{FP sem Dedicada} \times \text{Percentual}$$
+
+4. **Validação:** $\sum \text{Custo Rateado} \approx \sum \text{FP sem Dedicada}$
+
+#### Fase 14 — Custo FP Veículo
+**Função:** `fase14_custo_fp_veiculo(df_custo_rateado, df_dea, df_principal)`
+1. Se D&A tem `Veículo`: agrega D&A por `[Oficina, Veículo, Account, Período]`, distribui por count (1/N linhas no grupo)
+2. Se sem D&A: `D&A dedicado = 0`
+3. **Calcula:**
+
+$$\text{Custo FP Veiculo} = \text{Custo Rateado} + \text{D\&A dedicado}$$
+
+4. **Validação:** $|\sum \text{Custo FP original} - \sum \text{Custo FP Veiculo}| < 1{,}0$
+
+#### Fase 15 — CPU por Veículo
+**Função:** `fase15_cpu_veiculo(df_custo_fp_veiculo, df_vol)`
+1. Agrega `Custo FP Veiculo` por `(Veículo, Período)` → soma todas oficinas/accounts
+2. Agrega `Volume` por `(Veículo, Período)`
+3. **Calcula:**
+
+$$\text{CPU} = \frac{\sum \text{Custo FP Veiculo}}{\text{Volume}}$$
+
+Se Volume = 0: CPU = 0.
+
+#### Fase 16 — Salvamento Veículos
+**Função:** `fase16_salvamento_veiculos(config, ...)`
+
+Salva na pasta `dados/TC_Principal/{ano}/`:
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `df_veiculos_fp_sem_da.parquet` | FP sem D&A (base rateio) |
+| `df_veiculos_percentual_rateio.parquet` | % rateio por veículo |
+| `df_veiculos_custo_rateado.parquet` | FP sem Ded × Percentual |
+| `df_veiculos_custo_fp.parquet` | Custo FP final por veículo |
+| `df_veiculos_cpu.parquet` | CPU por veículo |
+
+#### Fase 17 — Comparativo Real × Budget
+**Função:** `fase17_comparativo(config, df_principal_real)`
+1. Carrega `df_principal_BUD.parquet`
+2. Agrega ambos por `(Oficina, Período)` somando `Despesa Primaria`, `Custo FA`, `Custo FP`
+3. Merge outer com sufixos `_Real` / `_Budget`
+4. Calcula diferenças: `Diff_X = X_Real − X_Budget`
+5. Salva `df_comparativo_real_budget.parquet`
+
+#### Fase 18 — Validação Final
+**Função:** `validacao_final(config, arquivos)`
+
+Verifica existência de cada parquet, presença da coluna `Ano`, número de períodos, e prova cruzada: $|\text{DP} - \text{FA} - \text{FP}| < 0{,}01$.
+
+#### Fase 19 — Consolidação Histórico
+**Função:** `consolidar_historico_tc_veiculos(tipo='real')`
+
+Descobre anos em `dados/TC_Principal/`, concatena parquets multi-ano em `dados/TC_Principal/historico_consolidado/`:
+
+| Arquivo Consolidado | Fonte por ano |
+|---------------------|---------------|
+| `df_principal_historico.parquet` | `df_principal.parquet` |
+| `df_vol_historico.parquet` | `df_vol_veiculos.parquet` |
+| `df_cpu_historico.parquet` | `df_veiculos_cpu.parquet` |
+| `df_veiculos_custo_fp_historico.parquet` | `df_veiculos_custo_fp.parquet` |
+
+---
+
+### 14.4 Pipeline Budget (BDG) — `processamento_dados_veiculos_BUD.py`
+
+**Função orquestradora:** `processar_veiculos_budget(ano)`
+
+**Pasta de saída:** `dados/TC_Principal/{ano}/BUD/`
+
+> O pipeline BUD segue a mesma lógica do Real com as seguintes diferenças:
+
+#### Diferenças na leitura de dados
+
+| Fase | Real (Sapiens) | Budget (BDG) |
+|------|----------------|--------------|
+| 1 | Lê `Sapiens` (formato **longo**) | Lê `massa primária - BDG` (formato **wide** → **melt** necessário) |
+| 2 | Volume de `Volume e EST PdR - Actual` | Volume de `Volume e EST PdR - BDG` |
+| 3 | Volume de `Volume Actual` | Volume de `Volume BDG` **+ também** `Volume Actual` (para Flex Bud) |
+| 4 | EST de `EST veículos - Actual` | EST de `EST veículos - BDG` |
+| 8/10 | D&A carregado do parquet BUD | D&A lido diretamente do Excel (`massa - D&A dedicado`) |
+
+#### Fase 1 BUD — massa primária - BDG → Despesa Primária
+**Função:** `fase1_voz_de_custo(config)`
+
+**Diferença-chave:** os dados BDG vêm no formato wide (meses como colunas), exigindo **melt**:
+1. Lê aba `massa primária - BDG`
+2. Detecta colunas de meses (prefixo jan/fev/mar...)
+3. **Melt:** dimensões × meses → `Período` + `Despesa Primaria`
+4. Normaliza `Período`, preenche NaN com 0
+5. Exige: `Oficina, Account, Período, Despesa Primaria`
+
+#### Fase 2 BUD — massa - REDIS (idêntica ao Real)
+Mesma lógica: lê `massa - REDIS`, melt, inverte sinal `(-abs())`, marca `_fonte_redis=True`.
+
+#### Fases 7-9 (Rateio FA, Custo FA, Custo FP) — Idênticas ao Real
+Mesmas fórmulas, mesmos fatores manuais do `rateios_manuais.json`.
+
+#### Fase 10 BUD — D&A Dedicado
+**Função:** `fase10_dea_dedicado(config)`
+
+**Diferença-chave:** lê diretamente do Excel (aba `massa - D&A dedicado`) em vez de carregar parquet:
+1. Lê a aba com meses como colunas
+2. **Melt** → `Período` + `D&A dedicado`
+3. Identifica coluna `Veículo` (se existir)
+
+#### Arquivos de Saída
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `df_principal_BUD.parquet` | Tabela principal BUD |
+| `df_volume_fa_BUD.parquet` | Volume FA + Tempo FA |
+| `df_tempo_veiculos_BUD.parquet` | Tempo veículos |
+| `df_vol_veiculos_BUD.parquet` | Volumes veículos (BDG) |
+| `df_vol_veiculos_actual.parquet` | Volumes veículos (Actual) |
+| `df_dea_dedicado_BUD.parquet` | D&A Dedicado |
+| `df_veiculos_fp_sem_da_BUD.parquet` | FP sem D&A |
+| `df_veiculos_percentual_rateio_BUD.parquet` | % rateio por veículo |
+| `df_veiculos_custo_rateado_BUD.parquet` | Custo rateado |
+| `df_veiculos_custo_fp_BUD.parquet` | Custo FP final por veículo |
+| `df_veiculos_cpu_BUD.parquet` | CPU por veículo |
+
+#### Consolidação Histórico BUD
+
+| Arquivo Consolidado | Pasta |
+|---------------------|-------|
+| `df_principal_historico_BUD.parquet` | `historico_consolidado/BUD/` |
+| `df_vol_historico_BUD.parquet` | `historico_consolidado/BUD/` |
+| `df_cpu_historico_BUD.parquet` | `historico_consolidado/BUD/` |
+| `df_veiculos_custo_fp_historico_BUD.parquet` | `historico_consolidado/BUD/` |
+
+---
+
+### 14.5 Construção da Simulação BE (Forecast) — `best_estimate_simulador_tc.py`
+
+**Pasta de saída:** `dados/TC_Principal/Forecast/`
+
+#### Visão Geral do Fluxo
+
+```
+Dados Históricos (Real)          Custos Específicos (manuais)
+         ↓                                  ↓
+   Motor de Forecast               Rateio por veículo
+         ↓                                  ↓
+   Tipo = 'BE'                      Tipo = 'BE Manual'
+         ↓                                  ↓
+         └──────── Concat ──────────────────┘
+                      ↓
+              Tipo = 'Histórico'  (meses já realizados)
+                      +
+                 forecast_completo.parquet
+```
+
+#### Etapa 1 — Carregamento dos Dados Base
+
+1. **Dados Históricos Real:** carrega de `df_principal_historico.parquet` ou `df_principal.parquet` (via prioridade Forecast → ano → histórico)
+2. **Volume Histórico:** carrega de `df_vol_historico.parquet`
+3. **Volume Budget:** carrega de `df_vol_veiculos_BUD.parquet` (usado como fallback de volume)
+4. **Custos Específicos:** carrega de `dados/TC_Principal/Forecast/custos_especificos.parquet` (se existir)
+
+#### Etapa 2 — Configuração do Usuário (UI)
+
+O simulador oferece controles interativos:
+- **Último período realizado**: qual o último mês com dados reais
+- **Meses para prever**: quais meses devem receber projeção
+- **Meses base para média**: quais meses históricos usar como referência
+- **Sensibilidade global**: sliders separados para Fixo (default 0%) e Variável (default 100%)
+- **Sensibilidade por Type 06**: override granular por classificação contábil
+- **Inflação**: percentual aplicado sobre a projeção
+- **Modelos ref Budget**: veículos que devem usar o custo BUD como base ao invés da média histórica
+
+#### Etapa 3 — Motor de Forecast (Fórmula Central)
+
+Para cada linha de custo e cada período futuro:
+
+$$\text{Forecast} = \bar{C}_{\text{hist}} \times \left(1 + \left(\frac{V_{\text{mês}}}{\bar{V}_{\text{hist}}} - 1\right) \times S\right) \times (1 + I)$$
+
+Onde:
+- $\bar{C}_{\text{hist}}$ = Média Mensal Histórica do custo (soma / nº períodos efetivos)
+- $V_{\text{mês}}$ = Volume do mês sendo projetado
+- $\bar{V}_{\text{hist}}$ = Volume Médio Histórico dos períodos selecionados
+- $S$ = Sensibilidade (0.0 para Fixo, 1.0 para Variável, ou valor customizado por Type 06)
+- $I$ = Inflação (`inflacao_percentual / 100`)
+
+**Lógica de volume com fallbacks:**
+1. Volume Real do mês (match por mês + ano)
+2. Volume Budget (fallback via `_buscar_volume_bud_periodo()`)
+3. Se nenhum encontrado: `proporcão_volume = 1.0` (sensibilidade neutra)
+
+**Linhas com referência Budget:** quando o veículo está marcado como "ref Budget", a `média_histórica` é substituída pelo `custo BUD` daquele mês (em vez de calcular média).
+
+#### Etapa 4 — Custos Específicos (Manuais)
+
+1. O usuário adiciona custos via `st.data_editor` (tabela editável com colunas Jan-Dez)
+2. Cada mês com valor > 0 gera uma linha em `custos_especificos.parquet`
+3. No merge final, cada custo específico é **rateado por veículo**:
+   - Usa `buscar_rateios_arquivo(oficina, periodo, ano)` para obter percentuais
+   - Expande em N linhas para veículos: `CC21, CC22, CC24, CC24 5L, CC24 7L, J516`
+   - `valor_rateado = total × rateio_veiculo`
+   - Se rateio não encontrado → distribuição igual (`1/N` por veículo)
+4. Marcadas com `Tipo = 'BE Manual'`
+
+#### Etapa 5 — Classificação da Coluna Tipo
+
+| Valor | Significado | Origem |
+|-------|-------------|--------|
+| `Histórico` | Dados já realizados (do Sapiens) | Períodos ≤ último realizado |
+| `BE` | Linhas de forecast geradas pelo motor | Motor de cálculo (Etapa 3) |
+| `BE Manual` | Custos específicos manuais | Custos adicionados pelo usuário (Etapa 4) |
+
+#### Etapa 6 — Salvamento
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `forecast_historico.parquet` | Linhas Tipo = 'Histórico' |
+| `forecast_previsao.parquet` | Linhas Tipo ∈ {'BE', 'BE Manual'} |
+| **`forecast_completo.parquet`** | Histórico + Forecast consolidado (arquivo consumido pelo dashboard) |
+| `df_vol_historico.parquet` | Cópia do volume histórico completo |
+| `custos_especificos.parquet` | Custos manuais adicionados |
+
+---
+
+### 14.6 Carregamento no Dashboard — `home_tc.py`
+
+#### Como o forecast é carregado e normalizado
+
+**Função:** `_load_forecast(ano)` — cacheada com TTL de 1h
+
+1. Lê `dados/TC_Principal/Forecast/forecast_completo.parquet`
+2. Normaliza coluna `Período` (capitaliza, corrige mojibake)
+3. Converte colunas monetárias + Total/Volume/CPU para numérico
+4. Filtra por `ano` se fornecido
+5. **Normaliza coluna `Tipo`** via `_norm_tipo()`:
+   - Se contém `"hist"` (case-insensitive, sem acentos) → `"Histórico"`
+   - Senão → `"BE"` (inclui tanto 'BE' quanto 'BE Manual')
+
+#### Toggle Real / BE (Simulado)
+
+Na Tab 1 do dashboard:
+```
+📊 Fonte de Dados: [Real] [BE (Simulado)]
+```
+- **Real:** usa `df_principal.parquet` (dados do Sapiens processados)
+- **BE (Simulado):** usa `forecast_completo.parquet` (dados de forecast)
+
+#### Rateio BE por veículo no dashboard
+
+Quando o usuário filtra por veículo no modo BE:
+1. Carrega percentuais de rateio Real via `load_percentual_rateio_veiculos_real(ano)`
+2. Chama `ratear_be_por_veiculo(df_be, df_percentual)`:
+  - Remove colunas `Veículo`, `Percentual`, `Custo FP Veiculo`, `Custo Rateado` existentes
+  - Merge em `[Oficina, Período]` → expande para N veículos
+  - Calcula **Fase 13 (igual Real):** `Custo Rateado = FP sem Dedicada × Percentual`
+  - **Correção (Forecast):** se `FP sem Dedicada = 0` e `Custo FP != 0`, usa `Custo FP` como base (marca como previsão)
+  - Calcula **Fase 14 (igual Real):** D&A dedicado por veículo
+    - Se existe arquivo Real de D&A por veículo, usa essa alocação
+    - Caso contrário, rateia `D&A dedicado × Percentual`
+    - Para linhas de **previsão**, D&A é zerado (já está embutido no `Custo FP`)
+  - Final: `Custo FP Veiculo = Custo Rateado + D&A dedicado`
+
+#### Flex Budget no dashboard
+
+**Função:** `calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual)` (`shared.py`)
+
+1. Identifica custos fixos via `mask_custo_fixo()`: normaliza texto sem acento, verifica se começa com `'fix'`
+2. Separa BUD em Fixo e NãoFixo
+3. Agrega volumes por Período
+4. **Fórmula:**
+
+$$\text{Flex Bud} = \text{Fixo}_{\text{BUD}} + \text{NãoFixo}_{\text{BUD}} \times \frac{\text{Vol Actual}}{\text{Vol Budget}}$$
+
+Se Vol Budget = 0: proporção = 1.0 (Flex Bud = BUD).
+
+---
+
+### 14.7 Fórmulas de Referência
+
+| Grandeza | Fórmula | Onde |
+|----------|---------|------|
+| **Tempo FA** | $\text{Vol FA} \times \text{EST}$ | Fase 2 |
+| **Tempo Veic** | $\text{Volume} \times \text{EST}$ | Fase 4 |
+| **Rateio FA (auto)** | $\frac{\text{Tempo FA}}{\text{Tempo FA} + \text{Tempo Veic}}$ | Fase 5 |
+| **Taxa PdR** | $\frac{\sum \text{Tempo FA global}}{\sum \text{Tempo Veic global (excl. GS, SM)}}$ | Fase 5 |
+| **Rateio FA (manual)** | $\text{fator\_manual} \times \text{Taxa PdR}$ | Fase 5 |
+| **Custo FA** | $\text{Rateio FA} \times \text{Despesa Primaria}$ (Redis: FA = 0) | Fase 6 |
+| **Custo FP** | $\text{Despesa Primaria} - \text{Custo FA}$ | Fase 7 |
+| **D&A pro-rata** | $\text{D\&A}_{\text{grupo}} \times \frac{\text{FP}_{\text{linha}}}{\sum \text{FP}_{\text{grupo}}}$ | Fase 9 |
+| **FP sem Dedicada** | $\text{Custo FP} - \text{D\&A dedicado}$ | Fase 9 |
+| **% Rateio Veíc** | $\frac{\text{Tempo Veic}_{\text{veíc}}}{\sum \text{Tempo Veic}_{\text{oficina}}}$ | Fase 12 |
+| **Custo Rateado** | $\text{FP sem Dedicada} \times \text{Percentual}$ | Fase 13 |
+| **Custo FP Veículo** | $\text{Custo Rateado} + \text{D\&A dedicado}$ | Fase 14 |
+| **CPU** | $\frac{\sum \text{Custo FP Veiculo}}{\text{Volume}}$ | Fase 15 |
+| **Flex Bud** | $\text{Fixo} + \text{NãoFixo} \times \frac{V_{\text{Actual}}}{V_{\text{Budget}}}$ | Dashboard |
+| **Forecast** | $\bar{C} \times (1 + (\frac{V}{V_m} - 1) \times S) \times (1 + I)$ | Simulador |
+| **Prova cruzada** | $\text{DP} - \text{FA} - \text{FP} = 0$ | Validação |
+
+---
+
+### 14.8 Mapa Completo de Parquets Gerados
+
+#### TC Veículos — Real (`dados/TC_Principal/{ano}/`)
+
+| Arquivo | Fase | Conteúdo |
+|---------|------|----------|
+| `df_principal.parquet` | 10 | DP, FA, FP, D&A, FP sem Ded, Rateio FA |
+| `df_volume_fa.parquet` | 10 | Vol FA, EST, Tempo FA |
+| `df_tempo_veiculos.parquet` | 10 | Volume × EST por veículo |
+| `df_vol_veiculos.parquet` | 10 | Volumes de veículos (Actual) |
+| `df_dea_dedicado.parquet` | 10 | D&A Dedicado (copiado do BUD) |
+| `df_veiculos_fp_sem_da.parquet` | 16 | Base para rateio veicular |
+| `df_veiculos_percentual_rateio.parquet` | 16 | % rateio por veículo |
+| `df_veiculos_custo_rateado.parquet` | 16 | FP sem Ded × Percentual |
+| `df_veiculos_custo_fp.parquet` | 16 | Custo FP final por veículo |
+| `df_veiculos_cpu.parquet` | 16 | CPU por veículo |
+| `df_comparativo_real_budget.parquet` | 17 | Real × Budget (diferenças) |
+
+#### TC Veículos — Budget (`dados/TC_Principal/{ano}/BUD/`)
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `df_principal_BUD.parquet` | DP, FA, FP, D&A, FP sem Ded |
+| `df_volume_fa_BUD.parquet` | Vol FA + Tempo FA |
+| `df_tempo_veiculos_BUD.parquet` | Tempo veículos |
+| `df_vol_veiculos_BUD.parquet` | Volumes veículos (BDG) |
+| `df_vol_veiculos_actual.parquet` | Volumes veículos (Actual) |
+| `df_dea_dedicado_BUD.parquet` | D&A Dedicado |
+| `df_veiculos_fp_sem_da_BUD.parquet` | FP sem D&A |
+| `df_veiculos_percentual_rateio_BUD.parquet` | % rateio por veículo |
+| `df_veiculos_custo_rateado_BUD.parquet` | Custo rateado |
+| `df_veiculos_custo_fp_BUD.parquet` | Custo FP por veículo |
+| `df_veiculos_cpu_BUD.parquet` | CPU por veículo |
+
+#### TC Veículos — Forecast (`dados/TC_Principal/Forecast/`)
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `forecast_completo.parquet` | Histórico + BE + BE Manual |
+| `forecast_historico.parquet` | Apenas Tipo = 'Histórico' |
+| `forecast_previsao.parquet` | Apenas Tipo ∈ {'BE', 'BE Manual'} |
+| `df_vol_historico.parquet` | Volume histórico completo |
+| `custos_especificos.parquet` | Custos manuais |
+
+#### TC Veículos — Histórico Consolidado (`dados/TC_Principal/historico_consolidado/`)
+
+| Arquivo | Tipo |
+|---------|------|
+| `df_principal_historico.parquet` | Real |
+| `df_vol_historico.parquet` | Real |
+| `df_cpu_historico.parquet` | Real |
+| `df_veiculos_custo_fp_historico.parquet` | Real |
+| `BUD/df_principal_historico_BUD.parquet` | Budget |
+| `BUD/df_vol_historico_BUD.parquet` | Budget |
+| `BUD/df_cpu_historico_BUD.parquet` | Budget |
+| `BUD/df_veiculos_custo_fp_historico_BUD.parquet` | Budget |
 
 ---
 
@@ -573,4 +1178,4 @@ Uma reescrita deve passar nos seguintes critérios:
 
 ---
 
-**Última atualização:** 2026-02-15
+**Última atualização:** 2026-02-16

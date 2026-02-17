@@ -513,10 +513,12 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
 
         ```
         Despesa Primária
-          + Custo FA (Fluxo Anexo × Rateio FA)
-          = Custo FP (Fabricação Principal)
+                    × Rateio FA
+                    = Custo FA (Fluxo Anexo)
 
-        Custo FP = Despesa Primária + Custo FA
+                Custo FP (Fabricação Principal)
+                    = Despesa Primária − Custo FA
+
         D&A Dedicado = parcela de D&A atribuída diretamente ao veículo
         FP sem Dedicada = Custo FP − D&A Dedicado
         ```
@@ -524,8 +526,11 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         **Colunas Monetárias** (recebem conversão de moeda e fator):
         - `Despesa Primaria`, `Custo FA`, `Custo FP`, `D&A dedicado`, `FP sem Dedicada`
 
-        **Redis** — Não é uma coluna. Identificado por linhas onde `Account = 'Redis'`:
-        > Redis = Σ Despesa Primária onde Account = Redis
+        **Redis** — Não é uma coluna nem um `Account` fixo.
+        Redis entra como **linhas adicionais** vindas da aba **massa - REDIS**, marcadas com `_fonte_redis=True`.
+
+        **KPI Redis:**
+        > Redis = Σ `Despesa Primaria` nas linhas com `_fonte_redis=True` (valores tipicamente negativos por serem receita)
         """)
 
     with st.expander("🚗 **Rateio por Veículo**", expanded=False):
@@ -588,7 +593,8 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
 
         **Quando o tipo de visualização é CPU:**
         - Cada métrica é dividida pelo volume total
-        - O fator K/M **não é aplicado** (sempre "Nenhum")
+        - O sistema recalcula CPU **após** agregações (nunca soma/média de CPU)
+        - O fator K/M é aplicado nas colunas monetárias antes do cálculo; para CPU sem escala, usar `Fator = Nenhum`
         - Volumes de BUD e Actual são usados conforme o contexto
         """)
 
@@ -600,7 +606,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         |-----|---------|
         | Desp. Primária | Σ Despesa Primaria |
         | Custo FA | Σ Custo FA |
-        | Redis | Σ Despesa Primaria (Account = Redis) |
+        | Redis | Σ Despesa Primaria (linhas `_fonte_redis=True`, origem: massa - REDIS) |
         | Custo FP | Σ Custo FP |
         | D&A Dedicada | Σ D&A dedicado |
         | FP sem Dedicada | Σ FP sem Dedicada |
@@ -3056,8 +3062,9 @@ elif indice_selecionado == "📥 Guia de Extração de Dados" and modulo_doc == 
         3. **Composição de Custos**:
            - Despesa Primária (soma dos lançamentos)
            - Custo FA = Despesa Primária × Rateio FA
-           - Custo FP = Despesa Primária + Custo FA
-           - D&A Dedicado (identificado por Account)
+              - Custo FP = Despesa Primária − Custo FA
+              - Redis entra via aba massa - REDIS (linhas adicionais marcadas com `_fonte_redis=True`)
+              - D&A Dedicado (aba massa - D&A dedicado; alocado e depois somado por veículo)
            - FP sem Dedicada = Custo FP − D&A Dedicado
         4. **Gravação**: `df_principal_BUD.parquet`
         5. **Chamada**: `processamento_dados_veiculos_BUD.py`

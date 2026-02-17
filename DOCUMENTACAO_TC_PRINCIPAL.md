@@ -1,148 +1,161 @@
-# 🚗 Documentação Técnica — TC Veículos
+# 🚗 TC Veículos — Documentação (Fonte Única de Verdade)
 
-> **Objetivo**: Documentação completa do módulo TC Veículos — análise de custo de produção de veículos, com visão consolidada e rateada por veículo.
-
----
-
-## 1) Visão Geral
-
-O módulo **TC Veículos** é o dashboard de análise de custos de produção de veículos. Ele complementa o TC Extendido, focando nos custos diretos de fabricação rateados por modelo de veículo.
-
-### 1.1 Funcionalidades Principais
-- **KPIs Resumo**: Despesa Primária, Custo FA, Redis, Custo FP, D&A Dedicado, FP sem Dedicada
-- **TC Veículos**: Custo FP por período com gráfico Real + linha Flex BUD pontilhada
-- **Análise Flex por Categoria**: Fixo/Variável com hierarquia Type 05 → Account
-- **Volume**: Budget vs Realizado, por período e por veículo
-- **Custos por Oficina**: Custo FP e Rateio FA por oficina
-- **Análise Flex**: Fixo vs Variável com gráficos empilhados e pizza
-- **Tempo de Produção**: Tempo Veículo vs Tempo FA por oficina
-- **Dados Detalhados**: Tabelas exportáveis de Real e Budget
-
-### 1.2 Arquitetura de Filtros
-| Filtro | Tipo | Comportamento |
-|--------|------|---------------|
-| Oficina | multiselect | "Todos" ou seleção múltipla |
-| Tipo Custo | multiselect | Fixo/Variável ou todos |
-| Veículo | **selectbox** | "Todos" (consolidado) ou **1 veículo** (rateado) |
-| Período | multiselect | "Todos" ou seleção de meses |
-
-- Quando **Veículo = "Todos"**: dados consolidados (`df_principal_BUD.parquet`)
-- Quando **Veículo = modelo específico**: dados rateados (`df_veiculos_custo_fp_BUD.parquet`)
-- Filtros são **globais** — afetam KPIs, gráficos e Análise Flex simultaneamente
+> **Objetivo**: documentar o módulo **TC Veículos** de forma fiel ao código e sustentável (para uso executivo e técnico).
 
 ---
 
-## 2) Contratos de Dados (Parquets)
+## 1) Resumo Executivo
 
-### 2.1 Estrutura de Pastas
+O **TC Veículos** é o módulo do SCI que explica **quanto custa fabricar cada modelo de veículo** e **por que o custo mudou** (Real vs Budget/Flex, com opção de projeção via Best Estimate).
+
+Ele opera com uma cadeia de custos padronizada e auditável:
+
+$$\text{Despesa Primaria} = \text{Custo FA} + \text{Custo FP}$$
+
+- **Custo FA**: parcela da Despesa Primaria atribuída ao *Fluxo Anexo* (por oficina/período)
+- **Custo FP**: parcela remanescente (Fabricação Principal)
+- **D\&A dedicado**: depreciação/amortização dedicada (entrada externa)
+- **FP sem Dedicada**: base que será rateada por veículo usando tempo de produção
+- **Redis**: receita (negativa) vinda da aba **massa - REDIS**, incorporada na própria base e rateada para veículos via tempo
+
+---
+
+## 2) Páginas do Módulo (no app)
+
+Rotas atuais no [app.py](app.py#L1):
+
+- Home (TC Veículos): [tc_principal/pages/home_tc.py](tc_principal/pages/home_tc.py)
+- Waterfall: [tc_principal/pages/waterfall_tc.py](tc_principal/pages/waterfall_tc.py)
+- Best Estimate (Simulador): [tc_principal/pages/best_estimate_simulador_tc.py](tc_principal/pages/best_estimate_simulador_tc.py)
+- Extração de Dados: [tc_principal/pages/extracao_dados_tc.py](tc_principal/pages/extracao_dados_tc.py)
+- Debug de Cálculos: [tc_principal/pages/debug_calculos_tc.py](tc_principal/pages/debug_calculos_tc.py)
+
+---
+
+## 3) Contratos de Dados (Parquets)
+
+### 3.1 Estrutura de Pastas (atual)
+
 ```
 dados/TC_Principal/
 ├── {ano}/
-│   ├── BUD/                          # Budget
-│   │   ├── df_principal_BUD.parquet       # Custo consolidado
-│   │   ├── df_vol_veiculos_BUD.parquet    # Volume por veículo (Budget)
-│   │   ├── df_veiculos_custo_fp_BUD.parquet  # Custo FP rateado por veículo
-│   │   ├── df_veiculos_cpu_BUD.parquet    # CPU por veículo
-│   │   ├── df_tempo_veiculos_BUD.parquet  # Tempo de produção
-│   │   ├── df_dea_dedicado_BUD.parquet    # D&A Dedicado
-│   │   └── df_volume_fa_BUD.parquet       # Volume Fluxo Anexo
-│   ├── df_principal.parquet               # Custo Real consolidado
-│   ├── df_vol_veiculos_actual.parquet     # Volume Realizado
-│   ├── df_veiculos_custo_fp.parquet       # Custo FP Real rateado
-│   └── df_veiculos_cpu.parquet            # CPU Real
+│   ├── df_principal.parquet
+│   ├── df_vol_veiculos.parquet
+│   ├── df_volume_fa.parquet
+│   ├── df_dea_dedicado.parquet
+│   ├── df_tempo_veiculos.parquet
+│   ├── df_veiculos_percentual_rateio.parquet
+│   ├── df_veiculos_fp_sem_da.parquet
+│   ├── df_veiculos_custo_rateado.parquet
+│   ├── df_veiculos_custo_fp.parquet
+│   ├── df_veiculos_cpu.parquet
+│   ├── df_comparativo_real_budget.parquet
+│   └── BUD/
+│       ├── df_principal_BUD.parquet
+│       ├── df_vol_veiculos_BUD.parquet
+│       ├── df_vol_veiculos_actual.parquet
+│       ├── df_volume_fa_BUD.parquet
+│       ├── df_dea_dedicado_BUD.parquet
+│       ├── df_tempo_veiculos_BUD.parquet
+│       ├── df_veiculos_percentual_rateio_BUD.parquet
+│       ├── df_veiculos_fp_sem_da_BUD.parquet
+│       ├── df_veiculos_custo_rateado_BUD.parquet
+│       ├── df_veiculos_custo_fp_BUD.parquet
+│       └── df_veiculos_cpu_BUD.parquet
+└── Forecast/
+          ├── forecast_completo.parquet
+          ├── forecast_previsao.parquet
+          ├── forecast_historico.parquet
+          ├── df_vol_historico.parquet
+          └── custos_especificos.parquet
 ```
 
-### 2.2 Schema — Principal BUD
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `Oficina` | str | Centro de custo (oficina de produção) |
-| `Veículo` | str | Modelo do veículo |
-| `Type 05` | str | Classificação hierárquica nível 1 |
-| `Type 06` | str | Classificação hierárquica nível 2 |
-| `Custo` | str | Tipo: Fixo ou Variável |
-| `Account` | str | Conta contábil (inclui "Redis") |
-| `Período` | str | Mês por extenso (Janeiro, Fevereiro, ...) |
-| `Despesa Primaria` | float | Despesa primária (R$) |
-| `Custo FA` | float | Custo do Fluxo Anexo (R$) |
-| `Custo FP` | float | Custo FP consolidado (R$) |
-| `D&A dedicado` | float | Depreciação & Amortização dedicada (R$) |
-| `FP sem Dedicada` | float | Custo FP sem D&A dedicada (R$) |
+### 3.2 Schema (alto nível)
 
-### 2.3 Schema — Veículos Rateado (BUD)
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `Oficina` | str | Centro de custo |
-| `Veículo` | str | Modelo do veículo |
-| `Type 05` | str | Classificação nível 1 |
-| `Type 06` | str | Classificação nível 2 |
-| `Custo` | str | Tipo: Fixo ou Variável |
-| `Account` | str | Conta contábil |
-| `Período` | str | Mês por extenso |
-| `Custo Rateado` | float | Custo rateado pelo percentual do veículo |
-| `D&A dedicado` | float | D&A dedicada direta do veículo |
-| `Custo FP Veiculo` | float | Custo FP final do veículo (Rateado + D&A) |
-| `Ano` | int | Ano de referência |
+**Tabela principal** (Real/BUD): grão típico = `(Oficina, Account, Período, Type 05, Type 06, Custo)`.
 
-> **Nota**: O parquet BUD veículos tem `Custo FP Veiculo` (não `Custo FP`). O sistema faz o mapeamento automático: `Custo FP = Custo FP Veiculo`.
+- Dimensões (principais): `Oficina`, `Período`, `Type 05`, `Type 06`, `Account`, `Custo`
+- Métricas monetárias: `Despesa Primaria`, `Custo FA`, `Custo FP`, `D&A dedicado`, `FP sem Dedicada`
+- Campo de rastreio: `_fonte_redis` (booleano) quando a linha veio da **massa - REDIS**
+
+**Tabela por veículo** (Real/BUD): grão típico = `(Oficina, Veículo, Account, Período, ...)`.
+
+- Métricas: `Custo Rateado`, `D&A dedicado`, `Custo FP Veiculo` (ou `Custo FP`, dependendo do parquet)
 
 ---
 
-## 3) Composição de Custos
+## 4) Regras de Cálculo (FP/FA/D\&A)
 
-### 3.1 Cadeia de Custos
-```
-Despesa Primária
-  + Custo FA (Fluxo Anexo × Rateio FA)
-  = Custo FP (Fabricação Principal)
-  
-Custo FP = Despesa Primária + Custo FA
-D&A Dedicado = parcela de D&A atribuída diretamente ao veículo
-FP sem Dedicada = Custo FP − D&A Dedicado
-```
+### 4.1 Rateio FA (por oficina/período)
 
-### 3.2 Colunas Monetárias
-As seguintes colunas recebem conversão de moeda e fator:
-- `Despesa Primaria`
-- `Custo FA`
-- `Custo FP`
-- `D&A dedicado`
-- `FP sem Dedicada`
+O sistema calcula `Rateio FA` usando tempo de produção (Tempo FA vs Tempo Veic) e/ou regras manuais por oficina.
 
-### 3.3 Redis
-Redis **não é uma coluna** — é identificado por linhas onde `Account = 'Redis'`:
-$$\text{Redis} = \sum_{\{Account=Redis\}} \text{Despesa Primária}$$
+### 4.2 Custo FA e Custo FP (split da Despesa Primaria)
 
----
+$$\text{Custo FA} = \text{Rateio FA} \times \text{Despesa Primaria}$$
 
-## 4) Rateio por Veículo
+$$\text{Custo FP} = \text{Despesa Primaria} - \text{Custo FA}$$
 
-### 4.1 Processo de Rateio
-O custo da oficina é rateado aos veículos proporcionalmente ao tempo de produção:
+Isso significa que a Despesa Primaria é **particionada** em FA + FP (não somada).
 
-$$\text{Percentual}_{v,o} = \frac{\text{TempoVeic}_{v,o}}{\sum_v \text{TempoVeic}_{v,o}}$$
+### 4.3 D\&A dedicado e FP sem Dedicada
 
-$$\text{CustoRateado}_{v,o} = \text{FPsemDedicada}_{o} \times \text{Percentual}_{v,o}$$
+O `D&A dedicado` entra por planilha e é distribuído:
 
-$$\text{CustoFPVeiculo}_{v,o} = \text{CustoRateado}_{v,o} + \text{D\&A Dedicado}_{v,o}$$
+- A base principal não tem `Veículo`, então o D\&A é agregado por `(Oficina, Account, Período)` e distribuído **pro-rata** por `Custo FP` dentro do grupo.
 
-### 4.2 Dados Consolidados vs Rateados
-| Seleção | Fonte BUD | Fonte Real |
-|---------|-----------|------------|
-| Todos | `df_principal_BUD.parquet` | `df_principal.parquet` |
-| Veículo específico | `df_veiculos_custo_fp_BUD.parquet` | `df_veiculos_custo_fp.parquet` |
+Depois:
+
+$$\text{FP sem Dedicada} = \text{Custo FP} - \text{D\&A dedicado}$$
 
 ---
 
-## 5) Flex Budget
+## 5) Redis (regra crítica)
 
-### 5.1 Conceito
-O Budget Flex ajusta o orçamento pela proporção de volume realizado:
-- Custos **fixos** permanecem iguais ao Budget
-- Custos **variáveis** são ajustados pela proporção de volume
+### 5.1 O que é Redis no sistema
 
-### 5.2 Fórmulas
+- **Redis não é “uma linha única”**.
+- Redis entra como **linhas adicionais** oriundas da aba **massa - REDIS**, com `_fonte_redis=True`.
+- Essas linhas carregam `Despesa Primaria` **negativa** (receita), e são concatenadas na base principal.
 
-$$\text{Proporção} = \frac{Volume_{Realizado}}{Volume_{Budget}}$$
+### 5.2 Como o KPI Redis é calculado
+
+O KPI Redis é a soma da `Despesa Primaria` das linhas com `_fonte_redis=True`.
+
+Observação importante: o helper `extrair_redis()` em [tc_principal/shared.py](tc_principal/shared.py#L43) retorna 0 quando `_fonte_redis` não existe (parquets antigos).
+
+### 5.3 Redis × Oficina × Veículo (como Redis “vira” custo por modelo)
+
+Redis nasce por **Oficina/Período** (e dimensões contábeis) e passa pela cadeia normal:
+
+- No cálculo de FA: para linhas Redis, `Rateio FA` é forçado para 0 (Redis vai integralmente para FP).
+- No rateio por veículo: Redis está dentro do `FP sem Dedicada` por oficina/período, então ele é **distribuído para veículos** proporcionalmente ao tempo de produção.
+
+---
+
+## 6) Rateio por Veículo
+
+O rateio por veículo é feito com base no **tempo de produção**:
+
+$$\text{Tempo Veic} = \text{Volume} \times \text{EST}$$
+
+$$\text{Percentual}_{v,o,p} = \frac{\text{Tempo Veic}_{v,o,p}}{\sum_v \text{Tempo Veic}_{v,o,p}}$$
+
+Aplicação:
+
+$$\text{Custo Rateado}_{v,o,p} = \text{FP sem Dedicada}_{o,p} \times \text{Percentual}_{v,o,p}$$
+
+Depois, o D\&A dedicado por veículo é somado:
+
+$$\text{Custo FP Veiculo}_{v,o,p} = \text{Custo Rateado}_{v,o,p} + \text{D\&A dedicado}_{v,o,p}$$
+
+---
+
+## 7) Flex Budget
+
+O **Flex Bud** ajusta apenas a parcela **variável** do Budget pela proporção de volume.
+
+$$\text{Proporção} = \frac{Volume_{Real}}{Volume_{Budget}}$$
 
 $$Flex_{fixo} = BUD_{fixo}$$
 
@@ -150,156 +163,40 @@ $$Flex_{variável} = BUD_{variável} \times \text{Proporção}$$
 
 $$Flex_{total} = Flex_{fixo} + Flex_{variável}$$
 
-### 5.3 Classificação Fixo/Variável
-A coluna `Custo` determina a classificação:
-- Valores que começam com `"Fix"` (case-insensitive, sem acentos) → **Fixo**
-- Todos os demais → **Variável**
+---
 
-```python
-# Implementação
-mask_fixo = df['Custo'].str.lower().str.startswith('fix')
-```
+## 8) CPU (Custo por Unidade) — regra crítica
+
+$$CPU = \frac{\sum \text{Custo}}{\sum \text{Volume}}$$
+
+- CPU **nunca** é somado nem tirado média; sempre recalculado após agregação.
+- CPU é uma razão; **não faz sentido aplicar K/M no valor final**.
+- No dashboard, o fator K/M é aplicado nas colunas monetárias antes do cálculo; para CPU em unidade monetária “real”, usar `Fator = Nenhum`.
 
 ---
 
-## 6) CPU (Custo por Unidade)
+## 9) Best Estimate (Simulador)
 
-### 6.1 Fórmula
+Página: [tc_principal/pages/best_estimate_simulador_tc.py](tc_principal/pages/best_estimate_simulador_tc.py)
 
-$$CPU = \frac{\text{Custo Total}}{\text{Volume Total}}$$
-
-Com proteção contra divisão por zero:
-```python
-CPU = np.where(volume != 0, custo / volume, 0.0)
-```
-
-### 6.2 Aplicação
-Quando o tipo de visualização é **CPU**:
-- Cada métrica é dividida pelo volume total
-- O fator K/M **não é aplicado** (sempre "Nenhum")
-- Volumes de BUD e Actual são usados conforme o contexto
+- Gera Forecast a partir de histórico + premissas (sensibilidade e inflação) e volume projetado.
+- Salva outputs em `dados/TC_Principal/Forecast/` (ex.: `forecast_completo.parquet`, `df_vol_historico.parquet`).
 
 ---
 
-## 7) KPIs — Resumo TC Veículos
+## 10) Debug de Cálculos (auditoria)
 
-### 7.1 KPIs do Topo (fora das tabs)
-| KPI | Fórmula |
-|-----|---------|
-| Desp. Primária | $\sum \text{Despesa Primaria}$ |
-| Custo FA | $\sum \text{Custo FA}$ |
-| Redis | $\sum \text{Despesa Primaria}$ onde $Account = Redis$ |
-| Custo FP | $\sum \text{Custo FP}$ |
-| D&A Dedicada | $\sum \text{D\&A dedicado}$ |
-| FP sem Dedicada | $\sum \text{FP sem Dedicada}$ |
+Página: [tc_principal/pages/debug_calculos_tc.py](tc_principal/pages/debug_calculos_tc.py)
 
-### 7.2 KPIs do Resumo TC Veículos (tab TC Veículos)
-| KPI | Fórmula |
-|-----|---------|
-| BUD | $BUD_{fixo} + BUD_{variável}$ |
-| Flex Bud − BUD | $Flex_{total} - BUD_{total}$ |
-| Flex BUD | $BUD_{fixo} + BUD_{variável} \times Proporção$ |
-| Real − Flex Bud | $Real_{total} - Flex_{total}$ |
-| Real | $\sum \text{Custo FP Real}$ |
-| Real / Flex Bud | $\frac{Real}{Flex BUD}$ (%) |
+Usada para:
+
+- Conferir parquets existentes (Real/BUD) e seus shapes
+- Validar fechamentos (ex.: $\sum \text{Custo Rateado} \approx \sum \text{FP sem Dedicada}$)
+- Conferir que Redis está marcado por `_fonte_redis` e que `Rateio FA=0` nessas linhas
 
 ---
 
-## 8) Análise Flex por Categoria
-
-### 8.1 Modos de Visualização
-- **Fixo/Variável**: Expanders `💰 Fixo` e `💰 Variável`, cada um com sub-expanders por `Type 05` → tabela por `Account`
-- **Total**: Expanders direto por `Type 05` → tabela por `Account`
-
-### 8.2 Tabela Flex por Account
-| Coluna | Cálculo |
-|--------|---------|
-| Account | Nome da conta |
-| BUD | $\sum \text{Custo FP Budget}$ |
-| Flex Bud − BUD | $Flex - BUD$ |
-| Flex BUD | Fixo: $BUD$, Variável: $BUD \times Proporção$ |
-| Total − Flex Bud | $Real - Flex$ |
-| Total | $\sum \text{Custo FP Real}$ |
-| Total / Flex Bud | $\frac{Real}{Flex}$ (com barrinha de progresso) |
-
-### 8.3 Barrinha de Progresso
-- Verde: ≤ 90%
-- Gradiente verde→vermelho: 90%–100%
-- Vermelho: ≥ 100%
-
----
-
-## 9) Gráficos
-
-### 9.1 Custo FP por Período
-- **Barras**: Real por período com degradê roxo (`scheme='purples'`)
-- **Linha pontilhada**: Flex BUD (laranja, `strokeDash=[10,5]`)
-- **Delta**: Gráfico inferior com `Real − Flex BUD` (verde = positivo, vermelho = negativo)
-- Biblioteca: **Altair** com `data_transformers.disable_max_rows()`
-
-### 9.2 Volume
-- **Barras**: Volume Budget (degradê verde)
-- **Linha tracejada**: Volume Realizado (laranja)
-- **Por Veículo**: Barras agrupadas por modelo
-
-### 9.3 Custos por Oficina
-- Barras Custo FP por Oficina
-- Barras Rateio FA por Oficina (verde/vermelho)
-- Tabela BUD vs Flex pivotada Oficina × Período
-
----
-
-## 10) Filtros — Arquitetura Unificada
-
-### 10.1 Fluxo de Dados
-```
-    Sidebar filters
-         │
-         ├── Veículo = "Todos" ──► usar_rateado = False
-         │         ├── df_principal_BUD  → df_bud
-         │         ├── df_principal_Real → df
-         │         └── Volumes: todos os veículos
-         │
-         └── Veículo = "CC21 biton" ──► usar_rateado = True
-                   ├── df_veiculos_custo_fp_BUD → df_bud (filtrado)
-                   ├── df_veiculos_custo_fp_Real → df (filtrado)
-                   └── Volumes: filtrado pelo veículo
-         │
-    aplicar_fator_df() + converter_moeda_df()
-         │
-    calcular_flex_budget()
-         │
-    df_bud = Budget     df = Real (ou Budget se sem Real)
-         │
-    ┌────┴────────────────────────┐
-    │  Todos os tabs usam        │
-    │  df_bud, df, df_vol_bud,   │
-    │  df_vol_actual, df_flex    │
-    └─────────────────────────────┘
-```
-
-### 10.2 Cascading
-A seleção de **Oficina** filtra os **Veículos** disponíveis no selectbox:
-```python
-_df_filt_ofi = df[df['Oficina'].isin(oficinas_selecionadas)]
-veiculos = sorted(_df_filt_ofi['Veículo'].dropna().unique())
-```
-
----
-
-## 11) ETL e Processamento
-
-### 11.1 Arquivos de Processamento
-| Arquivo | Função |
-|---------|--------|
-| `processamento_dados_BUD.py` | Processa dados Budget (principal + veículos) |
-| `processamento_dados_veiculos_BUD.py` | Rateio por veículo + CPU |
-| `processamento_dados.py` | Processa dados Real (Sapiens) |
-
-### 11.2 Pipeline de Processamento
-1. Extração dos dados brutos (Excel/SAP)
-2. Normalização de colunas e períodos
-3. Cálculo de composição de custos (Desp. Primária → FA → FP)
+*TC Veículos — documentação alinhada ao código do repositório.*
 4. Rateio por veículo (tempo de produção)
 5. Cálculo de CPU por veículo
 6. Gravação em Parquet na pasta `dados/TC_Principal/{ano}/`

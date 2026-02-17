@@ -5,13 +5,13 @@ do TC Ext, mas adaptada ao custo de produção de veículos.
 
 Fases:
   1. massa primária - BDG   → Despesa Primaria (melt meses→linhas)
-  2. massa - REDIS           → linhas Redis (receita, valor negativo como Despesa Primaria)
-  3. Concat Voz + Redis     → tabela principal (Redis agora são linhas, não coluna)
+  2. massa - REDIS           → linhas com Account real do Excel (receita, DP negativa)
+  3. Concat Voz + Redis     → tabela principal unificada
   4. Volume e EST PdR - BDG → Vol FA + Tempo FA
   5. Volume BDG / actual    → volumes de veículos
   6. EST veículos - BDG     → merge com volume → Tempo Veic
   7. Rateio FA              → %FA por oficina (automático BS/PS/PL, manual QY/GS/SM)
-  8. Custo FA               → Rateio FA × Despesa Primaria (Rateio FA=0 para linhas Redis)
+  8. Custo FA               → Rateio FA × Despesa Primaria
   9. Custo FP               → Despesa Primaria − Custo FA (fórmula unificada)
  10. massa - D&A dedicado   → amortizações por modelo/oficina
  11. FP sem Dedicada        → Custo FP − D&A dedicado
@@ -286,8 +286,8 @@ def fase1_voz_de_custo(config: Dict) -> pd.DataFrame:
 
 
 # ═══════════════════════════════════════════════════════════════
-#  FASE 2 — massa - REDIS → linhas Redis (Despesa Primaria negativa)
-#  Redis agora são LINHAS com Account='Redis', não uma coluna separada.
+#  FASE 2 — massa - REDIS → linhas receita (Account preservado do Excel)
+#  As colunas dimensionais do Excel são mantidas (não sobrescritas).
 #  Isso unifica a estrutura Budget com o Real (Sapiens).
 # ═══════════════════════════════════════════════════════════════
 
@@ -295,11 +295,11 @@ def fase2_redis(config: Dict) -> pd.DataFrame:
     """Carrega aba 'massa - REDIS', faz melt e retorna como LINHAS com
     Despesa Primaria negativa (receita). Estrutura idêntica à Fase 1.
 
-    Colunas fixas adicionadas:
-      Type 05 = 'Burden', Type 06 = 'Expenses',
-      Account = 'Redis', Custo = 'fixo'
+    As colunas dimensionais (Type 05, Type 06, Account, Custo) são
+    PRESERVADAS do Excel — não são sobrescritas.
+    A aba já contém as chaves corretas (Account real, não 'Redis').
     """
-    print("── FASE 2: massa - REDIS → linhas Redis (receita) ──")
+    print("── FASE 2: massa - REDIS → linhas receita (Account do Excel) ──")
 
     df = pd.read_excel(config['CAMINHO_EXCEL'], sheet_name='massa - REDIS')
     df = _corrigir_colunas_mojibake(df)
@@ -326,59 +326,72 @@ def fase2_redis(config: Dict) -> pd.DataFrame:
     # Remover linhas sem Oficina
     df_melt = df_melt[df_melt['Oficina'].notna()].copy()
 
-    # Marcar linhas Redis com colunas padrão (identifica como Redis)
-    df_melt['Type 05'] = 'Burden'
-    df_melt['Type 06'] = 'Expenses'
-    df_melt['Account'] = 'Redis'
-    df_melt['Custo'] = 'fixo'
+    # NÃO sobrescrever Account/Type 05/Type 06/Custo — usar valores do Excel
+    # Garantir que as colunas existam (caso o Excel não as tenha)
+    for col in ['Type 05', 'Type 06', 'Account', 'Custo']:
+        if col not in df_melt.columns:
+            print(f"  ⚠️ Coluna '{col}' ausente na aba massa - REDIS — criando vazia")
+            df_melt[col] = ''
+
+    # Marcar linhas como originadas da aba massa-REDIS (para KPI Redis na UI)
+    df_melt['_fonte_redis'] = True
 
     _exigir_colunas(df_melt, ['Oficina', 'Account', 'Período', 'Despesa Primaria'],
                     'Fase 2 - massa - REDIS')
 
     linhas_nonzero = (df_melt['Despesa Primaria'] != 0).sum()
+    accounts_unicos = sorted(df_melt['Account'].dropna().unique().tolist())
     print(f"  ✅ Shape: {df_melt.shape}")
-    print(f"  Linhas Redis ≠ 0: {linhas_nonzero}")
-    print(f"  ∑ Redis (Despesa Primaria): {df_melt['Despesa Primaria'].sum():,.2f}")
+    print(f"  Linhas ≠ 0: {linhas_nonzero}")
+    print(f"  Accounts encontrados: {accounts_unicos}")
+    print(f"  ∑ Despesa Primaria (massa-REDIS): {df_melt['Despesa Primaria'].sum():,.2f}")
     print()
 
     return df_melt
 
 
 # ═══════════════════════════════════════════════════════════════
-#  FASE 3 — Concat Voz de Custo + Redis → Tabela Principal
-#  Redis agora são LINHAS (não coluna). Concat vertical.
+#  FASE 3 — Concat Voz de Custo + massa-REDIS → Tabela Principal
+#  Linhas da massa-REDIS mantêm Account original do Excel.
 # ═══════════════════════════════════════════════════════════════
 
 def fase3_merge_voz_redis(df_voz: pd.DataFrame, df_redis: pd.DataFrame) -> pd.DataFrame:
-    """Concatena linhas de Voz de custo com linhas de Redis.
-    Redis já tem Account='Redis' e Despesa Primaria negativa (Fase 2).
-    O resultado é uma tabela única onde Redis é identificado por Account."""
-    print("── FASE 3: Concat Voz de Custo + Redis ──")
+    """Concatena linhas de Voz de custo com linhas de massa-REDIS.
+    Redis agora usa os Account originais do Excel (não mais Account='Redis').
+    O resultado é uma tabela única com Account distribuído."""
+    print("── FASE 3: Concat Voz de Custo + massa-REDIS ──")
 
     count_voz = len(df_voz)
     count_redis = len(df_redis)
 
-    # Agregar Redis por (Oficina, Período) somando Despesa Primaria
+    # Agregar Redis por chaves dimensionais somando Despesa Primaria
     # para evitar linhas duplicadas da aba source
     chaves_redis = ['Oficina', 'Período']
-    colunas_fixas = ['Type 05', 'Type 06', 'Account', 'Custo']
+    colunas_fixas = ['Type 05', 'Type 06', 'Account', 'Custo', '_fonte_redis']
     colunas_agg = [c for c in chaves_redis + colunas_fixas if c in df_redis.columns]
     df_redis_agg = df_redis.groupby(colunas_agg, as_index=False)['Despesa Primaria'].sum()
+
+    # Garantir _fonte_redis=False nas linhas Voz (antes do concat)
+    if '_fonte_redis' not in df_voz.columns:
+        df_voz = df_voz.copy()
+        df_voz['_fonte_redis'] = False
 
     # Concat vertical (colunas faltantes preenchidas com NaN)
     df_principal = pd.concat([df_voz, df_redis_agg], ignore_index=True)
 
+    # Preencher NaN em _fonte_redis com False
+    if '_fonte_redis' in df_principal.columns:
+        df_principal['_fonte_redis'] = df_principal['_fonte_redis'].fillna(False)
+
     # Preencher NaN em Despesa Primaria
     df_principal['Despesa Primaria'] = df_principal['Despesa Primaria'].fillna(0)
 
-    # Identificar linhas Redis
-    n_redis_linhas = (df_principal['Account'] == 'Redis').sum()
-    soma_redis = df_principal.loc[df_principal['Account'] == 'Redis', 'Despesa Primaria'].sum()
+    soma_redis = df_redis_agg['Despesa Primaria'].sum()
 
     print(f"  ✅ Shape: {df_principal.shape}")
-    print(f"  Linhas Voz: {count_voz} + Redis: {df_redis_agg.shape[0]} → Total: {len(df_principal)}")
+    print(f"  Linhas Voz: {count_voz} + massa-REDIS: {df_redis_agg.shape[0]} → Total: {len(df_principal)}")
     print(f"  ∑ Despesa Primaria (total): {df_principal['Despesa Primaria'].sum():,.2f}")
-    print(f"  ∑ Despesa Primaria (Redis): {soma_redis:,.2f} ({n_redis_linhas} linhas)")
+    print(f"  ∑ Despesa Primaria (massa-REDIS): {soma_redis:,.2f} ({df_redis_agg.shape[0]} linhas)")
     print()
 
     return df_principal
@@ -709,7 +722,10 @@ def fase7_rateio_fa(config: Dict, df_fa: pd.DataFrame,
 
 def fase8_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.DataFrame:
     """Traz Rateio FA para a tabela principal e calcula Custo FA.
-    Linhas com Account='Redis' ficam com Rateio FA=0 (não participam do FA)."""
+    Linhas Redis (_fonte_redis=True) NÃO participam do rateio FA:
+      - Redis vai integralmente para FP (Custo FA = 0)
+      - Apenas linhas BDG (massa primária) recebem o rateio FA
+    """
     print("── FASE 8: Custo FA ──")
 
     count_antes = len(df_principal)
@@ -723,22 +739,21 @@ def fase8_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.Da
 
     df_principal['Rateio FA'] = df_principal['Rateio FA'].fillna(0)
 
-    # ⚠️ Redis NÃO passa pelo rateio FA — forçar Rateio FA=0
-    mask_redis = df_principal['Account'] == 'Redis'
-    df_principal.loc[mask_redis, 'Rateio FA'] = 0.0
+    # ═══ Redis NÃO participa do rateio FA ═══
+    # No Excel, massa FA é calculada apenas sobre massa primária (BDG).
+    # Redis é subtraído integralmente do FP, sem passar pelo FA.
+    if '_fonte_redis' in df_principal.columns:
+        mask_redis = df_principal['_fonte_redis'] == True
+        n_redis = mask_redis.sum()
+        if n_redis > 0:
+            df_principal.loc[mask_redis, 'Rateio FA'] = 0
+            print(f"  ℹ️ {n_redis:,} linhas Redis com Rateio FA = 0 (vão integralmente para FP)")
 
     df_principal['Custo FA'] = df_principal['Rateio FA'] * df_principal['Despesa Primaria']
 
     count_depois = len(df_principal)
     if count_depois != count_antes:
         print(f"  ⚠️ Expansão de linhas: {count_antes} → {count_depois}")
-
-    # Verificar: linhas Redis devem ter Custo FA = 0
-    fa_redis = df_principal.loc[mask_redis, 'Custo FA'].sum()
-    if abs(fa_redis) > 0.01:
-        print(f"  ⚠️ ERRO: Custo FA de linhas Redis = {fa_redis:,.2f} (deveria ser 0)")
-    else:
-        print(f"  ✅ Linhas Redis: Custo FA = 0 (correto)")
 
     print(f"  ✅ Shape: {df_principal.shape}")
     print(f"  ∑ Custo FA: {df_principal['Custo FA'].sum():,.2f}")
@@ -749,20 +764,11 @@ def fase8_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.Da
 
 # ═══════════════════════════════════════════════════════════════
 #  FASE 9 — Custo FP = Despesa Primaria − Custo FA
-#  Fórmula UNIFICADA (Budget e Real): Redis já está nas linhas
-#  como Despesa Primaria negativa, com Custo FA=0.
 # ═══════════════════════════════════════════════════════════════
 
 def fase9_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
     """Calcula Custo FP (Fabricação Principal).
     Custo FP = Despesa Primaria − Custo FA
-
-    Redis agora é LINHA (Account='Redis') com:
-      - Despesa Primaria negativa (receita)
-      - Rateio FA = 0 → Custo FA = 0
-      - Custo FP = Despesa Primaria (negativo)
-
-    A soma total de Custo FP inclui automaticamente o efeito Redis.
     """
     print("── FASE 9: Custo FP ──")
 
@@ -773,7 +779,7 @@ def fase9_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
 
     negativos = (df_principal['Custo FP'] < 0).sum()
     if negativos > 0:
-        print(f"  ℹ️ {negativos} linhas com Custo FP negativo (inclui linhas Redis)")
+        print(f"  ℹ️ {negativos} linhas com Custo FP negativo (linhas com DP negativa da massa-REDIS)")
 
     # Prova cruzada: DP - FA - FP deve ser ~0
     diff = (df_principal['Despesa Primaria']
@@ -781,13 +787,8 @@ def fase9_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
             - df_principal['Custo FP']).abs().sum()
     print(f"  📐 Prova cruzada DP − FA − FP (deve ser ~0): {diff:.6f}")
 
-    # Mostrar efeito Redis
-    mask_redis = df_principal['Account'] == 'Redis'
-    soma_redis = df_principal.loc[mask_redis, 'Despesa Primaria'].sum()
-
     print(f"  ✅ Shape: {df_principal.shape}")
-    print(f"  ∑ Despesa Primaria (total): {df_principal['Despesa Primaria'].sum():,.2f}")
-    print(f"  ∑ Despesa Primaria (Redis): {soma_redis:,.2f}")
+    print(f"  ∑ Despesa Primaria: {df_principal['Despesa Primaria'].sum():,.2f}")
     print(f"  ∑ Custo FA: {df_principal['Custo FA'].sum():,.2f}")
     print(f"  ∑ Custo FP: {df_principal['Custo FP'].sum():,.2f}")
     print()
@@ -1356,9 +1357,11 @@ def validacao_final(config: Dict, arquivos: Dict[str, str]) -> None:
         print(f"     ∑ Despesa Primaria: {soma_dp:>20,.2f}")
         print(f"     ∑ Custo FA:         {soma_fa:>20,.2f}")
         print(f"     ∑ Custo FP:         {soma_fp:>20,.2f}")
-        # Redis como linhas
-        mask_redis = df_p['Account'] == 'Redis'
-        soma_redis = df_p.loc[mask_redis, 'Despesa Primaria'].sum()
+        # Redis como linhas (marcadas com _fonte_redis)
+        if '_fonte_redis' in df_p.columns:
+            soma_redis = df_p.loc[df_p['_fonte_redis'] == True, 'Despesa Primaria'].sum()  # noqa: E712
+        else:
+            soma_redis = 0.0
         print(f"     ∑ Redis (linhas):   {soma_redis:>20,.2f}")
         print(f"     ∑ FP sem Dedicada:  {df_p['FP sem Dedicada'].sum():>20,.2f}")
     except Exception as e:

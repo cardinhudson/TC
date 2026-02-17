@@ -34,22 +34,25 @@ MESES_ABREV = {
 }
 
 # Colunas monetárias padrão do TC Veículos
-# Nota: Redis NÃO é mais coluna — é identificado por Account='Redis' nas linhas
 COLUNAS_MONETARIAS = [
     'Despesa Primaria', 'Custo FA', 'Custo FP',
     'D&A dedicado', 'FP sem Dedicada',
 ]
 
-# Identificador de linhas Redis na tabela principal
-ACCOUNT_REDIS = 'Redis'
-
 
 def extrair_redis(df: pd.DataFrame) -> float:
-    """Extrai soma das linhas Redis (Account='Redis') da tabela principal."""
-    if df is None or 'Account' not in df.columns:
+    """Extrai soma da Despesa Primaria das linhas originadas da aba massa-REDIS.
+
+    Usa a coluna booleana ``_fonte_redis`` inserida pelos pipelines de
+    processamento (BUD e Real).  Caso a coluna não exista (parquets antigos),
+    retorna 0.0 sem erro.
+    """
+    if df is None or df.empty:
         return 0.0
-    mask = df['Account'] == ACCOUNT_REDIS
-    return df.loc[mask, 'Despesa Primaria'].sum() if 'Despesa Primaria' in df.columns else 0.0
+    if '_fonte_redis' in df.columns:
+        mask = df['_fonte_redis'] == True  # noqa: E712
+        return float(df.loc[mask, 'Despesa Primaria'].sum()) if 'Despesa Primaria' in df.columns else 0.0
+    return 0.0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -282,49 +285,67 @@ def load_percentual_rateio_veiculos_real(ano):
     return pd.read_parquet(caminho)
 
 
-def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_dea_dedicado_real(ano: int = 2026):
     """
-    Distribui dados de BE (ou qualquer df com Custo FP por Oficina/Período)
-    por veículo, usando os percentuais de rateio pré-processados na extração.
+    Carrega arquivo de D&A dedicado por veículo do processamento Real.
+    Usado para fazer rateio idêntico ao processamento Real.
+    """
+    caminho = os.path.join('dados', 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=None):
+    """
+    Distribui dados de BE por veículo usando EXATAMENTE a mesma lógica do
+    processamento Real (fases 12-14 do processamento_dados_veiculos.py).
+
+    IMPORTANTE: O cálculo correto é:
+      1. Custo Rateado = FP sem Dedicada × Percentual
+      2. Custo FP Veiculo = Custo Rateado + D&A dedicado (por veículo)
+
+    Isso é DIFERENTE de simplesmente fazer Custo FP × Percentual, porque
+    D&A dedicado é alocado por veículo específico, não rateado.
 
     Os percentuais são gerados na extração Real (fase12) usando a fórmula:
       Tempo Veic  = EST × Volume  (fase4)
       Percentual  = Tempo Veic / Σ(Tempo Veic por Oficina+Período) (fase12)
 
-    O parquet de percentuais (`df_veiculos_percentual_rateio.parquet`) já
-    contém dados para todos os 12 meses, pois usa Volume Actual (12 meses)
-    e EST (constante anual). Não há necessidade de recalcular.
-
-    Fallback: se alguma Oficina+Período não encontrar percentual, distribui
-    igualitariamente (1/N veículos) como último recurso.
-
     Parâmetros
     ----------
     df_be : DataFrame
-        Dados do Best Estimate com colunas [Oficina, Período, Custo FP, ...].
+        Dados do Best Estimate com colunas [Oficina, Período, FP sem Dedicada, D&A dedicado, ...].
     df_percentual : DataFrame
         Percentuais de rateio com [Oficina, Veículo, Período, Percentual].
-        Gerado pela extração Real (fase12).
     col_custo : str
-        Coluna de custo a ratear (default: 'Custo FP').
+        Coluna de custo final (apenas para compatibilidade, não usado no cálculo).
+    df_dea : DataFrame, opcional
+        Arquivo de D&A dedicado por veículo. Se None, rateia D&A pelo mesmo percentual.
 
     Retorna
     -------
     DataFrame com coluna Veículo e Custo FP Veiculo adicionadas.
-    Retorna None se dados insuficientes.
     """
     if df_be is None or df_be.empty:
         return None
     if df_percentual is None or df_percentual.empty:
         return None
-    if col_custo not in df_be.columns:
-        return None
+
+    # ── Verificar colunas necessárias ──
+    tem_fp_sem_ded = 'FP sem Dedicada' in df_be.columns
+    tem_dea = 'D&A dedicado' in df_be.columns
+
+    # Se não tem as colunas do cálculo correto, usa fallback antigo
+    if not tem_fp_sem_ded:
+        if col_custo not in df_be.columns:
+            return None
+        # Fallback: usar Custo FP diretamente (menos preciso)
+        return _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo)
 
     # ── Evitar colisão de colunas no merge ──
-    # Se df_be já tem Veículo/Percentual/Custo FP Veiculo (vindas do df_total
-    # que herda essas colunas do pipeline Real), remover antes do merge
-    # para evitar sufixos _x/_y que causavam KeyError silencioso.
-    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo']
+    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo', 'Custo Rateado']
     df_be_limpo = df_be.drop(
         columns=[c for c in colunas_dropar if c in df_be.columns],
         errors='ignore',
@@ -332,13 +353,13 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
 
     pct = df_percentual[['Oficina', 'Veículo', 'Período', 'Percentual']].copy()
 
-    # Merge: expande BE para granularidade de veículo
+    # ══════════════════════════════════════════════════════════════════════
+    # FASE 13 (igual processamento Real): Custo Rateado = FP sem Ded × %
+    # ══════════════════════════════════════════════════════════════════════
     df = pd.merge(df_be_limpo, pct, on=['Oficina', 'Período'], how='left')
 
-    # Identificar linhas sem veículo (Oficinas que não têm rateio)
+    # Fallback para linhas sem veículo
     mask_sem = df['Veículo'].isna()
-
-    # ─── Fallback: distribuição igualitária (1/N) ───
     if mask_sem.any():
         veiculos_unicos = pct['Veículo'].dropna().unique()
         if len(veiculos_unicos) > 0:
@@ -351,9 +372,101 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP'):
                 tmp['Veículo'] = v
                 tmp['Percentual'] = 1.0 / len(veiculos_unicos)
                 expansoes.append(tmp)
-            df = pd.concat(
-                [df[~mask_sem]] + expansoes, ignore_index=True,
+            df = pd.concat([df[~mask_sem]] + expansoes, ignore_index=True)
+
+    df['Percentual'] = df['Percentual'].fillna(0)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # CORREÇÃO: Para linhas onde FP sem Dedicada = 0 mas Custo FP != 0,
+    # usar Custo FP como base (caso de meses de PREVISÃO)
+    # ══════════════════════════════════════════════════════════════════════
+    # Marcar linhas que são PREVISÃO (usam Custo FP como base, não adicionar D&A)
+    df['_is_previsao'] = False
+    if 'Custo FP' in df.columns:
+        # Criar máscara para linhas onde FP sem Dedicada = 0 mas Custo FP != 0
+        mask_sem_fp_ded = (df['FP sem Dedicada'].fillna(0) == 0) & (df['Custo FP'].fillna(0) != 0)
+        if mask_sem_fp_ded.any():
+            # Para essas linhas, usar Custo FP como FP sem Dedicada
+            # (para previsões, NÃO adicionar D&A dedicado pois já está incluído)
+            df.loc[mask_sem_fp_ded, 'FP sem Dedicada'] = df.loc[mask_sem_fp_ded, 'Custo FP']
+            df.loc[mask_sem_fp_ded, '_is_previsao'] = True
+
+    df['Custo Rateado'] = df['FP sem Dedicada'] * df['Percentual']
+
+    # ══════════════════════════════════════════════════════════════════════
+    # FASE 14 (igual processamento Real): D&A dedicado por veículo
+    # NOTA: D&A só é adicionado para linhas REAIS, não para PREVISÕES
+    # ══════════════════════════════════════════════════════════════════════
+    if df_dea is not None and not df_dea.empty and 'Veículo' in df_dea.columns:
+        # Usar D&A do arquivo Real que já tem alocação por veículo
+        cols_merge_dea = ['Oficina', 'Veículo', 'Período']
+        cols_merge_dea = [c for c in cols_merge_dea if c in df_dea.columns and c in df.columns]
+
+        if len(cols_merge_dea) >= 2:
+            # Agregar D&A por (Oficina, Veículo, Período)
+            dea_agg = df_dea.groupby(cols_merge_dea, as_index=False)['D&A dedicado'].sum()
+            dea_agg = dea_agg.rename(columns={'D&A dedicado': '_dea_veiculo'})
+
+            # Merge com dados rateados
+            df = pd.merge(df, dea_agg, on=cols_merge_dea, how='left')
+            df['_dea_veiculo'] = df['_dea_veiculo'].fillna(0)
+
+            # Distribuir D&A pro-rata entre linhas do mesmo grupo
+            _n_rows = df.groupby(cols_merge_dea)['Custo Rateado'].transform('count')
+            df['D&A dedicado'] = df['_dea_veiculo'] / _n_rows.replace(0, 1)
+            df.drop(columns=['_dea_veiculo'], inplace=True, errors='ignore')
+
+            # CORREÇÃO: Zerar D&A para linhas de previsão (já incluído no Custo FP)
+            df.loc[df['_is_previsao'] == True, 'D&A dedicado'] = 0
+    else:
+        # Fallback: ratear D&A pelo mesmo percentual (menos preciso)
+        if tem_dea:
+            df['D&A dedicado'] = df['D&A dedicado'] * df['Percentual']
+
+    # Remover coluna auxiliar
+    df.drop(columns=['_is_previsao'], inplace=True, errors='ignore')
+
+    # Garantir coluna D&A dedicado existe
+    if 'D&A dedicado' not in df.columns:
+        df['D&A dedicado'] = 0
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Custo FP Veiculo = Custo Rateado + D&A dedicado
+    # ══════════════════════════════════════════════════════════════════════
+    df['Custo FP Veiculo'] = df['Custo Rateado'] + df['D&A dedicado']
+
+    return df
+
+
+def _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo='Custo FP'):
+    """
+    Fallback: rateio simples usando Custo FP × Percentual.
+    Usado quando não há colunas FP sem Dedicada / D&A dedicado.
+    NOTA: Este método é MENOS PRECISO que o cálculo completo.
+    """
+    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo']
+    df_be_limpo = df_be.drop(
+        columns=[c for c in colunas_dropar if c in df_be.columns],
+        errors='ignore',
+    )
+
+    pct = df_percentual[['Oficina', 'Veículo', 'Período', 'Percentual']].copy()
+    df = pd.merge(df_be_limpo, pct, on=['Oficina', 'Período'], how='left')
+
+    mask_sem = df['Veículo'].isna()
+    if mask_sem.any():
+        veiculos_unicos = pct['Veículo'].dropna().unique()
+        if len(veiculos_unicos) > 0:
+            linhas_sem = df[mask_sem].drop(
+                columns=['Veículo', 'Percentual'], errors='ignore',
             )
+            expansoes = []
+            for v in veiculos_unicos:
+                tmp = linhas_sem.copy()
+                tmp['Veículo'] = v
+                tmp['Percentual'] = 1.0 / len(veiculos_unicos)
+                expansoes.append(tmp)
+            df = pd.concat([df[~mask_sem]] + expansoes, ignore_index=True)
 
     df['Percentual'] = df['Percentual'].fillna(0)
     df['Custo FP Veiculo'] = df[col_custo] * df['Percentual']
@@ -460,6 +573,36 @@ def load_forecast_volume():
     if 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
+
+
+def _get_file_mtime(caminho):
+    """Retorna o timestamp de modificação do arquivo para invalidar cache."""
+    if os.path.exists(caminho):
+        return int(os.path.getmtime(caminho))
+    return 0
+
+
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_custo_fp_veiculo_forecast(_file_mtime=None):
+    """Custo FP por veículo do Forecast — gerado pelo BE Simulador.
+    
+    Este arquivo é gerado automaticamente ao salvar o forecast,
+    usando os percentuais de rateio do Real para distribuir
+    os custos entre os veículos.
+    
+    O parâmetro _file_mtime é usado para invalidar o cache quando o arquivo muda.
+    """
+    caminho = os.path.join(_pasta_forecast_tc(), 'forecast_veiculos_custo_fp.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
+def load_custo_fp_veiculo_forecast_fresh():
+    """Carrega forecast com veículo, invalidando cache se arquivo foi modificado."""
+    caminho = os.path.join(_pasta_forecast_tc(), 'forecast_veiculos_custo_fp.parquet')
+    mtime = _get_file_mtime(caminho)
+    return load_custo_fp_veiculo_forecast(_file_mtime=mtime)
 
 
 # ═══════════════════════════════════════════════════════════════

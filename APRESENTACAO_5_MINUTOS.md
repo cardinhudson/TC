@@ -65,8 +65,8 @@
     │     ├── Home: tc_principal/pages/home_tc.py
     │     ├── Waterfall: tc_principal/pages/waterfall_tc.py
     │     ├── Best Estimate (Simulador): tc_principal/pages/best_estimate_simulador_tc.py
-    │     ├── Best Estimate (Análise): tc_principal/pages/best_estimate_analise_tc.py
-    │     └── Extração de Dados: tc_principal/pages/extracao_dados_tc.py
+    │     ├── Extração de Dados: tc_principal/pages/extracao_dados_tc.py
+    │     └── Debug de Cálculos: tc_principal/pages/debug_calculos_tc.py
     │
     └── 📚 Documentação: pages/6 - Documentacao.py
 ```

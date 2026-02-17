@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 from tc_principal.shared import (
-    ORDEM_MESES, COLUNAS_MONETARIAS, ACCOUNT_REDIS,
+    ORDEM_MESES, COLUNAS_MONETARIAS,
     _pasta_tc_principal, load_principal,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_dea_dedicado, load_volume_fa,

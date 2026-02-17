@@ -838,13 +838,6 @@ else:
                     # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
                     if 'Veículo' in df_analise.columns:
                         df_analise = df_analise[df_analise['Veículo'] != 'Sem Veículo'].copy()
-                    
-                    # ═══ Bloco 1: Separar Redis do fluxo principal (mesmo padrão Budget) ═══
-                    _df_redis_real = pd.DataFrame()
-                    if 'Account' in df_analise.columns:
-                        _mask_redis = df_analise['Account'] == 'Redis'
-                        _df_redis_real = df_analise[_mask_redis].copy()
-                        df_analise = df_analise[~_mask_redis].copy()
 
                     # Aplicar escopo de veículo selecionado
                     # ═══ Bloco 4: quando "Todos", NÃO agregar imediatamente — manter coluna Veículo
@@ -854,16 +847,10 @@ else:
                     if escopo_veiculo_real == "Todos (TC Total)":
                         _todos_mode_real = True
                         # NÃO chamar _agregar_sem_veiculo() aqui
-                        if not _df_redis_real.empty:
-                            _df_redis_real = _agregar_sem_veiculo(_df_redis_real)
                     elif 'Veículo' in df_analise.columns:
                         df_analise = df_analise[
                             df_analise['Veículo'] == escopo_veiculo_real
                         ].copy()
-                        if not _df_redis_real.empty and 'Veículo' in _df_redis_real.columns:
-                            _df_redis_real = _df_redis_real[
-                                _df_redis_real['Veículo'] == escopo_veiculo_real
-                            ].copy()
 
                     # Criar df_vol_filtrado aplicando os mesmos filtros (necessário para cálculo do Flex Volume no gráfico)
                     # 🔧 CORREÇÃO CRÍTICA: Aplicar TODOS os filtros que existem em df_filtrado_waterfall_tc (mesma lógica do app.py)
@@ -1189,38 +1176,6 @@ else:
                             df_m1 = df_analise[df_analise['Período'].astype(str) == str(mes_inicial)].copy()
                             df_m2 = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
-                    # ═══ Redis por período (Bloco 1) ═══
-                    _redis_m1_val = 0.0
-                    _redis_m2_val = 0.0
-                    _redis_col = 'Custo FP' if 'Custo FP' in _df_redis_real.columns else ('Despesa Primaria' if 'Despesa Primaria' in _df_redis_real.columns else None)
-                    if not _df_redis_real.empty and _redis_col:
-                        def _filter_redis_period(df_redis, col_period, val):
-                            if col_period and col_period in df_redis.columns:
-                                return df_redis[df_redis[col_period].astype(str) == str(val)]
-                            elif 'Período' in df_redis.columns:
-                                return df_redis[df_redis['Período'].astype(str) == str(val)]
-                            return df_redis
-                        if modo_comparacao == "Mês a Mês":
-                            _redis_m1_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_inicial)[_redis_col].sum())
-                            _redis_m2_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_final)[_redis_col].sum())
-                        elif modo_comparacao == "Ano a Ano":
-                            _redis_m1_val = float(_df_redis_real[_df_redis_real['Ano'].astype(str) == str(ano_inicial)][_redis_col].sum()) if 'Ano' in _df_redis_real.columns else 0.0
-                            _redis_m2_val = float(_df_redis_real[_df_redis_real['Ano'].astype(str) == str(ano_final)][_redis_col].sum()) if 'Ano' in _df_redis_real.columns else 0.0
-                        elif modo_comparacao == "Semestre":
-                            meses_semestre_r = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
-                                                2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
-                            _redis_m1_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_inicial)) & (_df_redis_real['Período'].isin(meses_semestre_r.get(semestre_inicial, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
-                            _redis_m2_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_final)) & (_df_redis_real['Período'].isin(meses_semestre_r.get(semestre_final, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
-                        elif modo_comparacao == "Quarter":
-                            meses_trim_r = {1: ['Janeiro', 'Fevereiro', 'Março'], 2: ['Abril', 'Maio', 'Junho'],
-                                            3: ['Julho', 'Agosto', 'Setembro'], 4: ['Outubro', 'Novembro', 'Dezembro']}
-                            _redis_m1_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_inicial)) & (_df_redis_real['Período'].isin(meses_trim_r.get(trimestre_inicial, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
-                            _redis_m2_val = float(_df_redis_real[(_df_redis_real.get('Ano', pd.Series()).astype(str) == str(ano_final)) & (_df_redis_real['Período'].isin(meses_trim_r.get(trimestre_final, [])))][_redis_col].sum()) if 'Período' in _df_redis_real.columns else 0.0
-                        else:
-                            _redis_m1_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_inicial)[_redis_col].sum())
-                            _redis_m2_val = float(_filter_redis_period(_df_redis_real, col_mes_waterfall_tc, mes_final)[_redis_col].sum())
-                    _redis_delta_real = _redis_m2_val - _redis_m1_val
-
                     # Verificar se os períodos foram realmente selecionados antes de processar
                     if not periodos_validos or not meses_selecionados or len(meses_selecionados) < 2:
                         st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
@@ -1654,16 +1609,13 @@ else:
                         
                         remainder = round(total_m2_all - (valor_inicial_para_remainder + flex_volume_delta + sum(values_cats)), 2)
                         
-                        # ═══ Redis: ajustar totais para incluir Redis (Bloco 1) ═══
-                        # Redis é separado do df_analise; adicionar de volta nos totais do gráfico
+                        # Totais para o gráfico (sem separação Redis — Redis já distribuído nos Accounts reais)
                         if tipo_visualizacao == "CPU (Custo por Unidade)":
-                            valor_inicial_grafico = bud + (_redis_m1_val / volume_m1_graph if volume_m1_graph > 0 else 0)
-                            valor_final_grafico = total_m2_all + (_redis_m2_val / volume_m2_graph if volume_m2_graph > 0 else 0)
-                            _redis_delta_chart = valor_final_grafico - valor_inicial_grafico - flex_volume_delta - sum(values_cats) - remainder
+                            valor_inicial_grafico = bud
+                            valor_final_grafico = total_m2_all
                         else:
-                            valor_inicial_grafico = total_m1_all + _redis_m1_val
-                            valor_final_grafico = total_m2_all + _redis_m2_val
-                            _redis_delta_chart = _redis_delta_real
+                            valor_inicial_grafico = total_m1_all
+                            valor_final_grafico = total_m2_all
                         
                         # Adicionar "Outros" se remainder for significativo
                         if abs(remainder) >= 0.01:
@@ -1687,12 +1639,6 @@ else:
                         values_waterfall_tc.extend(values_cats)
                         measures_waterfall_tc.extend(["relative"] * len(labels_cats))
                         
-                        # ═══ Barra Redis separada (Bloco 1) ═══
-                        if abs(_redis_delta_chart) > 1e-9:
-                            labels_waterfall_tc.append("Redis")
-                            values_waterfall_tc.append(_redis_delta_chart)
-                            measures_waterfall_tc.append("relative")
-                        
                         # Adicionar barra final
                         labels_waterfall_tc.append(f"{mes_final}")
                         values_waterfall_tc.append(valor_final_grafico)
@@ -1712,7 +1658,6 @@ else:
                         cor_azul = "#1e6ba8"
                         cor_laranja = "#ff9800"
                         cor_amarela = "#ffd700"  # Amarelo para Flex Volume
-                        cor_roxa = "#9b59b6"     # Roxo para Redis
                         cor_be = "#C4B5FD"       # Roxo claro para barras BE
                         cor_historico = "#4C1D95" # Roxo escuro para barras Histórico
 
@@ -1763,8 +1708,7 @@ else:
                                     cor_texto = cor_amarela
                                 elif label == "Outros":
                                     cor_texto = cor_laranja
-                                elif label == "Redis":
-                                    cor_texto = cor_roxa
+
                                 
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt,
@@ -1909,31 +1853,7 @@ else:
                                 width=0.8,
                             ))
                         
-                        # Adicionar overlay para "Redis" (roxo)
-                        if "Redis" in labels_waterfall_tc:
-                            idx_redis = labels_waterfall_tc.index("Redis")
-                            valor_redis = values_waterfall_tc[idx_redis]
-                            
-                            cumulative_redis = valor_inicial_grafico
-                            for i in range(1, idx_redis):
-                                cumulative_redis += values_waterfall_tc[i]
-                            
-                            if valor_redis >= 0:
-                                base_redis = cumulative_redis
-                            else:
-                                base_redis = cumulative_redis + valor_redis
-                            
-                            fig.add_trace(go.Bar(
-                                x=['Redis'],
-                                y=[abs(valor_redis)],
-                                base=[base_redis],
-                                marker_color=cor_roxa,
-                                marker_line=dict(width=0),
-                                opacity=1.0,
-                                showlegend=False,
-                                textposition='none',
-                                width=0.8,
-                            ))
+
                         
                         # Calcular range do eixo Y
                         if values_waterfall_tc:

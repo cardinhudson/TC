@@ -17,6 +17,11 @@ from tc_principal.ui_components import (
     injetar_css_global, render_header, render_sidebar_global,
 )
 
+from tc_principal.shared import (
+    ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
+    load_dea_dedicado_real,
+)
+
 # st_aggrid é opcional: se a página for executada fora do .venv, pode não existir.
 # Mantemos a funcionalidade principal (forecast) mesmo sem AgGrid.
 try:
@@ -2299,178 +2304,178 @@ with tab_visualizar:
                 # Configurar AgGrid com seleção múltipla (checkboxes)
                 gb = GridOptionsBuilder.from_dataframe(df_display)
             
-            # Configurar larguras mínimas e auto-size para todas as colunas
-            larguras_colunas = {
-                'Índice': 80,
-                'Account': 150,
-                'Ano': 60,
-                'Centrocst': 100,
-                'Custo': 120,
-                'Fornec.': 80,
-                'Fornecedor': 150,
-                'Mes': 80,
-                'Oficina': 120,
-                'Período': 120,
-                'Soma_Percentuais': 120,
-                'Tipo': 100,
-                'Custo FP': 120,
-                'Type 05': 100,
-                'Type 06': 100,
-                'USI': 80,
-                'Despesa Primaria': 120,
-            }
-            
-            # Colunas numéricas que devem ser formatadas com 2 casas decimais
-            colunas_numericas = ['Custo FP', 'Despesa Primaria', 'Soma_Percentuais']
-            
-            # Configurar todas as colunas como não editáveis com auto-size
-            for col in df_display.columns:
-                largura = larguras_colunas.get(col, 120)
+                # Configurar larguras mínimas e auto-size para todas as colunas
+                larguras_colunas = {
+                    'Índice': 80,
+                    'Account': 150,
+                    'Ano': 60,
+                    'Centrocst': 100,
+                    'Custo': 120,
+                    'Fornec.': 80,
+                    'Fornecedor': 150,
+                    'Mes': 80,
+                    'Oficina': 120,
+                    'Período': 120,
+                    'Soma_Percentuais': 120,
+                    'Tipo': 100,
+                    'Custo FP': 120,
+                    'Type 05': 100,
+                    'Type 06': 100,
+                    'USI': 80,
+                    'Despesa Primaria': 120,
+                }
                 
-                # Configuração especial para colunas numéricas
-                if col in colunas_numericas:
-                    gb.configure_column(
-                        col, 
-                        editable=False, 
-                        sortable=True, 
-                        filter=True,
-                        minWidth=largura,
-                        width=largura,
-                        autoSizeColumns=True,
-                        wrapText=True,
-                        autoHeight=True,
-                        type=["numericColumn"],
-                        valueFormatter="value != null ? value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true}) : ''"
-                    )
-                else:
-                    gb.configure_column(
-                        col, 
-                        editable=False, 
-                        sortable=True, 
-                        filter=True,
-                        minWidth=largura,
-                        width=largura,
-                        autoSizeColumns=True,
-                        wrapText=True,
-                        autoHeight=True
-                    )
-            
-            # Configurar seleção múltipla com checkboxes
-            gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
-            gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
-            gb.configure_side_bar()
-            gb.configure_default_column(groupable=False, value=True, enableRowGroup=True, aggFunc='sum', editable=False)
-            
-            # Fixar coluna de índice à esquerda
-            gb.configure_column('Índice', pinned='left', width=80, minWidth=80)
-            
-            grid_options = gb.build()
+                # Colunas numéricas que devem ser formatadas com 2 casas decimais
+                colunas_numericas = ['Custo FP', 'Despesa Primaria', 'Soma_Percentuais']
+                
+                # Configurar todas as colunas como não editáveis com auto-size
+                for col in df_display.columns:
+                    largura = larguras_colunas.get(col, 120)
+                    
+                    # Configuração especial para colunas numéricas
+                    if col in colunas_numericas:
+                        gb.configure_column(
+                            col, 
+                            editable=False, 
+                            sortable=True, 
+                            filter=True,
+                            minWidth=largura,
+                            width=largura,
+                            autoSizeColumns=True,
+                            wrapText=True,
+                            autoHeight=True,
+                            type=["numericColumn"],
+                            valueFormatter="value != null ? value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true}) : ''"
+                        )
+                    else:
+                        gb.configure_column(
+                            col, 
+                            editable=False, 
+                            sortable=True, 
+                            filter=True,
+                            minWidth=largura,
+                            width=largura,
+                            autoSizeColumns=True,
+                            wrapText=True,
+                            autoHeight=True
+                        )
+                
+                # Configurar seleção múltipla com checkboxes
+                gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
+                gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
+                gb.configure_side_bar()
+                gb.configure_default_column(groupable=False, value=True, enableRowGroup=True, aggFunc='sum', editable=False)
+                
+                # Fixar coluna de índice à esquerda
+                gb.configure_column('Índice', pinned='left', width=80, minWidth=80)
+                
+                grid_options = gb.build()
 
-            # Exibir tabela AgGrid
-            grid_response = AgGrid(
-                df_display,
-                gridOptions=grid_options,
-                height=480,  # Aumentado em 20% (400 * 1.2 = 480)
-                width='100%',
-                data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-                update_mode=GridUpdateMode.SELECTION_CHANGED,
-                fit_columns_on_grid_load=True,
-                allow_unsafe_jscode=False,
-                enable_enterprise_modules=False,
-                theme='streamlit',
-                key='tabela_custos_aggrid_tc',
-                reload_data=False
-            )
+                # Exibir tabela AgGrid
+                grid_response = AgGrid(
+                    df_display,
+                    gridOptions=grid_options,
+                    height=480,  # Aumentado em 20% (400 * 1.2 = 480)
+                    width='100%',
+                    data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+                    update_mode=GridUpdateMode.SELECTION_CHANGED,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=False,
+                    enable_enterprise_modules=False,
+                    theme='streamlit',
+                    key='tabela_custos_aggrid_tc',
+                    reload_data=False
+                )
 
-            # Processar exclusões
-            indices_para_deletar = []
+                # Processar exclusões
+                indices_para_deletar = []
 
-            # Botão para deletar linhas selecionadas
-            # CSS para ajustar tamanho do botão
-            st.markdown("""
-                <style>
-                    div[data-testid="column"]:first-child button {
-                        min-width: 200px;
-                        height: 45px;
-                        font-size: 16px;
-                        font-weight: 600;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
+                # Botão para deletar linhas selecionadas
+                # CSS para ajustar tamanho do botão
+                st.markdown("""
+                    <style>
+                        div[data-testid="column"]:first-child button {
+                            min-width: 200px;
+                            height: 45px;
+                            font-size: 16px;
+                            font-weight: 600;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
 
-            col_btn1, col_btn2 = st.columns([2, 3])
-            with col_btn1:
-                if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
+                col_btn1, col_btn2 = st.columns([2, 3])
+                with col_btn1:
+                    if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
+                        selected_rows = grid_response.get('selected_rows')
+                        if selected_rows is not None:
+                            # Converter para lista se for DataFrame
+                            if isinstance(selected_rows, pd.DataFrame):
+                                selected_rows = selected_rows.to_dict('records')
+                            elif not isinstance(selected_rows, list):
+                                selected_rows = []
+
+                            if len(selected_rows) > 0:
+                                # Extrair os índices da coluna 'Índice' das linhas selecionadas
+                                indices_selecionados = []
+                                for row in selected_rows:
+                                    idx_valor = None
+                                    if isinstance(row, dict) and 'Índice' in row and pd.notna(row.get('Índice')):
+                                        idx_valor = row.get('Índice')
+                                    if idx_valor is not None:
+                                        indices_selecionados.append(idx_valor)
+                                
+                                if indices_selecionados:
+                                    # Usar os dados das linhas selecionadas diretamente para buscar no original
+                                    indices_originais_para_deletar = []
+                                    
+                                    for row in selected_rows:
+                                        # Buscar no DataFrame original usando os campos únicos
+                                        mask = pd.Series([True] * len(df_custos_especificos))
+                                        
+                                        if 'Oficina' in row and pd.notna(row.get('Oficina')):
+                                            mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
+                                        if 'Período' in row and pd.notna(row.get('Período')):
+                                            mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
+                                        if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
+                                            valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
+                                            if pd.notna(valor_total):
+                                                mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
+                                        
+                                        indices_encontrados = df_custos_especificos[mask].index.tolist()
+                                        indices_originais_para_deletar.extend(indices_encontrados)
+                                    
+                                    # Remover duplicatas
+                                    indices_originais_para_deletar = list(set(indices_originais_para_deletar))
+                                    
+                                    if indices_originais_para_deletar:
+                                        df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
+                                        if salvar_custos_especificos(df_custos_especificos):
+                                            st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso! Recarregue a página para ver as alterações.")
+                                            st.cache_data.clear()
+                                    else:
+                                        st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
+                                else:
+                                    st.warning("⚠️ Nenhum índice válido encontrado nas linhas selecionadas.")
+                            else:
+                                st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+                        else:
+                            st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+                
+                with col_btn2:
                     selected_rows = grid_response.get('selected_rows')
                     if selected_rows is not None:
                         # Converter para lista se for DataFrame
                         if isinstance(selected_rows, pd.DataFrame):
-                            selected_rows = selected_rows.to_dict('records')
-                        elif not isinstance(selected_rows, list):
-                            selected_rows = []
-
-                        if len(selected_rows) > 0:
-                            # Extrair os índices da coluna 'Índice' das linhas selecionadas
-                            indices_selecionados = []
-                            for row in selected_rows:
-                                idx_valor = None
-                                if isinstance(row, dict) and 'Índice' in row and pd.notna(row.get('Índice')):
-                                    idx_valor = row.get('Índice')
-                                if idx_valor is not None:
-                                    indices_selecionados.append(idx_valor)
-                            
-                            if indices_selecionados:
-                                # Usar os dados das linhas selecionadas diretamente para buscar no original
-                                indices_originais_para_deletar = []
-                                
-                                for row in selected_rows:
-                                    # Buscar no DataFrame original usando os campos únicos
-                                    mask = pd.Series([True] * len(df_custos_especificos))
-                                    
-                                    if 'Oficina' in row and pd.notna(row.get('Oficina')):
-                                        mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
-                                    if 'Período' in row and pd.notna(row.get('Período')):
-                                        mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
-                                    if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
-                                        valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
-                                        if pd.notna(valor_total):
-                                            mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
-                                    
-                                    indices_encontrados = df_custos_especificos[mask].index.tolist()
-                                    indices_originais_para_deletar.extend(indices_encontrados)
-                                
-                                # Remover duplicatas
-                                indices_originais_para_deletar = list(set(indices_originais_para_deletar))
-                                
-                                if indices_originais_para_deletar:
-                                    df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
-                                    if salvar_custos_especificos(df_custos_especificos):
-                                        st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso! Recarregue a página para ver as alterações.")
-                                        st.cache_data.clear()
-                                else:
-                                    st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
-                            else:
-                                st.warning("⚠️ Nenhum índice válido encontrado nas linhas selecionadas.")
+                            selected_count = len(selected_rows)
+                        elif isinstance(selected_rows, list):
+                            selected_count = len(selected_rows)
                         else:
-                            st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
-                    else:
-                        st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
-            
-            with col_btn2:
-                selected_rows = grid_response.get('selected_rows')
-                if selected_rows is not None:
-                    # Converter para lista se for DataFrame
-                    if isinstance(selected_rows, pd.DataFrame):
-                        selected_count = len(selected_rows)
-                    elif isinstance(selected_rows, list):
-                        selected_count = len(selected_rows)
+                            selected_count = 0
                     else:
                         selected_count = 0
-                else:
-                    selected_count = 0
-                
-                if selected_count > 0:
-                    st.info(f"📊 {selected_count} linha(s) selecionada(s)")
+                    
+                    if selected_count > 0:
+                        st.info(f"📊 {selected_count} linha(s) selecionada(s)")
             
             st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
         else:
@@ -5609,6 +5614,55 @@ if aplicar_config_forecast:
             adicionar_mensagem("info", f"   - Histórico: {'✅' if info_historico['sucesso'] else '❌'} - {info_historico.get('mensagem', info_historico.get('parquet', 'N/A'))}")
             adicionar_mensagem("info", f"   - Forecast: {'✅' if info_forecast['sucesso'] else '❌'} - {info_forecast.get('mensagem', info_forecast.get('parquet', 'N/A'))}")
             adicionar_mensagem("info", f"   - Consolidado: {'✅' if info_consolidado['sucesso'] else '❌'} - {info_consolidado.get('mensagem', info_consolidado.get('parquet', 'N/A'))}")
+            
+            # ====================================================================
+            # 🚗 GERAR ARQUIVO COM VEÍCULO (igual Budget/Real)
+            # ====================================================================
+            adicionar_mensagem("info", "🚗 Gerando arquivo com distribuição por veículo...")
+            
+            try:
+                # Detectar ano do forecast para carregar percentuais corretos
+                ano_forecast = 2026  # Default
+                if df_forecast_completo is not None and 'Ano' in df_forecast_completo.columns:
+                    anos_unicos = df_forecast_completo['Ano'].dropna().unique()
+                    if len(anos_unicos) > 0:
+                        ano_forecast = int(max(anos_unicos))  # Usar ano mais recente
+                
+                # Carregar percentuais de rateio do Real
+                df_percentual = load_percentual_rateio_veiculos_real(ano_forecast)
+                
+                # Carregar D&A dedicado por veículo (para cálculo idêntico ao Real)
+                df_dea = load_dea_dedicado_real(ano_forecast)
+                
+                if df_percentual is None or df_percentual.empty:
+                    adicionar_mensagem("warning", f"⚠️ Percentuais de rateio não encontrados para {ano_forecast}. Arquivo com veículo não será gerado.")
+                else:
+                    # Aplicar rateio ao forecast completo (mesma lógica do Real)
+                    # Custo Rateado = FP sem Dedicada × Percentual
+                    # Custo FP Veiculo = Custo Rateado + D&A dedicado
+                    df_forecast_veiculos = ratear_be_por_veiculo(
+                        df_forecast_completo, df_percentual, 
+                        col_custo='Custo FP', df_dea=df_dea
+                    )
+                    
+                    if df_forecast_veiculos is not None and not df_forecast_veiculos.empty:
+                        # Salvar arquivo com veículo
+                        info_veiculos = salvar_arquivo(
+                            df_forecast_veiculos, 
+                            "forecast_veiculos_custo_fp", 
+                            "Forecast Por Veículo"
+                        )
+                        
+                        if info_veiculos['sucesso']:
+                            veiculos_gerados = df_forecast_veiculos['Veículo'].nunique() if 'Veículo' in df_forecast_veiculos.columns else 0
+                            adicionar_mensagem("success", f"✅ Arquivo com veículo gerado: {veiculos_gerados} veículos, {info_veiculos.get('linhas', 0):,} linhas")
+                        else:
+                            adicionar_mensagem("warning", f"⚠️ Erro ao salvar arquivo com veículo: {info_veiculos.get('mensagem', 'N/A')}")
+                    else:
+                        adicionar_mensagem("warning", "⚠️ Rateio por veículo retornou vazio. Verifique dados de percentual.")
+                        
+            except Exception as e_veic:
+                adicionar_mensagem("warning", f"⚠️ Erro ao gerar arquivo com veículo: {str(e_veic)}")
             
             # ====================================================================
             # 🆕 OTIMIZAÇÃO: Usar arquivos já salvos para criar consolidado (muito mais rápido) (MESMA LÓGICA DO FORECAST COPY)

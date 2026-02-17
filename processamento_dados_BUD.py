@@ -12,6 +12,12 @@ from typing import Tuple, Dict, Optional
 import re
 import unicodedata
 
+# ═══════════════════════════════════════════════════════════════
+#  OFICINAS INVÁLIDAS (excluídas da extração)
+# ═══════════════════════════════════════════════════════════════
+# Lista de oficinas que existem nos dados fonte mas não devem ser processadas
+OFICINAS_INVALIDAS = ['Veículos', 'Projetos']
+
 
 def limpar_periodo_sufixos(df):
     """Remove sufixos .1, .2, .3 da coluna Período"""
@@ -22,6 +28,30 @@ def limpar_periodo_sufixos(df):
     
     # Remover sufixos .1, .2, .3, etc da coluna Período
     df['Período'] = df['Período'].astype(str).str.replace(r'\.\d+$', '', regex=True)
+    
+    return df
+
+
+def filtrar_oficinas_validas(df: pd.DataFrame, contexto: str = "") -> pd.DataFrame:
+    """Remove oficinas inválidas do DataFrame.
+    
+    Args:
+        df: DataFrame com coluna 'Oficina'
+        contexto: Contexto para mensagem de log (ex: "do Rateio BDG ")
+    
+    Returns:
+        DataFrame filtrado sem oficinas inválidas
+    """
+    if df is None or df.empty or 'Oficina' not in df.columns:
+        return df
+    
+    mask_invalida = df['Oficina'].isin(OFICINAS_INVALIDAS)
+    n_excluidas = mask_invalida.sum()
+    
+    if n_excluidas > 0:
+        oficinas_removidas = sorted(df.loc[mask_invalida, 'Oficina'].unique().tolist())
+        df = df[~mask_invalida].copy()
+        print(f"   ℹ️ {n_excluidas:,} linhas excluídas {contexto}(oficinas inválidas: {oficinas_removidas})")
     
     return df
 
@@ -356,6 +386,9 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     df_KE5Z = _aplicar_alias_colunas(df_KE5Z, {'Veículo': ['Veículo', 'Veiculo']})
     _exigir_colunas(df_KE5Z, ['Oficina', 'Período', 'Account', 'Valor'], "aba 'Voz de custo BDG' após melt")
     
+    # ═══ EXCLUIR oficinas inválidas ═══
+    df_KE5Z = filtrar_oficinas_validas(df_KE5Z, "do Voz de Custo BDG ")
+    
     df_KE5Z['Valor'] = pd.to_numeric(df_KE5Z['Valor'], errors='coerce').fillna(0)
     
     mapeamento_meses_prefixo = {
@@ -450,7 +483,8 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     
     df['Período'] = df['Período'].apply(lambda v: mapeamento_meses_prefixo.get(_mes_prefixo(v), str(v).strip().capitalize()))
     
-    df = df[df['Oficina'] != 'Veículos']
+    # ═══ EXCLUIR oficinas inválidas ═══
+    df = filtrar_oficinas_validas(df, "do Rateio BDG ")
     df = df[df['Oficina'].notna()]
     
     log("🔄 Fazendo merge KE5Z ↔ Rateio (BUD)...")
@@ -603,6 +637,9 @@ def processar_dados_budget(config: Dict[str, any], progress_callback=None) -> Tu
     _exigir_colunas(df_vol, ['Oficina', 'Veículo', 'Período', 'Volume'], "aba 'Volume BDG' após melt")
     df_vol['Volume'] = pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0)
     df_vol = df_vol[df_vol['Oficina'].notna() & df_vol['Período'].notna() & df_vol['Veículo'].notna()]
+    
+    # ═══ EXCLUIR oficinas inválidas ═══
+    df_vol = filtrar_oficinas_validas(df_vol, "do Volume BDG ")
 
     # 🔧 Robustez: ignorar colunas extras e consolidar no grão correto (Oficina/Veículo/Período)
     df_vol = df_vol[['Oficina', 'Veículo', 'Período', 'Volume']].drop_duplicates()
