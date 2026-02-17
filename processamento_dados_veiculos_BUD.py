@@ -767,7 +767,7 @@ def fase8_custo_fa(df_principal: pd.DataFrame, df_rateio: pd.DataFrame) -> pd.Da
 # ═══════════════════════════════════════════════════════════════
 
 def fase9_custo_fp(df_principal: pd.DataFrame) -> pd.DataFrame:
-    """Calcula Custo FP (Fabricação Principal).
+    """Calcula Custo FP (Fluxo Principal).
     Custo FP = Despesa Primaria − Custo FA
     """
     print("── FASE 9: Custo FP ──")

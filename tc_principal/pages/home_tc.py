@@ -336,8 +336,8 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 xanchor='center', x=0.5, font=dict(size=10),
             ),
             margin=dict(l=60, r=30, t=130, b=130),
-            plot_bgcolor='white',
-            paper_bgcolor='white',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
         )
 
         return fig

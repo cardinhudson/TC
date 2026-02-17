@@ -516,7 +516,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
                     × Rateio FA
                     = Custo FA (Fluxo Anexo)
 
-                Custo FP (Fabricação Principal)
+                Custo FP (Fluxo Principal)
                     = Despesa Primária − Custo FA
 
         D&A Dedicado = parcela de D&A atribuída diretamente ao veículo
@@ -6037,8 +6037,8 @@ elif indice_selecionado == "📊 Apresentação Visual":
             ---
 
             **1:30–3:00 — 🚗 TC Veículos**
-            - Análise de **custo de fabricação (Custo FP) por veículo** — cadeia completa.
-            - Cadeia: Despesa Primária + Custo FA = **Custo FP**; D&A Dedicado → FP sem Dedicada.
+- Análise de **custo do Fluxo Principal (Custo FP) por veículo** — cadeia completa.
+- Cadeia: Despesa Primária − Custo FA = **Custo FP**; D&A Dedicado → FP sem Dedicada.
             - **Rateio por veículo**: proporcional ao tempo de produção na oficina.
             - 6 tabs: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo Produção, Dados Detalhados.
             - Seleção de veículo específico aciona rateio; "Todos" mostra consolidado.
@@ -6146,12 +6146,12 @@ Transformar dados brutos (Excel / SAPIENS) em insights acionáveis — comparar 
         # ── SLIDE 3 ──
         with st.expander("🚗 Slide 3 — TC Veículos  *(1:30 – 3:00)*"):
             st.markdown("""
-**Propósito:** Análise detalhada do custo de fabricação (Custo FP) por veículo, com cadeia completa de custos e rateio proporcional ao tempo de produção.
+**Propósito:** Análise detalhada do custo do Fluxo Principal (Custo FP) por veículo, com cadeia completa de custos e rateio proporcional ao tempo de produção.
 
 **Coluna principal:** `Custo FP`
 
 **Cadeia de custos:**
-- Despesa Primária + Custo FA (Fluxo Anexo) = **Custo FP** (Fabricação Principal)
+- Despesa Primária − Custo FA (Fluxo Anexo) = **Custo FP** (Fluxo Principal)
 - D&A Dedicado = parcela atribuída diretamente ao veículo
 - FP sem Dedicada = Custo FP − D&A Dedicado
 

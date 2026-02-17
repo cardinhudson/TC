@@ -13,7 +13,7 @@ Ele opera com uma cadeia de custos padronizada e auditável:
 $$\text{Despesa Primaria} = \text{Custo FA} + \text{Custo FP}$$
 
 - **Custo FA**: parcela da Despesa Primaria atribuída ao *Fluxo Anexo* (por oficina/período)
-- **Custo FP**: parcela remanescente (Fabricação Principal)
+- **Custo FP**: parcela remanescente (Fluxo Principal)
 - **D\&A dedicado**: depreciação/amortização dedicada (entrada externa)
 - **FP sem Dedicada**: base que será rateada por veículo usando tempo de produção
 - **Redis**: receita (negativa) vinda da aba **massa - REDIS**, incorporada na própria base e rateada para veículos via tempo
@@ -138,6 +138,12 @@ Redis nasce por **Oficina/Período** (e dimensões contábeis) e passa pela cade
 O rateio por veículo é feito com base no **tempo de produção**:
 
 $$\text{Tempo Veic} = \text{Volume} \times \text{EST}$$
+
+Onde os índices significam:
+
+- $v$: veículo
+- $o$: oficina
+- $p$: período (mês)
 
 $$\text{Percentual}_{v,o,p} = \frac{\text{Tempo Veic}_{v,o,p}}{\sum_v \text{Tempo Veic}_{v,o,p}}$$
 

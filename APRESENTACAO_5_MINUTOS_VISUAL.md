@@ -149,7 +149,7 @@
 
 # 🚗 Módulo 2 — TC Veículos
 
-### Análise de custo de fabricação rateado por modelo de veículo
+### Análise de custo do Fluxo Principal (Custo FP) rateado por modelo de veículo
 
 </div>
 
@@ -160,11 +160,11 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│  🚗 TC VEÍCULOS — Custo de Fabricação por Modelo                    │
+│  🚗 TC VEÍCULOS — Custo do Fluxo Principal (FP) por Modelo          │
 │  ─────────────────────────────────────────────────────────────────  │
 │                                                                     │
 │  🎯 Propósito:                                                      │
-│     Análise detalhada do custo de fabricação (Custo FP) por         │
+│     Análise detalhada do custo do Fluxo Principal (Custo FP) por    │
 │     veículo, com cadeia completa de custos e rateio proporcional    │
 │     ao tempo de produção em cada oficina.                           │
 │                                                                     │
