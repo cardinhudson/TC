@@ -1,4 +1,4 @@
-# 📊 Sistema TC Extendido - Apresentação 5 Minutos
+# 📊 Stellantis Cost Intelligence (SCI) - Apresentação 5 Minutos
 
 **Desenvolvido por:** Hudson Cardin e Lauro Paiva  
 **Versão:** Sistema completo com versionamento automático  
@@ -8,7 +8,7 @@
 
 ## 🎯 Slide 1: Introdução (30 segundos)
 
-### O que é o Sistema TC?
+### O que é o Stellantis Cost Intelligence (SCI)?
 
 **Sistema de Análise de Custos e Previsões** para Porto Real
 
@@ -203,7 +203,7 @@ Média Histórica × Fator Volume × Fator Inflação = Best Estimate
 
 ### Resumo
 
-**Sistema TC Extendido** é uma solução completa que:
+**Stellantis Cost Intelligence (SCI)** é uma solução completa que:
 
 1. **Automatiza** o processamento de dados financeiros
 2. **Facilita** análises comparativas e previsões

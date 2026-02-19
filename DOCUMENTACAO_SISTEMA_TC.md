@@ -1,4 +1,4 @@
-# 📚 Documentação Técnica Completa — Sistema TC (Especificação para Reescrita)
+# 📚 Documentação Técnica Completa — Stellantis Cost Intelligence (SCI) (Especificação para Reescrita)
 
 > Objetivo deste documento: servir como **fonte única de verdade** (single source of truth) para reescrever o projeto com IA **mantendo 100% das funcionalidades, regras de cálculo e comportamento da interface**.
 >
@@ -8,7 +8,7 @@
 
 ## 1) Visão geral (o que o sistema faz)
 
-O Sistema TC é um conjunto de dashboards (Streamlit) para análise de custos e volumes de uma operação industrial, com foco em:
+O Stellantis Cost Intelligence (SCI) é um conjunto de dashboards (Streamlit) para análise de custos e volumes de uma operação industrial, com foco em:
 
 - **TC Ext (Real)**: análise de custo total e CPU (custo por unidade) por período, veículo e oficina.
 - **Budget (BUD)**: dados planejados (custo e volume) para comparação.

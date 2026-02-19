@@ -613,3 +613,11 @@ A: Não. Todos os dados ficam no servidor local, sem envio externo.
 ## 🚀 Boa Apresentação!
 
 **Stellantis Cost Intelligence (SCI) — Transformando dados em decisões**
+
+<div align="center">
+
+<img src="SCI_faixa.png" alt="SCI" style="max-width: 900px; width: 100%; height: auto;" />
+
+</div>
+
+![SCI](SCI_faixa.png)

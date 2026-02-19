@@ -298,13 +298,14 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
 
             fig.update_yaxes(title_text=delta_titulo, row=1, col=1,
                              showgrid=False, zeroline=True,
-                             zerolinecolor='#EEEEEE', zerolinewidth=1,
+                             zerolinecolor='rgba(160,160,160,0.35)', zerolinewidth=0.5,
                              tickfont=dict(size=8))
             fig.update_xaxes(
                 row=1, col=1,
-                showline=True,
-                linecolor='#F2F2F2',
-                linewidth=1,
+                showline=False,
+                showgrid=False,
+                linecolor='rgba(0,0,0,0)',
+                linewidth=0,
                 ticks='',
             )
 
@@ -323,6 +324,8 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
             fig.update_xaxes(showticklabels=False, row=1, col=1,
                              categoryorder='array', categoryarray=ordem_per)
             fig.update_xaxes(showline=False, row=1, col=1)
+            fig.update_xaxes(showline=False, row=bar_row, col=1)
+        else:
             fig.update_xaxes(showline=False, row=bar_row, col=1)
 
         _altura_base = altura + (100 if tem_flex else 0)

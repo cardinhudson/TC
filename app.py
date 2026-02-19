@@ -20,6 +20,11 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+base_url = st.get_option("server.baseUrlPath") or ""
+if base_url:
+    base_url = "/" + base_url.strip("/")
+target_url = f"{base_url}/" if base_url else "/"
+
 # Faixa no sidebar (proporção original, sem cortes)
 faixa_path = Path(__file__).with_name("SCI_faixa.png")
 if faixa_path.exists():
@@ -40,7 +45,7 @@ if faixa_path.exists():
                 outline: 3px solid rgba(255, 255, 255, 0.45);
             }}
         </style>
-        <a href="/tc" class="sci-faixa-btn" style="text-decoration: none;">
+        <a href="{target_url}" class="sci-faixa-btn" style="text-decoration: none;">
             <div style="width: 100%; margin: 0 0 0.5rem 0;">
                 <img
                     src="data:image/png;base64,{faixa_b64}"
@@ -84,28 +89,6 @@ st.markdown(
 st.caption("Selecione o módulo no menu lateral.")
 
 PAGES = {
-    "TC Ext (Linhas Secundárias)": [
-        st.Page(
-            "tc_ext/pages/home_ext.py",
-            title="Home (TC Ext)",
-            url_path="tc-ext",
-        ),
-        st.Page(
-            "pages/1 - Waterfall.py",
-            title="Waterfall",
-            url_path="tc-ext-waterfall",
-        ),
-        st.Page(
-            "pages/2 - Best Estimate - Simulador.py",
-            title="Best Estimate (Simulador)",
-            url_path="tc-ext-best-estimate-simulador",
-        ),
-        st.Page(
-            "pages/5 - Extração de Dados.py",
-            title="Extração de Dados",
-            url_path="tc-ext-extracao",
-        ),
-    ],
     "TC Veículos": [
         st.Page(render_home_tc, title="Home (TC Veículos)", url_path="tc"),
         st.Page(
@@ -129,6 +112,28 @@ PAGES = {
             url_path="tc-debug",
         ),
     ],
+    "TC Ext (Linhas Secundárias)": [
+        st.Page(
+            "tc_ext/pages/home_ext.py",
+            title="Home (TC Ext)",
+            url_path="tc-ext",
+        ),
+        st.Page(
+            "pages/1 - Waterfall.py",
+            title="Waterfall",
+            url_path="tc-ext-waterfall",
+        ),
+        st.Page(
+            "pages/2 - Best Estimate - Simulador.py",
+            title="Best Estimate (Simulador)",
+            url_path="tc-ext-best-estimate-simulador",
+        ),
+        st.Page(
+            "pages/5 - Extração de Dados.py",
+            title="Extração de Dados",
+            url_path="tc-ext-extracao",
+        ),
+    ],
     "Documentação": [
         st.Page(
             "pages/6 - Documentacao.py",
@@ -138,5 +143,5 @@ PAGES = {
     ],
 }
 
-pg = st.navigation(PAGES)
+pg = st.navigation(PAGES, expanded=False)
 pg.run()

@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import json
@@ -100,6 +101,75 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📚 Documentação — Stellantis Cost Intelligence (SCI)")
+
+
+# Tradutor (PT/EN/FR/ES) — traduz a página inteira via widget client-side
+with st.container():
+        cols = st.columns([1, 6])
+        with cols[0]:
+                st.markdown("**🌐 Tradutor**")
+        with cols[1]:
+                st.markdown(
+                        "<div id='sci-translate-container' style='min-height: 28px;'></div>",
+                        unsafe_allow_html=True,
+                )
+
+        components.html(
+                """
+                <script>
+                (function() {
+                    try {
+                        const parentWindow = window.parent;
+                        const doc = parentWindow.document;
+
+                        // Container visível (criado via st.markdown)
+                        const container = doc.getElementById('sci-translate-container');
+                        if (!container) return;
+
+                        // Elemento do tradutor
+                        let el = doc.getElementById('google_translate_element');
+                        if (!el) {
+                            el = doc.createElement('div');
+                            el.id = 'google_translate_element';
+                            container.appendChild(el);
+                        }
+
+                        // Callback esperado pelo script do Google Translate
+                        if (!parentWindow.googleTranslateElementInit) {
+                            parentWindow.googleTranslateElementInit = function() {
+                                if (!parentWindow.google || !parentWindow.google.translate) return;
+                                new parentWindow.google.translate.TranslateElement(
+                                    {
+                                        pageLanguage: 'pt',
+                                        includedLanguages: 'pt,en,fr,es',
+                                        autoDisplay: false
+                                    },
+                                    'google_translate_element'
+                                );
+                            };
+                        }
+
+                        // Carrega o script uma única vez
+                        if (!doc.getElementById('google-translate-script')) {
+                            const s = doc.createElement('script');
+                            s.id = 'google-translate-script';
+                            s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                            doc.body.appendChild(s);
+                        }
+                    } catch (e) {
+                        // Se a política do navegador/Streamlit bloquear acesso ao parent,
+                        // simplesmente não mostra o tradutor.
+                    }
+                })();
+                </script>
+                """,
+                height=0,
+        )
+
+        st.caption(
+                "Tradução automática (PT/EN/FR/ES) via Google Translate. "
+                "Se o acesso externo estiver bloqueado na rede corporativa, o tradutor pode não aparecer."
+        )
 
 
 def _ir_para_especificacao_tecnica() -> None:
@@ -465,7 +535,7 @@ if indice_selecionado == "👥 Equipe do Projeto":
                     st.write("🔗 *LinkedIn não informado*")
 
     st.markdown("---")
-    
+
     st.markdown("""
     ### 🎯 Objetivos do Projeto
 
@@ -495,6 +565,15 @@ if indice_selecionado == "👥 Equipe do Projeto":
     - 🎨 Interface moderna com tabs, gráficos Altair e gradientes
     - ⚡ Performance otimizada para grandes volumes (70%+ redução de memória)
     """)
+
+    st.markdown("<div style='height: 1.0rem;'></div>", unsafe_allow_html=True)
+
+    _c1, c_logo, _c3 = st.columns([1, 3, 1])
+    with c_logo:
+        try:
+            st.image("SCI_faixa.png", width="stretch")
+        except TypeError:
+            st.image("SCI_faixa.png", use_container_width=True)
 
 # ==========================================
 # TC VEÍCULOS: REGRAS E CÁLCULO
@@ -6779,128 +6858,159 @@ elif indice_selecionado == "🚀 Próximos Passos":
 
         👉 [https://stellantis.brightidea.com/AIUseCaseFactory](https://stellantis.brightidea.com/AIUseCaseFactory)
 
-        Abaixo estão as respostas em formato corporativo para submissão oficial.
+        **RESPOSTAS COMPLETAS E PRONTAS PARA O BRIGHTIDEA (AI USE CASE FACTORY)**
+
+        **Caso de Uso:** Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos)
+
+        **Slogan:** A evolução da controladoria industrial
 
         ---
 
-        #### 1) LLM Alvo (se conhecido)
-        **Resposta recomendada:**
+        #### 📌 1) Descrição do caso de uso (função do usuário, problema, contexto)
+        **Função do principal usuário:**
+        Analistas, especialistas e gestores de Controladoria Industrial, Controlling, Custos de Manufatura, FP&A (Financial Planning & Analysis — Planejamento e Análise Financeira), e equipes de performance fabril das plantas da Stellantis.
 
-        **GPT‑4 (Azure OpenAI via GENAI Gateway)**
+        **Problema a ser resolvido:**
+        Hoje, análises de custo industrial (FP (Fluxo Principal), FA (Fluxo Auxiliar), Redis (receitas internas/redistribuições do processo), CPU (Custo Por Unidade), Budget (orçado), Real (realizado), BE (Best Estimate — melhor estimativa/forecast) e Flex (Flex Budget — orçamento flexível)) exigem muito esforço manual para consolidação, interpretação, validação e elaboração de comentários executivos. Isso atrasa a tomada de decisão, gera retrabalho e produz inconsistências entre plantas.
 
-        **Justificativa curta (opcional):**
+        O sistema Stellantis Cost Intelligence (SCI) já automatiza cálculos e consolida dados (módulo TC Veículos), mas não interpreta os resultados. A equipe precisa diariamente:
+        - analisar desvios
+        - identificar impactos
+        - gerar resumos
+        - explicar variações por oficina
+        - comentar principais movimentos
+        - detectar comportamentos anômalos
 
-        O GPT‑4 é atualmente o modelo com melhor capacidade analítica, contextual e interpretativa
-        disponível no GENAI Gateway, sendo recomendado para uso corporativo em casos de análise
-        financeira, variações industriais e comentários executivos.
+        Tudo isso ainda é manual.
 
-        #### 2) Plataforma alvo (se conhecida)
-        **Resposta recomendada:**
+        **Contexto de negócios:**
+        O projeto Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos) propõe criar um Agente de IA (Inteligência Artificial) integrado ao TC Veículos, usando o GENAI Gateway (Gateway corporativo de IA Generativa), capaz de interpretar dados internos automaticamente e fornecer:
+        - análises instantâneas
+        - explicações sobre variações
+        - comentários executivos
+        - identificação automática de anomalias
+        - insights sobre oficinas/modelos mais críticos
+        - resumos diários de performance
+        - suporte à gestão industrial e financeira
 
-        **Azure (Microsoft)**
+        Isso reduz retrabalho, padroniza análises e aumenta velocidade na tomada de decisão.
 
-        **Justificativa opcional:**
+        #### 📌 2) Categoria de Recursos de IA
+        **Seleção:** Busca de Conhecimento – Recuperação, Adaptação e Reformulação de Informações
 
-        O projeto TC Veículos é baseado em Python/Streamlit, e o modelo GPT‑4 via Azure OpenAI possui
-        integração direta com o GENAI Gateway. Além disso, Azure oferece melhor compatibilidade com
-        autenticação PingFederate + mTLS e atende os requisitos corporativos de aplicações internas não
-        baseadas em Databricks.
+        **Motivo:** o agente analisará bases internas (parquets, tabelas, cálculos do TC (Transformation Cost — custo de transformação)) e gerará análises contextualizadas.
+        Também envolve interpretação de dados estruturados → mas a função principal é entender e explicar, não prever.
 
-        #### 3) Descrição do Caso de Uso
-        Desenvolvimento de um Agente de IA especializado em Controladoria Industrial para o projeto
-        TC Veículos. O agente terá capacidade de responder perguntas sobre custos, variações, BE, CPU,
-        FA/FP, análises por oficina, anomalias, desvios relevantes e tendências.
-        Será integrado ao GENAI Gateway para permitir interpretação contextual das bases internas
-        (parquets, tabelas consolidadas e históricos). O objetivo é reduzir o tempo de análise,
-        automatizar resumos executivos e apoiar decisões de gestão industrial e financeira.
+        #### 📌 3) Domínio de Negócios
+        **Seleção:** Manufacturing / Industrial Finance / Controladoria Industrial
 
-        #### 4) Problema que o caso de uso resolve
-        Hoje, análises de custo, CPU, Budget vs Real, Best Estimate e variações por oficina demandam
-        grande esforço manual, cruzamento de bases, interpretação de dados e elaboração de comentários
-        executivos. As equipes gastam tempo analisando planilhas e dashboards, o que atrasa a tomada de
-        decisão. O agente de IA automatiza essa leitura e gera análises inteligentes, resumos diários e
-        respostas sob demanda.
+        #### 📌 4) Escala regional do caso de uso
+        **Seleção:** Múltiplas regiões (América do Sul e outras regiões futuramente).
+        O processo de controladoria industrial é similar entre plantas LATAM (Latin America — América Latina), podendo escalar para EU (Europe — Europa) e NA (North America — América do Norte) facilmente.
 
-        #### 5) Benefícios esperados (resposta executiva)
-        - Redução de tempo de análise (ganho operacional significativo)
-        - Maior precisão nas análises de variação
-        - Identificação automática de anomalias
-        - Comentários executivos gerados instantaneamente
-        - Padronização de análises entre plantas
-        - Visibilidade imediata de impactos por oficina e modelo
-        - Redução de retrabalho nas rotinas de controladoria
-        - Suporte direto à diretoria com análises inteligentes
+        #### 📌 5) Marcas que podem se beneficiar
+        **Seleção:** Todas as marcas Stellantis.
+        Processo de custo fabril é transversal (Fiat, Peugeot, Citroën, Jeep, RAM, etc).
 
-        #### 6) Justificativa de valor (obrigatório para Brightidea)
-        O projeto já existe (TC — Transformation Cost) e entrega um portal analítico em Python/Streamlit.
-        Utilizamos pandas/NumPy para cálculos e Parquet como base de dados/histórico para performance e consistência.
-        Hoje já analisamos Budget, Real, BE e Flex, com métricas como FA, FP e CPU, além de rateios por oficina/veículo conforme regras vigentes.
-        Os painéis principais incluem Waterfall e Best Estimate (Simulador), suportando leitura executiva e simulações.
-        O TC Copilot é uma funcionalidade incremental para automatizar resumos e insights sobre as mesmas bases, regras e telas,
-        reduzindo esforço manual e melhorando padronização, sem expor dados fora do ambiente corporativo.
+        #### 📌 6) Redução anual estimada de custos
+        **Seleção:** 100–500 mil €/ano
 
-        #### 7) Dados envolvidos (informar no formulário)
-        O agente utilizará exclusivamente dados internos já existentes no projeto TC Veículos e TC Ext:
-        - Parquets consolidados
-        - Tabelas de Budget, Real, BE, Flex
-        - Rateios por modelo
-        - CPU por veículo
-        - Informações por oficina
-        - Tabelas de debug
+        **Justificativa prática:**
+        - redução do tempo de análise manual
+        - eliminação de retrabalho
+        - padronização de explicações
+        - velocidade de diagnóstico
+        - apoio direto à tomada de decisão fabril
 
-        Todos permanecem armazenados em repositórios corporativos internos e seguirão as diretrizes de
-        segurança Stellantis.
+        #### 📌 7) Receita anual estimada
+        **Seleção:** Não aplicável
 
-        #### 8) Sensibilidade dos dados
-        Dados internos de custos, volumes, rateios e métricas industriais.
-        Não há envio de informações externas.
-        Todo processamento ocorre dentro do ambiente GENAI autorizado.
+        #### 📌 8) Pessoas impactadas
+        **Seleção:** 50 a 100 usuários
 
-        O acesso via API exige obrigatoriamente:
-        - PingFederate OAuth2
-        - mTLS com certificado
-        - Autorização controlada por grupo
+        Inclui:
+        - times de controladoria fabril
+        - times de custos
+        - FP&A
+        - gestores de performance industrial
+        - diretoria de manufatura
+        - controllers regionais
 
-        #### 9) Arquitetura sugerida (texto para o EA Gate)
-        ```
-        Usuário → SCI — Stellantis Cost Intelligence (interface Streamlit)
-                  → TC Copilot (Python)
-                     → GENAI Gateway (GraphQL + OAuth2 + mTLS)
-                         → LLM (Azure OpenAI / GPT‑4)
-                         → Vector Store / Embeddings
-                     → Dados internos (parquets e tabelas do SCI)
-        ```
+        #### 📌 9) Como isso cria valor / modelo de negócio
+        O SCI cria um mecanismo contínuo de geração de valor, pois:
+        - substitui análises manuais repetitivas
+        - reduz tempo de elaboração de comentários executivos
+        - detecta problemas antecipadamente
+        - evita inconsistências entre plantas
+        - amplia governança e padronização
+        - acelera a tomada de decisão
+        - facilita comparações entre modelos e oficinas
+        - disponibiliza inteligência financeira 24/7
 
-        **Foco:**
-        - Zero dados externos
-        - Zero exposição pública
-        - Tudo dentro dos padrões de segurança Stellantis
+        **Medições claras de valor:**
+        - horas de retrabalho eliminadas
+        - velocidade para fechar custos diários/mensais
+        - quantidade de análises automatizadas
+        - número de alertas antecipados por anomalias detectadas
+        - produtividade do time de controladoria
 
-        #### 10) Por que este caso deve ser aprovado pelo GenAI Ambassador e EA Gate
-        O caso está totalmente alinhado com o uso corporativo aprovado de IA generativa na Stellantis,
-        aproveitando o GENAI Gateway para garantir segurança, compliance, performance e governança.
-        O agente trabalha somente com dados internos e entrega alto valor para tomada de decisão
-        industrial e financeira.
+        #### 📌 10) Disponibilidade dos dados
+        **Seleção:** Tenho muitos dados de boa qualidade prontos para uso.
 
-        #### 11) Resposta para “Por que você precisa da API LLM?”
-        Para permitir análise automatizada, contextual e inteligente de informações complexas, unindo
-        dados financeiros, industriais e operacionais do projeto TC Veículos em uma camada de raciocínio
-        baseada em LLM — conforme diretriz oficial da Stellantis para uso de IA generativa via GENAI
-        Gateway.
+        **Justificativa:**
+        O sistema Stellantis Cost Intelligence (SCI) já contém:
+        - parquets consolidados
+        - tabelas tratadas (FP, FA, Redis, CPU, BE, Flex)
+        - dados padronizados por oficina e modelo
+        - tabelas auxiliares (debug, massa, rateios, percentuais)
+        - banco de dados estruturado em Python
 
-        #### 12) Resposta para “Este projeto terá uso em produção?”
-        **Opção piloto (POC):**
+        Tudo já está higienizado e pronto para indexação via GENAI (IA Generativa).
 
-        Inicialmente como POC (EA Gate 1), com evolução planejada para produção após validações
-        internas.
+        #### 📌 11) Tipo de dados
+        **Selecione TODOS os aplicáveis:**
+        - ✔ Texto plano (CSV, parquet, etc.)
+        - ✔ Documentos (documentação técnica do sistema, PDF, notas internas)
+        - ✔ Dados estruturados (tabelas, parquets, bancos internos)
 
-        **Opção produção:**
+        #### 📌 12) Qualidade dos dados
+        **Seleção:** Precisa, consistente e confiável para tomada de decisão.
 
-        Sim, objetivo final é uso produtivo diário nas análises de controladoria industrial.
+        **Motivo:** O processo do TC Veículos já foi padronizado e validado internamente.
 
-        #### 13) Resposta para “O sistema será integrado a qual ambiente?”
-        Será integrado ao Stellantis Cost Intelligence (SCI), atualmente baseado em Python/Streamlit, já utilizado
-        para análises internas de custos industriais.
+        #### 📌 13) Recursos / expertise necessários
+        - Engenheiros de dados (para ingestão inicial do vector store (base vetorial))
+        - Suporte GENAI COE (Center of Excellence — Centro de Excelência de IA Generativa) (para mTLS (mutual TLS — TLS mútuo) + OAuth2 (OAuth 2.0 — protocolo de autorização) via PingFederate)
+        - Desenvolvedor Python (integração TC (Transformation Cost) × GENAI (IA Generativa))
+        - Especialista de controladoria (validação dos insights)
+
+        #### 📌 14) Soluções concorrentes
+        Não existe solução semelhante dentro da Stellantis.
+        Processos atuais são manuais e fragmentados.
+
+        #### 📌 15) Prazos desejados
+        POC (Proof of Concept — prova de conceito) após aprovação — sem data rígida.
+        Pode acompanhar calendário de FECHAMENTO MENSAL e BE.
+
+        #### 📌 16) Tags
+        cost-control, industrial-finance, manufacturing, genai, tc-veiculos, scicontroller, insights
+
+        #### 📌 17) Patrocinador de Negócio
+        Seu gestor ou diretor da área de Controlling/Manufatura (preencher com o nome interno).
+
+        #### 📌 18) Líder de TIC (se conhecido)
+        Colocar o responsável de TI/IS (Tecnologia da Informação / Information Systems — Sistemas de Informação) local da planta ou região.
+
+        #### 📌 19) Já houve alguma ação?
+        Sim — desenvolvimento do Stellantis Cost Intelligence (SCI) (módulo TC Veículos), consolidação dos dados, definição do caso de uso e preparação para integração ao GENAI Gateway.
+
+        #### 📌 20) LLM alvo
+        GPT‑4 / GPT‑5.2 (Azure OpenAI via GENAI Gateway (Gateway corporativo de IA Generativa))
+
+        #### 📌 21) Plataforma alvo
+        Azure (Microsoft)
+
+        Melhor integração com Python, Streamlit e GENAI Gateway.
         """)
 
 # Rodapé
