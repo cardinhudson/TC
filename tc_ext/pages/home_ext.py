@@ -29,6 +29,12 @@ from tc_core.finance.currency_db import (
 
 from tc_ext.normalizacao import padronizar_colunas
 
+import sys as _sys
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # ═══ Bloco 2: Sidebar global ═══
 from tc_principal.ui_components import render_sidebar_global
 from tc_ext.metricas_tc_ext import cpu_por_chaves
@@ -110,16 +116,16 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes
-        pasta_dados = os.path.join("dados", "TC_Ext")
+        pasta_dados = os.path.join(_ROOT, "dados", "TC_Ext")
         if os.path.exists(pasta_dados):
             try:
                 anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
@@ -465,7 +471,7 @@ def load_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
         caminho_absoluto = os.path.abspath(caminho_historico)
         
         if os.path.exists(caminho_historico):
@@ -561,7 +567,7 @@ def _load_forecast_ext(ano_selecionado_param):
     Normaliza coluna Tipo → 'Histórico' ou 'BE'.
     """
     try:
-        caminho = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
         if not os.path.exists(caminho):
             return None
 
@@ -917,7 +923,7 @@ def load_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
         caminho_absoluto = os.path.abspath(caminho_historico)
         
         if os.path.exists(caminho_historico):
@@ -1001,7 +1007,7 @@ def load_volume_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do histórico consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_historico):
             # 🔧 CORREÇÃO: Garantir que Volume seja sempre numérico ao carregar
@@ -1257,7 +1263,7 @@ def _merge_volume_com_fallback(df_base, df_volume):
 def load_budget_data(ano_selecionado_param):
     """Carrega os dados de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget = os.path.join(
             project_root,
             "dados",
@@ -1338,7 +1344,7 @@ def load_budget_data(ano_selecionado_param):
 def load_budget_volume_data(ano_selecionado_param):
     """Carrega os dados de volume de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",

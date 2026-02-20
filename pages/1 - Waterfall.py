@@ -42,7 +42,12 @@ def plotly_chart_safe(fig, use_container_width=True):
             raise
 
 # Adicionar o diretório raiz ao path para importar funções do app.py
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if hasattr(sys, '_MEIPASS'):
+    _ROOT = sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 # Marcar que estamos em uma página separada (não na página principal)
 # Isso evita que o app.py renderize conteúdo quando importado
@@ -85,9 +90,9 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
@@ -219,7 +224,7 @@ except Exception as e:
 # ═══ Merge BE para meses sem dados Real ═══
 _be_merged = False
 try:
-    _fc_path = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+    _fc_path = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
     if os.path.exists(_fc_path):
         _df_fc = pd.read_parquet(_fc_path)
         if 'Período' not in _df_fc.columns:

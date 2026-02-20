@@ -8,11 +8,17 @@ That avoids executing the whole dashboard (and its CSS/UI side-effects) just to 
 This file is a compatibility layer: keep function names/signatures stable.
 """
 
+import sys as _sys
 import os
 import unicodedata
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
+
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.abspath(__file__))
 import streamlit as st
 
 from tc_core.data.periodos import normalizar_coluna_periodo
@@ -82,7 +88,7 @@ def _normalizar_coluna_veiculo(df: pd.DataFrame) -> pd.DataFrame:
 @st.cache_data(ttl=3600, max_entries=10, show_spinner=True)
 def load_data(ano_selecionado_param):
     """Carrega df_final do histórico consolidado e filtra por ano quando aplicável."""
-    caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+    caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
     caminho_absoluto = os.path.abspath(caminho_historico)
 
     if not os.path.exists(caminho_historico):
@@ -107,7 +113,7 @@ def load_data(ano_selecionado_param):
 @st.cache_data(ttl=60, max_entries=10, show_spinner=True)
 def load_volume_data(ano_selecionado_param):
     """Carrega df_vol do histórico consolidado e filtra por ano quando aplicável."""
-    caminho_historico = os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+    caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
 
     if not os.path.exists(caminho_historico):
         return None

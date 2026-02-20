@@ -38,9 +38,25 @@ cd C:\user\U235107\GitHub\TC
 .\build_exe.bat
 ```
 
-**Opção B - Comando manual:**
+**Opção B - Comando manual (mínimo):**
 ```powershell
 streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence
+```
+
+> Importante: o `streamlit-desktop-app` **não aceita** `--hidden-import` no CLI.
+> Para dependências importadas apenas em runtime (ex.: páginas multipage), use o `build_exe.bat`,
+> que faz o pós-build e copia os pacotes necessários para dentro do `_internal/`.
+
+#### Observações importantes (para reprodução fiel)
+
+- O método oficial usado aqui é o mesmo do sistema de referência (DashAPPwin11): **`streamlit-desktop-app`**.
+- Se durante o build aparecer um aviso do PyInstaller dizendo que a pasta `dist\Stellantis-Cost-Intelligence` (e todo o conteúdo) será removida e pedindo confirmação, responda `Y`.
+- Se o build falhar com `SyntaxError: invalid non-printable character U+FEFF` em `app.py`, o arquivo está com **BOM (Byte Order Mark)**. Corrija com PowerShell:
+
+```powershell
+$content = Get-Content "app.py" -Raw
+$content = $content -replace '^\xEF\xBB\xBF', ''
+[System.IO.File]::WriteAllText("app.py", $content, [System.Text.UTF8Encoding]::new($false))
 ```
 
 ### 4. Copiar dados para _internal (se necessário)
@@ -76,6 +92,11 @@ Copy-Item "SCI_faixa.png" $dest
 Copy-Item "Designer.png" $dest
 Copy-Item "DOCUMENTACAO_SISTEMA_TC.md" $dest
 Copy-Item "DOCUMENTACAO_TC_PRINCIPAL.md" $dest
+
+# (NOVO) AgGrid no executável: copiar o pacote para dentro do _internal
+# Motivo: páginas do Streamlit são carregadas em runtime, e o empacotador pode não incluir o st_aggrid.
+Copy-Item ".venv\Lib\site-packages\st_aggrid" -Destination "$dest\st_aggrid" -Recurse -Force
+Copy-Item ".venv\Lib\site-packages\streamlit_aggrid-*.dist-info" -Destination $dest -Recurse -Force
 ```
 
 ---
@@ -206,6 +227,18 @@ Edite diretamente os arquivos JSON em `_internal/`:
 
 ### Erro: "Arquivos não encontrados"
 - Verifique se `_internal/dados/` contém os arquivos Parquet
+
+### Aviso/Erro: "⚠️ Tabelas interativas (AgGrid) indisponíveis: módulo 'st_aggrid' não encontrado"
+**Causa típica no EXE:** o pacote `st_aggrid` não foi incluído automaticamente pelo empacotamento.
+
+**Correção (recomendado):** gere o EXE com `build_exe.bat` (ele já copia `st_aggrid` para `_internal/`).
+
+**Se já tiver um EXE pronto:** copie manualmente para `dist/<NOME>/_internal/`:
+- Pasta `st_aggrid/`
+- Pasta `streamlit_aggrid-*.dist-info/`
+
+**Fallback:** quando o AgGrid não existe, o app usa modo simplificado. Neste modo, a exclusão agora
+funciona via `st.data_editor` com checkbox (inclui opção **Selecionar Todos**).
 - Confirme que `processamento_dados.py` está em `_internal/`
 
 ### Erro: "Porta 8501 em uso"

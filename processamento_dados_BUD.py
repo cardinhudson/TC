@@ -3,6 +3,7 @@ Módulo de Processamento de Dados BUDGET
 Convertido do notebook dados_BUD.ipynb mantendo toda a lógica original
 """
 
+import sys as _sys
 import pandas as pd
 import numpy as np
 import os
@@ -11,6 +12,11 @@ from datetime import datetime
 from typing import Tuple, Dict, Optional
 import re
 import unicodedata
+
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # ═══════════════════════════════════════════════════════════════
 #  OFICINAS INVÁLIDAS (excluídas da extração)
@@ -230,10 +236,10 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
     if ano is None:
         ano = datetime.now().year
     
-    pasta_ano = f'dados/TC_Ext/{ano}'
-    pasta_bud = f'dados/TC_Ext/{ano}/BUD'
-    pasta_historico = 'dados/TC_Ext/historico_consolidado'
-    pasta_historico_bud = 'dados/TC_Ext/historico_consolidado/BUD'
+    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
+    pasta_bud = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), 'BUD')
+    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado')
+    pasta_historico_bud = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado', 'BUD')
     pasta_raiz = '.'
     
     # Criar estrutura de pastas
@@ -747,7 +753,7 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
     log("📚 Consolidando histórico BUD...")
     
     # Consolidar histórico
-    pasta_dados = 'dados/TC_Ext'
+    pasta_dados = os.path.join(_ROOT, 'dados', 'TC_Ext')
     anos_disponiveis = []
     if os.path.exists(pasta_dados):
         for item in os.listdir(pasta_dados):

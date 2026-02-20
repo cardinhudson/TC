@@ -2,16 +2,19 @@
 from PyInstaller.utils.hooks import collect_all
 from PyInstaller.utils.hooks import copy_metadata
 
-datas = [('C:\\user\\U235107\\GitHub\\TC\\app.py', '.')]
+datas = [('C:\\User\\U235107\\GitHub\\TC\\app.py', '.')]
 binaries = []
 hiddenimports = ['base64', 'pathlib.Path', 'streamlit', 'tc_core.utils.portabilidade.get_base_path', 'tc_principal.pages.debug_calculos_tc.render', 'tc_principal.pages.extracao_dados_tc.render', 'tc_principal.pages.home_tc.render']
 datas += copy_metadata('streamlit')
 tmp_ret = collect_all('streamlit')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('st_aggrid')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
 
 
 a = Analysis(
-    ['C:\\Users\\u235107\\AppData\\Local\\Temp\\tmp9ojgrihu.py'],
+    ['C:\\Users\\u235107\\AppData\\Local\\Temp\\tmp_2jj6ug6.py'],
     pathex=['.'],
     binaries=binaries,
     datas=datas,

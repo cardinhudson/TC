@@ -63,7 +63,7 @@ if %errorlevel% neq 0 (
 
 :: Copiar dados para _internal
 echo.
-echo [4/4] Copiando dados para _internal...
+echo [4/4] Copiando recursos para _internal...
 set DEST=dist\Stellantis-Cost-Intelligence\_internal
 
 if exist "dados" xcopy "dados" "%DEST%\dados\" /E /I /Y /Q >nul
@@ -76,10 +76,12 @@ if exist ".streamlit" xcopy ".streamlit" "%DEST%\.streamlit\" /E /I /Y /Q >nul
 :: Arquivos Python essenciais para extração
 copy "processamento_dados.py" "%DEST%\" >nul 2>&1
 copy "processamento_dados_BUD.py" "%DEST%\" >nul 2>&1
+copy "processamento_dados_veiculos.py" "%DEST%\" >nul 2>&1
 copy "processamento_dados_veiculos_BUD.py" "%DEST%\" >nul 2>&1
 copy "versionamento.py" "%DEST%\" >nul 2>&1
 copy "sincronizar_notebooks.py" "%DEST%\" >nul 2>&1
 copy "tc_exports.py" "%DEST%\" >nul 2>&1
+copy "chatbot_documentacao.py" "%DEST%\" >nul 2>&1
 
 :: Configurações JSON
 copy "versao.json" "%DEST%\" >nul 2>&1
@@ -94,6 +96,13 @@ copy "Designer.png" "%DEST%\" >nul 2>&1
 :: Documentação
 copy "DOCUMENTACAO_SISTEMA_TC.md" "%DEST%\" >nul 2>&1
 copy "DOCUMENTACAO_TC_PRINCIPAL.md" "%DEST%\" >nul 2>&1
+copy "GUIA_EXECUTAVEL.md" "%DEST%\" >nul 2>&1
+
+:: AgGrid (streamlit-aggrid) — páginas do Streamlit são carregadas em runtime,
+:: então o PyInstaller pode não incluir o pacote automaticamente.
+:: Solução robusta: copiar o pacote do .venv para dentro do _internal.
+if exist ".venv\Lib\site-packages\st_aggrid" xcopy ".venv\Lib\site-packages\st_aggrid" "%DEST%\st_aggrid\" /E /I /Y /Q >nul
+for /d %%D in (".venv\Lib\site-packages\streamlit_aggrid-*.dist-info") do xcopy "%%D" "%DEST%\%%~nxD\" /E /I /Y /Q >nul
 
 echo       OK
 

@@ -4,6 +4,7 @@ Header, sidebar global, CSS, seletores e tabelas HTML padronizados.
 Replica o padrão visual do TC Ext.
 """
 
+import sys as _sys
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -12,6 +13,11 @@ import os
 import json
 import toml
 from datetime import datetime
+
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from tc_core.constants import ORDEM_MESES
 from tc_core.finance.currency import converter_moeda, obter_simbolo_moeda
@@ -175,7 +181,7 @@ def render_header():
     # Data atualização parquets (formato igual TC Ext)
     data_atualizacao = None
     try:
-        pasta_dados = os.path.join("dados", "TC_Principal")
+        pasta_dados = os.path.join(_ROOT, "dados", "TC_Principal")
         if os.path.exists(pasta_dados):
             anos = [d for d in os.listdir(pasta_dados)
                     if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]

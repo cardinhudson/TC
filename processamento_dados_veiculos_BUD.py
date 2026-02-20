@@ -18,6 +18,7 @@ Fases:
  12. Salvamento             → parquets em dados/{ano}/TC_Principal/BUD/
 """
 
+import sys as _sys
 import pandas as pd
 import numpy as np
 import os
@@ -27,6 +28,11 @@ from datetime import datetime
 from typing import Dict, Optional
 import re
 import unicodedata
+
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -173,9 +179,9 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     if ano is None:
         ano = datetime.now().year
 
-    pasta_ano = f'dados/TC_Principal/{ano}'
-    pasta_saida = f'dados/TC_Principal/{ano}/BUD'
-    pasta_historico = 'dados/TC_Principal/historico_consolidado/BUD'
+    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    pasta_saida = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD')
+    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado', 'BUD')
 
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)
@@ -203,7 +209,7 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     _validar_abas_excel(caminho, abas_obrigatorias)
 
     # Carregar rateios manuais
-    json_path = 'rateios_manuais.json'
+    json_path = os.path.join(_ROOT, 'rateios_manuais.json')
     rateios_manuais = {'QY': 0.0, 'GS': 0.0, 'SM': 0.0}
     if os.path.exists(json_path):
         with open(json_path, 'r', encoding='utf-8') as f:

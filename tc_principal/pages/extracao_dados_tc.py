@@ -17,8 +17,12 @@ from datetime import datetime
 from tc_principal.ui_components import injetar_css_global, render_header
 
 # ── Caminho raiz do projeto ──
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, _ROOT)
+if hasattr(sys, '_MEIPASS'):
+    _ROOT = sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 try:
     from processamento_dados_veiculos_BUD import processar_veiculos_budget
@@ -26,15 +30,16 @@ except ImportError:
     processar_veiculos_budget = None
 
 try:
-    from processamento_dados_veiculos import processar_veiculos_real
+    from processamento_dados_veiculos import processar_veiculos_real, executar_conferencias
 except ImportError:
     processar_veiculos_real = None
+    executar_conferencias = None
 
 # ════════════════════════════════════════════
 # CONSTANTES
 # ════════════════════════════════════════════
 
-PASTA_TC = os.path.join('dados', 'TC_Principal')
+PASTA_TC = os.path.join(_ROOT, 'dados', 'TC_Principal')
 RATEIOS_PATH = os.path.join(_ROOT, 'rateios_manuais.json')
 
 PARQUETS_BUDGET = [
@@ -72,11 +77,11 @@ PARQUETS_REAL = [
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False):
     candidatos = [
-        os.path.join('dados', 'TC_Principal', str(ano), nome_arquivo),
+        os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join('dados', 'TC_Principal', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -464,7 +469,7 @@ def render():
             f"`dados/TC_Principal/{ano_selecionado}/`. Se necessário, faça upload abaixo."
         )
 
-        pasta_ano = os.path.join('dados', 'TC_Principal', str(ano_selecionado))
+        pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano_selecionado))
         destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
 
         arquivo_upload = st.file_uploader(
@@ -633,6 +638,32 @@ def render():
                                 for msg in hist_msgs:
                                     st.write(msg)
 
+                            # ══ Conferência Automática Real ══
+                            if executar_conferencias is not None:
+                                with st.expander("📋 Conferência Automática (Real × Excel)", expanded=True):
+                                    try:
+                                        df_conf = executar_conferencias(int(ano_selecionado), tipo='real')
+                                        # Colorir status
+                                        def _color_status(val):
+                                            if '✅' in str(val):
+                                                return 'background-color: #d4edda'
+                                            elif '❌' in str(val):
+                                                return 'background-color: #f8d7da'
+                                            elif '⚠️' in str(val):
+                                                return 'background-color: #fff3cd'
+                                            return ''
+                                        st.dataframe(
+                                            df_conf.style.applymap(_color_status, subset=['Status']),
+                                            use_container_width=True,
+                                            hide_index=True,
+                                        )
+                                        n_ok = df_conf['Status'].str.contains('✅').sum()
+                                        n_err = df_conf['Status'].str.contains('❌').sum()
+                                        n_warn = df_conf['Status'].str.contains('⚠️').sum()
+                                        st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
+                                    except Exception as e_conf:
+                                        st.warning(f"⚠️ Conferência não disponível: {e_conf}")
+
                     except Exception as e:
                         progress_bar.progress(0)
                         status_text.error(f"❌ Erro: {str(e)}")
@@ -678,6 +709,31 @@ def render():
                                 st.markdown("**Consolidação:**")
                                 for msg in hist_msgs:
                                     st.write(msg)
+
+                            # ══ Conferência Automática Budget ══
+                            if executar_conferencias is not None:
+                                with st.expander("📋 Conferência Automática (Budget × Excel)", expanded=True):
+                                    try:
+                                        df_conf_b = executar_conferencias(int(ano_selecionado), tipo='budget')
+                                        def _color_status_b(val):
+                                            if '✅' in str(val):
+                                                return 'background-color: #d4edda'
+                                            elif '❌' in str(val):
+                                                return 'background-color: #f8d7da'
+                                            elif '⚠️' in str(val):
+                                                return 'background-color: #fff3cd'
+                                            return ''
+                                        st.dataframe(
+                                            df_conf_b.style.applymap(_color_status_b, subset=['Status']),
+                                            use_container_width=True,
+                                            hide_index=True,
+                                        )
+                                        n_ok = df_conf_b['Status'].str.contains('✅').sum()
+                                        n_err = df_conf_b['Status'].str.contains('❌').sum()
+                                        n_warn = df_conf_b['Status'].str.contains('⚠️').sum()
+                                        st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
+                                    except Exception as e_conf:
+                                        st.warning(f"⚠️ Conferência não disponível: {e_conf}")
 
                     except Exception as e:
                         progress_bar_b.progress(0)
@@ -788,7 +844,7 @@ def render():
 
         # ── Árvore de pastas ──
         st.markdown("### 📁 Estrutura de Pastas")
-        pasta_raiz_ano = os.path.join('dados', str(ano_selecionado))
+        pasta_raiz_ano = os.path.join(_ROOT, 'dados', str(ano_selecionado))
         pasta_tc_ano = os.path.join(PASTA_TC, str(ano_selecionado))
 
         for label, pasta in [

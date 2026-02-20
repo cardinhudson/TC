@@ -5,6 +5,13 @@ TC Veículos — Debug de Cálculos
                      + 7 novas abas de cálculo por veículo.
 """
 
+import sys as _sys
+import os as _os
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -395,7 +402,7 @@ def render():
             st.info("Faça upload do arquivo Excel para comparar.")
 
             # Tentar carregar automaticamente se existir
-            caminho_auto = os.path.join('dados', str(ano), 'Reporting fluxo anexo.xlsx')
+            caminho_auto = os.path.join(_ROOT, 'dados', str(ano), 'Reporting fluxo anexo.xlsx')
             if os.path.exists(caminho_auto):
                 st.caption(f"💡 Arquivo encontrado em `{caminho_auto}`. Use o upload acima ou:")
                 if st.button("📂 Carregar arquivo local", key='dbg_load_local'):

@@ -4,6 +4,13 @@ Dashboard com visão geral do custo de produção de veículos.
 Padrão visual TC Ext: Altair, CSS global, seletores universais.
 """
 
+import sys as _sys
+import os as _os
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -39,6 +46,7 @@ from tc_principal.ui_components import (
     criar_tabela_html, render_kpi, render_kpi_spacer,
     formatar_ratio_com_barra, criar_tabela_html_flex,
 )
+from processamento_dados_veiculos import executar_conferencias
 
 # Desabilitar limite de linhas do Altair (nível de módulo, uma única vez)
 alt.data_transformers.disable_max_rows()
@@ -1874,8 +1882,7 @@ def render():
             """, unsafe_allow_html=True)
 
             # Caminho do Excel
-            _excel_path_val = os.path.join('dados', 'TC_Principal', str(ano), 'Reporting veículos.xlsx')
-            _pasta_bud_val = os.path.join('dados', 'TC_Principal', str(ano), 'BUD')
+            _excel_path_val = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'Reporting veículos.xlsx')
 
             if not os.path.exists(_excel_path_val):
                 st.warning(f"⚠️ Arquivo Excel não encontrado: `{_excel_path_val}`")
@@ -1884,242 +1891,36 @@ def render():
                 st.success(f"✅ Excel encontrado: `Reporting veículos.xlsx` (Ano {ano})")
 
                 if st.button("🔄 Executar Validação Excel × SCI", key="btn_val_excel_sci_home", use_container_width=True):
-                    import warnings
-                    warnings.filterwarnings('ignore')
+                    with st.spinner("Executando conferências..."):
+                        # ── Budget ──
+                        st.markdown("#### 📊 Budget")
+                        df_conf_bud = executar_conferencias(ano, 'budget')
+                        _ok_b = (df_conf_bud['Status'] == '✅').sum()
+                        _total_b = len(df_conf_bud)
+                        st.dataframe(df_conf_bud, use_container_width=True, hide_index=True)
+                        if _ok_b == _total_b:
+                            st.success(f"🎉 Budget: {_ok_b}/{_total_b} conferências OK")
+                        else:
+                            st.warning(f"⚠️ Budget: {_ok_b}/{_total_b} conferências OK")
 
-                    _resultados_excel = []
+                        st.markdown("---")
 
-                    # ========================================
-                    # 1) DESPESA PRIMÁRIA (BDG)
-                    # ========================================
-                    with st.spinner("Validando Despesa Primária (Budget)..."):
-                        try:
-                            _df_excel_massa = pd.read_excel(_excel_path_val, sheet_name='massa primária - BDG')
-                            _meses_cols = [c for c in _df_excel_massa.columns if any(
-                                m in str(c).lower()[:3] for m in ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-                            )]
-                            _soma_excel_massa = sum(pd.to_numeric(_df_excel_massa[mc], errors='coerce').fillna(0).sum() for mc in _meses_cols)
-
-                            _parquet_path = os.path.join(_pasta_bud_val, 'df_principal_BUD.parquet')
-                            if os.path.exists(_parquet_path):
-                                _df_pq = pd.read_parquet(_parquet_path)
-                                if '_fonte_redis' in _df_pq.columns:
-                                    _df_pq_sem_redis = _df_pq[_df_pq['_fonte_redis'] != True]
-                                else:
-                                    _df_pq_sem_redis = _df_pq
-                                _soma_pq_dp = _df_pq_sem_redis['Despesa Primaria'].sum() if 'Despesa Primaria' in _df_pq_sem_redis.columns else 0
-
-                                _diff = abs(_soma_excel_massa - _soma_pq_dp)
-                                _pct = (_diff / abs(_soma_excel_massa) * 100) if _soma_excel_massa != 0 else 0
-                                _status = "✅" if _pct < 0.01 else ("⚠️" if _pct < 1 else "❌")
-                                _resultados_excel.append({'Validação': '1) Despesa Primária (BDG)', 'Excel': f"{_soma_excel_massa:,.2f}", 'Parquet': f"{_soma_pq_dp:,.2f}", 'Diferença': f"{_diff:,.2f}", '% Diff': f"{_pct:.4f}%", 'Status': _status})
-                            else:
-                                _resultados_excel.append({'Validação': '1) Despesa Primária (BDG)', 'Excel': f"{_soma_excel_massa:,.2f}", 'Parquet': 'N/A', 'Diferença': '-', '% Diff': '-', 'Status': '⚠️'})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '1) Despesa Primária (BDG)', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': f'❌'})
-
-                    # ========================================
-                    # 2) REDIS (sinal invertido no parquet)
-                    # ========================================
-                    with st.spinner("Validando Redis..."):
-                        try:
-                            _df_excel_redis = pd.read_excel(_excel_path_val, sheet_name='massa - REDIS')
-                            _meses_cols_r = [c for c in _df_excel_redis.columns if any(m in str(c).lower()[:3] for m in ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])]
-                            _soma_excel_redis = sum(pd.to_numeric(_df_excel_redis[mc], errors='coerce').fillna(0).sum() for mc in _meses_cols_r)
-
-                            _parquet_path = os.path.join(_pasta_bud_val, 'df_principal_BUD.parquet')
-                            if os.path.exists(_parquet_path):
-                                _df_pq = pd.read_parquet(_parquet_path)
-                                # Inverter sinal do parquet (Redis tem sinal trocado no parquet)
-                                _soma_pq_redis_raw = _df_pq[_df_pq.get('_fonte_redis', False) == True]['Despesa Primaria'].sum() if '_fonte_redis' in _df_pq.columns else 0
-                                _soma_pq_redis = -_soma_pq_redis_raw  # Inverte o sinal para comparação
-                                _diff = abs(_soma_excel_redis - _soma_pq_redis)
-                                _pct = (_diff / abs(_soma_excel_redis) * 100) if _soma_excel_redis != 0 else 0
-                                _status = "✅" if _pct < 0.01 else ("⚠️" if _pct < 1 else "❌")
-                                _resultados_excel.append({'Validação': '2) Redis (receitas)', 'Excel': f"{_soma_excel_redis:,.2f}", 'Parquet': f"{_soma_pq_redis:,.2f} (invertido)", 'Diferença': f"{_diff:,.2f}", '% Diff': f"{_pct:.4f}%", 'Status': _status})
-                            else:
-                                _resultados_excel.append({'Validação': '2) Redis (receitas)', 'Excel': f"{_soma_excel_redis:,.2f}", 'Parquet': 'N/A', 'Diferença': '-', '% Diff': '-', 'Status': '⚠️'})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '2) Redis (receitas)', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': '❌'})
-
-                    # ========================================
-                    # 3) D&A DEDICADO
-                    # ========================================
-                    with st.spinner("Validando D&A Dedicado..."):
-                        try:
-                            _df_excel_dea = pd.read_excel(_excel_path_val, sheet_name='massa - D&A dedicado')
-                            _meses_cols_d = [c for c in _df_excel_dea.columns if any(m in str(c).lower()[:3] for m in ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])]
-                            _soma_excel_dea = sum(pd.to_numeric(_df_excel_dea[mc], errors='coerce').fillna(0).sum() for mc in _meses_cols_d)
-
-                            _parquet_dea = os.path.join(_pasta_bud_val, 'df_dea_dedicado_BUD.parquet')
-                            if os.path.exists(_parquet_dea):
-                                _df_pq_dea = pd.read_parquet(_parquet_dea)
-                                _soma_pq_dea = _df_pq_dea['D&A dedicado'].sum() if 'D&A dedicado' in _df_pq_dea.columns else 0
-                                _diff = abs(_soma_excel_dea - _soma_pq_dea)
-                                _pct = (_diff / abs(_soma_excel_dea) * 100) if _soma_excel_dea != 0 else 0
-                                _status = "✅" if _pct < 0.01 else ("⚠️" if _pct < 1 else "❌")
-                                _resultados_excel.append({'Validação': '3) D&A Dedicado', 'Excel': f"{_soma_excel_dea:,.2f}", 'Parquet': f"{_soma_pq_dea:,.2f}", 'Diferença': f"{_diff:,.2f}", '% Diff': f"{_pct:.4f}%", 'Status': _status})
-                            else:
-                                _resultados_excel.append({'Validação': '3) D&A Dedicado', 'Excel': f"{_soma_excel_dea:,.2f}", 'Parquet': 'N/A', 'Diferença': '-', '% Diff': '-', 'Status': '⚠️'})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '3) D&A Dedicado', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': '❌'})
-
-                    # ========================================
-                    # 4) VOLUME BUDGET
-                    # ========================================
-                    with st.spinner("Validando Volume Budget..."):
-                        try:
-                            # header=1 para pular linha de cabeçalho fora de posição
-                            _df_excel_vb = pd.read_excel(_excel_path_val, sheet_name='Volume BDG', header=1)
-                            
-                            # Primeira coluna é o Veículo
-                            _col_veiculo_vb = _df_excel_vb.columns[0]
-                            _df_excel_vb = _df_excel_vb.rename(columns={_col_veiculo_vb: 'Veículo'})
-                            
-                            # Remover linha Total (última linha geralmente)
-                            _df_excel_vb = _df_excel_vb[~_df_excel_vb['Veículo'].astype(str).str.strip().str.lower().isin(['total', 'nan', ''])].copy()
-                            _df_excel_vb = _df_excel_vb[_df_excel_vb['Veículo'].notna()].copy()
-                            
-                            # Remover coluna Ano se existir
-                            if 'Ano' in _df_excel_vb.columns:
-                                _df_excel_vb = _df_excel_vb.drop(columns=['Ano'])
-                            
-                            # Detectar colunas de meses (suporte a vários formatos: Jan, Jan-25, Janeiro, 01/2025, etc.)
-                            _meses_pt = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-                            _meses_en = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-                            _meses_cols_vb = []
-                            for c in _df_excel_vb.columns:
-                                _col_str = str(c).lower().strip()
-                                # Verifica se começa com nome de mês (pt ou en)
-                                if any(_col_str.startswith(m) for m in _meses_pt + _meses_en):
-                                    _meses_cols_vb.append(c)
-                                # Verifica se é numérico (pode ser mês numérico como 1, 2, 3...)
-                                elif _col_str.isdigit() and 1 <= int(_col_str) <= 12:
-                                    _meses_cols_vb.append(c)
-                            _soma_excel_vb = sum(pd.to_numeric(_df_excel_vb[mc], errors='coerce').fillna(0).sum() for mc in _meses_cols_vb)
-
-                            _parquet_vb = os.path.join(_pasta_bud_val, 'df_vol_veiculos_BUD.parquet')
-                            if os.path.exists(_parquet_vb):
-                                _df_pq_vb = pd.read_parquet(_parquet_vb)
-                                _soma_pq_vb = _df_pq_vb['Volume'].sum() if 'Volume' in _df_pq_vb.columns else 0
-                                _diff = abs(_soma_excel_vb - _soma_pq_vb)
-                                _pct = (_diff / abs(_soma_excel_vb) * 100) if _soma_excel_vb != 0 else 0
-                                _status = "✅" if _pct < 0.01 else ("⚠️" if _pct < 1 else "❌")
-                                _resultados_excel.append({'Validação': '4) Volume Budget', 'Excel': f"{_soma_excel_vb:,.0f}", 'Parquet': f"{_soma_pq_vb:,.0f}", 'Diferença': f"{_diff:,.0f}", '% Diff': f"{_pct:.4f}%", 'Status': _status})
-                            else:
-                                _resultados_excel.append({'Validação': '4) Volume Budget', 'Excel': f"{_soma_excel_vb:,.0f}", 'Parquet': 'N/A', 'Diferença': '-', '% Diff': '-', 'Status': '⚠️'})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '4) Volume Budget', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': '❌'})
-
-                    # ========================================
-                    # 5) VOLUME ACTUAL
-                    # ========================================
-                    with st.spinner("Validando Volume Actual..."):
-                        try:
-                            # header=1 para pular linha de cabeçalho fora de posição
-                            _df_excel_va = pd.read_excel(_excel_path_val, sheet_name='Volume Actual', header=1)
-                            
-                            # Primeira coluna é o Veículo
-                            _col_veiculo_va = _df_excel_va.columns[0]
-                            _df_excel_va = _df_excel_va.rename(columns={_col_veiculo_va: 'Veículo'})
-                            
-                            # Remover linha Total (última linha geralmente)
-                            _df_excel_va = _df_excel_va[~_df_excel_va['Veículo'].astype(str).str.strip().str.lower().isin(['total', 'nan', ''])].copy()
-                            _df_excel_va = _df_excel_va[_df_excel_va['Veículo'].notna()].copy()
-                            
-                            # Remover coluna Ano se existir
-                            if 'Ano' in _df_excel_va.columns:
-                                _df_excel_va = _df_excel_va.drop(columns=['Ano'])
-                            
-                            # Detectar colunas de meses (suporte a vários formatos: Jan, Jan-25, Janeiro, 01/2025, etc.)
-                            _meses_pt = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-                            _meses_en = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-                            _meses_cols_va = []
-                            for c in _df_excel_va.columns:
-                                _col_str = str(c).lower().strip()
-                                # Verifica se começa com nome de mês (pt ou en)
-                                if any(_col_str.startswith(m) for m in _meses_pt + _meses_en):
-                                    _meses_cols_va.append(c)
-                                # Verifica se é numérico (pode ser mês numérico como 1, 2, 3...)
-                                elif _col_str.isdigit() and 1 <= int(_col_str) <= 12:
-                                    _meses_cols_va.append(c)
-                            _soma_excel_va = sum(pd.to_numeric(_df_excel_va[mc], errors='coerce').fillna(0).sum() for mc in _meses_cols_va)
-
-                            _parquet_va = os.path.join(_pasta_bud_val, 'df_vol_veiculos_actual.parquet')
-                            if os.path.exists(_parquet_va):
-                                _df_pq_va = pd.read_parquet(_parquet_va)
-                                _soma_pq_va = _df_pq_va['Volume'].sum() if 'Volume' in _df_pq_va.columns else 0
-                                _diff = abs(_soma_excel_va - _soma_pq_va)
-                                _pct = (_diff / abs(_soma_excel_va) * 100) if _soma_excel_va != 0 else 0
-                                _status = "✅" if _pct < 0.01 else ("⚠️" if _pct < 1 else "❌")
-                                _resultados_excel.append({'Validação': '5) Volume Actual', 'Excel': f"{_soma_excel_va:,.0f}", 'Parquet': f"{_soma_pq_va:,.0f}", 'Diferença': f"{_diff:,.0f}", '% Diff': f"{_pct:.4f}%", 'Status': _status})
-                            else:
-                                _resultados_excel.append({'Validação': '5) Volume Actual', 'Excel': f"{_soma_excel_va:,.0f}", 'Parquet': 'N/A', 'Diferença': '-', '% Diff': '-', 'Status': '⚠️'})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '5) Volume Actual', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': '❌'})
-
-                    # ========================================
-                    # 6) FÓRMULAS INTERNAS
-                    # ========================================
-                    with st.spinner("Validando Fórmulas Internas..."):
-                        try:
-                            _parquet_path = os.path.join(_pasta_bud_val, 'df_principal_BUD.parquet')
-                            if os.path.exists(_parquet_path):
-                                _df_p = pd.read_parquet(_parquet_path)
-                                if all(c in _df_p.columns for c in ['Despesa Primaria', 'Custo FA', 'Custo FP']):
-                                    _calc_fp = _df_p['Despesa Primaria'] - _df_p['Custo FA']
-                                    _diff_fp = (_df_p['Custo FP'] - _calc_fp).abs().sum()
-                                    _status = "✅" if _diff_fp < 1 else "❌"
-                                    _resultados_excel.append({'Validação': '6) Custo FP = DP - FA', 'Excel': 'Fórmula', 'Parquet': f"Σ Diff: {_diff_fp:,.2f}", 'Diferença': f"{_diff_fp:,.2f}", '% Diff': '-', 'Status': _status})
-                        except Exception as e:
-                            _resultados_excel.append({'Validação': '6) Fórmulas', 'Excel': 'Erro', 'Parquet': 'Erro', 'Diferença': '-', '% Diff': '-', 'Status': '❌'})
-
-                    # ========================================
-                    # 7) INTEGRIDADE DE DIMENSÕES
-                    # ========================================
-                    with st.spinner("Validando Integridade..."):
-                        try:
-                            _parquet_path = os.path.join(_pasta_bud_val, 'df_principal_BUD.parquet')
-                            if os.path.exists(_parquet_path):
-                                _df_dim = pd.read_parquet(_parquet_path)
-                                if 'Período' in _df_dim.columns:
-                                    _n_per = len(_df_dim['Período'].dropna().unique())
-                                    _status = "✅" if _n_per == 12 else f"⚠️"
-                                    _resultados_excel.append({'Validação': '7) Períodos (12 meses)', 'Excel': '12', 'Parquet': str(_n_per), 'Diferença': str(12 - _n_per), '% Diff': '-', 'Status': _status})
-                        except Exception as e:
-                            pass
-
-                    # ========================================
-                    # EXIBIR RESULTADOS
-                    # ========================================
-                    st.markdown("---")
-                    st.markdown("### 📊 Resultados da Validação Excel × SCI")
-
-                    _df_res = pd.DataFrame(_resultados_excel)
-                    st.dataframe(_df_res, use_container_width=True, hide_index=True)
-
-                    _ok = sum(1 for r in _resultados_excel if '✅' in str(r.get('Status', '')))
-                    _warn = sum(1 for r in _resultados_excel if '⚠️' in str(r.get('Status', '')))
-                    _err = sum(1 for r in _resultados_excel if '❌' in str(r.get('Status', '')))
-
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        st.metric("✅ OK", _ok)
-                    with c2:
-                        st.metric("⚠️ Atenção", _warn)
-                    with c3:
-                        st.metric("❌ Divergência", _err)
-
-                    if _err == 0 and _warn == 0:
-                        st.success("🎉 **Dados consistentes!** Excel bate com os parquets do SCI.")
-                    elif _err > 0:
-                        st.error("⚠️ Divergências encontradas. Verifique os dados e reprocesse se necessário.")
+                        # ── Real ──
+                        st.markdown("#### 📊 Real")
+                        df_conf_real = executar_conferencias(ano, 'real')
+                        _ok_r = (df_conf_real['Status'] == '✅').sum()
+                        _total_r = len(df_conf_real)
+                        st.dataframe(df_conf_real, use_container_width=True, hide_index=True)
+                        if _ok_r == _total_r:
+                            st.success(f"🎉 Real: {_ok_r}/{_total_r} conferências OK")
+                        else:
+                            st.warning(f"⚠️ Real: {_ok_r}/{_total_r} conferências OK")
 
             st.markdown("""
             ---
             **Legenda:** ✅ OK (< 0,01%) | ⚠️ Atenção (0,01% - 1%) | ❌ Divergência (> 1%)
             
-            **Validações:** Despesa Primária, Redis, D&A Dedicado, Volume BUD, Volume Actual, Fórmulas e Integridade.
+            **Conferências:** Despesa Primária (fonte real), Redis, Volume FA, Custo FA/FP (BDG), Prova cruzada DP=FA+FP.
             """)
 
     # ── Restaurar estado global após tab1 ──

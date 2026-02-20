@@ -25,6 +25,9 @@ base_url = st.get_option("server.baseUrlPath") or ""
 if base_url:
     base_url = "/" + base_url.strip("/")
 target_url = f"{base_url}/" if base_url else "/"
+host = st.get_option("server.address") or "localhost"
+port = st.get_option("server.port") or 8501
+browser_url = f"http://{host}:{port}{target_url}"
 
 # Faixa no sidebar (proporção original, sem cortes)
 faixa_path = get_base_path() / "SCI_faixa.png"
@@ -58,6 +61,19 @@ if faixa_path.exists():
         """,
         unsafe_allow_html=True,
     )
+
+st.sidebar.markdown(
+    f"""
+    <a href="{browser_url}" target="_blank" style="text-decoration: none;">
+        <div style="width: 100%; padding: 0.15rem 0; margin: 0 0 0.6rem 0; text-align: center;">
+            <span style="text-decoration: underline; font-weight: 700; color: #0f3460;">
+                Abrir no navegador
+            </span>
+        </div>
+    </a>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Título principal (restaurado)
 st.markdown(

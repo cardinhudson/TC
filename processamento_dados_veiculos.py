@@ -36,6 +36,7 @@ Fases:
   18. Validação final     → prova cruzada e integridade
 """
 
+import sys as _sys
 import pandas as pd
 import numpy as np
 import os
@@ -45,6 +46,11 @@ from datetime import datetime
 from typing import Dict, Optional
 import re
 import unicodedata
+
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -153,10 +159,10 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     if ano is None:
         ano = datetime.now().year
 
-    pasta_ano = os.path.join('dados', 'TC_Principal', str(ano))
+    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
     pasta_bud = os.path.join(pasta_ano, 'BUD')
     pasta_saida = pasta_ano  # Real salva na raiz do ano
-    pasta_historico = os.path.join('dados', 'TC_Principal', 'historico_consolidado')
+    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado')
 
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)
@@ -406,28 +412,27 @@ def fase1b_redis(config: Dict) -> pd.DataFrame:
 #  FASE 2 — VOLUME E EST PdR (Actual)
 # ═══════════════════════════════════════════════════════════════
 
-def fase2_volume_est_fa(config: Dict) -> pd.DataFrame:
+def _ler_volume_est_fa_de_aba(caminho: str, sheet_name: str, label: str) -> pd.DataFrame:
     """
-    Lê aba 'Volume e EST PdR - Actual'.
-    Mesma lógica do BDG (fase4), mas usando aba Actual.
+    Lê uma aba 'Volume e EST PdR' (Actual ou BDG), detectando header
+    automaticamente e fazendo melt meses → linhas.
 
     Retorna DataFrame com colunas:
       REF FER, Oficina, EST, Período, Vol FA, Tempo FA
     """
-    print("\n📊 FASE 2 — Volume e EST PdR (Actual)")
-
-    caminho = config['CAMINHO_EXCEL']
-
     # Detectar header (pode variar de posição)
-    df_raw = pd.read_excel(caminho, sheet_name='Volume e EST PdR - Actual', header=None, nrows=10)
-    header_row = 0
+    df_raw = pd.read_excel(caminho, sheet_name=sheet_name, header=None, nrows=10)
+    header_row = None
     for i in range(min(10, len(df_raw))):
         vals = [str(v).strip().lower() for v in df_raw.iloc[i].values if pd.notna(v)]
         if any('oficina' in v or 'ref' in v for v in vals):
             header_row = i
             break
 
-    df = pd.read_excel(caminho, sheet_name='Volume e EST PdR - Actual', header=header_row)
+    if header_row is None:
+        raise ValueError(f"❌ Não encontrei cabeçalho na aba '{sheet_name}'")
+
+    df = pd.read_excel(caminho, sheet_name=sheet_name, header=header_row)
     df = _corrigir_colunas_mojibake(df)
 
     # Renomear colunas
@@ -440,7 +445,7 @@ def fase2_volume_est_fa(config: Dict) -> pd.DataFrame:
         elif cn == 'est':
             df = df.rename(columns={c: 'EST'})
 
-    _exigir_colunas(df, ['Oficina', 'EST'], "aba 'Volume e EST PdR - Actual'")
+    _exigir_colunas(df, ['Oficina', 'EST'], f"aba '{sheet_name}'")
 
     # Remover Ano se existir
     if 'Ano' in df.columns:
@@ -452,7 +457,7 @@ def fase2_volume_est_fa(config: Dict) -> pd.DataFrame:
     # Detectar colunas de meses
     colunas_meses = _detectar_colunas_meses(df)
     if not colunas_meses:
-        raise ValueError("❌ Sem colunas de meses na aba 'Volume e EST PdR - Actual'")
+        raise ValueError(f"❌ Sem colunas de meses na aba '{sheet_name}'")
 
     colunas_dim = [c for c in df.columns if c not in colunas_meses]
 
@@ -468,8 +473,54 @@ def fase2_volume_est_fa(config: Dict) -> pd.DataFrame:
     # Remover linhas sem Oficina
     df = df[df['Oficina'].notna() & (df['Oficina'] != '')]
 
-    print(f"   ✅ {len(df):,} linhas de volume FA")
+    print(f"   ✅ [{label}] {len(df):,} linhas | ∑ Vol FA: {df['Vol FA'].sum():,.0f} | ∑ Tempo FA: {df['Tempo FA'].sum():,.2f}")
     print(f"   Oficinas: {sorted(df['Oficina'].unique())}")
+
+    return df
+
+
+def fase2_volume_est_fa(config: Dict) -> pd.DataFrame:
+    """
+    Lê aba 'Volume e EST PdR - Actual'.
+    Se os dados Actual estiverem vazios (todos os meses = 0/NaN),
+    faz FALLBACK automático para 'Volume e EST PdR - BDG'.
+
+    Retorna DataFrame com colunas:
+      REF FER, Oficina, EST, Período, Vol FA, Tempo FA
+    """
+    print("\n📊 FASE 2 — Volume e EST PdR (Actual)")
+
+    caminho = config['CAMINHO_EXCEL']
+
+    # 1. Tentar ler aba Actual
+    df = _ler_volume_est_fa_de_aba(caminho, 'Volume e EST PdR - Actual', 'Actual')
+
+    # 2. Verificar se há dados válidos (Vol FA > 0)
+    vol_total = df['Vol FA'].sum()
+    tempo_total = df['Tempo FA'].sum()
+
+    if vol_total == 0 and tempo_total == 0:
+        print("   ⚠️ Volume FA Actual VAZIO (todos os meses = 0)")
+        print("   🔄 Aplicando FALLBACK: usando dados BDG para o rateio FA...")
+
+        # Verificar se aba BDG existe
+        try:
+            df_bdg = _ler_volume_est_fa_de_aba(caminho, 'Volume e EST PdR - BDG', 'BDG Fallback')
+
+            vol_bdg = df_bdg['Vol FA'].sum()
+            if vol_bdg > 0:
+                df = df_bdg
+                df['_fonte_volume_fa'] = 'BDG'  # flag para rastreabilidade
+                print(f"   ✅ Fallback BDG aplicado: ∑ Vol FA = {vol_bdg:,.0f}")
+            else:
+                print("   ❌ Aba BDG também está vazia — Rateio FA será 0")
+                df['_fonte_volume_fa'] = 'Actual (vazio)'
+        except Exception as e:
+            print(f"   ❌ Falha ao ler BDG fallback: {e}")
+            df['_fonte_volume_fa'] = 'Actual (vazio)'
+    else:
+        df['_fonte_volume_fa'] = 'Actual'
+        print(f"   ✅ Dados Actual válidos: ∑ Vol FA = {vol_total:,.0f}")
 
     return df
 
@@ -1260,6 +1311,237 @@ def validacao_final(config: Dict, arquivos: Dict[str, str]) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  CONFERÊNCIA AUTOMÁTICA (Excel × Parquet)
+# ═══════════════════════════════════════════════════════════════
+
+def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
+    """
+    Confere dados processados (parquets) contra as mesmas abas-fonte do Excel
+    usadas pela extração.
+
+    Real  — fonte: Sapiens (header=1), massa-REDIS, Volume e EST PdR - Actual
+            FA e FP são CALCULADOS (não lidos do Excel) → validados por prova cruzada.
+    Budget — fonte: massa primária - BDG, massa-REDIS, Volume e EST PdR - BDG,
+             massa FA - BDG, massa FP - BDG (melt idêntico à extração).
+
+    Returns:
+        DataFrame com colunas: Conferência, Excel, Parquet, Diferença, % Diff, Status
+    """
+    pasta_tc = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    excel_path = os.path.join(pasta_tc, 'Reporting veículos.xlsx')
+    resultados = []
+
+    if not os.path.exists(excel_path):
+        return pd.DataFrame([{'Conferência': 'ERRO', 'Status': '❌ Excel não encontrado'}])
+
+    # ── helpers ────────────────────────────────────────────────
+    def _add(nome, val_excel, val_parquet):
+        diff = abs(val_excel - val_parquet)
+        pct = (diff / abs(val_excel) * 100) if val_excel != 0 else 0
+        status = "✅" if pct < 0.01 else ("⚠️" if pct < 1 else "❌")
+        resultados.append({
+            'Conferência': nome,
+            'Excel': f"{val_excel:,.2f}",
+            'Parquet': f"{val_parquet:,.2f}",
+            'Diferença': f"{diff:,.2f}",
+            '% Diff': f"{pct:.4f}%",
+            'Status': status,
+        })
+
+    def _ler_aba_melt(sheet_name: str) -> pd.DataFrame:
+        """Lê aba wide (oficina × meses) e faz melt — mesma lógica da extração."""
+        df = pd.read_excel(excel_path, sheet_name=sheet_name)
+        df = _corrigir_colunas_mojibake(df)
+        colunas_meses = _detectar_colunas_meses(df)
+        if not colunas_meses:
+            return pd.DataFrame()
+        if 'Ano' in df.columns:
+            df = df.drop(columns=['Ano'])
+        colunas_dim = [c for c in df.columns if c not in colunas_meses]
+        df_m = df.melt(id_vars=colunas_dim, value_vars=colunas_meses,
+                       var_name='Período', value_name='_valor')
+        df_m['Período'] = df_m['Período'].apply(_normalizar_periodo)
+        df_m['_valor'] = pd.to_numeric(df_m['_valor'], errors='coerce').fillna(0)
+        if 'Oficina' in df_m.columns:
+            df_m = df_m[df_m['Oficina'].notna() & (df_m['Oficina'] != '')]
+            df_m = df_m[~df_m['Oficina'].isin(OFICINAS_INVALIDAS)]
+        return df_m
+
+    def _ler_sapiens() -> pd.DataFrame:
+        """Lê aba Sapiens exatamente como fase1_sapiens (header=1, exclui Redis/oficinas inválidas)."""
+        df = pd.read_excel(excel_path, sheet_name='Sapiens', header=1)
+        df = _limpar_colunas_duplicadas(df)
+        df = _corrigir_colunas_mojibake(df)
+        df = _aplicar_alias_colunas(df, ALIAS_COLUNAS_SAPIENS)
+        if 'Valor' in df.columns:
+            df = df.rename(columns={'Valor': 'Despesa Primaria'})
+        df['Despesa Primaria'] = pd.to_numeric(df['Despesa Primaria'], errors='coerce').fillna(0)
+        df['Período'] = df['Período'].apply(_normalizar_periodo)
+        df = df[df['Oficina'].notna() & (df['Oficina'] != '')]
+        df = df[df['Despesa Primaria'] != 0]
+        # Excluir Redis (vem de aba 'massa - REDIS')
+        if 'Account' in df.columns:
+            df = df[df['Account'] != 'Redis']
+        # Excluir oficinas inválidas
+        df = df[~df['Oficina'].isin(OFICINAS_INVALIDAS)]
+        return df
+
+    def _ler_redis_melt() -> pd.DataFrame:
+        """Lê aba massa-REDIS exatamente como fase1b_redis (melt + oficinas válidas)."""
+        df_m = _ler_aba_melt('massa - REDIS')
+        # Remover linhas zeradas
+        df_m = df_m[df_m['_valor'] != 0]
+        return df_m
+
+    # ── caminhos dos parquets ─────────────────────────────────
+    if tipo == 'real':
+        pasta_pq = pasta_tc
+        pq_principal = os.path.join(pasta_pq, 'df_principal.parquet')
+        pq_vol_fa = os.path.join(pasta_pq, 'df_volume_fa.parquet')
+    else:
+        pasta_pq = os.path.join(pasta_tc, 'BUD')
+        pq_principal = os.path.join(pasta_pq, 'df_principal_BUD.parquet')
+        pq_vol_fa = os.path.join(pasta_pq, 'df_volume_fa_BUD.parquet')
+
+    try:
+        # ══════════════════════════════════════
+        # 1) Despesa Primária — fonte real da extração
+        # ══════════════════════════════════════
+        try:
+            if tipo == 'real':
+                # Real lê de 'Sapiens' (header=1, long format)
+                df_sap = _ler_sapiens()
+                val_excel = df_sap['Despesa Primaria'].sum()
+            else:
+                # BDG lê de 'massa primária - BDG' (melt)
+                df_mp = _ler_aba_melt('massa primária - BDG')
+                val_excel = df_mp['_valor'].sum()
+
+            if os.path.exists(pq_principal):
+                df_pq = pd.read_parquet(pq_principal)
+                if '_fonte_redis' in df_pq.columns:
+                    val_pq = df_pq[df_pq['_fonte_redis'] != True]['Despesa Primaria'].sum()
+                else:
+                    val_pq = df_pq['Despesa Primaria'].sum()
+                _add(f"1) Despesa Primária ({tipo.upper()})", val_excel, val_pq)
+            else:
+                resultados.append({'Conferência': '1) Despesa Primária', 'Status': '⚠️ Parquet não encontrado'})
+        except Exception as e:
+            resultados.append({'Conferência': '1) Despesa Primária', 'Status': f'❌ {e}'})
+
+        # ══════════════════════════════════════
+        # 2) Redis (ambos leem de 'massa - REDIS')
+        # ══════════════════════════════════════
+        try:
+            df_redis = _ler_redis_melt()
+            val_excel_redis = df_redis['_valor'].sum() if len(df_redis) else 0
+
+            if os.path.exists(pq_principal):
+                df_pq = pd.read_parquet(pq_principal)
+                if '_fonte_redis' in df_pq.columns:
+                    val_pq_redis = -df_pq[df_pq['_fonte_redis'] == True]['Despesa Primaria'].sum()
+                else:
+                    val_pq_redis = 0
+                _add("2) Redis", val_excel_redis, val_pq_redis)
+        except Exception as e:
+            resultados.append({'Conferência': '2) Redis', 'Status': f'❌ {e}'})
+
+        # ══════════════════════════════════════
+        # 3) Volume FA
+        # ══════════════════════════════════════
+        try:
+            tab_vol = 'Volume e EST PdR - Actual' if tipo == 'real' else 'Volume e EST PdR - BDG'
+            df_vol_raw = pd.read_excel(excel_path, sheet_name=tab_vol, header=None)
+            hr = None
+            for i in range(min(10, len(df_vol_raw))):
+                vals = [str(v).lower() for v in df_vol_raw.iloc[i].values if pd.notna(v)]
+                if any('oficina' in v for v in vals):
+                    hr = i
+                    break
+            if hr is not None:
+                df_vol = pd.read_excel(excel_path, sheet_name=tab_vol, header=hr)
+                df_vol = _corrigir_colunas_mojibake(df_vol)
+                meses_vol = _detectar_colunas_meses(df_vol)
+                if 'Oficina' in df_vol.columns:
+                    df_vol = df_vol[df_vol['Oficina'].notna() & (df_vol['Oficina'] != '')]
+                    df_vol = df_vol[~df_vol['Oficina'].isin(OFICINAS_INVALIDAS)]
+                val_excel_vol = sum(pd.to_numeric(df_vol[mc], errors='coerce').fillna(0).sum()
+                                    for mc in meses_vol)
+            else:
+                val_excel_vol = 0
+
+            if os.path.exists(pq_vol_fa):
+                df_pq_vol = pd.read_parquet(pq_vol_fa)
+                val_pq_vol = df_pq_vol['Vol FA'].sum()
+                fonte = ""
+                if '_fonte_volume_fa' in df_pq_vol.columns:
+                    if 'BDG' in df_pq_vol['_fonte_volume_fa'].unique():
+                        fonte = " [Fallback BDG]"
+                _add(f"3) Volume FA{fonte}", val_excel_vol, val_pq_vol)
+            else:
+                resultados.append({'Conferência': '3) Volume FA', 'Status': '⚠️ Parquet não encontrado'})
+        except Exception as e:
+            resultados.append({'Conferência': '3) Volume FA', 'Status': f'❌ {e}'})
+
+        # ══════════════════════════════════════
+        # 4) Custo FA  (BDG: compara com aba Excel / Real: calculado → prova cruzada)
+        # ══════════════════════════════════════
+        if tipo == 'budget':
+            try:
+                df_fa = _ler_aba_melt('massa FA - BDG')
+                val_excel_fa = df_fa['_valor'].sum() if len(df_fa) else 0
+                if os.path.exists(pq_principal):
+                    df_pq = pd.read_parquet(pq_principal)
+                    val_pq_fa = df_pq['Custo FA'].sum()
+                    _add("4) Custo FA (BDG)", val_excel_fa, val_pq_fa)
+            except Exception as e:
+                resultados.append({'Conferência': '4) Custo FA', 'Status': f'❌ {e}'})
+
+        # ══════════════════════════════════════
+        # 5) Custo FP  (BDG: compara com aba Excel + detalhe / Real: calculado → prova cruzada)
+        # ══════════════════════════════════════
+        if tipo == 'budget':
+            try:
+                df_fp = _ler_aba_melt('massa FP - BDG')
+                val_excel_fp = df_fp['_valor'].sum() if len(df_fp) else 0
+                if os.path.exists(pq_principal):
+                    df_pq = pd.read_parquet(pq_principal)
+                    val_pq_fp = df_pq['Custo FP'].sum()
+                    _add("5) Custo FP Total (BDG)", val_excel_fp, val_pq_fp)
+            except Exception as e:
+                resultados.append({'Conferência': '5) Custo FP', 'Status': f'❌ {e}'})
+
+        # ══════════════════════════════════════
+        # 6) Prova cruzada DP = FA + FP  (linha a linha)
+        # ══════════════════════════════════════
+        if os.path.exists(pq_principal):
+            df_pq = pd.read_parquet(pq_principal)
+            if all(c in df_pq.columns for c in ['Despesa Primaria', 'Custo FA', 'Custo FP']):
+                diff_arr = (df_pq['Despesa Primaria'] - df_pq['Custo FA'] - df_pq['Custo FP']).abs()
+                n_erros = (diff_arr > 0.01).sum()
+                status = "✅" if n_erros == 0 else "❌"
+                resultados.append({
+                    'Conferência': '6) Prova cruzada (DP = FA + FP)',
+                    'Excel': f"{len(df_pq):,} linhas",
+                    'Parquet': f"{n_erros:,} erros",
+                    'Diferença': f"{diff_arr.sum():,.2f}",
+                    '% Diff': '-',
+                    'Status': status,
+                })
+
+    except Exception as e:
+        resultados.append({'Conferência': 'ERRO GERAL', 'Status': f'❌ {e}'})
+
+    df_result = pd.DataFrame(resultados)
+    for col in ['Conferência', 'Excel', 'Parquet', 'Diferença', '% Diff', 'Status']:
+        if col not in df_result.columns:
+            df_result[col] = '-'
+    df_result = df_result.fillna('-')
+
+    return df_result
+
+
+# ═══════════════════════════════════════════════════════════════
 #  CONSOLIDAÇÃO HISTÓRICO MULTI-ANO
 # ═══════════════════════════════════════════════════════════════
 
@@ -1273,7 +1555,7 @@ def consolidar_historico_tc_veiculos(tipo: str = 'real') -> list:
         Lista de mensagens de resultado.
     """
     resultados = []
-    pasta_base = os.path.join('dados', 'TC_Principal')
+    pasta_base = os.path.join(_ROOT, 'dados', 'TC_Principal')
 
     # Descobrir anos disponíveis
     anos = []

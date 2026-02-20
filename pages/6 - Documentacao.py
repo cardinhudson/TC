@@ -9,6 +9,12 @@ import sys
 from datetime import datetime
 from versionamento import obter_versao_atual
 
+# Diretório raiz do projeto
+if hasattr(sys, '_MEIPASS'):
+    _ROOT = sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Configuração da página
 st.set_page_config(
     page_title="Documentação - Stellantis Cost Intelligence (SCI)",
@@ -33,9 +39,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -173,7 +179,7 @@ with st.container():
 
 
 def _ir_para_especificacao_tecnica() -> None:
-    st.session_state["indice_documentacao"] = "🧾 Especificação Técnica"
+    st.session_state["indice_documentacao_pending"] = "🧾 Especificação Técnica"
     st.rerun()
 
 # Função para detectar caminho base correto
@@ -282,6 +288,11 @@ modulo_doc = st.sidebar.radio(
 )
 st.sidebar.markdown("---")
 
+# Aplicar navegação pendente ANTES de instanciar o widget do índice.
+# (Evita: StreamlitAPIException: cannot be modified after the widget is instantiated.)
+if "indice_documentacao_pending" in st.session_state:
+    st.session_state["indice_documentacao"] = st.session_state.pop("indice_documentacao_pending")
+
 # Criar índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
@@ -295,6 +306,7 @@ indice_selecionado = st.sidebar.radio(
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
+        "📦 Guia de Build (EXE)",
         "🚀 Próximos Passos",
     ],
     key="indice_documentacao"
@@ -6540,114 +6552,173 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
 elif indice_selecionado == "📦 Guia de Build (EXE)":
     st.header("📦 Guia de Build — Empacotamento como Executável Windows")
 
+    st.info(
+        "Atualizado em 20/02/2026: este projeto gera EXE Windows usando `streamlit-desktop-app` "
+        "(que internamente usa PyInstaller) e empacota o runtime em `_internal/`. "
+        "Este passo a passo foi escrito para ser reusado em outro projeto e para uma LLM conseguir "
+        "reconstruir o mesmo método com alta fidelidade."
+    )
+
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
-        <h2 style="color: white; margin: 0;">📦 SCI — Guia de Empacotamento (PyInstaller)</h2>
-        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Gerar o executável Windows <code>Stellantis-Cost-Intelligence.exe</code></p>
+    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; border-radius: 10px; margin-bottom: 16px; color: white;">
+        <h2 style="color: white; margin: 0;">📦 SCI — Guia de Empacotamento (EXE)</h2>
+        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (lido do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("ℹ️ Pré-requisitos", expanded=True):
+    with st.expander("0) Visão geral (método)", expanded=False):
         st.markdown("""
-        Antes de gerar o EXE, certifique-se de:
+        **Objetivo:** gerar um executável Windows do Streamlit que abre como *desktop app*, sem depender do repositório.
 
-        | Requisito | Verificação |
-        |---|---|
-        | Python 3.11+ instalado | `python --version` |
-        | Ambiente virtual `.venv` criado | pasta `.venv` na raiz |
-        | Dependências instaladas | `pip install -r requirements.txt` |
-        | PyInstaller (instalado pelo script) | `pip install pyinstaller` |
-        | Comando executado na **raiz** do projeto | pasta que contém `app.py` |
+        **Método adotado (o mesmo padrão do projeto referência):**
+        - `streamlit-desktop-app build app.py --name <NOME>`
+        - Pós-build: copiar `dados/`, módulos/páginas e scripts `.py` avulsos para `dist/<NOME>/_internal/`
+
+        **Observação importante (AgGrid / st_aggrid):**
+        - As páginas do Streamlit (multipage) são carregadas em *runtime*.
+        - Isso pode fazer o empacotador **não incluir automaticamente** dependências importadas apenas nessas páginas.
+        - Solução robusta adotada no SCI: pós-build, copiar o pacote `st_aggrid` do `.venv` para dentro do `_internal/`.
+
+        **Por que isso evita bugs no EXE:**
+        - No executável, o caminho “real” do código empacotado é `sys._MEIPASS` (pasta `_internal/`).
+        - Qualquer lógica de `sys.path` baseada em `dirname(__file__)` precisa considerar `sys._MEIPASS`.
         """)
 
-    with st.expander("🚀 Como gerar o EXE", expanded=True):
+    with st.expander("1) Pré-requisitos (ambiente)", expanded=False):
         st.markdown("""
-        **1. Abra um terminal na raiz do projeto:**
+        - Windows 10/11
+        - Python (mesma versão usada no projeto, preferencialmente) + `venv`
+        - Dependências do projeto instaladas (`pip install -r requirements.txt`)
         """)
-        st.code("cd C:\\\\user\\\\U235107\\\\GitHub\\\\TC", language="powershell")
-        st.markdown("**2. Execute o script de build:**")
-        st.code("scripts\\\\build_exe.bat", language="powershell")
+
+    with st.expander("2) Bibliotecas e ferramentas usadas", expanded=False):
         st.markdown("""
-        O script fará automaticamente:
-        - ✅ Ativar o `.venv`
-        - ✅ Instalar/atualizar PyInstaller
-        - ✅ Limpar builds anteriores
-        - ✅ Executar `pyinstaller --clean --noconfirm SCI.spec`
-        - ✅ Copiar `dados/`, `versao.json`, `rateios_manuais.json` para `dist/`
-        - ✅ Exibir checklist de validação
+        **Ferramenta de build (principal):**
+        - `streamlit-desktop-app`
+
+        **Empacotador (indireto):**
+        - PyInstaller (chamado pela ferramenta)
+
+        **Desktop container:**
+        - `pywebview` (pasta `webview/` aparece no `_internal/`)
+
+        **Framework:**
+        - `streamlit`
+
+        > Observação: no nosso caso, o build falha se existir BOM (U+FEFF) no começo do `app.py`.
         """)
 
-    with st.expander("📂 Estrutura gerada em dist/", expanded=False):
-        st.code("""
-dist/
-└── Stellantis-Cost-Intelligence/
-    ├── Stellantis-Cost-Intelligence.exe   ← executável principal
-    ├── _internal/                          ← bundle Python (não editar)
-    ├── dados/                              ← seus parquets e Excel
-    ├── versao.json                         ← versão do sistema
-    ├── dados_equipe.json                   ← dados da equipe
-    ├── rateios_manuais.json                ← configuração de rateios
-    └── controle_paginas.json               ← estado das páginas
-        """, language="text")
-        st.info("⚠️ **O que fica DENTRO do bundle (`_internal/`)**: código Python, imagens, configuração Streamlit — somente leitura.\n\n⚠️ **O que fica FORA (ao lado do .exe)**: `dados/`, JSONs de configuração — mutáveis pelo usuário e não sobrescritos em novos builds.")
-
-    with st.expander("🏃 Como executar o EXE", expanded=False):
+    with st.expander("3) Passo crítico: remover BOM (U+FEFF) do app.py", expanded=False):
         st.markdown("""
-        1. Navegue até `dist\\Stellantis-Cost-Intelligence\\`
-        2. Dê duplo clique em **`Stellantis-Cost-Intelligence.exe`**
-        3. O browser abrirá automaticamente em **http://localhost:8501**
-        4. Para encerrar: feche a aba do browser **e** encerre o processo no Task Manager
-           (ou pressione `Ctrl+C` no terminal, se aberto com console)
+        Se o build acusar:
+        `SyntaxError: invalid non-printable character U+FEFF`
 
-        > **Dica:** Adicione um atalho na área de trabalho apontando para o `.exe`.
+        Remova o BOM regravando em UTF-8 sem BOM.
         """)
+        st.code(
+            "$c = [System.IO.File]::ReadAllBytes('app.py'); "
+            "if ($c.Length -ge 3 -and $c[0] -eq 0xEF -and $c[1] -eq 0xBB -and $c[2] -eq 0xBF) { "
+            "  [System.IO.File]::WriteAllBytes('app.py', $c[3..($c.Length-1)]) ; "
+            "  'OK: BOM removido' "
+            "} else { 'OK: sem BOM' }",
+            language="powershell",
+        )
 
-    with st.expander("🛡️ Windows Defender / SmartScreen", expanded=False):
-        st.warning("🔒 **Aviso do SmartScreen**: Por ser um executável não assinado digitalmente, o Windows pode exibir um alerta na primeira execução.")
+    with st.expander("4) Construção do build (comando oficial)", expanded=False):
         st.markdown("""
-        **Como contornar:**
-        1. Na tela de aviso, clique em **\"Mais informações\"** (ou *More info*)
-        2. Clique em **\"Executar mesmo assim\"** (*Run anyway*)
-
-        O alerta não indica perigo — é o comportamento padrão do Windows para EXEs
-        sem assinatura de código de terceiros.
+        Na raiz do projeto (mesma pasta do `app.py`), execute:
         """)
-
-    with st.expander("↔️ Modo Dev vs Modo EXE", expanded=False):
+        st.code("streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence", language="powershell")
         st.markdown("""
-        | Aspecto | Modo Dev (`streamlit run app.py`) | Modo EXE |
-        |---|---|---|
-        | Entrypoint | `app.py` | `launcher.py` → `app.py` |
-        | Servidor | Streamlit CLI externo | Streamlit CLI interno (bundled) |
-        | `dados/` | Relativo à raiz do repo | Relativo ao diretório do `.exe` |
-        | Alterações de código | Instantâneas (hot reload) | Exige rebuild |
-        | Uso | Desenvolvimento | Distribuição / usuário final |
+        Depois disso, o diretório `dist/Stellantis-Cost-Intelligence/` deve existir.
 
-        **Regra de ouro:** desenvolva sempre em modo Dev. Gere o EXE apenas para distribuição.
+        > Nota: o `streamlit-desktop-app` **não aceita** `--hidden-import` no CLI.
+        > Para garantir dependências de páginas carregadas em runtime (ex.: `st_aggrid`), use o `build_exe.bat`.
         """)
 
-    with st.expander("🛠️ Arquivos envolvidos no build", expanded=False):
+    with st.expander("5) Pós-build obrigatório: copiar recursos para _internal/", expanded=False):
         st.markdown("""
-        | Arquivo | Função |
-        |---|---|
-        | `SCI.spec` | Configuração do PyInstaller (quais arquivos bundlar, hidden imports) |
-        | `launcher.py` | Ponto de entrada do EXE (define CWD e invoca Streamlit) |
-        | `scripts/build_exe.bat` | Script de build automático |
-        | `tc_core/utils/portabilidade.py` | Camada de paths (dev ↔ EXE) |
-        | `tc_core/data/paths.py` | Constantes de pastas usando `get_base_path()` |
+        O runtime do EXE lê tudo de dentro de `dist/<NOME>/_internal/`.
+
+        No SCI, nós copiamos para `_internal/`:
+        - `dados/` (parquets, históricos)
+        - `pages/`, `tc_core/`, `tc_principal/`, `tc_ext/`, `.streamlit/`
+        - scripts `.py` avulsos que são importados em runtime (extração, exports, versionamento)
+        - JSONs e imagens necessárias
+
+        **AgGrid (streamlit-aggrid):**
+        - Sintoma quando não incluído: `módulo 'st_aggrid' não encontrado` e o sistema entra em fallback.
+        - Correção aplicada no SCI: copiar `st_aggrid/` e `streamlit_aggrid-*.dist-info/` do `.venv` para dentro do `_internal/`.
+
+        Exemplo (PowerShell):
+        """)
+        st.code(
+            "$dest = 'dist\\Stellantis-Cost-Intelligence\\_internal'\n"
+            "Copy-Item '.venv\\Lib\\site-packages\\st_aggrid' -Destination ($dest + '\\st_aggrid') -Recurse -Force\n"
+            "Copy-Item '.venv\\Lib\\site-packages\\streamlit_aggrid-*.dist-info' -Destination $dest -Recurse -Force\n",
+            language="powershell",
+        )
+        st.markdown("""
+
+        **Script oficial:** `build_exe.bat` (na raiz) automatiza isso.
         """)
 
-    with st.expander("ℹ️ Não mexa nestes arquivos após gerar o EXE", expanded=False):
-        st.error("""
-        🚫 Nunca edite arquivos dentro de `_internal/` — eles serão sobrescritos no próximo build.
+    with st.expander("9) O que NÃO fazer (armadilha do .spec)", expanded=False):
+        st.markdown("""
+        Evite tentar rodar `pyinstaller` manualmente a partir do `.spec` gerado automaticamente pelo `streamlit-desktop-app`.
 
-        Para atualizar o sistema:
-        1. Edite os arquivos .py na raiz / módulos normalmente (modo Dev)
-        2. Teste em modo Dev (`streamlit run app.py`)
-        3. Execute `scripts/build_exe.bat` para gerar um novo EXE
-        4. Substitua a pasta `dist/Stellantis-Cost-Intelligence/` nos computadores destino
-        5. **Não substitua** `dados/` e os JSONs externos — eles pertencem ao usuário
+        **Por quê?** Esse `.spec` costuma referenciar um script temporário em `%TEMP%` (ex.: `tmp_xxx.py`).
+        Depois do build, esse arquivo pode ser apagado, e o rebuild falha com:
+        - `ERROR: script 'C:\\Users\\...\\AppData\\Local\\Temp\\tmp_XXXX.py' not found`
+
+        **Solução adotada:** não rebuildar via `.spec`; em vez disso, fazer pós-build (cópias) para `_internal/`.
         """)
+
+    with st.expander("6) Armadilha comum no EXE: sys.path e _MEIPASS", expanded=False):
+        st.markdown("""
+        **Sintoma:** no EXE, algumas telas funcionam, mas módulos avulsos (ex.: `processamento_dados_veiculos.py`) “somem”.
+
+        **Causa:** páginas faziam `sys.path.insert(0, dirname(dirname(dirname(__file__))))`.
+        No EXE isso aponta para a pasta do `.exe`, não para `_internal/`.
+
+        **Correção padrão (reutilizável):**
+        """)
+        st.code(
+            "import sys\n"
+            "import os\n"
+            "if hasattr(sys, '_MEIPASS'):\n"
+            "    project_root = sys._MEIPASS\n"
+            "else:\n"
+            "    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+            "if project_root not in sys.path:\n"
+            "    sys.path.insert(0, project_root)\n",
+            language="python",
+        )
+
+    with st.expander("7) Validação (checklist)", expanded=False):
+        st.markdown("""
+        - Abrir: `dist\\Stellantis-Cost-Intelligence\\Stellantis-Cost-Intelligence.exe`
+        - Confirmar que o app abre (janela desktop) e/ou responde em `http://localhost:8501`
+        - Testar uma extração (Budget e Real) e confirmar geração dos parquets por veículo:
+          - `df_veiculos_custo_fp.parquet`
+          - `df_veiculos_cpu.parquet`
+        """
+        )
+
+    with st.expander("8) Guia completo (GUIA_EXECUTAVEL.md)", expanded=False):
+        try:
+            guia_path = os.path.join(get_base_path(), "GUIA_EXECUTAVEL.md")
+            if os.path.exists(guia_path):
+                with open(guia_path, "r", encoding="utf-8") as f:
+                    st.markdown(f.read())
+            else:
+                st.warning(
+                    "GUIA_EXECUTAVEL.md não foi encontrado. "
+                    "No modo executável, ele deve estar dentro de _internal/. "
+                    "Recrie o executável usando build_exe.bat."
+                )
+        except Exception as e:
+            st.error(f"Erro ao carregar GUIA_EXECUTAVEL.md: {e}")
 
 # ==========================================
 # ==========================================
@@ -7129,6 +7200,21 @@ elif indice_selecionado == "🚀 Próximos Passos":
 
         Melhor integração com Python, Streamlit e GENAI Gateway.
         """)
+
+# ============================================================================
+# ÚLTIMA SEÇÃO — Guia de Empacotamento (Executável)
+# ============================================================================
+st.markdown("---")
+st.header("📦 Guia de Empacotamento do Executável (passo a passo)")
+st.caption(
+    "Se você precisar recriar o executável no futuro (ou pedir para uma LLM reproduzir), "
+    "siga exatamente este passo a passo."
+)
+
+st.info("O guia completo está no índice em: **📦 Guia de Build (EXE)**")
+if st.button("Abrir guia no índice", key="btn_abrir_guia_build_exe"):
+    st.session_state["indice_documentacao_pending"] = "📦 Guia de Build (EXE)"
+    st.rerun()
 
 # Rodapé
 st.markdown("---")

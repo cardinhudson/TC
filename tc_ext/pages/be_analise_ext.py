@@ -31,6 +31,12 @@ from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
 from tc_principal.ui_components import render_sidebar_global
 
+import sys as _sys
+if hasattr(_sys, '_MEIPASS'):
+    _ROOT = _sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def _normalizar_texto_sem_acento(valor) -> str:
     if pd.isna(valor):
@@ -108,12 +114,12 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos do Best Estimate (arquivos gerados)
-            os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
-            os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
+            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
@@ -665,7 +671,7 @@ def listar_anos_disponiveis():
 def load_data(ano_selecionado_param, mtime_forecast=None):
     """Carrega os dados do arquivo parquet - SEMPRE da pasta Forecast (BE Análise)."""
     try:
-        caminho_forecast = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
         if not os.path.exists(caminho_forecast):
             # REGRA: NUNCA chamar st.* dentro de @st.cache_data — causa crash silencioso
             raise FileNotFoundError(
@@ -761,8 +767,8 @@ if is_main_page:
     # Alinhar com o comportamento esperado da análise de Best Estimate (página legacy removida):
     # - garantir que os mesmos arquivos do simulador existem
     # - invalidar cache quando os parquets são atualizados (mtime)
-    caminho_forecast_check = os.path.join("dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
-    caminho_vol_check = os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+    caminho_forecast_check = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+    caminho_vol_check = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
     arquivos_existem = os.path.exists(caminho_forecast_check) and os.path.exists(caminho_vol_check)
     if not arquivos_existem:
         st.warning("⚠️ Arquivos de forecast não encontrados.")
@@ -1080,7 +1086,7 @@ def load_volume_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do Best Estimate consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join("dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
         
         if not os.path.exists(caminho_historico):
             return None
@@ -1328,7 +1334,7 @@ def _merge_volume_com_fallback(df_base, df_volume):
 def load_budget_data(ano_selecionado_param):
     """Carrega os dados de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget = os.path.join(
             project_root,
             "dados",
@@ -1409,7 +1415,7 @@ def load_budget_data(ano_selecionado_param):
 def load_budget_volume_data(ano_selecionado_param):
     """Carrega os dados de volume de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",

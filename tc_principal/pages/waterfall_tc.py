@@ -17,7 +17,12 @@ except Exception:
     pass
 
 # Adicionar diretório raiz ao path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if hasattr(sys, '_MEIPASS'):
+    _ROOT = sys._MEIPASS
+else:
+    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 # Função helper para exibir gráficos Plotly com tratamento de erro para orjson
 def plotly_chart_safe(fig, use_container_width=True):
