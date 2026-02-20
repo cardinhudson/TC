@@ -8,13 +8,10 @@ hiddenimports = ['base64', 'pathlib.Path', 'streamlit', 'tc_core.utils.portabili
 datas += copy_metadata('streamlit')
 tmp_ret = collect_all('streamlit')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('st_aggrid')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-
 
 
 a = Analysis(
-    ['C:\\Users\\u235107\\AppData\\Local\\Temp\\tmp_2jj6ug6.py'],
+    ['C:\\Users\\u235107\\AppData\\Local\\Temp\\tmp8jph_t1v.py'],
     pathex=['.'],
     binaries=binaries,
     datas=datas,
