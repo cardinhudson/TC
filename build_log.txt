@@ -1,0 +1,288 @@
+﻿python.exe : 203 INFO: PyInstaller: 6.19.0, contrib hooks: 2026.1
+At line:1 char:47
++ ... build..." ; & "C:\user\U235107\GitHub\TC\.venv\Scripts\python.exe" -m ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (203 INFO: PyIns...b hooks: 2026.1 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+204 INFO: Python: 3.13.7
+253 INFO: Platform: Windows-11-10.0.22631-SP0
+253 INFO: Python environment: C:\user\U235107\GitHub\TC\.venv
+262 INFO: Removing temporary files and cleaning cache in 
+C:\Users\u235107\AppData\Local\pyinstaller
+1316 WARNING: Failed to collect submodules for 'streamlit.external.langchain' 
+because importing 'streamlit.external.langchain' raised: ModuleNotFoundError: 
+No module named 'langchain'
+3571 INFO: Module search paths (PYTHONPATH):
+['C:\\user\\U235107\\GitHub\\TC',
+ 'C:\\user\\U235107\\GitHub\\TC',
+ 'C:\\Users\\u235107\\AppData\\Local\\Programs\\Python\\Python313\\python313.zi
+p',
+ 'C:\\Users\\u235107\\AppData\\Local\\Programs\\Python\\Python313\\DLLs',
+ 'C:\\Users\\u235107\\AppData\\Local\\Programs\\Python\\Python313\\Lib',
+ 'C:\\Users\\u235107\\AppData\\Local\\Programs\\Python\\Python313',
+ 'C:\\user\\U235107\\GitHub\\TC\\.venv',
+ 'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages',
+ 'C:\\user\\U235107\\GitHub\\TC']
+4141 INFO: Appending 'datas' from .spec
+4220 INFO: checking Analysis
+4220 INFO: Building Analysis because Analysis-00.toc is non existent
+4220 INFO: Looking for Python shared library...
+4220 INFO: Using Python shared library: 
+C:\Users\u235107\AppData\Local\Programs\Python\Python313\python313.dll
+4220 INFO: Running Analysis Analysis-00.toc
+4220 INFO: Target bytecode optimization level: 0
+4220 INFO: Initializing module dependency graph...
+4222 INFO: Initializing module graph hook caches...
+4238 INFO: Analyzing modules for base_library.zip ...
+6110 INFO: Processing standard module hook 'hook-encodings.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7628 INFO: Processing standard module hook 'hook-pickle.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+8837 INFO: Processing standard module hook 'hook-heapq.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9290 INFO: Caching module dependency graph...
+9326 INFO: Analyzing C:\user\U235107\GitHub\TC\launcher.py
+9331 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\use
+r\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find
+_module_path'
+9332 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+9729 INFO: Processing standard module hook 'hook-_tkinter.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9746 INFO: Processing standard module hook 'hook-streamlit.py' from 
+'C:\\user\\U235107\\GitHub\\TC'
+754 WARNING: Failed to collect submodules for 'streamlit.external.langchain' 
+because importing 'streamlit.external.langchain' raised: ModuleNotFoundError: 
+No module named 'langchain'
+11349 INFO: Processing standard module hook 'hook-platform.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+11372 INFO: Processing standard module hook 'hook-_ctypes.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+11888 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' 
+from 'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\ho
+oks\\pre_safe_import_module'
+11889 INFO: SetuptoolsInfo: initializing cached setuptools info...
+12906 INFO: Processing standard module hook 'hook-multiprocessing.util.py' 
+from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13067 INFO: Processing standard module hook 'hook-xml.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13763 INFO: Processing standard module hook 'hook-numpy.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+14340 INFO: Processing standard module hook 'hook-difflib.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+14784 INFO: Processing standard module hook 'hook-sysconfig.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+16540 INFO: Processing standard module hook 'hook-charset_normalizer.py' from '
+C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_co
+ntrib\\stdhooks'
+16840 INFO: Processing standard module hook 'hook-plotly.py' from 'C:\\user\\U2
+35107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdho
+oks'
+19277 INFO: Processing standard module hook 'hook-narwhals.py' from 'C:\\user\\
+U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\std
+hooks'
+19303 INFO: Processing standard module hook 'hook-pandas.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+21167 INFO: Processing standard module hook 'hook-pytz.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+22709 INFO: Processing standard module hook 'hook-pyarrow.py' from 'C:\\user\\U
+235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdh
+ooks'
+23870 INFO: Processing standard module hook 'hook-urllib3.py' from 'C:\\user\\U
+235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdh
+ooks'
+23983 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:
+\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre
+_safe_import_module'
+23984 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored 
+copy - creating alias to 'setuptools._vendor.backports'!
+23996 INFO: Processing standard module hook 'hook-setuptools.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+24010 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:
+\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre
+_safe_import_module'
+24042 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\u
+ser\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_sa
+fe_import_module'
+24043 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy 
+- creating alias to 'setuptools._vendor.jaraco'!
+24055 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' 
+from 'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\ho
+oks\\pre_safe_import_module'
+24056 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored 
+copy - creating alias to 'setuptools._vendor.more_itertools'!
+24280 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:
+\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre
+_safe_import_module'
+24438 INFO: Processing standard module hook 
+'hook-setuptools._vendor.jaraco.text.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+24440 INFO: Processing pre-safe-import-module hook 
+'hook-importlib_resources.py' from 'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\
+site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24717 INFO: Processing pre-safe-import-module hook 
+'hook-importlib_metadata.py' from 'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\s
+ite-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24717 INFO: Setuptools: 'importlib_metadata' appears to be a 
+setuptools-vendored copy - creating alias to 
+'setuptools._vendor.importlib_metadata'!
+24746 INFO: Processing standard module hook 
+'hook-setuptools._vendor.importlib_metadata.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+24771 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\use
+r\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe
+_import_module'
+24772 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - 
+creating alias to 'setuptools._vendor.zipp'!
+25023 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\us
+er\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_saf
+e_import_module'
+25023 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - 
+creating alias to 'setuptools._vendor.tomli'!
+25548 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\us
+er\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_saf
+e_import_module'
+25549 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - 
+creating alias to 'setuptools._vendor.wheel'!
+26045 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\user\\U
+235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdh
+ooks'
+27293 INFO: Processing standard module hook 'hook-pandas.io.formats.style.py' 
+from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+29806 INFO: Processing standard module hook 'hook-pandas.plotting.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+30376 INFO: Processing standard module hook 'hook-openpyxl.py' from 'C:\\user\\
+U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\std
+hooks'
+30876 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' 
+from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+31248 INFO: Processing standard module hook 'hook-PIL.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+31355 INFO: Processing standard module hook 'hook-PIL.Image.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+31990 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+33174 INFO: Processing standard module hook 'hook-sqlite3.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+33664 INFO: Processing standard module hook 'hook-pandas.io.clipboard.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+33967 INFO: Processing standard module hook 'hook-dateutil.py' from 'C:\\user\\
+U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\std
+hooks'
+34135 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:
+\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre
+_safe_import_module'
+34573 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+43719 INFO: Processing standard module hook 'hook-jinja2.py' from 'C:\\user\\U2
+35107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdho
+oks'
+44339 INFO: Processing standard module hook 'hook-altair.py' from 'C:\\user\\U2
+35107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdho
+oks'
+44484 INFO: Processing standard module hook 'hook-jsonschema.py' from 'C:\\user
+\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\s
+tdhooks'
+44812 INFO: Processing standard module hook 
+'hook-jsonschema_specifications.py' from 'C:\\user\\U235107\\GitHub\\TC\\.venv\
+\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+48340 INFO: Processing pre-safe-import-module hook 'hook-tensorflow.py' from 'C
+:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_con
+trib\\pre_safe_import_module'
+49627 INFO: Analyzing hidden import 'streamlit.__main__'
+49627 INFO: Analyzing hidden import 'streamlit.components.v1.components'
+49629 INFO: Analyzing hidden import 'streamlit.external'
+49630 INFO: Analyzing hidden import 'streamlit.hello.animation_demo'
+49635 INFO: Analyzing hidden import 'streamlit.hello.dataframe_demo'
+49637 INFO: Analyzing hidden import 'streamlit.hello.hello'
+49638 INFO: Analyzing hidden import 'streamlit.hello.mapping_demo'
+49642 INFO: Analyzing hidden import 'streamlit.hello.plotting_demo'
+49644 INFO: Analyzing hidden import 'streamlit.platform'
+49645 INFO: Analyzing hidden import 'streamlit.proto.MetricsEvent_pb2'
+49647 INFO: Analyzing hidden import 
+'streamlit.runtime.scriptrunner.magic_funcs'
+49648 INFO: Analyzing hidden import 'streamlit.testing'
+49649 INFO: Analyzing hidden import 'streamlit.testing.v1'
+49831 INFO: Analyzing hidden import 'streamlit.web.server.websocket_headers'
+49832 INFO: Analyzing hidden import 'streamlit.runtime.legacy_caching'
+49833 ERROR: Hidden import 'streamlit.runtime.legacy_caching' not found
+49833 INFO: Analyzing hidden import 'sklearn'
+49833 ERROR: Hidden import 'sklearn' not found
+49833 INFO: Analyzing hidden import 'validators'
+49834 ERROR: Hidden import 'validators' not found
+49834 INFO: Analyzing hidden import 'tc_core'
+49835 INFO: Analyzing hidden import 'tc_core.utils'
+49837 INFO: Analyzing hidden import 'tc_core.data'
+49838 INFO: Analyzing hidden import 'tc_core.finance'
+49839 INFO: Analyzing hidden import 'tc_core.ui'
+49839 INFO: Analyzing hidden import 'tc_principal'
+49840 INFO: Analyzing hidden import 'tc_principal.pages'
+49841 INFO: Analyzing hidden import 'tc_ext'
+49841 INFO: Analyzing hidden import 'tc_ext.pages'
+49842 INFO: Analyzing hidden import 'versionamento'
+49848 INFO: Processing module hooks (post-graph stage)...
+49858 WARNING: Hidden import "streamlit.runtime.legacy_caching" not found!
+49858 WARNING: Hidden import "validators" not found!
+50254 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' 
+from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+50598 INFO: Processing standard module hook 'hook-_tkinter.py' from 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+50695 INFO: Performing binary vs. data reclassification (3043 entries)
+51310 INFO: Looking for ctypes DLLs
+51386 INFO: Analyzing run-time hooks ...
+51397 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\user\\U23510
+7\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+51399 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\user\\U23510
+7\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+51402 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\user
+\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+51404 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\user\\U23
+5107\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+51405 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\user\\U2351
+07\\GitHub\\TC\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+51508 INFO: Creating base_library.zip...
+51532 INFO: Looking for dynamic libraries
+54490 INFO: Extra DLL search directories (AddDllDirectory): 
+['C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\numpy.libs', 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\pandas.libs', 
+'C:\\user\\U235107\\GitHub\\TC\\.venv\\Lib\\site-packages\\pyarrow.libs']
+54490 INFO: Extra DLL search directories (PATH): []
+55804 INFO: Warnings written to 
+C:\user\U235107\GitHub\TC\build\SCI\warn-SCI.txt
+56081 INFO: Graph cross-reference written to 
+C:\user\U235107\GitHub\TC\build\SCI\xref-SCI.html
+56281 INFO: checking PYZ
+56281 INFO: Building PYZ because PYZ-00.toc is non existent
+56281 INFO: Building PYZ (ZlibArchive) 
+C:\user\U235107\GitHub\TC\build\SCI\PYZ-00.pyz
+58317 INFO: Building PYZ (ZlibArchive) 
+C:\user\U235107\GitHub\TC\build\SCI\PYZ-00.pyz completed successfully.
+58382 INFO: checking PKG
+58382 INFO: Building PKG because PKG-00.toc is non existent
+58382 INFO: Building PKG (CArchive) Stellantis-Cost-Intelligence.pkg
+58413 INFO: Building PKG (CArchive) Stellantis-Cost-Intelligence.pkg completed 
+successfully.
+58415 INFO: Bootloader C:\user\U235107\GitHub\TC\.venv\Lib\site-packages\PyInst
+aller\bootloader\Windows-64bit-intel\run.exe
+58415 INFO: checking EXE
+58415 INFO: Building EXE because EXE-00.toc is non existent
+58415 INFO: Building EXE from EXE-00.toc
+58415 INFO: Copying bootloader EXE to 
+C:\user\U235107\GitHub\TC\build\SCI\Stellantis-Cost-Intelligence.exe
+58971 INFO: Copying icon to EXE
+59515 INFO: Copying 0 resources to EXE
+59515 INFO: Embedding manifest in EXE
+59557 INFO: Appending PKG archive to EXE
+59619 INFO: Fixing EXE headers
+60494 INFO: Building EXE from EXE-00.toc completed successfully.
+60524 INFO: checking COLLECT
+60524 INFO: Building COLLECT because COLLECT-00.toc is non existent
+60525 INFO: Building COLLECT COLLECT-00.toc
+69057 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+69115 INFO: Build complete! The results are available in: 
+C:\user\U235107\GitHub\TC\dist
