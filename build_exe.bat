@@ -1,10 +1,12 @@
 @echo off
 chcp 65001 >nul
-setlocal enabledelayedexpansion
+setlocal
 :: =============================================================================
 :: build_exe.bat — Stellantis Cost Intelligence (SCI)
 :: =============================================================================
 :: Usa streamlit-desktop-app (PyInstaller one-dir) + pos-build robusto.
+::
+:: PORTABILIDADE: Funciona em qualquer PC - detecta venv ou .venv
 ::
 :: IMPORTANTE — POR QUE ESTE SCRIPT PRECISA SER ROBUSTO:
 ::   O PyInstaller empacota os modulos Python num arquivo PYZ (bytecode compactado).
@@ -20,6 +22,7 @@ setlocal enabledelayedexpansion
 ::   3. Apagar .spec e __pycache__ para forcar PYZ 100%% limpo
 ::   4. Re-extrair dados dentro do _internal/ apos copiar os .py corretos
 ::   5. Conferencias automaticas pos-build
+::   6. Detectar venv ou .venv automaticamente (portavel entre PCs)
 ::
 :: USO: Duplo-clique ou execute no terminal
 :: =============================================================================
@@ -42,12 +45,25 @@ if not exist "app.py" (
     pause
     exit /b 1
 )
-if not exist ".venv\Scripts\python.exe" (
-    echo [ERRO] .venv NAO encontrado
-    pause
-    exit /b 1
+
+:: Detectar ambiente virtual: venv ou .venv (portavel entre PCs)
+if exist "venv\Scripts\python.exe" (
+    set "VENV_DIR=venv"
+    goto :venv_found
 )
-call .venv\Scripts\activate.bat
+if exist ".venv\Scripts\python.exe" (
+    set "VENV_DIR=.venv"
+    goto :venv_found
+)
+echo [ERRO] Nenhum ambiente virtual encontrado (venv/ ou .venv/)
+echo        Crie com: python -m venv venv
+echo        Instale deps: venv\Scripts\pip install -r requirements.txt
+pause
+exit /b 1
+
+:venv_found
+echo [INFO] Ambiente virtual: %VENV_DIR%
+call %VENV_DIR%\Scripts\activate.bat
 
 echo [1/7] Verificando streamlit-desktop-app...
 pip show streamlit-desktop-app >nul 2>&1
@@ -92,34 +108,31 @@ for /d /r . %%d in (__pycache__) do (
 
 :: dist/ — retry ate 3x com espera progressiva caso arquivos estejam bloqueados
 set DIST_DIR=dist\Stellantis-Cost-Intelligence
-set LIMPO=0
-for %%A in (1 2 3) do (
-    if !LIMPO! equ 0 (
-        if exist "!DIST_DIR!" (
-            rmdir /s /q "!DIST_DIR!" >nul 2>&1
-            if exist "!DIST_DIR!" (
-                echo       [AVISO] Tentativa %%A/3: dist/ ainda travado, aguardando 5s...
-                timeout /t 5 /nobreak >nul
-            ) else (
-                set LIMPO=1
-            )
-        ) else (
-            set LIMPO=1
-        )
-    )
-)
-if !LIMPO! equ 0 (
+set RETRY_COUNT=0
+
+:retry_clean_dist
+if not exist "%DIST_DIR%" goto :dist_clean_ok
+set /a RETRY_COUNT+=1
+if %RETRY_COUNT% gtr 3 (
     echo [ERRO] Nao foi possivel limpar dist/. Feche todos os programas que
-    echo        usam arquivos de _internal/ (EXE, Excel, explorador) e tente novamente.
+    echo        usam arquivos de _internal/ ^(EXE, Excel, explorador^) e tente novamente.
     pause
     exit /b 1
 )
+echo       Tentativa %RETRY_COUNT%/3: Removendo %DIST_DIR%...
+rmdir /s /q "%DIST_DIR%" >nul 2>&1
+if exist "%DIST_DIR%" (
+    echo       [AVISO] dist/ ainda travado, aguardando 5s...
+    timeout /t 5 /nobreak >nul
+    goto :retry_clean_dist
+)
 
+:dist_clean_ok
 :: build/
 if exist "build" rmdir /s /q "build" >nul 2>&1
 
 :: Confirmar limpeza
-if exist "!DIST_DIR!" (
+if exist "%DIST_DIR%" (
     echo [ERRO] dist/ ainda existe apos 3 tentativas. Abortando.
     pause
     exit /b 1
@@ -190,8 +203,8 @@ copy /y "GUIA_EXECUTAVEL.md" "%DEST%\" >nul 2>&1
 
 :: AgGrid (streamlit-aggrid) — paginas Streamlit sao carregadas em runtime,
 :: entao o PyInstaller pode nao incluir o pacote automaticamente.
-if exist ".venv\Lib\site-packages\st_aggrid" xcopy ".venv\Lib\site-packages\st_aggrid" "%DEST%\st_aggrid\" /E /I /Y /Q >nul
-for /d %%D in (".venv\Lib\site-packages\streamlit_aggrid-*.dist-info") do xcopy "%%D" "%DEST%\%%~nxD\" /E /I /Y /Q >nul
+if exist "%VENV_DIR%\Lib\site-packages\st_aggrid" xcopy "%VENV_DIR%\Lib\site-packages\st_aggrid" "%DEST%\st_aggrid\" /E /I /Y /Q >nul
+for /d %%D in ("%VENV_DIR%\Lib\site-packages\streamlit_aggrid-*.dist-info") do xcopy "%%D" "%DEST%\%%~nxD\" /E /I /Y /Q >nul
 
 :: Limpar __pycache__ copiados para _internal (evita .pyc stale no EXE)
 for /d /r "%DEST%" %%d in (__pycache__) do (
@@ -214,7 +227,7 @@ echo.
 echo [6/7] Re-processando dados no _internal para garantir consistencia...
 echo       (Isso garante que os parquets reflitam o codigo .py atualizado)
 
-.venv\Scripts\python.exe -c "import sys,os,importlib;dest=r'%DEST%';sys.path.insert(0,dest);os.chdir(dest);mod=importlib.import_module('processamento_dados_veiculos');importlib.reload(mod);print('       Modulo carregado de:',mod.__file__);print('       Re-extracao: os parquets ja serao gerados pelo codigo atualizado via conferencias.')"
+%VENV_DIR%\Scripts\python.exe -c "import sys,os,importlib;dest=r'%DEST%';sys.path.insert(0,dest);os.chdir(dest);mod=importlib.import_module('processamento_dados_veiculos');importlib.reload(mod);print('       Modulo carregado de:',mod.__file__);print('       Re-extracao: os parquets ja serao gerados pelo codigo atualizado via conferencias.')"
 if %errorlevel% neq 0 (
     echo       [AVISO] Re-processamento nao executado
 )
@@ -227,7 +240,7 @@ echo.
 echo [7/7] Verificando consistencia dos dados (conferencias)...
 
 :: Executa conferencias usando importlib.reload para garantir .py do _internal
-.venv\Scripts\python.exe -c "import sys,os,importlib;dest=r'%DEST%';sys.path.insert(0,dest);os.chdir(dest);mod=importlib.import_module('processamento_dados_veiculos');mod=importlib.reload(mod);r=mod.executar_conferencias(2026,'real');b=mod.executar_conferencias(2026,'budget');print();print('=== REAL ===');print(r.to_string(index=False));print();print('=== BUDGET ===');print(b.to_string(index=False));ok_r=(r['Status']==chr(9989)).sum();ok_b=(b['Status']==chr(9989)).sum();t_r=len(r);t_b=len(b);print();print(f'Resultado: Real {ok_r}/{t_r} | Budget {ok_b}/{t_b}');sys.exit(0 if ok_r==t_r and ok_b==t_b else 1)"
+%VENV_DIR%\Scripts\python.exe -c "import sys,os,importlib;dest=r'%DEST%';sys.path.insert(0,dest);os.chdir(dest);mod=importlib.import_module('processamento_dados_veiculos');mod=importlib.reload(mod);r=mod.executar_conferencias(2026,'real');b=mod.executar_conferencias(2026,'budget');print();print('=== REAL ===');print(r.to_string(index=False));print();print('=== BUDGET ===');print(b.to_string(index=False));ok_r=(r['Status']==chr(9989)).sum();ok_b=(b['Status']==chr(9989)).sum();t_r=len(r);t_b=len(b);print();print(f'Resultado: Real {ok_r}/{t_r} | Budget {ok_b}/{t_b}');sys.exit(0 if ok_r==t_r and ok_b==t_b else 1)"
 
 if %errorlevel% equ 0 (
     echo.
@@ -241,7 +254,7 @@ if %errorlevel% equ 0 (
     echo         - O Excel Reporting veiculos.xlsx foi atualizado mas a
     echo           extracao nao foi refeita antes do build
     echo         - O PYZ ainda contem bytecode antigo
-    echo       Recomendacao: refaca a extracao no projeto (dev) e rebuilde.
+    echo       Recomendacao: refaca a extracao no projeto ^(dev^) e rebuilde.
     echo       ============================================================
 )
 

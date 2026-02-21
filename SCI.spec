@@ -10,21 +10,24 @@
 #       ├── app.py
 #       ├── SCI_faixa.png
 #       ├── .streamlit/
-#       ├── dados/                            ← dados bundled (leitura + escrita ok)
+#       ├── dados/
 #       ├── versao.json
 #       ├── dados_equipe.json
 #       ├── rateios_manuais.json
 #       ├── controle_paginas.json
 #       └── ...
-# NOTA: _internal/ é uma pasta normal e gravável — JSONs podem ser
-#       editados pelo app em tempo de execução sem problemas.
 #
-# CORREÇÕES (Jul/2026):
-#   - collect_all('streamlit') + copy_metadata('streamlit')  ← FIX CRÍTICO
-#     Streamlit 1.x usa importlib.metadata na inicialização. Sem os metadados
-#     bundled lança PackageNotFoundError → sys.exit(1) → janela fecha silencioso.
+# PORTABILIDADE:
+#   - Nenhum caminho absoluto — tudo relativo ao diretório do spec
+#   - O EXE gerado roda em qualquer PC Windows sem dependências externas
+#   - console=True para diagnóstico (erros ficam visíveis na primeira execução)
+#
+# CORREÇÕES (Fev/2026):
+#   - Todos os caminhos são RELATIVOS (sem hardcode de C:\Users\...)
+#   - collect_all('streamlit') + copy_metadata('streamlit') — FIX CRÍTICO
+#   - Inclui processamento_dados*.py e todos os scripts da raiz como data
 #   - hookspath=['.'] para usar hook-streamlit.py local
-#   - console=True para diagnóstico (erros ficam visíveis)
+#   - Inclui st_aggrid/streamlit-aggrid para tabelas interativas
 # =============================================================================
 
 from PyInstaller.utils.hooks import (
@@ -35,42 +38,59 @@ from PyInstaller.utils.hooks import (
 )
 import sys
 import os
+import glob
 
 block_cipher = None
 
+# Diretório base = onde este .spec está (raiz do projeto)
+SPEC_DIR = os.path.dirname(os.path.abspath(SPECPATH)) if 'SPECPATH' in dir() else os.path.abspath(".")
+
 # ---------------------------------------------------------------------------
 # Coleta COMPLETA do Streamlit: dados + binários + submodules + METADADOS
-# Ref: https://pyinstaller.org/en/stable/hooks.html#copy-metadata
-# copy_metadata é OBRIGATÓRIO — Streamlit chama importlib.metadata.version()
-# na inicialização; sem os dist-info bundled → crash silencioso.
 # ---------------------------------------------------------------------------
 st_datas, st_binaries, st_hiddenimports = collect_all("streamlit")
 
-# Coleta pywebview para app desktop
+# Coleta pywebview para app desktop (opcional — fallback para navegador)
+wv_datas, wv_binaries, wv_hiddenimports = [], [], []
 try:
     wv_datas, wv_binaries, wv_hiddenimports = collect_all("webview")
 except Exception:
-    wv_datas, wv_binaries, wv_hiddenimports = [], [], []
+    pass
 
-# Metadados de pacotes que também usam importlib.metadata em runtime
+# Coleta st_aggrid para tabelas interativas
+ag_datas, ag_binaries, ag_hiddenimports = [], [], []
+try:
+    ag_datas, ag_binaries, ag_hiddenimports = collect_all("st_aggrid")
+except Exception:
+    pass
+
+# Metadados de pacotes que usam importlib.metadata em runtime
 extra_metadata = []
 for pkg in ["streamlit", "altair", "pandas", "pyarrow", "packaging",
             "validators", "watchdog", "click", "tornado", "openpyxl",
-            "plotly", "numpy", "scipy", "scikit-learn", "pywebview"]:
+            "plotly", "numpy", "streamlit-aggrid"]:
     try:
         extra_metadata += copy_metadata(pkg)
     except Exception:
-        pass  # pacote não instalado — ignorar
+        pass
 
 # Altair: dados estáticos (schemas JSON)
 altair_datas = collect_data_files("altair")
 
+# Plotly: templates e dados estáticos
+plotly_datas = []
+try:
+    plotly_datas = collect_data_files("plotly")
+except Exception:
+    pass
+
 # ---------------------------------------------------------------------------
-# Coleta automática de sub-módulos dinâmicos do projeto e dependências
+# Hidden imports — módulos carregados dinamicamente
 # ---------------------------------------------------------------------------
-hidden = st_hiddenimports + [
+hidden = st_hiddenimports + ag_hiddenimports + [
     # Streamlit internos extras
     "streamlit.web.cli",
+    "streamlit.runtime",
     "streamlit.runtime.scriptrunner",
     "streamlit.runtime.scriptrunner.script_runner",
     "streamlit.components.v1",
@@ -78,7 +98,7 @@ hidden = st_hiddenimports + [
     "streamlit.runtime.legacy_caching",
     "streamlit.elements",
     "streamlit.logger",
-    # pywebview para app desktop
+    # pywebview para app desktop (fallback para browser se ausente)
     "webview",
     "webview.platforms",
     "webview.platforms.winforms",
@@ -98,10 +118,10 @@ hidden = st_hiddenimports + [
     "numpy",
     "plotly",
     "plotly.graph_objects",
-    "sklearn",
-    "scipy",
-    "sqlalchemy",
+    "plotly.express",
     "pydeck",
+    # AgGrid
+    "st_aggrid",
     # Dependências do Streamlit
     "validators",
     "watchdog",
@@ -109,22 +129,59 @@ hidden = st_hiddenimports + [
     "click",
     "packaging",
     "PIL",
-    # Módulos internos do projeto
+    # Módulos internos do projeto (pacotes)
     "tc_core",
     "tc_core.utils",
     "tc_core.utils.portabilidade",
+    "tc_core.constants",
     "tc_core.data",
+    "tc_core.data.paths",
+    "tc_core.data.periodos",
+    "tc_core.data.schema",
     "tc_core.finance",
+    "tc_core.finance.currency",
+    "tc_core.finance.currency_db",
     "tc_core.ui",
+    "tc_core.ui.header",
     "tc_principal",
+    "tc_principal.shared",
+    "tc_principal.ui_components",
     "tc_principal.pages",
+    "tc_principal.pages.home_tc",
+    "tc_principal.pages.waterfall_tc",
+    "tc_principal.pages.best_estimate_simulador_tc",
+    "tc_principal.pages.extracao_dados_tc",
+    "tc_principal.pages.debug_calculos_tc",
     "tc_ext",
+    "tc_ext.normalizacao",
+    "tc_ext.metricas_tc_ext",
     "tc_ext.pages",
+    "tc_ext.pages.home_ext",
+    "tc_ext.pages.be_analise_ext",
+    # Scripts da raiz (importados por nome sem pacote)
+    "processamento_dados",
+    "processamento_dados_BUD",
+    "processamento_dados_veiculos",
+    "processamento_dados_veiculos_BUD",
     "versionamento",
+    "tc_exports",
+    "sincronizar_notebooks",
+    "chatbot_documentacao",
+    # Python stdlib que pode ser lazy-loaded
+    "base64",
+    "pathlib",
+    "json",
+    "datetime",
+    "traceback",
+    "socket",
+    "threading",
+    "webbrowser",
+    "ctypes",
 ]
 
 # ---------------------------------------------------------------------------
-# Todos os assets e dados bundled em _internal/ (self-contained)
+# Dados bundled — tudo em _internal/ (self-contained)
+# TODOS os caminhos são RELATIVOS (portável para qualquer PC)
 # ---------------------------------------------------------------------------
 datas = [
     # Imagens e branding
@@ -132,35 +189,50 @@ datas = [
     ("Designer.png",    "."),
     # Configuração do Streamlit
     (".streamlit",      ".streamlit"),
-    # Arquivos do app e módulos
+    # Arquivo principal do app
     ("app.py",          "."),
+    # Páginas Streamlit (multipage)
     ("pages",           "pages"),
+    # Pacotes do projeto (código-fonte completo)
     ("tc_core",         "tc_core"),
     ("tc_principal",    "tc_principal"),
     ("tc_ext",          "tc_ext"),
+    # Scripts Python da raiz (importados diretamente pelo nome)
+    ("processamento_dados.py",              "."),
+    ("processamento_dados_BUD.py",          "."),
+    ("processamento_dados_veiculos.py",     "."),
+    ("processamento_dados_veiculos_BUD.py", "."),
+    ("versionamento.py",                    "."),
+    ("tc_exports.py",                       "."),
+    ("sincronizar_notebooks.py",            "."),
+    ("chatbot_documentacao.py",             "."),
     # Documentação bundled (Markdown exibido na interface)
-    ("DOCUMENTACAO_SISTEMA_TC.md",      "."),
-    ("DOCUMENTACAO_TC_PRINCIPAL.md",    "."),
-    # Dados bundled — ficam em _internal/dados/ (leit. e escrita ok em one-dir)
-    ("dados",                           "dados"),
+    ("DOCUMENTACAO_SISTEMA_TC.md",          "."),
+    ("DOCUMENTACAO_TC_PRINCIPAL.md",        "."),
+    ("DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md", "."),
+    ("GUIA_EXECUTAVEL.md",                  "."),
+    # Dados bundled — ficam em _internal/dados/ (leitura + escrita ok em one-dir)
+    ("dados",                               "dados"),
     # JSONs de configuração / estado (mutáveis pelo app em runtime)
-    ("versao.json",                     "."),
-    ("dados_equipe.json",               "."),
-    ("rateios_manuais.json",            "."),
-    ("controle_paginas.json",           "."),
+    ("versao.json",                         "."),
+    ("dados_equipe.json",                   "."),
+    ("rateios_manuais.json",                "."),
+    ("controle_paginas.json",               "."),
 ]
 
 # Juntar com dados coletados automaticamente
 datas += st_datas
 datas += altair_datas
+datas += plotly_datas
 datas += extra_metadata
-datas += wv_datas  # pywebview data files
+datas += ag_datas
+datas += wv_datas
 
-# Binaries do pywebview
-all_binaries = st_binaries + wv_binaries
+# Binaries
+all_binaries = st_binaries + ag_binaries + wv_binaries
 
 # ---------------------------------------------------------------------------
-# Análise
+# Análise — TODOS os caminhos relativos
 # ---------------------------------------------------------------------------
 a = Analysis(
     ["launcher.py"],
@@ -180,6 +252,8 @@ a = Analysis(
         "black",
         "flake8",
         "mypy",
+        "pip",
+        "setuptools",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -199,7 +273,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,            # console=True para diagnóstico — erros são visíveis
+    console=True,            # console=True para diagnóstico — erros ficam visíveis
                              # Trocar para False após confirmar que funciona
     disable_windowed_traceback=False,
     argv_emulation=False,

@@ -49,7 +49,7 @@ missing module named _manylinux - imported by packaging._manylinux (delayed, opt
 missing module named setuptools._vendor.backports.zstd - imported by setuptools._vendor.backports (top-level), urllib3.util.request (conditional, optional), urllib3.response (conditional, optional)
 missing module named importlib_resources - imported by setuptools._vendor.jaraco.text (optional), jsonschema_specifications._core (optional)
 missing module named trove_classifiers - imported by setuptools.config._validate_pyproject.formats (optional)
-missing module named pyimod02_importers - imported by C:\User\U235107\GitHub\TC\.venv\Lib\site-packages\PyInstaller\hooks\rthooks\pyi_rth_pkgutil.py (delayed)
+missing module named pyimod02_importers - imported by C:\GIT\TC\venv\Lib\site-packages\PyInstaller\hooks\rthooks\pyi_rth_pkgutil.py (delayed)
 missing module named win32evtlog - imported by logging.handlers (delayed, optional)
 missing module named win32evtlogutil - imported by logging.handlers (delayed, optional)
 missing module named 'authlib.integrations' - imported by streamlit.web.server.oidc_mixin (top-level), streamlit.web.server.authlib_tornado_integration (top-level)

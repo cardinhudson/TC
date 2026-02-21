@@ -32,6 +32,11 @@ cache/
 .DS_Store
 Thumbs.db
 
+# PyInstaller build (gerado localmente, caminhos específicos do PC)
+build/
+dist/
+Stellantis-Cost-Intelligence.spec
+
 # Arquivos de log de processamento
 .processamento_log.txt
 .processamento_log_BUD.txt
