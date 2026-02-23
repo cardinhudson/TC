@@ -802,7 +802,7 @@ def _drill_down_completo(
         lines.append("")
         cor = "🔴" if delta > 0 else ("🟢" if delta < 0 else "⚪")
         lines.append(
-            f"{cor} {t05}: {_fmt_k(val_r)} (Δ {sinal}{_fmt_k(delta)}, {_pct(val_r, val_b)} | {qual})"
+            f"**{cor} {t05}**: {_fmt_k(val_r)} (Δ {sinal}{_fmt_k(delta)}, {_pct(val_r, val_b)} | {qual})"
         )
 
         # ── Nível Type 06 dentro deste Type 05 ──
@@ -821,7 +821,7 @@ def _drill_down_completo(
             s06 = "+" if d06 > 0 else ""
             cor06 = "🔴" if d06 > 0 else ("🟢" if d06 < 0 else "⚪")
             lines.append(
-                f"  {cor06} {t06_name}: {_fmt_k(r06)} (Δ {s06}{_fmt_k(d06)})"
+                f"- {cor06} {t06_name}: {_fmt_k(r06)} (Δ {s06}{_fmt_k(d06)})"
             )
 
             # ── Nível Account dentro deste Type 06 ──
@@ -840,7 +840,7 @@ def _drill_down_completo(
                 s_a = "+" if d_a > 0 else ""
                 cor_a = "🔴" if d_a > 0 else ("🟢" if d_a < 0 else "⚪")
                 lines.append(
-                    f"      {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)}"
+                    f"  - {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)}"
                 )
 
     lines.append("")
@@ -946,7 +946,7 @@ def formatar_dados_comparativo(
     cpu_ref = variacoes["cpu_modelos"].get(cpu_ref_key, {})
     if cpu_real:
         lines.append("")
-        lines.append("CPU por modelo:")
+        lines.append("**CPU por modelo:**")
         for modelo in sorted(cpu_real.keys()):
             r = cpu_real.get(modelo, 0)
             b = cpu_ref.get(modelo, 0)
@@ -954,7 +954,7 @@ def formatar_dados_comparativo(
             s = "+" if diff > 0 else ""
             cor_cpu = "🔴" if diff > 0 else ("🟢" if diff < 0 else "⚪")
             lines.append(
-                f"  {cor_cpu} {modelo}: {_fmt_k(r)} (Δ {s}{_fmt_k(diff)}, {_pct(r, b)})"
+                f"- {cor_cpu} {modelo}: {_fmt_k(r)} (Δ {s}{_fmt_k(diff)}, {_pct(r, b)})"
             )
 
     # TC Ext
