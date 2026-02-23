@@ -22,6 +22,7 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    Image,
     NextPageTemplate,
     PageBreak,
     PageTemplate,
@@ -34,6 +35,7 @@ from reportlab.platypus import (
 
 from tc_copilot.config import (
     PASTA_RELATORIOS,
+    ROOT,
     caminho_dados_relatorio,
     caminho_relatorio,
     garantir_pasta_relatorios,
@@ -252,18 +254,19 @@ def adicionar_mes_ao_relatorio(
 # ═══════════════════════════════════════════════════════════════
 
 def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
-    """Adiciona capa ao documento."""
+    """Adiciona capa ao documento com logo SCI_faixa abaixo da data."""
+
     elements.append(Spacer(1, 4 * cm))
 
+    # ── Título e subtítulo ────────────────────────────────────
     titulo = "Relatório Anual de Custos" if idioma == "pt-BR" else "Annual Cost Report"
-    subtitulo = (
-        "Stellantis Cost Intelligence — TC Copilot"
-    )
+    subtitulo = "Stellantis Cost Intelligence — TC Copilot"
     elements.append(Paragraph(titulo, estilos["titulo_capa"]))
-    elements.append(Spacer(1, 1 * cm))
+    elements.append(Spacer(1, 0.8 * cm))
     elements.append(Paragraph(subtitulo, estilos["subtitulo_capa"]))
-    elements.append(Spacer(1, 2 * cm))
+    elements.append(Spacer(1, 1.5 * cm))
 
+    # ── Ano em destaque ───────────────────────────────────────
     elements.append(Paragraph(str(ano), ParagraphStyle(
         "AnoCapa",
         fontName="Helvetica-Bold",
@@ -271,13 +274,23 @@ def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
         textColor=COR_DESTAQUE,
         alignment=TA_CENTER,
     )))
+    elements.append(Spacer(1, 1.5 * cm))
 
-    elements.append(Spacer(1, 3 * cm))
+    # ── Data de geração ───────────────────────────────────────
     agora = datetime.now().strftime("%d/%m/%Y %H:%M")
     elements.append(Paragraph(
         f"Gerado em: {agora}" if idioma == "pt-BR" else f"Generated: {agora}",
         estilos["data_capa"],
     ))
+    elements.append(Spacer(1, 1.5 * cm))
+
+    # ── Logo SCI (faixa) abaixo da data ─────────────────────
+    # SCI_faixa.png (1240×457) → 14 cm de largura, proporcional
+    logo_faixa = ROOT / "SCI_faixa.png"
+    if logo_faixa.exists():
+        img_w = 14 * cm
+        img_h = img_w * (457 / 1240)
+        elements.append(Image(str(logo_faixa), width=img_w, height=img_h))
 
     elements.append(PageBreak())
 
@@ -306,18 +319,152 @@ def _construir_sumario(
     elements.append(PageBreak())
 
 
+# ═══════════════════════════════════════════════════════════════
+#  EMOJIS → TEXTO (ReportLab não renderiza emojis Unicode)
+# ═══════════════════════════════════════════════════════════════
+import re as _re
+
+_EMOJI_MAP: dict[str, str] = {
+    # ── Indicadores de cor → bullets coloridos (via _COLOR_MAP) ──
+    "\U0001f534": "__CLR_RED__",     # 🔴
+    "\U0001f7e2": "__CLR_GREEN__",   # 🟢
+    "\U0001f7e1": "__CLR_YELLOW__",  # 🟡
+    # ── Setas → caracteres ASCII que o ReportLab renderiza ──
+    "\u2b06":     "\u2191",          # ⬆ → ↑
+    "\u2b07":     "\u2193",          # ⬇ → ↓
+    "\u27a1":     "\u2192",          # ➡ → →
+    # ── Checks / alertas → símbolos simples ──
+    "\u2705":     "\u2713 ",         # ✅ → ✓
+    "\u274c":     "x ",              # ❌ → x
+    "\u26a0":     "(!)",             # ⚠  → (!)
+    # ── Todos os demais emojis decorativos → removidos (string vazia) ──
+    "\U0001f4ca": "",   # 📊
+    "\U0001f4c8": "",   # 📈
+    "\U0001f4a1": "",   # 💡
+    "\U0001f3ed": "",   # 🏭
+    "\U0001f6e0": "",   # 🛠
+    "\U0001f4b0": "",   # 💰
+    "\U0001f4b5": "",   # 💵
+    "\U0001f4c9": "",   # 📉
+    "\U0001f4c5": "",   # 📅
+    "\U0001f4cb": "",   # 📋
+    "\U0001f4dd": "",   # 📝
+    "\U0001f50d": "",   # 🔍
+    "\U0001f680": "",   # 🚀
+    "\U0001f3af": "",   # 🎯
+    "\U0001f4e6": "",   # 📦
+    "\U0001f4e2": "",   # 📢
+    "\U0001f4b2": "",   # 💲
+    "\U0001f4c4": "",   # 📄
+    "\U0001f527": "",   # 🔧
+    "\U0001f6a8": "",   # 🚨
+    "\U0001f91d": "",   # 🤝
+    "\u2139":     "",   # ℹ
+}
+
+# Regex que captura qualquer emoji Unicode (blocos emoji comuns)
+_EMOJI_RE = _re.compile(
+    "["
+    "\U0001F300-\U0001F9FF"  # Miscellaneous Symbols, Emoticons, etc.
+    "\U00002702-\U000027B0"  # Dingbats
+    "\U0000FE00-\U0000FE0F"  # Variation Selectors
+    "\U0000200D"             # ZWJ
+    "\U000025A0-\U000025FF"  # Geometric shapes
+    "\U00002600-\U000026FF"  # Misc symbols
+    "\U00002B05-\U00002B07"  # Arrows
+    "\U00002B1B-\U00002B1C"  # Squares
+    "\U00002934-\U00002935"  # Arrows
+    "\U00003030"             # Wavy dash
+    "\U0000303D"             # Part alternation mark
+    "\U00003297"             # Circled Ideograph Congratulation
+    "\U00003299"             # Circled Ideograph Secret
+    "]+",
+    flags=_re.UNICODE,
+)
+
+
+def _substituir_emojis(texto: str) -> str:
+    """Substitui emojis por equivalentes textuais para o PDF.
+
+    Primeiro tenta o mapa conhecido; depois remove qualquer emoji restante.
+    Não altera o texto original no sistema — só o PDF."""
+    for emoji_char, label in _EMOJI_MAP.items():
+        texto = texto.replace(emoji_char, label)
+    # Remover emojis remanescentes nao mapeados
+    texto = _EMOJI_RE.sub("", texto)
+    return texto
+
+
+# ── Mapa de placeholders de cor → HTML colorido do ReportLab ──
+_COLOR_MAP: dict[str, str] = {
+    "__CLR_RED__":    '<font color="#CC0000" size="12">\u2022</font>',
+    "__CLR_GREEN__":  '<font color="#228B22" size="12">\u2022</font>',
+    "__CLR_YELLOW__": '<font color="#DAA520" size="12">\u2022</font>',
+}
+
+
+def _aplicar_formatacao(texto: str) -> str:
+    """Converte placeholders de cor em tags <font> e Markdown básico em HTML.
+
+    Deve ser chamada DEPOIS do XML-escape para que as tags HTML
+    inseridas aqui não sejam escapadas."""
+    # Placeholders de cor → <font color="...">●</font>
+    for placeholder, html in _COLOR_MAP.items():
+        texto = texto.replace(placeholder, html)
+    # **negrito** → <b>negrito</b>
+    texto = _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', texto)
+    return texto
+
+
 def _texto_para_paragraphs(texto: str, estilo: ParagraphStyle) -> list:
-    """Converte texto multi-linha em lista de Paragraphs."""
-    elements = []
-    # Prevenir XML inválido em tags de ReportLab
+    """Converte texto multi-linha em Paragraphs com cores, bold e bullets."""
+    elements: list = []
+    # 1. Substituir emojis (inclui placeholders de cor)
+    texto = _substituir_emojis(texto)
+    # 2. XML-escape (protege & < >)
     texto = texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
+    # Estilos derivados para bullets e headings
+    estilo_bullet = ParagraphStyle(
+        "CorpoBullet", parent=estilo, leftIndent=15,
+    )
+    estilo_sub_bullet = ParagraphStyle(
+        "CorpoSubBullet", parent=estilo, leftIndent=30,
+    )
+    estilo_heading = ParagraphStyle(
+        "CorpoHeading", parent=estilo,
+        fontName="Helvetica-Bold",
+        fontSize=estilo.fontSize + 2,
+        textColor=COR_SECUNDARIA,
+        spaceBefore=10, spaceAfter=6,
+    )
+
     for linha in texto.split("\n"):
-        linha = linha.strip()
-        if not linha:
+        indent = len(linha) - len(linha.lstrip())
+        linha_strip = linha.strip()
+        if not linha_strip:
             elements.append(Spacer(1, 4 * mm))
+            continue
+
+        # 3. Aplicar cores e Markdown (pós-escape)
+        linha_fmt = _aplicar_formatacao(linha_strip)
+
+        # ### heading → negrito com estilo de sub-seção
+        heading_m = _re.match(r'^#{1,6}\s+(.+)', linha_fmt)
+        if heading_m:
+            elements.append(Paragraph(
+                f"<b>{heading_m.group(1)}</b>", estilo_heading,
+            ))
+        # Bullet point (com sub-nível por indentação)
+        elif linha_strip.startswith("- "):
+            corpo = linha_fmt[2:]
+            if indent >= 2:
+                elements.append(Paragraph(f"\u2022 {corpo}", estilo_sub_bullet))
+            else:
+                elements.append(Paragraph(f"\u2022 {corpo}", estilo_bullet))
         else:
-            elements.append(Paragraph(linha, estilo))
+            elements.append(Paragraph(linha_fmt, estilo))
+
     return elements
 
 
@@ -378,7 +525,7 @@ def _construir_capitulo_mes(
             continue
 
         label_key = secao_label_map.get(tipo_secao, tipo_secao)
-        titulo_secao = labels.get(label_key, tipo_secao)
+        titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
         elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
 
         # Adicionar parágrafos do texto
@@ -394,7 +541,7 @@ def _construir_capitulo_mes(
             continue
         ofc_nome = ofc_key.replace("oficina_", "")
         titulo_template = labels.get("sec_oficina", "🏭 Oficina {oficina}")
-        titulo_ofc = titulo_template.format(oficina=ofc_nome)
+        titulo_ofc = _aplicar_formatacao(_substituir_emojis(titulo_template.format(oficina=ofc_nome)))
         elements.append(Paragraph(titulo_ofc, estilos["titulo_secao"]))
         paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
         elements.extend(paragraphs)
