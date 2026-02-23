@@ -19,8 +19,8 @@ cache/
 .streamlit/secrets.toml
 openai_key.txt
 
-# TC Copilot — relatórios gerados localmente
-documentacao_anual/
+# TC Copilot — relatórios gerados (versionados para compartilhar entre PCs)
+# documentacao_anual/ — NÃO ignorar, queremos manter os relatórios no Git
 
 # IDEs
 .vscode/*
