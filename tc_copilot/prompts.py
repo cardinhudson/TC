@@ -324,22 +324,29 @@ PROMPTS = {
 
     "comparativos": {
         "pt-BR": (
-            "Com base nos dados abaixo, escreva a análise dos 4 comparativos "
-            "para {mes}/{ano}. Os dados já estão organizados em sub-seções 3.1 a 3.4.\n\n"
+            "Com base nos dados abaixo, escreva a análise dos 3 comparativos "
+            "para {mes}/{ano}. Os dados já estão organizados em sub-seções 2.1 a 2.3.\n\n"
             "DADOS:\n{dados}\n\n"
             "INSTRUÇÕES:\n"
-            "- Mantenha a estrutura de 4 sub-seções: 3.1 Real vs Flex Budget, "
-            "3.2 Real vs Mês Anterior, 3.3 Real vs Budget, 3.4 Real vs Ano Anterior.\n"
+            "- Mantenha a estrutura de 3 sub-seções:\n"
+            "  2.1 Real vs Budget (Efeito Flex Volume) — seção UNIFICADA que mostra o caminho "
+            "Budget → Efeito Volume (barra amarela do waterfall) → Flex → Real. "
+            "O Efeito Volume = Flex - Budget (ajuste pelo volume real). "
+            "O Efeito Operacional = Real - Flex (eficiência de preço/mix). "
+            "Explique ambos os efeitos e depois detalhe o drill-down operacional (Real vs Flex).\n"
+            "  2.2 Real vs Mês Anterior — comparação mês a mês.\n"
+            "  2.3 Real vs Ano Anterior — comparação com mesmo mês do ano anterior.\n"
             "- Para CADA sub-seção, use este formato:\n"
             "  * Comece com o Custo FP total e a variação\n"
             "  * Agrupe por Type 05 (Labor, Burden, D&A)\n"
             "  * Dentro de cada Type 05, liste os Type 06 mais relevantes\n"
             "  * Para cada Type 06, cite os 2-3 Accounts com maiores impactos\n"
-            "- Use markdown: ### para cada sub-seção, **negrito** para Type 05, itaálico para destaques.\n"
+            "- Use markdown: ### para cada sub-seção, **negrito** para Type 05.\n"
             "- Convenção Budget/Flex: Δ negativo = ganho, Δ positivo = perda.\n"
             "- Convenção mês a mês/ano anterior: Δ negativo = redução, Δ positivo = aumento.\n"
             "- NUNCA traduza nomes de colunas ou valores dos dados.\n"
-            "- Valores em kBRL. Apresente absolutos E percentuais.\n"
+            "- Use o padrão de formatação dos dados: X kBRL (Y R$/veíc) | Δ ±Z kBRL (Δ ±W R$/veíc), ±P%.\n"
+            "- Apresente valores absolutos E percentuais.\n"
             "- Use símbolos visuais: 🟢 para ganhos, 🔴 para perdas, ⚠️ para alertas, 💡 para insights.\n"
             "- Busque explicações PROFUNDAS: correlacione variações entre Type 05, "
             "identifique padrões (ex: alta em Benefits compensando queda em Direct Labor), "
@@ -348,22 +355,29 @@ PROMPTS = {
             "- Tom executivo, direto ao ponto."
         ),
         "en": (
-            "Based on the data below, write the analysis of 4 comparatives "
-            "for {mes}/{ano}. Data is already organized in sub-sections 3.1 to 3.4.\n\n"
+            "Based on the data below, write the analysis of 3 comparatives "
+            "for {mes}/{ano}. Data is already organized in sub-sections 2.1 to 2.3.\n\n"
             "DATA:\n{dados}\n\n"
             "INSTRUCTIONS:\n"
-            "- Maintain structure of 4 sub-sections: 3.1 Actual vs Flex Budget, "
-            "3.2 Actual vs Previous Month, 3.3 Actual vs Budget, 3.4 Actual vs Previous Year.\n"
+            "- Maintain structure of 3 sub-sections:\n"
+            "  2.1 Actual vs Budget (Flex Volume Effect) — UNIFIED section showing the path "
+            "Budget → Volume Effect (yellow waterfall bar) → Flex → Actual. "
+            "Volume Effect = Flex - Budget (adjustment for actual volume). "
+            "Operational Effect = Actual - Flex (price/mix efficiency). "
+            "Explain both effects then detail the operational drill-down (Actual vs Flex).\n"
+            "  2.2 Actual vs Previous Month — month-over-month comparison.\n"
+            "  2.3 Actual vs Previous Year — same month previous year comparison.\n"
             "- For EACH sub-section, use this format:\n"
             "  * Start with total FP Cost and variation\n"
             "  * Group by Type 05 (Labor, Burden, D&A)\n"
             "  * Within each Type 05, list the most relevant Type 06\n"
             "  * For each Type 06, cite the 2-3 Accounts with largest impacts\n"
-            "- Use markdown: ### for each sub-section, **bold** for Type 05, italic for highlights.\n"
+            "- Use markdown: ### for each sub-section, **bold** for Type 05.\n"
             "- Convention Budget/Flex: negative Δ = saving, positive Δ = overspend.\n"
             "- Convention month-over-month/year-over-year: negative Δ = reduction, positive Δ = increase.\n"
             "- NEVER translate column or value names.\n"
-            "- Values in kBRL. Present absolutes AND percentages.\n"
+            "- Use the data formatting pattern: X kBRL (Y R$/unit) | Δ ±Z kBRL (Δ ±W R$/unit), ±P%.\n"
+            "- Present absolutes AND percentages.\n"
             "- Use visual symbols: 🟢 for gains, 🔴 for losses, ⚠️ for alerts, 💡 for insights.\n"
             "- Seek DEEP explanations: correlate variations across Type 05, "
             "identify patterns (e.g., Benefits increase offsetting Direct Labor drop), "
@@ -475,13 +489,17 @@ PROMPTS = {
             "da oficina {oficina} para {mes}/{ano}.\n\n"
             "DADOS:\n{dados}\n\n"
             "INSTRUÇÕES:\n"
-            "- Apresente o Custo FP total da oficina e a variação vs Flex Budget.\n"
-            "- A análise contém 4 comparativos (Flex, Mês Anterior, Budget e Ano Anterior). "
-            "Comente cada um.\n"
+            "- Apresente o Custo FP total da oficina e a variação vs Budget.\n"
+            "- A análise contém 3 comparativos:\n"
+            "  * Real vs Budget (com Efeito Flex Volume) — mostra Budget → Efeito Volume → Flex → Real.\n"
+            "  * Real vs Mês Anterior.\n"
+            "  * Real vs Ano Anterior.\n"
+            "  Comente cada um.\n"
             "- Agrupe por Type 05 (Labor, Burden, D&A) com sub-accounts.\n"
+            "- Para cada Type 05 comentado, cite o Type 06 que mais impactou positiva ou negativamente.\n"
             "- Não repita a análise de volume (já está na seção principal).\n"
             "- NUNCA traduza nomes de colunas ou valores.\n"
-            "- Valores em kBRL. Tom executivo e conciso.\n"
+            "- Use o padrão de formatação: X kBRL (Y R$/veíc) | Δ ±Z kBRL (Δ ±W R$/veíc), ±P%.\n"
             "- Use símbolos visuais: 🟢 para ganhos/economia, 🔴 para perdas, "
             "⚠️ para alertas, 💡 para insights.\n"
             "- Quando referência for zero, diga explicitamente ('⚠️ Ref. não disponível').\n"
@@ -494,19 +512,80 @@ PROMPTS = {
             "for shop {oficina} in {mes}/{ano}.\n\n"
             "DATA:\n{dados}\n\n"
             "INSTRUCTIONS:\n"
-            "- Present total FP Cost for the shop and variation vs Flex Budget.\n"
-            "- The analysis contains 4 comparatives (Flex, Previous Month, Budget, Previous Year). "
-            "Comment on each.\n"
+            "- Present total FP Cost for the shop and variation vs Budget.\n"
+            "- The analysis contains 3 comparatives:\n"
+            "  * Actual vs Budget (with Flex Volume Effect) — shows Budget → Volume Effect → Flex → Actual.\n"
+            "  * Actual vs Previous Month.\n"
+            "  * Actual vs Previous Year.\n"
+            "  Comment on each.\n"
             "- Group by Type 05 (Labor, Burden, D&A) with sub-accounts.\n"
+            "- For each Type 05 discussed, cite the Type 06 with the biggest positive or negative impact.\n"
             "- Do not repeat volume analysis (already in main section).\n"
             "- NEVER translate column or value names.\n"
-            "- Values in kBRL. Executive and concise tone.\n"
+            "- Use formatting pattern: X kBRL (Y R$/unit) | Δ ±Z kBRL (Δ ±W R$/unit), ±P%.\n"
             "- Use visual symbols: 🟢 for gains/savings, 🔴 for losses, "
             "⚠️ for alerts, 💡 for insights.\n"
             "- When reference is zero, state explicitly ('⚠️ Ref. not available').\n"
             "- Seek deep explanations: correlate variations across "
             "Type 06 and Accounts, suggest root causes and cross impacts.\n"
             "- Limit to 3-4 paragraphs."
+        ),
+    },
+
+    "resumo_executivo": {
+        "pt-BR": (
+            "Com base nos dados consolidados abaixo, escreva um RESUMO EXECUTIVO "
+            "do mês de {mes}/{ano} para apresentação à diretoria.\n\n"
+            "DADOS:\n{dados}\n\n"
+            "INSTRUÇÕES:\n"
+            "- Este é o texto de ABERTURA do relatório — deve ser analítico e fluído, "
+            "organizado em parágrafos temáticos.\n"
+            "- Parágrafo 1 — 📊 Volume: Resuma volume Real vs Budget vs Mês Anterior "
+            "em 2-3 frases objetivas. Cite apenas os 2-3 modelos com maior impacto.\n"
+            "- Parágrafo 2 — 💰 Custo FP (Waterfall): Apresente o caminho "
+            "Budget → Efeito Volume → Flex → Efeito Operacional → Real. "
+            "Destaque delta total e separe efeito volume do operacional. "
+            "Use o padrão: X kBRL (Y R$/veíc) | Δ ±Z kBRL (Δ ±W R$/veíc), ±P%.\n"
+            "- Parágrafo 3 — 📈 CPU: Analise o custo por veículo Real vs Budget vs "
+            "Mês Anterior (R$/veíc). Explique por que subiu/desceu (volume dilui fixos, "
+            "mix, etc.). Cite os 2-3 modelos com maior variação de CPU.\n"
+            "- Parágrafo 4 — 🏭 Type 05: Comente os 3-5 maiores impactos por Type 05 "
+            "(Labor, Burden, D&A) com valores em kBRL e R$/veíc.\n"
+            "- Parágrafo 5 — 🔧 Oficinas: Resuma os 3-5 maiores desvios por oficina. "
+            "Para cada oficina, cite o Type 06 que mais contribuiu para o desvio.\n"
+            "- Parágrafo 6 (opcional) — ⚠️ Alertas e riscos para o próximo mês.\n"
+            "- Use indicadores visuais: 🟢🔴⚠️📊📈📉.\n"
+            "- Valores SEMPRE em kBRL E R$/veíc lado a lado.\n"
+            "- NUNCA traduza nomes de colunas ou categorias.\n"
+            "- Tom estratégico, analítico e direto — texto corrido, não bullet points.\n"
+            "- NÃO entre em drill-down por Type 06/Account (isso fica nas seções posteriores)."
+        ),
+        "en": (
+            "Based on the consolidated data below, write an EXECUTIVE SUMMARY "
+            "for {mes}/{ano} for board presentation.\n\n"
+            "DATA:\n{dados}\n\n"
+            "INSTRUCTIONS:\n"
+            "- This is the OPENING text of the report — analytical and fluid, "
+            "organized in thematic paragraphs.\n"
+            "- Paragraph 1 — 📊 Volume: Summarize Actual volume vs Budget vs Previous Month "
+            "in 2-3 objective sentences. Mention only 2-3 models with largest impact.\n"
+            "- Paragraph 2 — 💰 FP Cost (Waterfall): Present the path "
+            "Budget → Volume Effect → Flex → Operational Effect → Actual. "
+            "Highlight total delta and separate volume from operational effect. "
+            "Use pattern: X kBRL (Y R$/unit) | Δ ±Z kBRL (Δ ±W R$/unit), ±P%.\n"
+            "- Paragraph 3 — 📈 CPU: Analyze cost per vehicle Actual vs Budget vs "
+            "Previous Month (R$/unit). Explain why it went up/down (volume dilutes fixed, "
+            "mix, etc.). Cite 2-3 models with largest CPU variation.\n"
+            "- Paragraph 4 — 🏭 Type 05: Comment on top 3-5 impacts by Type 05 "
+            "(Labor, Burden, D&A) with values in kBRL and R$/unit.\n"
+            "- Paragraph 5 — 🔧 Shops: Summarize top 3-5 deviations by shop. "
+            "For each shop, cite the Type 06 that most contributed to the deviation.\n"
+            "- Paragraph 6 (optional) — ⚠️ Alerts and risks for next month.\n"
+            "- Use visual indicators: 🟢🔴⚠️📊📈📉.\n"
+            "- Values ALWAYS in kBRL AND R$/unit side by side.\n"
+            "- NEVER translate column names or categories.\n"
+            "- Strategic, analytical and direct tone — flowing prose, not bullet points.\n"
+            "- Do NOT drill down by Type 06/Account (that's for later sections)."
         ),
     },
 
@@ -570,21 +649,21 @@ LABELS = {
     "pt-BR": {
         "titulo_relatorio": "Relatório Anual de Custos",
         "titulo_mes": "Relatório de {mes} de {ano}",
-        # Seções v2 (3 seções consolidadas)
+        # Seções v2 (4 seções consolidadas + resumo)
+        "sec_resumo_executivo": "0. 📋 Resumo Executivo",
         "sec_volume_completo": "1. 📊 Análise de Volume e Variações por Modelo",
         "sec_comparativos": "2. 📈 Comparativos",
         "sec_conclusoes": "3. 💡 Conclusões e Recomendações",
         # Sub-seções de comparativos
-        "sec_real_vs_flex": "2.1 Real vs Flex Budget",
+        "sec_real_vs_budget_flex": "2.1 Real vs Budget (Efeito Flex Volume)",
         "sec_real_vs_mes_ant": "2.2 Real vs Mês Anterior",
-        "sec_real_vs_budget": "2.3 Real vs Budget",
-        "sec_real_vs_ano_ant": "2.4 Real vs Mesmo Mês do Ano Anterior",
+        "sec_real_vs_ano_ant": "2.3 Real vs Mesmo Mês do Ano Anterior",
         # Seções legadas (compat. com relatórios já gerados)
         "sec_volume": "1. Análise de Volume",
         "sec_variacoes": "2. Maiores Variações por Modelo de Veículo",
         "sec_anomalias": "4. Sumário de Anomalias e Destaques",
         "sec_obs_finais": "5. Observações Finais",
-        "sec_oficina": "🏭 Oficina {oficina}",
+        "sec_oficina": "4. 🏭 Oficina {oficina}",
         "capa_subtitulo": "Stellantis Cost Intelligence (SCI)",
         "capa_gerado": "Gerado em",
         "capa_versao": "Versão",
@@ -598,21 +677,21 @@ LABELS = {
     "en": {
         "titulo_relatorio": "Annual Cost Report",
         "titulo_mes": "{mes} {ano} Report",
-        # Seções v2 (3 consolidated sections)
+        # Seções v2 (4 consolidated sections + summary)
+        "sec_resumo_executivo": "0. 📋 Executive Summary",
         "sec_volume_completo": "1. 📊 Volume Analysis and Model Variations",
         "sec_comparativos": "2. 📈 Comparatives",
         "sec_conclusoes": "3. 💡 Conclusions and Recommendations",
         # Comparative sub-sections
-        "sec_real_vs_flex": "2.1 Actual vs Flex Budget",
+        "sec_real_vs_budget_flex": "2.1 Actual vs Budget (Flex Volume Effect)",
         "sec_real_vs_mes_ant": "2.2 Actual vs Previous Month",
-        "sec_real_vs_budget": "2.3 Actual vs Budget",
-        "sec_real_vs_ano_ant": "2.4 Actual vs Same Month Previous Year",
+        "sec_real_vs_ano_ant": "2.3 Actual vs Same Month Previous Year",
         # Legacy sections (compat. with already-generated reports)
         "sec_volume": "1. Volume Analysis",
         "sec_variacoes": "2. Largest Variations by Vehicle Model",
         "sec_anomalias": "4. Anomalies and Highlights Summary",
         "sec_obs_finais": "5. Final Observations",
-        "sec_oficina": "🏭 Shop {oficina}",
+        "sec_oficina": "4. 🏭 Shop {oficina}",
         "capa_subtitulo": "Stellantis Cost Intelligence (SCI)",
         "capa_gerado": "Generated on",
         "capa_versao": "Version",

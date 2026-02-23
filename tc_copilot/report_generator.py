@@ -397,10 +397,13 @@ def _substituir_emojis(texto: str) -> str:
 
 # ── Mapa de placeholders de cor → HTML colorido do ReportLab ──
 _COLOR_MAP: dict[str, str] = {
-    "__CLR_RED__":    '<font color="#CC0000" size="12">\u2022</font>',
-    "__CLR_GREEN__":  '<font color="#228B22" size="12">\u2022</font>',
-    "__CLR_YELLOW__": '<font color="#DAA520" size="12">\u2022</font>',
+    "__CLR_RED__":    '<font color="#CC0000" size="12">\u25CF</font>',
+    "__CLR_GREEN__":  '<font color="#228B22" size="12">\u25CF</font>',
+    "__CLR_YELLOW__": '<font color="#DAA520" size="12">\u25CF</font>',
 }
+
+# Placeholders de cor para detecção (evitar bullet duplicado)
+_CLR_PLACEHOLDERS = ("__CLR_RED__", "__CLR_GREEN__", "__CLR_YELLOW__")
 
 
 def _aplicar_formatacao(texto: str) -> str:
@@ -458,10 +461,13 @@ def _texto_para_paragraphs(texto: str, estilo: ParagraphStyle) -> list:
         # Bullet point (com sub-nível por indentação)
         elif linha_strip.startswith("- "):
             corpo = linha_fmt[2:]
+            # Se corpo já tem indicador colorido (●), não prefixar outro bullet
+            has_color = any(p in linha_strip for p in _CLR_PLACEHOLDERS) or '<font color=' in corpo
+            prefixo = "" if has_color else "\u2022 "
             if indent >= 2:
-                elements.append(Paragraph(f"\u2022 {corpo}", estilo_sub_bullet))
+                elements.append(Paragraph(f"{prefixo}{corpo}", estilo_sub_bullet))
             else:
-                elements.append(Paragraph(f"\u2022 {corpo}", estilo_bullet))
+                elements.append(Paragraph(f"{prefixo}{corpo}", estilo_bullet))
         else:
             elements.append(Paragraph(linha_fmt, estilo))
 
@@ -491,6 +497,7 @@ def _construir_capitulo_mes(
     labels = LABELS.get(idioma, LABELS["pt-BR"])
 
     secoes_ordem = [
+        "resumo_executivo",
         "volume_completo",
         "comparativos",
         "conclusoes",
@@ -509,6 +516,7 @@ def _construir_capitulo_mes(
 
     # Mapeamento tipo_secao → label key (LABELS usa prefixo sec_)
     secao_label_map = {
+        "resumo_executivo": "sec_resumo_executivo",
         "volume_completo": "sec_volume_completo",
         "comparativos": "sec_comparativos",
         "conclusoes": "sec_conclusoes",
@@ -652,6 +660,7 @@ def gerar_relatorio_mes(
         formatar_dados_comparativos_agrupado,
         formatar_dados_conclusoes,
         formatar_dados_oficina,
+        formatar_dados_resumo_executivo,
         formatar_dados_volume_completo,
     )
     from tc_copilot.llm_integration import gerar_secao_relatorio
@@ -663,12 +672,15 @@ def gerar_relatorio_mes(
     mes_nome = dados["mes_nome"]
     ano_anterior = dados["ano_anterior"]
 
-    # 2. Preparar dados formatados por seção (3 seções globais v2)
+    # 2. Preparar dados formatados por seção (3 seções globais v2 + resumo exec)
     dados_por_secao = {
         "volume_completo": formatar_dados_volume_completo(dados, variacoes),
         "comparativos": formatar_dados_comparativos_agrupado(dados, variacoes),
         "conclusoes": formatar_dados_conclusoes(dados, variacoes),
     }
+
+    # Dados para o resumo executivo (compilado a partir de todos)
+    dados_resumo = formatar_dados_resumo_executivo(dados, variacoes)
 
     # 3. Gerar texto de cada seção via LLM (ou fallback)
     secoes_geradas = {}
@@ -706,6 +718,18 @@ def gerar_relatorio_mes(
             ano_anterior=ano_anterior,
             oficina=ofc,
         )
+
+    # 5. Gerar Resumo Executivo via LLM (APÓS todas as seções, pois resume tudo)
+    secoes_geradas["resumo_executivo"] = gerar_secao_relatorio(
+        tipo_secao="resumo_executivo",
+        dados_formatados=dados_resumo,
+        mes=mes_nome,
+        ano=ano,
+        idioma=idioma,
+        api_key=api_key,
+        model=modelo,
+        ano_anterior=ano_anterior,
+    )
 
     # 5. Salvar no JSON intermediário
     adicionar_mes_ao_relatorio(ano, mes_numero, secoes_geradas)

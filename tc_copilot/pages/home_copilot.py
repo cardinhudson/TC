@@ -321,6 +321,7 @@ def _render_gerar_relatorio():
 
         # Mapeamento tipo_secao → label key (v2 + legado)
         secao_labels = {
+            "resumo_executivo": "sec_resumo_executivo",
             "volume_completo": "sec_volume_completo",
             "comparativos": "sec_comparativos",
             "conclusoes": "sec_conclusoes",
@@ -331,7 +332,7 @@ def _render_gerar_relatorio():
             "observacoes_finais": "sec_obs_finais",
         }
         # Ordem de prioridade: v2 primeiro, legado se existir
-        secoes_v2 = ["volume_completo", "comparativos", "conclusoes"]
+        secoes_v2 = ["resumo_executivo", "volume_completo", "comparativos", "conclusoes"]
         secoes_legado = ["analise_volume", "variacoes_modelo", "comparativos", "anomalias", "observacoes_finais"]
         labels_idioma = LABELS.get(idioma, LABELS["pt-BR"])
 
@@ -411,9 +412,8 @@ def _render_gerar_relatorio():
 
                                     # Sub-tópicos por comparativo
                                     _sub_topicos = [
-                                        ("flex", "📊 Real vs Flex Budget"),
+                                        ("budget_flex", "📊 Real vs Budget (Efeito Flex Volume)"),
                                         ("mes_anterior", "📊 Real vs Mês Anterior"),
-                                        ("budget", "📊 Real vs Budget"),
                                         ("ano_anterior", f"📊 Real vs Ano Anterior"),
                                     ]
                                     for _tipo, _titulo in _sub_topicos:

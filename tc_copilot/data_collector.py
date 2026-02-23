@@ -77,6 +77,25 @@ def _var_k(atual: float, anterior: float) -> str:
     return f"Δ {sinal}{_fmt_k(diff)}"
 
 
+def _cpu(custo: float, volume: float) -> float:
+    """Calcula CPU = custo total / volume. Retorna 0 se volume <= 0."""
+    if not volume or volume <= 0:
+        return 0.0
+    return custo / volume
+
+
+def _fmt_cpu(valor: float) -> str:
+    """Formata valor como R$/veíc (sem divisão por 1000)."""
+    if pd.isna(valor) or valor is None:
+        return "0 R$/veíc"
+    try:
+        v = float(valor)
+        s = f"{v:,.1f}"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".") + " R$/veíc"
+    except (ValueError, TypeError):
+        return str(valor)
+
+
 def _safe_sum(df: pd.DataFrame | None, col: str, filtro_periodo: str | None = None) -> float:
     """Soma segura de uma coluna, opcionalmente filtrada por período."""
     if df is None or df.empty or col not in df.columns:
@@ -586,8 +605,9 @@ def formatar_dados_volume(dados: dict, variacoes: dict) -> str:
         diff = info["var_budget"]
         sinal = "+" if diff > 0 else ""
         qual = "acima" if diff > 0 else "abaixo"
+        cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
         lines.append(
-            f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+            f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
             f"({qual} do budget em {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info['pct_budget'])})"
         )
     lines.append("")
@@ -601,8 +621,9 @@ def formatar_dados_volume(dados: dict, variacoes: dict) -> str:
         diff = info["var_mes_ant"]
         sinal = "+" if diff > 0 else ""
         qual = "aumento" if diff > 0 else "redução"
+        cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
         lines.append(
-            f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+            f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
             f"({qual} de {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info['pct_mes_ant'])})"
         )
     lines.append("")
@@ -618,8 +639,9 @@ def formatar_dados_volume(dados: dict, variacoes: dict) -> str:
             diff = info.get("var_ano_ant", 0)
             sinal = "+" if diff > 0 else ""
             qual = "aumento" if diff > 0 else "redução"
+            cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
             lines.append(
-                f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+                f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
                 f"({qual} de {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info.get('pct_ano_ant'))})"
             )
     else:
@@ -651,8 +673,9 @@ def formatar_dados_variacoes_modelo(dados: dict, variacoes: dict) -> str:
         diff = info["var_mes_ant"]
         sinal = "+" if diff > 0 else ""
         qual = "aumento" if diff > 0 else "redução"
+        cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
         lines.append(
-            f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+            f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
             f"({qual} de {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info['pct_mes_ant'])})"
         )
 
@@ -670,8 +693,9 @@ def formatar_dados_variacoes_modelo(dados: dict, variacoes: dict) -> str:
         diff = info["var_budget"]
         sinal = "+" if diff > 0 else ""
         qual = "acima" if diff > 0 else "abaixo"
+        cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
         lines.append(
-            f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+            f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
             f"({qual} do budget em {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info['pct_budget'])})"
         )
 
@@ -690,8 +714,9 @@ def formatar_dados_variacoes_modelo(dados: dict, variacoes: dict) -> str:
             diff = info.get("var_ano_ant", 0)
             sinal = "+" if diff > 0 else ""
             qual = "aumento" if diff > 0 else "redução"
+            cor_vol = "🟢" if diff > 0 else ("🔴" if diff < 0 else "⚪")
             lines.append(
-                f"  {modelo}: {_fmt(info['vol_real'], 0)} un. "
+                f"- {cor_vol} {modelo}: {_fmt(info['vol_real'], 0)} un. "
                 f"({qual} de {sinal}{_fmt(diff, 0)} un., {_fmt_pct_modelo(info.get('pct_ano_ant'))})"
             )
     else:
@@ -752,13 +777,15 @@ def _drill_down_completo(
     tipo: str = "mes_anterior",
     top_type06: int = 3,
     top_accounts: int = 2,
+    volume: float = 0,
 ) -> str:
     """
     Drill-down 3 níveis: Type 05 → Type 06 → Account.
-    Todos os valores em kBRL. Nomes originais das colunas preservados.
+    Todos os valores em kBRL + R$/veíc (se volume > 0). Nomes originais preservados.
 
     col_ref: coluna do df_ref a somar (ex: 'Custo FP' ou 'Flex_Bud').
     tipo: tipo de comparação — define linguagem (ganho/perda vs redução/aumento).
+    volume: volume real para cálculo de R$/veíc (0 = não exibir).
     """
     if df_real is None or df_real.empty:
         return ""
@@ -801,9 +828,19 @@ def _drill_down_completo(
 
         lines.append("")
         cor = "🔴" if delta > 0 else ("🟢" if delta < 0 else "⚪")
-        lines.append(
-            f"**{cor} {t05}**: {_fmt_k(val_r)} (Δ {sinal}{_fmt_k(delta)}, {_pct(val_r, val_b)} | {qual})"
-        )
+        # R$/veíc para Type 05 (se volume disponível)
+        if volume and volume > 0:
+            cpu_r = val_r / volume
+            cpu_d = delta / volume
+            s_cpu = "+" if cpu_d >= 0 else ""
+            lines.append(
+                f"**{cor} {t05}**: {_fmt_k(val_r)} ({_fmt_cpu(cpu_r)}) "
+                f"| Δ {sinal}{_fmt_k(delta)} (Δ {s_cpu}{_fmt_cpu(cpu_d)}), {_pct(val_r, val_b)} | {qual}"
+            )
+        else:
+            lines.append(
+                f"**{cor} {t05}**: {_fmt_k(val_r)} | Δ {sinal}{_fmt_k(delta)}, {_pct(val_r, val_b)} | {qual}"
+            )
 
         # ── Nível Type 06 dentro deste Type 05 ──
         df_r_t05 = df_real[df_real["Type 05"] == t05]
@@ -820,9 +857,18 @@ def _drill_down_completo(
         for t06_name, r06, b06, d06 in diffs_t06[:top_type06]:
             s06 = "+" if d06 > 0 else ""
             cor06 = "🔴" if d06 > 0 else ("🟢" if d06 < 0 else "⚪")
-            lines.append(
-                f"- {cor06} {t06_name}: {_fmt_k(r06)} (Δ {s06}{_fmt_k(d06)})"
-            )
+            if volume and volume > 0:
+                cpu_06 = r06 / volume
+                cpu_d06 = d06 / volume
+                s_c06 = "+" if cpu_d06 >= 0 else ""
+                lines.append(
+                    f"- {cor06} {t06_name}: {_fmt_k(r06)} ({_fmt_cpu(cpu_06)}) "
+                    f"| Δ {s06}{_fmt_k(d06)} (Δ {s_c06}{_fmt_cpu(cpu_d06)})"
+                )
+            else:
+                lines.append(
+                    f"- {cor06} {t06_name}: {_fmt_k(r06)} | Δ {s06}{_fmt_k(d06)}"
+                )
 
             # ── Nível Account dentro deste Type 06 ──
             df_r_t06 = df_r_t05[df_r_t05["Type 06"] == t06_name]
@@ -839,9 +885,16 @@ def _drill_down_completo(
             for acc_name, r_a, b_a, d_a in diffs_acc[:top_accounts]:
                 s_a = "+" if d_a > 0 else ""
                 cor_a = "🔴" if d_a > 0 else ("🟢" if d_a < 0 else "⚪")
-                lines.append(
-                    f"  - {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)}"
-                )
+                if volume and volume > 0:
+                    cpu_da = d_a / volume
+                    s_ca = "+" if cpu_da >= 0 else ""
+                    lines.append(
+                        f"  - {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)} (Δ {s_ca}{_fmt_cpu(cpu_da)})"
+                    )
+                else:
+                    lines.append(
+                        f"  - {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)}"
+                    )
 
     lines.append("")
     lines.append("🟢 = economia/ganho | 🔴 = perda/aumento de despesa")
@@ -882,17 +935,30 @@ def formatar_dados_comparativo(
     fp_real = fp["real"]
     if tipo == "mes_anterior":
         fp_ref = fp.get("mes_anterior", 0)
+        vol_ref = v["mes_anterior"]
     elif tipo == "flex":
         fp_ref = fp.get("flex", 0)
+        vol_ref = v["actual"]
     elif tipo == "budget":
         fp_ref = fp.get("budget", 0)
+        vol_ref = v["budget"]
     else:
         fp_ref = 0
+        vol_ref = v.get("ano_anterior", 0)
+
+    # CPU total (R$/veíc)
+    vol_real = v["real"]
+    cpu_real_t = _cpu(fp_real, vol_real)
+    cpu_ref_t = _cpu(fp_ref, vol_ref)
+    cpu_delta = cpu_real_t - cpu_ref_t
+    s_cpu = "+" if cpu_delta >= 0 else ""
 
     lines = [
         f"Comparativo Real vs {label}:",
         f"",
-        f"Custo FP Total: {_fmt_k(fp_real)} (Δ {_var_k(fp_real, fp_ref)}, {_pct(fp_real, fp_ref)})",
+        f"Custo FP Total: {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)}) "
+        f"| Δ {_var_k(fp_real, fp_ref)} ({s_cpu}{_fmt_cpu(cpu_delta)}), "
+        f"{_pct(fp_real, fp_ref)} vs {label} de {_fmt_k(fp_ref)} ({_fmt_cpu(cpu_ref_t)})",
     ]
 
     # ── Drill-down 3 níveis: Type 05 → Type 06 → Account ──
@@ -938,15 +1004,15 @@ def formatar_dados_comparativo(
             df_ref = None
         col_ref = "Custo FP"
 
-    lines.append(_drill_down_completo(df_real, df_ref, label, col_ref=col_ref, tipo=tipo))
+    lines.append(_drill_down_completo(df_real, df_ref, label, col_ref=col_ref, tipo=tipo, volume=v["real"]))
 
-    # CPU por modelo (em kBRL)
+    # CPU por modelo (R$/veíc)
     cpu_real = variacoes["cpu_modelos"].get("real", {})
     cpu_ref_key = "budget" if tipo in ("flex", "budget") else "mes_anterior"
     cpu_ref = variacoes["cpu_modelos"].get(cpu_ref_key, {})
     if cpu_real:
         lines.append("")
-        lines.append("**CPU por modelo:**")
+        lines.append("**CPU por modelo (R$/veíc):**")
         for modelo in sorted(cpu_real.keys()):
             r = cpu_real.get(modelo, 0)
             b = cpu_ref.get(modelo, 0)
@@ -954,10 +1020,9 @@ def formatar_dados_comparativo(
             s = "+" if diff > 0 else ""
             cor_cpu = "🔴" if diff > 0 else ("🟢" if diff < 0 else "⚪")
             lines.append(
-                f"- {cor_cpu} {modelo}: {_fmt_k(r)} (Δ {s}{_fmt_k(diff)}, {_pct(r, b)})"
+                f"- {cor_cpu} {modelo}: {_fmt_cpu(r)} | Δ {s}{_fmt_cpu(diff)}, {_pct(r, b)}"
             )
 
-    # TC Ext
     return "\n".join(lines)
 
 
@@ -999,23 +1064,127 @@ def formatar_dados_anomalias(dados: dict, variacoes: dict) -> str:
     return "\n".join(lines)
 
 
+def formatar_comparativo_budget_flex_unificado(
+    dados: dict, variacoes: dict,
+) -> str:
+    """
+    Seção unificada Budget + Flex Volume + Operacional.
+
+    Narrativa do waterfall:
+      Budget → +Efeito Volume (barra amarela) → Flex → Real
+      Efeito Volume = Flex - Budget
+      Efeito Operacional = Real - Flex
+
+    Drill-down detalhado usa Flex como referência (igual ao antigo Real vs Flex).
+    """
+    fp = variacoes["custo_fp"]
+    v = variacoes["volume"]
+    fp_real = fp["real"]
+    fp_bud = fp.get("budget", 0)
+    fp_flex = fp.get("flex", 0)
+    vol_real = v["real"]
+    vol_bud = v["budget"]
+
+    efeito_volume = fp_flex - fp_bud      # barra amarela waterfall
+    efeito_operacional = fp_real - fp_flex  # restante
+    delta_total = fp_real - fp_bud         # soma dos dois
+
+    # CPU (R$/veíc)
+    cpu_bud = _cpu(fp_bud, vol_bud)
+    cpu_flex = _cpu(fp_flex, vol_real)   # Flex já ajusta para vol real
+    cpu_real_t = _cpu(fp_real, vol_real)
+    cpu_ev = cpu_flex - cpu_bud
+    cpu_eo = cpu_real_t - cpu_flex
+    cpu_dt = cpu_real_t - cpu_bud
+
+    # Sinal e cor para cada efeito (convenção despesa: Δ+ = 🔴, Δ- = 🟢)
+    def _sinal_cor(val):
+        s = "+" if val >= 0 else ""
+        c = "🔴" if val > 0 else ("🟢" if val < 0 else "⚪")
+        return s, c
+
+    s_vol, c_vol = _sinal_cor(efeito_volume)
+    s_op, c_op = _sinal_cor(efeito_operacional)
+    s_tot, c_tot = _sinal_cor(delta_total)
+    s_cpu_ev = "+" if cpu_ev >= 0 else ""
+    s_cpu_eo = "+" if cpu_eo >= 0 else ""
+    s_cpu_dt = "+" if cpu_dt >= 0 else ""
+
+    lines = [
+        "Comparativo Real vs Budget (com Efeito Flex Volume):",
+        "",
+        f"**Budget:** {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)})",
+        f"**{c_vol} Efeito Flex Volume (barra amarela):** {s_vol}{_fmt_k(efeito_volume)} ({s_cpu_ev}{_fmt_cpu(cpu_ev)}) "
+        f"— Volume Real: {_fmt(vol_real, 0)} un. vs Budget: {_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)})",
+        f"**Flex Budget (após ajuste volume):** {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)})",
+        f"**{c_op} Efeito Operacional (Real vs Flex):** {s_op}{_fmt_k(efeito_operacional)} ({s_cpu_eo}{_fmt_cpu(cpu_eo)}), {_pct(fp_real, fp_flex)}",
+        f"**{c_tot} Delta Total (Real vs Budget):** {s_tot}{_fmt_k(delta_total)} ({s_cpu_dt}{_fmt_cpu(cpu_dt)}), {_pct(fp_real, fp_bud)}",
+        f"**Real:** {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
+        "",
+        "--- Drill-down operacional (Real vs Flex Budget por Type 05 → 06 → Account) ---",
+        "",
+    ]
+
+    # Drill-down com Flex como referência (mesma lógica do antigo tipo "flex")
+    df_real = dados.get("custo_real")
+    try:
+        df_flex_det = calcular_flex_budget_detalhado(
+            dados["_custo_bud_full"],
+            dados["_vol_bud_full"],
+            dados["_vol_actual_full"],
+            col_custo="Custo FP",
+        )
+    except Exception:
+        df_flex_det = None
+
+    if df_flex_det is not None and not df_flex_det.empty:
+        col_per = "Período" if "Período" in df_flex_det.columns else "Periodo"
+        mes = dados["mes_nome"]
+        df_ref = df_flex_det[df_flex_det[col_per] == mes].copy()
+    else:
+        v_data = variacoes["volume"]
+        df_ref = _flex_adjust_df(dados.get("custo_bud"), v_data["actual"], v_data["budget"])
+
+    col_ref = "Flex_Bud" if (df_ref is not None and "Flex_Bud" in df_ref.columns) else "Custo FP"
+
+    lines.append(_drill_down_completo(df_real, df_ref, "Flex Budget", col_ref=col_ref, tipo="flex", volume=v["real"]))
+
+    # CPU por modelo (R$/veíc)
+    cpu_real = variacoes["cpu_modelos"].get("real", {})
+    cpu_ref = variacoes["cpu_modelos"].get("budget", {})
+    if cpu_real:
+        lines.append("")
+        lines.append("**CPU por modelo (R$/veíc):**")
+        for modelo in sorted(cpu_real.keys()):
+            r = cpu_real.get(modelo, 0)
+            b = cpu_ref.get(modelo, 0)
+            diff = r - b
+            s = "+" if diff > 0 else ""
+            cor_cpu = "🔴" if diff > 0 else ("🟢" if diff < 0 else "⚪")
+            lines.append(
+                f"- {cor_cpu} {modelo}: {_fmt_cpu(r)} | Δ {s}{_fmt_cpu(diff)}, {_pct(r, b)}"
+            )
+
+    return "\n".join(lines)
+
+
 def formatar_dados_comparativos_agrupado(
     dados: dict, variacoes: dict,
 ) -> str:
     """
-    Formata os 4 comparativos (Flex, Mês Anterior, Budget, Ano Anterior)
-    num único texto agrupado com headers markdown para a LLM.
+    Formata os 3 comparativos unificados para a LLM:
+      2.1 Real vs Budget (Efeito Volume + Operacional)
+      2.2 Real vs Mês Anterior
+      2.3 Real vs Ano Anterior
     """
-    tipos = [
-        ("flex", "3.1 Real vs Flex Budget"),
-        ("mes_anterior", "3.2 Real vs Mês Anterior"),
-        ("budget", "3.3 Real vs Budget"),
-        ("ano_anterior", f"3.4 Real vs Mesmo Mês de {dados['ano_anterior']}"),
+    blocos = [
+        f"### 2.1 Real vs Budget (Efeito Flex Volume)\n\n"
+        + formatar_comparativo_budget_flex_unificado(dados, variacoes),
+        f"### 2.2 Real vs Mês Anterior\n\n"
+        + formatar_dados_comparativo(dados, variacoes, "mes_anterior"),
+        f"### 2.3 Real vs Mesmo Mês de {dados['ano_anterior']}\n\n"
+        + formatar_dados_comparativo(dados, variacoes, "ano_anterior"),
     ]
-    blocos = []
-    for tipo, titulo in tipos:
-        texto = formatar_dados_comparativo(dados, variacoes, tipo)
-        blocos.append(f"### {titulo}\n\n{texto}")
     return "\n\n".join(blocos)
 
 
@@ -1177,15 +1346,19 @@ def formatar_dados_oficina(
     resumo_text = "\n".join(resumo_lines)
 
     # ── Sub-seções de comparativo (drill-down por Type 05 → 06 → Account) ──
+    # Seção unificada Budget+Flex
+    budget_flex_text = formatar_comparativo_budget_flex_unificado(dados_ofc, var_ofc)
+
     comparativos_map = [
-        ("flex", "Real vs Flex Budget"),
+        ("budget_flex", "Real vs Budget (Efeito Flex Volume)"),
         ("mes_anterior", "Real vs Mês Anterior"),
-        ("budget", "Real vs Budget"),
         ("ano_anterior", f"Real vs Mesmo Mês de {dados.get('ano_anterior', dados['ano'] - 1)}"),
     ]
-    sub_secoes: dict[str, str] = {}
-    for tipo, _titulo in comparativos_map:
-        sub_secoes[tipo] = formatar_dados_comparativo(dados_ofc, var_ofc, tipo)
+    sub_secoes: dict[str, str] = {
+        "budget_flex": budget_flex_text,
+        "mes_anterior": formatar_dados_comparativo(dados_ofc, var_ofc, "mes_anterior"),
+        "ano_anterior": formatar_dados_comparativo(dados_ofc, var_ofc, "ano_anterior"),
+    }
 
     # ── Texto completo (para LLM e PDF — retrocompatível) ──
     all_lines = [
@@ -1202,9 +1375,8 @@ def formatar_dados_oficina(
 
     return {
         "resumo": resumo_text,
-        "flex": sub_secoes["flex"],
+        "budget_flex": sub_secoes["budget_flex"],
         "mes_anterior": sub_secoes["mes_anterior"],
-        "budget": sub_secoes["budget"],
         "ano_anterior": sub_secoes["ano_anterior"],
         "texto_completo": texto_completo,
     }
@@ -1248,6 +1420,220 @@ def formatar_contexto_parquet(
             )
 
     return "\n".join(blocos)
+
+
+def formatar_dados_resumo_executivo(dados: dict, variacoes: dict) -> str:
+    """
+    Compila dados-chave para o Resumo Executivo (seção 0).
+    A LLM transformará isso em 6-8 parágrafos analíticos.
+    Inclui R$/veíc em todos os valores relevantes.
+    """
+    v = variacoes["volume"]
+    fp = variacoes["custo_fp"]
+    mes = dados["mes_nome"]
+    ano = dados["ano"]
+
+    fp_real = fp["real"]
+    fp_bud = fp.get("budget", 0)
+    fp_flex = fp.get("flex", 0)
+    fp_ant = fp.get("mes_anterior", 0)
+    vol_real = v["real"]
+    vol_bud = v["budget"]
+    vol_ant = v["mes_anterior"]
+    vol_ano_ant = v.get("ano_anterior", 0)
+
+    efeito_vol = fp_flex - fp_bud
+    efeito_op = fp_real - fp_flex
+    delta_bud = fp_real - fp_bud
+    delta_ant = fp_real - fp_ant
+
+    # CPU total (R$/veíc)
+    cpu_real_t = _cpu(fp_real, vol_real)
+    cpu_bud_t = _cpu(fp_bud, vol_bud)
+    cpu_flex_t = _cpu(fp_flex, vol_real)
+    cpu_ant_t = _cpu(fp_ant, vol_ant)
+    cpu_ev = cpu_flex_t - cpu_bud_t
+    cpu_eo = cpu_real_t - cpu_flex_t
+    cpu_dt = cpu_real_t - cpu_bud_t
+    cpu_da = cpu_real_t - cpu_ant_t
+
+    s_ev = "+" if efeito_vol >= 0 else ""
+    s_eo = "+" if efeito_op >= 0 else ""
+    s_dt = "+" if delta_bud >= 0 else ""
+    s_cev = "+" if cpu_ev >= 0 else ""
+    s_ceo = "+" if cpu_eo >= 0 else ""
+    s_cdt = "+" if cpu_dt >= 0 else ""
+    s_cda = "+" if cpu_da >= 0 else ""
+
+    lines = [
+        f"=== DADOS PARA RESUMO EXECUTIVO — {mes}/{ano} ===",
+        "",
+        "** Volume de Produção **",
+        f"Volume Real: {_fmt(vol_real, 0)} un.",
+        f"Volume Budget: {_fmt(vol_bud, 0)} un. (Δ {_fmt(vol_real - vol_bud, 0)} un., {_pct(vol_real, vol_bud)})",
+        f"Volume Mês Anterior: {_fmt(vol_ant, 0)} un. (Δ {_fmt(vol_real - vol_ant, 0)} un., {_pct(vol_real, vol_ant)})",
+        f"Volume Ano Anterior: {_fmt(vol_ano_ant, 0)} un. (Δ {_fmt(vol_real - vol_ano_ant, 0)} un., {_pct(vol_real, vol_ano_ant)})" if vol_ano_ant else "",
+        "",
+        "** Custo FP — Visão Waterfall (kBRL + R$/veíc) **",
+        f"Budget: {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud_t)})",
+        f"Efeito Flex Volume (barra amarela): {s_ev}{_fmt_k(efeito_vol)} ({s_cev}{_fmt_cpu(cpu_ev)})",
+        f"Flex Budget: {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex_t)})",
+        f"Efeito Operacional (Real vs Flex): {s_eo}{_fmt_k(efeito_op)} ({s_ceo}{_fmt_cpu(cpu_eo)}), {_pct(fp_real, fp_flex)}",
+        f"Real: {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
+        "",
+        f"Delta Total (Real vs Budget): {s_dt}{_fmt_k(delta_bud)} ({s_cdt}{_fmt_cpu(cpu_dt)}), {_pct(fp_real, fp_bud)}",
+        f"Delta vs Mês Anterior: {_var_k(fp_real, fp_ant)} ({s_cda}{_fmt_cpu(cpu_da)}), {_pct(fp_real, fp_ant)}",
+        "",
+    ]
+
+    # Top modelos por impacto de volume
+    vm = variacoes["variacao_modelos"]
+    if vm:
+        modelos_bud = sorted(vm.items(), key=lambda x: abs(x[1]["var_budget"]), reverse=True)[:5]
+        lines.append("** Top 5 Modelos — Variação de Volume vs Budget **")
+        for modelo, info in modelos_bud:
+            delta = info["var_budget"]
+            s = "+" if delta >= 0 else ""
+            cor = "🟢" if delta > 0 else ("🔴" if delta < 0 else "⚪")
+            lines.append(
+                f"- {cor} {modelo}: {_fmt(info['vol_real'], 0)} un. "
+                f"(Δ {s}{_fmt(delta, 0)} un., {_fmt_pct_modelo(info['pct_budget'])})"
+            )
+        lines.append("")
+
+    # CPU por modelo (top modelos)
+    cpu_modelos_real = variacoes["cpu_modelos"].get("real", {})
+    cpu_modelos_bud = variacoes["cpu_modelos"].get("budget", {})
+    if cpu_modelos_real:
+        cpu_diffs = []
+        for modelo in cpu_modelos_real:
+            r = cpu_modelos_real[modelo]
+            b = cpu_modelos_bud.get(modelo, 0)
+            cpu_diffs.append((modelo, r, b, r - b))
+        cpu_diffs.sort(key=lambda x: abs(x[3]), reverse=True)
+        lines.append("** Top 5 Modelos — CPU vs Budget (R$/veíc) **")
+        for modelo, r, b, d in cpu_diffs[:5]:
+            s = "+" if d >= 0 else ""
+            cor = "🔴" if d > 0 else ("🟢" if d < 0 else "⚪")
+            lines.append(
+                f"- {cor} {modelo}: {_fmt_cpu(r)} | Δ {s}{_fmt_cpu(d)}, {_pct(r, b)}"
+            )
+        lines.append("")
+
+    # Top impactos por Type 05 (Real vs Flex)
+    df_real = dados.get("custo_real")
+    df_bud = dados.get("custo_bud")
+    if df_real is not None and not df_real.empty:
+        col_t05 = "Type 05" if "Type 05" in df_real.columns else None
+        if col_t05:
+            try:
+                df_flex_det = calcular_flex_budget_detalhado(
+                    dados["_custo_bud_full"],
+                    dados["_vol_bud_full"],
+                    dados["_vol_actual_full"],
+                    col_custo="Custo FP",
+                )
+                mes_nome = dados["mes_nome"]
+                col_per = "Período" if "Período" in df_flex_det.columns else "Periodo"
+                df_f = df_flex_det[df_flex_det[col_per] == mes_nome]
+                col_ref = "Flex_Bud"
+            except Exception:
+                df_f = df_bud
+                col_ref = "Custo FP"
+
+            if df_f is not None and not df_f.empty:
+                r_grp = df_real.groupby(col_t05)["Custo FP"].sum()
+                f_grp = df_f.groupby(col_t05)[col_ref].sum() if df_f is not None else pd.Series(dtype=float)
+                delta_grp = (r_grp - f_grp.reindex(r_grp.index, fill_value=0)).sort_values()
+                # CPU por Type 05 (R$/veíc)
+                cpu_r_grp = r_grp / vol_real if vol_real > 0 else r_grp * 0
+                cpu_f_grp = f_grp / vol_real if vol_real > 0 else f_grp * 0
+                cpu_delta_grp = cpu_r_grp - cpu_f_grp.reindex(cpu_r_grp.index, fill_value=0)
+
+                lines.append("** Impacto por Type 05 (Real vs Flex) **")
+                for t05 in delta_grp.index:
+                    val = delta_grp[t05]
+                    cpu_val = cpu_delta_grp.get(t05, 0)
+                    s = "+" if val >= 0 else ""
+                    s_c = "+" if cpu_val >= 0 else ""
+                    cor = "🔴" if val > 0 else "🟢"
+                    real_t05 = r_grp.get(t05, 0)
+                    cpu_real_t05 = cpu_r_grp.get(t05, 0)
+                    lines.append(
+                        f"- {cor} {t05}: {_fmt_k(real_t05)} ({_fmt_cpu(cpu_real_t05)}) "
+                        f"| Δ {s}{_fmt_k(val)} ({s_c}{_fmt_cpu(cpu_val)})"
+                    )
+                lines.append("")
+
+    # Top oficinas com maior delta + top Type 06 driver
+    oficinas = descobrir_oficinas(dados)
+    if oficinas:
+        ofc_deltas = []
+        for ofc in oficinas:
+            dados_ofc = _filtrar_por_oficina(dados, ofc)
+            df_r_ofc = dados_ofc.get("custo_real")
+            df_b_ofc = dados_ofc.get("custo_bud")
+            fp_ofc = _safe_sum(df_r_ofc, "Custo FP")
+            fp_bud_ofc = _safe_sum(df_b_ofc, "Custo FP")
+            # Descobrir top Type 06 driver
+            top_t06_info = ""
+            try:
+                if df_r_ofc is not None and "Type 06" in df_r_ofc.columns:
+                    # Calcular flex para oficina
+                    try:
+                        df_flex_ofc = calcular_flex_budget_detalhado(
+                            dados["_custo_bud_full"],
+                            dados["_vol_bud_full"],
+                            dados["_vol_actual_full"],
+                            col_custo="Custo FP",
+                        )
+                        mes_n = dados["mes_nome"]
+                        col_p = "Período" if "Período" in df_flex_ofc.columns else "Periodo"
+                        df_flex_ofc = df_flex_ofc[df_flex_ofc[col_p] == mes_n]
+                        if ofc in df_flex_ofc.get("Oficina", pd.Series()).values:
+                            df_flex_ofc = df_flex_ofc[df_flex_ofc["Oficina"] == ofc]
+                        col_fb = "Flex_Bud"
+                    except Exception:
+                        df_flex_ofc = df_b_ofc
+                        col_fb = "Custo FP"
+
+                    if df_flex_ofc is not None and not df_flex_ofc.empty and "Type 06" in df_flex_ofc.columns:
+                        r06 = df_r_ofc.groupby("Type 06")["Custo FP"].sum()
+                        f06 = df_flex_ofc.groupby("Type 06")[col_fb].sum()
+                        d06 = (r06 - f06.reindex(r06.index, fill_value=0)).sort_values(key=abs, ascending=False)
+                        if not d06.empty:
+                            top_name = d06.index[0]
+                            top_val = d06.iloc[0]
+                            s_t = "+" if top_val >= 0 else ""
+                            cpu_t06 = _cpu(top_val, vol_real)
+                            s_ct = "+" if cpu_t06 >= 0 else ""
+                            top_t06_info = f" (top driver: {top_name} {s_t}{_fmt_k(top_val)}, {s_ct}{_fmt_cpu(cpu_t06)})"
+            except Exception:
+                pass
+            ofc_deltas.append((ofc, fp_ofc - fp_bud_ofc, fp_ofc, top_t06_info))
+        ofc_deltas.sort(key=lambda x: abs(x[1]), reverse=True)
+        lines.append("** Oficinas — maiores desvios vs Budget **")
+        for ofc, delta, total, t06_info in ofc_deltas[:5]:
+            s = "+" if delta >= 0 else ""
+            cor = "🔴" if delta > 0 else "🟢"
+            cpu_ofc = _cpu(total, vol_real)
+            cpu_d_ofc = _cpu(delta, vol_real)
+            s_c = "+" if cpu_d_ofc >= 0 else ""
+            lines.append(
+                f"- {cor} {ofc}: {_fmt_k(total)} ({_fmt_cpu(cpu_ofc)}) "
+                f"| Δ {s}{_fmt_k(delta)} ({s_c}{_fmt_cpu(cpu_d_ofc)}){t06_info}"
+            )
+        lines.append("")
+
+    # Flags de referência
+    if variacoes.get("sem_budget"):
+        lines.append("⚠️ Budget não disponível — comparações vs Budget são nulas.")
+    if variacoes.get("sem_mes_anterior"):
+        lines.append("⚠️ Mês anterior não disponível (primeiro mês do ano).")
+    if variacoes.get("sem_ano_anterior"):
+        lines.append("⚠️ Ano anterior sem dados para este mês.")
+
+    return "\n".join(lines)
 
 
 def formatar_resumo_mes(dados: dict, variacoes: dict) -> str:
