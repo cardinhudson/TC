@@ -33,6 +33,7 @@ from tc_principal.shared import (
     load_custo_fp_veiculo_forecast_fresh,
     load_forecast_completo,
     load_percentual_rateio_veiculos_real, ratear_be_por_veiculo,
+    load_tc_sapiens,
     normalizar_periodo, ordenar_por_mes,
     calcular_flex_budget, calcular_flex_budget_detalhado,
     aplicar_fator_df,
@@ -3253,6 +3254,72 @@ def render():
                         )
             else:
                 st.info("ℹ️ Dados de BE por veículo não disponíveis. Gere um Forecast primeiro.")
+
+        # ═══════════════════════════════════════════════════════
+        # 📑 TABELA TC SAPIENS (dados detalhados com todas as colunas)
+        # ═══════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("## 📑 Dados Sapiens Detalhados")
+
+        df_sapiens = load_tc_sapiens(ano)
+        if df_sapiens is not None and not df_sapiens.empty:
+            with st.expander("📑 Tabela Sapiens — Todas as Colunas", expanded=False):
+                # ── Filtros locais ──
+                _flt_c1, _flt_c2, _flt_c3 = st.columns(3)
+                with _flt_c1:
+                    _ofc_opts = sorted(df_sapiens['Oficina'].dropna().unique()) if 'Oficina' in df_sapiens.columns else []
+                    _ofc_sel = st.multiselect(
+                        "🏭 Oficina", _ofc_opts, default=[], key="sap_oficina",
+                    )
+                with _flt_c2:
+                    _per_opts = sorted(df_sapiens['Período'].dropna().unique()) if 'Período' in df_sapiens.columns else []
+                    _per_sel = st.multiselect(
+                        "📅 Período", _per_opts, default=[], key="sap_periodo",
+                    )
+                with _flt_c3:
+                    _t05_opts = sorted(df_sapiens['Type 05'].dropna().unique()) if 'Type 05' in df_sapiens.columns else []
+                    _t05_sel = st.multiselect(
+                        "📂 Type 05", _t05_opts, default=[], key="sap_type05",
+                    )
+
+                _df_sap_filt = df_sapiens.copy()
+                if _ofc_sel:
+                    _df_sap_filt = _df_sap_filt[_df_sap_filt['Oficina'].isin(_ofc_sel)]
+                if _per_sel:
+                    _df_sap_filt = _df_sap_filt[_df_sap_filt['Período'].isin(_per_sel)]
+                if _t05_sel:
+                    _df_sap_filt = _df_sap_filt[_df_sap_filt['Type 05'].isin(_t05_sel)]
+
+                st.caption(f"📊 {len(_df_sap_filt):,} linhas × {len(_df_sap_filt.columns)} colunas")
+                st.dataframe(_df_sap_filt, use_container_width=True, height=500)
+
+                # ── Download Excel ──
+                if st.button(
+                    "📥 Baixar Sapiens Detalhado (Excel)",
+                    key="dl_sapiens_det",
+                    use_container_width=True,
+                ):
+                    with st.spinner("Gerando arquivo…"):
+                        try:
+                            downloads = os.path.join(
+                                os.path.expanduser("~"), "Downloads",
+                            )
+                            os.makedirs(downloads, exist_ok=True)
+                            fname = f"TC_Sapiens_Detalhado_{ano}.xlsx"
+                            fpath = os.path.join(downloads, fname)
+                            with pd.ExcelWriter(fpath, engine='openpyxl') as w:
+                                _df_sap_filt.to_excel(
+                                    w, index=False, sheet_name='Sapiens',
+                                )
+                            st.success(f"✅ Arquivo salvo em: {fpath}")
+                            st.info(f"📁 Verifique sua pasta Downloads: {downloads}")
+                        except Exception as e:
+                            st.error(f"❌ Erro ao gerar Excel: {e}")
+        else:
+            st.info(
+                "ℹ️ Dados Sapiens detalhados não disponíveis. "
+                "Execute o processamento Real na página **Extração de Dados** para gerar."
+            )
 
     st.divider()
 

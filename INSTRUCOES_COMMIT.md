@@ -1,4 +1,4 @@
-# 📝 Instruções para Commit - Stellantis Cost Intelligence (SCI)
+# 📝 Instruções para Commit - Sistema TC
 
 ## ✅ Configuração Concluída
 
@@ -61,7 +61,7 @@ Opções simples:
 ### Arquivos Principais:
 - ✅ `app.py` - Portal/roteador (entrada do Streamlit)
 - ✅ `tc_ext/` - Módulo do TC Ext (Home em `tc_ext/pages/home_ext.py`)
-- ✅ `tc_principal/` - Módulo do TC Veículos
+- ✅ `tc_principal/` - Módulo do TC (Planta Principal) (stubs)
 - ✅ `.gitignore` - Configuração atualizada
 - ✅ `versao.json` - Controle de versão
 - ✅ `controle_paginas.json` - Controle de páginas

@@ -29,13 +29,6 @@ from tc_core.finance.currency_db import (
 
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
-from tc_principal.ui_components import render_sidebar_global
-
-import sys as _sys
-if hasattr(_sys, '_MEIPASS'):
-    _ROOT = _sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _normalizar_texto_sem_acento(valor) -> str:
@@ -114,15 +107,15 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos do Best Estimate (arquivos gerados)
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet"),
+            os.path.join("dados", "Forecast", "forecast_completo.parquet"),
+            os.path.join("dados", "Forecast", "df_vol_historico.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes
@@ -178,7 +171,6 @@ def get_budget_oficinas_opcoes(ano_selecionado_param):
         caminho_budget = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -219,7 +211,6 @@ def get_budget_volume_oficinas_opcoes(ano_selecionado_param):
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",
@@ -258,7 +249,7 @@ versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
 # Montar textos do cabeçalho
-texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
+texto_esquerda = f"📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
 texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
@@ -622,25 +613,72 @@ if is_main_page:
 
     st.markdown("---")
 
-    # ═══ Sidebar global — substitui widgets inline de Moeda/Tipo/Fator/Ano/Tema ═══
-    _cfg_ext = render_sidebar_global(
-        'tc_ext_be',
-        incluir_todos=True,
-        descobrir_anos_fn=_core_listar_anos_disponiveis,
-    )
-    # Bridge: mapear para variáveis que o restante do código espera
-    ano_selecionado = str(_cfg_ext['ano'])
-    moeda_codigo = _cfg_ext['moeda']
-    moeda_simbolo = _cfg_ext['simbolo']
-    tipo_visualizacao = _cfg_ext['tipo']
-    fator_conversao = _cfg_ext['fator'] if _cfg_ext['fator'] != "Nenhum" else None
-    taxas_cambio = _cfg_ext['taxas']
-    # Manter session_state para compatibilidade com código legado
-    _moeda_to_emoji = {"BRL": "🇧🇷 R$", "USD": "🇺🇸 $", "EUR": "🇪🇺 €"}
-    st.session_state.moeda_selecionada = _moeda_to_emoji.get(moeda_codigo, "🇧🇷 R$")
-    st.session_state.moeda_selecionada_radio = st.session_state.moeda_selecionada
-    st.session_state.filtro_ano_tc_ext = ano_selecionado
-    moeda_selecionada = st.session_state.moeda_selecionada
+    # Inicializar estado se não existir
+    if 'moeda_selecionada' not in st.session_state:
+        st.session_state.moeda_selecionada = "🇧🇷 R$"
+    # Inicializar moeda_selecionada_radio também para evitar erro no callback
+    if 'moeda_selecionada_radio' not in st.session_state:
+        st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
+
+    # URLs das bandeiras
+    bandeira_brasil_url = "https://flagcdn.com/br.svg"
+    bandeira_eua_url = "https://flagcdn.com/us.svg"
+    bandeira_europa_url = "https://flagcdn.com/eu.svg"
+
+    # Seleção de moeda com bandeiras ao lado (sem botões, apenas visual)
+    col_moeda1, col_moeda2 = st.columns([3, 1])
+
+    with col_moeda1:
+        st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
+        opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
+        
+        # SEMPRE usar o valor mais atual do session_state para calcular o índice
+        moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+        index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
+        
+        # Função callback para garantir sincronização imediata
+        def atualizar_moeda():
+            # O valor já está em st.session_state.moeda_selecionada_radio após o clique
+            # Verificar se a chave existe antes de acessar
+            if 'moeda_selecionada_radio' in st.session_state:
+                st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
+        
+        moeda_selecionada = st.radio(
+            "Moeda",
+            opcoes_moeda,
+            index=index_moeda,
+            horizontal=True,
+            help="Selecione a moeda para exibição nos gráficos",
+            key="moeda_selecionada_radio",
+            label_visibility="collapsed",
+            on_change=atualizar_moeda
+        )
+        
+        # Garantir que o estado esteja sincronizado (backup caso on_change não funcione)
+        if st.session_state.moeda_selecionada != moeda_selecionada:
+            st.session_state.moeda_selecionada = moeda_selecionada
+
+    # Obter moeda atual do session_state (sempre atualizado)
+    moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
+    flag_selecionada_usd = moeda_atual == '🇺🇸 $'
+    flag_selecionada_eur = moeda_atual == '🇪🇺 €'
+
+    with col_moeda2:
+        st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento vertical
+        st.markdown(f"""
+        <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
+                <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
+            </div>
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
+                <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
+            </div>
+            <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
+                <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # Funções de banco de dados SQLite (definir ANTES de usar - disponíveis para todas as páginas)
 def inicializar_banco_taxas():
@@ -660,7 +698,145 @@ def listar_anos_disponiveis():
     """Lista todos os anos disponíveis nas pastas de dados."""
     return _core_listar_anos_disponiveis()
 
-# ═══ Bloco Tema/Ano removido — já fornecido por render_sidebar_global ═══
+# Botões para alternar tema (no topo da sidebar)
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🎨 Tema**")
+
+# Função para salvar tema no config.toml
+def save_theme_to_config(theme_name):
+    """Salva o tema no config.toml"""
+    import os
+    import toml
+    
+    config_path = os.path.join(".streamlit", "config.toml")
+    try:
+        # Ler configuração atual
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+        
+        # Atualizar tema
+        if 'theme' not in config:
+            config['theme'] = {}
+        config['theme']['base'] = theme_name
+        
+        # Cores específicas para cada tema
+        if theme_name == 'dark':
+            config['theme']['primaryColor'] = "#FF4B4B"
+            config['theme']['backgroundColor'] = "#0E1117"
+            config['theme']['secondaryBackgroundColor'] = "#262730"
+            config['theme']['textColor'] = "#FAFAFA"
+            config['theme']['font'] = "sans serif"
+        else:  # light
+            config['theme']['primaryColor'] = "#FF4B4B"
+            config['theme']['backgroundColor'] = "#FFFFFF"
+            config['theme']['secondaryBackgroundColor'] = "#F0F2F6"
+            config['theme']['textColor'] = "#262730"
+            config['theme']['font'] = "sans serif"
+        
+        # Salvar configuração
+        with open(config_path, 'w') as f:
+            toml.dump(config, f)
+        
+        return True
+    except Exception as e:
+        st.sidebar.error(f"❌ Erro: {str(e)}")
+        return False
+
+# Função para ler tema atual
+def get_current_theme():
+    import os
+    import toml
+    config_path = os.path.join(".streamlit", "config.toml")
+    try:
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+        return config.get('theme', {}).get('base', 'light')
+    except:
+        return 'light'
+
+# Ler tema atual (uma vez por sessão)
+if 'current_saved_theme' not in st.session_state:
+    st.session_state.current_saved_theme = get_current_theme()
+
+# Mostrar tema atual
+st.sidebar.caption(f"Tema ativo: **{st.session_state.current_saved_theme.upper()}**")
+
+# Criar duas colunas para os botões
+col_dark, col_light = st.sidebar.columns(2)
+
+# Inicializar flag de mensagem
+if 'show_reload_message' not in st.session_state:
+    st.session_state.show_reload_message = False
+if 'theme_needs_reload' not in st.session_state:
+    st.session_state.theme_needs_reload = False
+
+# Botão Dark Mode (Lua)
+with col_dark:
+    if st.button("🌙 Dark", key="btn_dark", help="Ativar Dark Mode", width="stretch"):
+        if save_theme_to_config('dark'):
+            st.session_state.current_saved_theme = 'dark'
+            st.session_state.show_reload_message = True
+            st.session_state.theme_needs_reload = True
+
+# Botão Light Mode (Sol)
+with col_light:
+    if st.button("☀️ Light", key="btn_light", help="Ativar Light Mode", width="stretch"):
+        if save_theme_to_config('light'):
+            st.session_state.current_saved_theme = 'light'
+            st.session_state.show_reload_message = True
+            st.session_state.theme_needs_reload = True
+
+# Mostrar mensagem se tema foi alterado
+if st.session_state.show_reload_message:
+    st.sidebar.success(f"✅ Tema **{st.session_state.current_saved_theme.upper()}** salvo!")
+    st.sidebar.info("🔄 Aplicando tema...")
+    if st.session_state.theme_needs_reload:
+        st.session_state.theme_needs_reload = False
+        st.session_state.show_reload_message = False
+        components.html(
+            """
+            <script>
+            setTimeout(function () {
+                const target = window.top || window.parent || window;
+                target.location.reload();
+            }, 100);
+            </script>
+            """,
+            height=0,
+            width=0,
+        )
+
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📅 Seleção de Ano**")
+
+# Listar anos disponíveis
+anos_disponiveis = listar_anos_disponiveis()
+opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
+
+# Determinar índice padrão: ano atual se disponível, senão "Todos" (índice 0)
+from datetime import datetime
+ano_atual = datetime.now().year
+ano_atual_str = str(ano_atual)
+if ano_atual_str in opcoes_ano:
+    index_padrao = opcoes_ano.index(ano_atual_str)
+else:
+    index_padrao = 0  # "Todos" se ano atual não estiver disponível
+
+# Inicializar session_state para manter valores dos filtros
+if 'filtro_ano_tc_ext' not in st.session_state:
+    st.session_state.filtro_ano_tc_ext = opcoes_ano[index_padrao] if index_padrao < len(opcoes_ano) else "Todos"
+
+# Seletor de ano
+ano_selecionado = st.sidebar.selectbox(
+    "Selecione o ano:",
+    options=opcoes_ano,
+    index=opcoes_ano.index(st.session_state.filtro_ano_tc_ext) if st.session_state.filtro_ano_tc_ext in opcoes_ano else index_padrao,
+    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
+    key="filtro_ano_tc_ext_selectbox"
+)
+# Atualizar session_state
+st.session_state.filtro_ano_tc_ext = ano_selecionado
 
 # Função para carregar dados com cache (disponível para todas as páginas - deve estar antes do uso)
 @st.cache_data(
@@ -671,13 +847,11 @@ def listar_anos_disponiveis():
 def load_data(ano_selecionado_param, mtime_forecast=None):
     """Carrega os dados do arquivo parquet - SEMPRE da pasta Forecast (BE Análise)."""
     try:
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join("dados", "Forecast", "forecast_completo.parquet")
         if not os.path.exists(caminho_forecast):
-            # REGRA: NUNCA chamar st.* dentro de @st.cache_data — causa crash silencioso
-            raise FileNotFoundError(
-                f"❌ Arquivo não encontrado: {caminho_forecast}\n"
-                "💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'."
-            )
+            st.error(f"❌ Arquivo não encontrado: {caminho_forecast}")
+            st.info("💡 Por favor, gere os arquivos de Best Estimate na página '2 - Best Estimate - Simulador'.")
+            st.stop()
 
         mtime_atual = os.path.getmtime(caminho_forecast) if os.path.exists(caminho_forecast) else 0
         if mtime_forecast is not None and mtime_forecast != mtime_atual:
@@ -740,10 +914,9 @@ def load_data(ano_selecionado_param, mtime_forecast=None):
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
         return df
-    except (FileNotFoundError, RuntimeError):
-        raise
     except Exception as e:
-        raise RuntimeError(f"❌ Erro ao carregar dados: {str(e)}") from e
+        st.error(f"❌ Erro ao carregar dados: {str(e)}")
+        st.stop()
 
 
 # Função auxiliar para obter opções de filtro (disponível para todas as páginas - deve estar antes do uso)
@@ -759,7 +932,149 @@ def get_filter_options(df, column_name):
 
 # Continuar apenas se estivermos na página principal
 if is_main_page:
-    # ═══ Bloco Taxas/Tipo/Fator removido — já fornecido por render_sidebar_global ═══
+    # Carregar taxas do banco de dados para usar na página principal
+    try:
+        taxas_cambio_banco = carregar_taxas_banco()
+    except Exception as e:
+        taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
+
+    # Taxas de conversão: entrada em "1 $ = R$ X" e "1 € = R$ X"
+    taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
+    taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
+
+    # Seção de Taxas de Câmbio (seguindo o mesmo padrão dos outros blocos)
+    st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
+
+    # Criar colunas para as taxas
+    # Criar colunas para as taxas (ajustar proporção para evitar corte de texto)
+    col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
+
+    with col_taxa1:
+        # Usar markdown para o label e campo sem label para evitar corte
+        st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
+        taxa_usd_para_brl = st.number_input(
+            "Taxa USD para BRL",
+            min_value=0.01,
+            max_value=100.0,
+            value=float(taxa_usd_para_brl_padrao),
+            step=0.01,
+            format="%.2f",
+            help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
+            key="taxa_usd_para_brl_input",
+            label_visibility="collapsed"
+        )
+
+    with col_taxa2:
+        # Usar markdown para o label e campo sem label para evitar corte
+        st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
+        taxa_eur_para_brl = st.number_input(
+            "Taxa EUR para BRL",
+            min_value=0.01,
+            max_value=100.0,
+            value=float(taxa_eur_para_brl_padrao),
+            step=0.01,
+            format="%.2f",
+            help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
+            key="taxa_eur_para_brl_input",
+            label_visibility="collapsed"
+        )
+
+    # Calcular taxas inversas para conversão (1 R$ = X USD/EUR)
+    taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
+    taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
+
+    # Salvar taxas quando alteradas
+    # Usar session_state para evitar salvar múltiplas vezes na mesma execução
+    taxa_usd_atual_key = "taxa_usd_atual_salva"
+    taxa_eur_atual_key = "taxa_eur_atual_salva"
+
+    # Verificar se as taxas mudaram desde a última vez que foram salvas
+    taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
+                      st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
+    taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
+                      st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
+
+    if taxa_usd_mudou or taxa_eur_mudou:
+        novas_taxas = {
+            "USD": float(taxa_usd_para_brl),
+            "EUR": float(taxa_eur_para_brl)
+        }
+        try:
+            salvar_taxas_banco(novas_taxas)
+            st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
+            st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar taxas: {e}")
+
+    # Armazenar taxas em dicionário (para conversão: 1 R$ = X USD/EUR)
+    # IMPORTANTE: Estas taxas são para MULTIPLICAR valores em BRL
+    # Exemplo: Se taxa_brl_para_usd = 0.20, então 100 BRL * 0.20 = 20 USD
+    # Isso é equivalente a: 100 BRL / 5 = 20 USD (onde 5 é taxa_usd_para_brl)
+    taxas_cambio = {
+        "BRL": 1.0,  # Real é a moeda base
+        "USD": taxa_brl_para_usd,  # Ex: 0.20 (se 1 USD = 5 BRL, então 1 BRL = 0.20 USD)
+        "EUR": taxa_brl_para_eur   # Ex: 0.18 (se 1 EUR = 5.50 BRL, então 1 BRL = 0.18 EUR)
+    }
+
+    # Seletores no topo da página (layout horizontal compacto - mesma linha)
+    col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
+
+    with col_tipo:
+        tipo_visualizacao = st.radio(
+            "📊 **Tipo:**",
+            ["Custo Total", "CPU (Custo por Unidade)"],
+            index=0,
+            horizontal=True,
+            key="tipo_visualizacao_top"
+        )
+
+    with col_fator:
+        if tipo_visualizacao == "Custo Total":
+            fator_conversao = st.radio(
+                "🔢 **Fator:**",
+                ["Nenhum", "K (milhares)", "M (Milhões)"],
+                index=1,
+                horizontal=True,
+                help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
+                key="fator_conversao_top"
+            )
+        else:
+            fator_conversao = None
+
+    # Obter a moeda selecionada do session state (já está atualizado acima)
+    moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+
+    # Extrair código e símbolo da moeda
+    if moeda_selecionada == "🇧🇷 R$":
+        moeda_codigo = "BRL"
+        moeda_simbolo = "R$"
+    elif moeda_selecionada == "🇺🇸 $":
+        moeda_codigo = "USD"
+        moeda_simbolo = "$"
+    elif moeda_selecionada == "🇪🇺 €":
+        moeda_codigo = "EUR"
+        moeda_simbolo = "€"
+    else:
+        # Fallback
+        moeda_codigo = "BRL"
+        moeda_simbolo = "R$"
+
+    st.markdown("---")
+
+    # Teste de validação da conversão (mostrar exemplo)
+    if moeda_codigo != "BRL":
+        valor_teste = 100.0
+        valor_convertido = _core_converter_moeda(valor_teste, moeda_codigo, taxas_cambio)
+        if moeda_codigo == "USD":
+            taxa_esperada = taxa_usd_para_brl
+            valor_esperado_divisao = valor_teste / taxa_esperada
+            st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+            st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
+        else:  # EUR
+            taxa_esperada = taxa_eur_para_brl
+            valor_esperado_divisao = valor_teste / taxa_esperada
+            st.sidebar.info(f"💡 Teste conversão: R$ {valor_teste:,.2f} = {moeda_simbolo} {valor_convertido:,.2f} (taxa: 1 {moeda_simbolo} = R$ {taxa_esperada:.2f})")
+            st.sidebar.caption(f"✅ Validação: {valor_teste:,.2f} / {taxa_esperada:.2f} = {valor_esperado_divisao:,.2f} (deve ser igual a {valor_convertido:,.2f})")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔍 Filtros**")
@@ -767,8 +1082,8 @@ if is_main_page:
     # Alinhar com o comportamento esperado da análise de Best Estimate (página legacy removida):
     # - garantir que os mesmos arquivos do simulador existem
     # - invalidar cache quando os parquets são atualizados (mtime)
-    caminho_forecast_check = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
-    caminho_vol_check = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+    caminho_forecast_check = os.path.join("dados", "Forecast", "forecast_completo.parquet")
+    caminho_vol_check = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
     arquivos_existem = os.path.exists(caminho_forecast_check) and os.path.exists(caminho_vol_check)
     if not arquivos_existem:
         st.warning("⚠️ Arquivos de forecast não encontrados.")
@@ -1086,15 +1401,20 @@ def load_volume_data(ano_selecionado_param):
     try:
         # IMPORTANTE: Sempre carregar do Best Estimate consolidado para garantir consistência
         # Apenas aplicar filtro de ano quando necessário
-        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_historico = os.path.join("dados", "Forecast", "df_vol_historico.parquet")
         
         if not os.path.exists(caminho_historico):
             return None
 
-        # REGRA: NUNCA usar st.session_state dentro de @st.cache_data
-        # A invalidação por mtime deve ser feita fora da função, passando mtime como parâmetro.
-        # O mtime já está disponível via parâmetro (não usado nesta função pois volume
-        # usa histórico consolidado que muda com menos frequência).
+        # Invalidar cache se o arquivo foi atualizado (mesma ideia da BE Análise)
+        try:
+            mtime_atual = os.path.getmtime(caminho_historico) if os.path.exists(caminho_historico) else 0
+            mtime_anterior = st.session_state.get('mtime_vol_anterior_be_analise_home')
+            if mtime_anterior is not None and mtime_anterior != mtime_atual:
+                load_volume_data.clear()
+            st.session_state['mtime_vol_anterior_be_analise_home'] = mtime_atual
+        except Exception:
+            pass
 
         if os.path.exists(caminho_historico):
             # 🔧 CORREÇÃO: Garantir que Volume seja sempre numérico ao carregar
@@ -1334,11 +1654,10 @@ def _merge_volume_com_fallback(df_base, df_volume):
 def load_budget_data(ano_selecionado_param):
     """Carrega os dados de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -1415,11 +1734,10 @@ def load_budget_data(ano_selecionado_param):
 def load_budget_volume_data(ano_selecionado_param):
     """Carrega os dados de volume de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         caminho_budget_vol = os.path.join(
             project_root,
             "dados",
-            "TC_Ext",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",
@@ -3701,8 +4019,9 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
         
         return grafico_final
     except Exception as e:
+        st.error(f"Erro ao criar gráfico: {e}")
         import traceback
-        print(f"[be_analise_ext] Erro ao criar gráfico: {e}\n{traceback.format_exc()}")
+        st.code(traceback.format_exc())
         return None
 
 
@@ -3915,7 +4234,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
         else:
             return grafico_barras + rotulos
     except Exception as e:
-        print(f"[be_analise_ext] Erro ao criar gráfico volume/período: {e}")
+        st.error(f"Erro ao criar gráfico: {e}")
         return None
 
 
@@ -4167,7 +4486,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
         else:
             return grafico_barras + rotulos
     except Exception as e:
-        print(f"[be_analise_ext] Erro ao criar gráfico de volume/veículo: {e}")
+        st.error(f"Erro ao criar gráfico de volume: {e}")
         return None
 
 
@@ -11247,7 +11566,7 @@ ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual}
+    📚 Documentação Completa do Sistema TC | Versão {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin e Lauro Paiva</small>
 </div>

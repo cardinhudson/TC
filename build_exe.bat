@@ -174,6 +174,7 @@ if exist "pages" xcopy "pages" "%DEST%\pages\" /E /I /Y /Q >nul
 if exist "tc_core" xcopy "tc_core" "%DEST%\tc_core\" /E /I /Y /Q >nul
 if exist "tc_principal" xcopy "tc_principal" "%DEST%\tc_principal\" /E /I /Y /Q >nul
 if exist "tc_ext" xcopy "tc_ext" "%DEST%\tc_ext\" /E /I /Y /Q >nul
+if exist "tc_copilot" xcopy "tc_copilot" "%DEST%\tc_copilot\" /E /I /Y /Q >nul
 if exist ".streamlit" xcopy ".streamlit" "%DEST%\.streamlit\" /E /I /Y /Q >nul
 
 :: Arquivos Python essenciais para extracao (sobrescrevem o PYZ em runtime via importlib)

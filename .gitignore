@@ -17,6 +17,10 @@ cache/
 # Secrets (nunca versionar)
 .env
 .streamlit/secrets.toml
+openai_key.txt
+
+# TC Copilot — relatórios gerados localmente
+documentacao_anual/
 
 # IDEs
 .vscode/*

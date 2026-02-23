@@ -163,6 +163,17 @@ def load_volume_fa(ano):
     return pd.read_parquet(caminho)
 
 
+@st.cache_data(ttl=3600, show_spinner=True)
+def load_tc_sapiens(ano):
+    """Carrega df_tc_sapiens.parquet — dados Sapiens detalhados com todas as colunas.
+    O arquivo é gerado pela fase10b e salvo na pasta Real (não BUD).
+    """
+    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tc_sapiens.parquet')
+    if not os.path.exists(caminho):
+        return None
+    return pd.read_parquet(caminho)
+
+
 # ═══════════════════════════════════════════════════════════════
 #  DATA LOADING — Novos parquets de veículos (Fases 13–17)
 # ═══════════════════════════════════════════════════════════════

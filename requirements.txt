@@ -50,6 +50,21 @@ streamlit-aggrid==1.2.1
 # Usado na funcionalidade de custos específicos para exibição e seleção de linhas
 
 # ==========================================
+# TC COPILOT — Relatório Anual com IA
+# ==========================================
+openai>=1.0.0
+# SDK oficial da OpenAI para integração com GPT
+
+reportlab>=4.0
+# Geração de PDFs profissionais com ReportLab
+
+python-dotenv>=1.0.0
+# Carregamento de variáveis de ambiente do arquivo .env
+
+PyPDF2>=3.0.0
+# Extração de texto de PDFs para consulta inteligente
+
+# ==========================================
 # NOTA: DEPENDÊNCIAS DO CHATBOT SÃO OPCIONAIS
 # ==========================================
 # As dependências do chatbot (sentence-transformers, faiss-cpu, torch, transformers)

@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 from pathlib import Path
 
 import streamlit as st
@@ -12,6 +12,7 @@ from tc_principal.pages.extracao_dados_tc import (
 from tc_principal.pages.debug_calculos_tc import (
     render as render_debug_calculos_tc,
 )
+from tc_copilot.pages.home_copilot import render as render_copilot
 
 
 st.set_page_config(
@@ -156,6 +157,13 @@ PAGES = {
             "pages/6 - Documentacao.py",
             title="Documentação (Projeto)",
             url_path="documentacao",
+        ),
+    ],
+    "TC Copilot": [
+        st.Page(
+            render_copilot,
+            title="TC Copilot",
+            url_path="tc-copilot",
         ),
     ],
 }

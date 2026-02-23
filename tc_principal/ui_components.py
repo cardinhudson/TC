@@ -744,21 +744,12 @@ def criar_tabela_html_flex(df_display, simbolo='R$', sufixo=''):
         simbolo: Símbolo da moeda
         sufixo: Sufixo do valor (ex: ' K', ' M')
     """
-    # Detectar tema
-    try:
-        theme_base = st.get_option("theme.base") or "light"
-        if theme_base == "dark":
-            header_bg = "rgba(38, 39, 48, 0.15)"
-            border_color = "rgba(250, 250, 250, 0.1)"
-            text_color = "#FAFAFA"
-        else:
-            header_bg = "rgba(240, 242, 246, 0.15)"
-            border_color = "rgba(49, 51, 63, 0.1)"
-            text_color = "#31333F"
-    except:
-        header_bg = "rgba(38, 39, 48, 0.15)"
-        border_color = "rgba(250, 250, 250, 0.1)"
-        text_color = "#FAFAFA"
+    # Detectar tema (mesma lógica de criar_tabela_html)
+    tema = get_current_theme()
+    is_dark = tema == "dark"
+    header_bg = "rgba(255,255,255,0.05)" if is_dark else "rgba(0,0,0,0.03)"
+    border_color = "rgba(250,250,250,0.1)" if is_dark else "rgba(49,51,63,0.1)"
+    text_color = "#FAFAFA" if is_dark else "#262730"
     
     html = f"""
     <div style='overflow-x: auto; margin: 0.5rem 0;'>

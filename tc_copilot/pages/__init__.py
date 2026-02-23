@@ -1,0 +1,1 @@
+# TC Copilot — Páginas Streamlit

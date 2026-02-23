@@ -915,6 +915,61 @@ def fase10_salvamento(config: Dict, df_principal: pd.DataFrame,
 
 
 # ═══════════════════════════════════════════════════════════════
+#  FASE 10B — PARQUET SAPIENS DETALHADO (todas as colunas)
+# ═══════════════════════════════════════════════════════════════
+
+def fase10b_sapiens_detalhado(config: Dict, df_principal: pd.DataFrame) -> str:
+    """
+    Salva df_tc_sapiens.parquet com TODAS as colunas do Sapiens original
+    mais as colunas calculadas (Custo FA, Custo FP, etc.).
+
+    Objetivo: permitir drill-down completo na aba "Dados Detalhados"
+    com colunas como Texto breve, Fornecedor, Material, Doc.compra etc.
+    """
+    print("\n💾 FASE 10B — Parquet Sapiens Detalhado")
+
+    pasta = config['PASTA_SAIDA']
+    ano = config['ANO_ATUAL']
+
+    df = df_principal.copy()
+    df['Ano'] = ano
+
+    # Remover colunas internas/temporárias
+    cols_drop = [c for c in df.columns if c.startswith('_')]
+    if cols_drop:
+        df = df.drop(columns=cols_drop)
+        print(f"   ℹ️ Removidas {len(cols_drop)} colunas internas: {cols_drop}")
+
+    # Organizar colunas: identificação → detalhe Sapiens → valores calculados
+    cols_id = ['Ano', 'Período', 'Oficina', 'Veículo']
+    cols_classificacao = ['Account', 'Type 05', 'Type 06', 'Nºconta']
+    cols_detalhe = ['Centrocst', 'Nºdoc.ref.', 'Dt.lçto.', 'Doc.compra',
+                    'Texto breve', 'Fornecedor', 'Material', 'Usuário',
+                    'Fornec.', 'Tipo', 'USI', 'QTD']
+    cols_valores = ['Despesa Primaria', 'Rateio FA', 'Custo FA', 'Custo FP',
+                    'D&A dedicado', 'FP sem Dedicada']
+
+    # Montar ordem final (apenas colunas que realmente existem)
+    ordem_desejada = cols_id + cols_classificacao + cols_detalhe + cols_valores
+    cols_ordenadas = [c for c in ordem_desejada if c in df.columns]
+    # Adicionar quaisquer colunas extras não listadas acima
+    cols_extras = [c for c in df.columns if c not in cols_ordenadas]
+    cols_final = cols_ordenadas + cols_extras
+
+    df = df[cols_final]
+    df = normalizar_tipos_para_parquet(df)
+
+    caminho = os.path.join(pasta, 'df_tc_sapiens.parquet')
+    df.to_parquet(caminho, index=False, engine='pyarrow')
+
+    print(f"   ✅ df_tc_sapiens.parquet → {caminho}")
+    print(f"   📊 {len(df):,} linhas × {len(df.columns)} colunas")
+    print(f"   Colunas: {list(df.columns)}")
+
+    return caminho
+
+
+# ═══════════════════════════════════════════════════════════════
 #  FASE 11 — CUSTO FP SEM D&A (isolamento)
 # ═══════════════════════════════════════════════════════════════
 
@@ -1705,6 +1760,11 @@ def processar_veiculos_real(ano: Optional[int] = None,
     # 10. Salvamento principal
     log("\n📋 Fase 10/18: Salvamento principal...")
     arquivos = fase10_salvamento(config, df_principal, df_fa, df_tempo_veic, df_vol, df_dea)
+
+    # 10B. Parquet Sapiens detalhado (todas as colunas)
+    log("\n📋 Fase 10B: Parquet Sapiens detalhado (todas as colunas)...")
+    caminho_sapiens = fase10b_sapiens_detalhado(config, df_principal)
+    arquivos['df_tc_sapiens.parquet'] = caminho_sapiens
 
     # 11. Custo FP sem D&A (isolamento)
     log("\n📋 Fase 11/18: Custo FP sem D&A...")
