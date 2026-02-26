@@ -1113,17 +1113,31 @@ def formatar_comparativo_budget_flex_unificado(
     lines = [
         "Comparativo Real vs Budget (com Efeito Flex Volume):",
         "",
-        f"**Budget:** {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)})",
-        f"**{c_vol} Efeito Flex Volume (barra amarela):** {s_vol}{_fmt_k(efeito_volume)} ({s_cpu_ev}{_fmt_cpu(cpu_ev)}) "
-        f"— Volume Real: {_fmt(vol_real, 0)} un. vs Budget: {_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)})",
-        f"**Flex Budget (após ajuste volume):** {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)})",
-        f"**{c_op} Efeito Operacional (Real vs Flex):** {s_op}{_fmt_k(efeito_operacional)} ({s_cpu_eo}{_fmt_cpu(cpu_eo)}), {_pct(fp_real, fp_flex)}",
-        f"**{c_tot} Delta Total (Real vs Budget):** {s_tot}{_fmt_k(delta_total)} ({s_cpu_dt}{_fmt_cpu(cpu_dt)}), {_pct(fp_real, fp_bud)}",
-        f"**Real:** {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
-        "",
-        "--- Drill-down operacional (Real vs Flex Budget por Type 05 → 06 → Account) ---",
+        f"- **Budget:** {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)})",
+        f"- **{c_vol} Efeito Flex Volume:** {s_vol}{_fmt_k(efeito_volume)} ({s_cpu_ev}{_fmt_cpu(cpu_ev)})",
+        f"- **{c_op} Efeito Operacional:** {s_op}{_fmt_k(efeito_operacional)} ({s_cpu_eo}{_fmt_cpu(cpu_eo)}) | {_pct(fp_real, fp_flex)} vs Flex",
+        f"- **{c_tot} Delta Total:** {s_tot}{_fmt_k(delta_total)} ({s_cpu_dt}{_fmt_cpu(cpu_dt)}) | {_pct(fp_real, fp_bud)} vs Budget",
+        f"- **Real:** {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
         "",
     ]
+
+    # Parágrafo explicativo do waterfall
+    _imp_vol = "negativamente" if efeito_volume > 0 else "positivamente"
+    _res_vol = "aumento" if efeito_volume > 0 else "redução"
+    _rel_vol = "superou" if vol_real > vol_bud else "ficou abaixo do"
+    _imp_op = "gerou uma economia" if efeito_operacional < 0 else "gerou um aumento"
+    _perf_op = "melhor" if efeito_operacional < 0 else "pior"
+    lines.append(
+        f"O Efeito Flex Volume impactou {_imp_vol} o custo, resultando em "
+        f"{'um ' + _res_vol if efeito_volume != 0 else 'variação nula'} de {_fmt_k(abs(efeito_volume))} "
+        f"devido ao volume real de {_fmt(vol_real, 0)} un., que {_rel_vol} Budget de "
+        f"{_fmt(vol_bud, 0)} un. em {_pct(vol_real, vol_bud)}. "
+        f"Após o ajuste pelo volume, o Flex Budget ficou em {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}). "
+        f"O Efeito Operacional, que mede a eficiência de preço e mix, "
+        f"{_imp_op} de {_fmt_k(abs(efeito_operacional))} (Δ {s_cpu_eo}{_fmt_cpu(cpu_eo)}), "
+        f"indicando uma performance {_perf_op} do que o esperado."
+    )
+    lines.append("")
 
     # Drill-down com Flex como referência (mesma lógica do antigo tipo "flex")
     df_real = dados.get("custo_real")
