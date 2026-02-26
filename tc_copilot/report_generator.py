@@ -584,17 +584,23 @@ def _construir_capitulo_mes(
         titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
         elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
 
-        # ── Gráfico waterfall Budget na seção Volume ──
-        if tipo_secao == "volume_completo" and graf_global:
-            _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+        # ── Volume: texto + gráfico Budget ──
+        if tipo_secao == "volume_completo":
+            paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
+            elements.extend(paragraphs)
+            if graf_global:
+                _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
 
-        # ── Gráfico waterfall Mensal na seção Comparativos ──
-        if tipo_secao == "comparativos" and graf_global:
-            _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+        # ── Comparativos: interleavar gráficos nos sub-tópicos ──
+        elif tipo_secao == "comparativos":
+            _renderizar_comparativos_pdf(
+                elements, estilos, texto, graf_global, mes_nome, info_mes, simbolo_moeda,
+            )
 
-        # Adicionar parágrafos do texto
-        paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
-        elements.extend(paragraphs)
+        else:
+            paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
+            elements.extend(paragraphs)
+
         elements.append(Spacer(1, 0.5 * cm))
 
     # Seções de Oficina
@@ -617,6 +623,43 @@ def _construir_capitulo_mes(
         elements.append(Spacer(1, 0.5 * cm))
 
     elements.append(PageBreak())
+
+
+def _renderizar_comparativos_pdf(
+    elements: list,
+    estilos: dict,
+    texto: str,
+    graf_global: dict | None,
+    mes_nome: str,
+    info_mes: dict,
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Renderiza seção Comparativos no PDF intercalando gráficos nos sub-tópicos.
+
+    - Após bloco 2.1 → chart waterfall Budget
+    - Após bloco 2.2 → chart waterfall Mensal
+    """
+    import re
+
+    # Separar sub-seções pelo marcador (compatível com textos legados)
+    if "<!-- SPLIT -->" in texto:
+        blocos = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
+    else:
+        blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
+
+    for bloco in blocos:
+        # Renderizar texto do bloco
+        paragraphs = _texto_para_paragraphs(bloco, estilos["corpo"])
+        elements.extend(paragraphs)
+
+        # Inserir gráfico adequado após o sub-tópico
+        if graf_global:
+            if bloco.lstrip().startswith("### 2.1") or bloco.lstrip().startswith("**2.1"):
+                _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+            elif bloco.lstrip().startswith("### 2.2") or bloco.lstrip().startswith("**2.2"):
+                _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+
+        elements.append(Spacer(1, 0.3 * cm))
 
 
 def _inserir_waterfall_budget(
@@ -817,7 +860,7 @@ def gerar_relatorio_mes(
     # 2. Preparar dados formatados por seção (3 seções globais v2 + resumo exec)
     dados_por_secao = {
         "volume_completo": formatar_dados_volume_completo(dados, variacoes),
-        "comparativos": formatar_dados_comparativos_agrupado(dados, variacoes),
+        "comparativos": "\n\n".join(formatar_dados_comparativos_agrupado(dados, variacoes).values()),
         "conclusoes": formatar_dados_conclusoes(dados, variacoes),
     }
 

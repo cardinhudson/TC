@@ -1184,22 +1184,31 @@ def formatar_comparativo_budget_flex_unificado(
 
 def formatar_dados_comparativos_agrupado(
     dados: dict, variacoes: dict,
-) -> str:
+) -> dict[str, str]:
     """
-    Formata os 3 comparativos unificados para a LLM:
-      2.1 Real vs Budget (Efeito Volume + Operacional)
-      2.2 Real vs Mês Anterior
-      2.3 Real vs Ano Anterior
+    Formata os 3 comparativos unificados.
+
+    Retorna dict com chaves "budget_flex", "mes_anterior", "ano_anterior".
+    Cada valor é o drill-down formatado (sem header ### ).
+    Chaves ausentes → dados indisponíveis (flags sem_mes_anterior / sem_ano_anterior).
     """
-    blocos = [
-        f"### 2.1 Real vs Budget (Efeito Flex Volume)\n\n"
-        + formatar_comparativo_budget_flex_unificado(dados, variacoes),
-        f"### 2.2 Real vs Mês Anterior\n\n"
-        + formatar_dados_comparativo(dados, variacoes, "mes_anterior"),
-        f"### 2.3 Real vs Mesmo Mês de {dados['ano_anterior']}\n\n"
-        + formatar_dados_comparativo(dados, variacoes, "ano_anterior"),
-    ]
-    return "\n\n".join(blocos)
+    resultado: dict[str, str] = {
+        "budget_flex": formatar_comparativo_budget_flex_unificado(dados, variacoes),
+    }
+
+    sem_mes_ant = variacoes.get("sem_mes_anterior", False)
+    if not sem_mes_ant:
+        resultado["mes_anterior"] = formatar_dados_comparativo(
+            dados, variacoes, "mes_anterior",
+        )
+
+    sem_ano_ant = variacoes.get("sem_ano_anterior", False)
+    if not sem_ano_ant:
+        resultado["ano_anterior"] = formatar_dados_comparativo(
+            dados, variacoes, "ano_anterior",
+        )
+
+    return resultado
 
 
 # ── FUNÇÕES CONSOLIDADAS (v2) ──────────────────────────────────
@@ -1413,7 +1422,7 @@ def formatar_contexto_parquet(
         formatar_dados_volume_completo(dados, variacoes),
         "",
         "--- 📈 COMPARATIVOS ---",
-        formatar_dados_comparativos_agrupado(dados, variacoes),
+        "\n\n".join(formatar_dados_comparativos_agrupado(dados, variacoes).values()),
         "",
         "--- 📋 CONCLUSÕES E ALERTAS ---",
         formatar_dados_conclusoes(dados, variacoes),

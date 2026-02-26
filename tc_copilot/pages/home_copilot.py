@@ -543,16 +543,17 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                             tipo_waterfall="budget",
                             simbolo_moeda=_simbolo_view,
                         )
+                        st.markdown(texto.replace("$", "\\$"))
 
-                    # ── Gráfico waterfall Mensal na seção Comparativos ──
-                    if tipo_secao == "comparativos":
-                        _inserir_waterfall_streamlit(
-                            info_mes, mes_nome, ano,
-                            tipo_waterfall="mensal",
-                            simbolo_moeda=_simbolo_view,
+                    # ── Comparativos: interleavar gráficos entre sub-tópicos ──
+                    elif tipo_secao == "comparativos":
+                        _renderizar_comparativos_streamlit(
+                            texto, info_mes, mes_nome, ano, _simbolo_view,
                         )
 
-                    st.markdown(texto.replace("$", "\\$"))
+                    else:
+                        st.markdown(texto.replace("$", "\\$"))
+
                     st.markdown("---")
 
             # ── EXPANDER separado para análise por oficina ──
@@ -638,6 +639,53 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  HELPER — COMPARATIVOS: TEXTO + GRÁFICOS INTERLEAVED
+# ═══════════════════════════════════════════════════════════════
+
+def _renderizar_comparativos_streamlit(
+    texto: str,
+    info_mes: dict,
+    mes_nome: str,
+    ano: int,
+    simbolo_moeda: str,
+) -> None:
+    """Renderiza seção Comparativos intercalando gráficos nos sub-tópicos.
+
+    O texto gerado por ``gerar_texto_comparativos`` separa sub-seções com
+    o marcador ``<!-- SPLIT -->``. Cada sub-seção possui um header ``### 2.x``.
+
+    - Após o bloco 2.1 (Budget) → chart waterfall Budget
+    - Após o bloco 2.2 (Mensal) → chart waterfall Mensal
+    """
+    import re
+
+    # Separar sub-seções pelo marcador (compatível com textos legados sem marcador)
+    if "<!-- SPLIT -->" in texto:
+        blocos = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
+    else:
+        # Fallback para textos antigos: separar por ### 2.
+        blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
+
+    for bloco in blocos:
+        # Renderizar texto do bloco
+        st.markdown(bloco.replace("$", "\\$"))
+
+        # Inserir gráfico adequado após o sub-tópico
+        if bloco.lstrip().startswith("### 2.1"):
+            _inserir_waterfall_streamlit(
+                info_mes, mes_nome, ano,
+                tipo_waterfall="budget",
+                simbolo_moeda=simbolo_moeda,
+            )
+        elif bloco.lstrip().startswith("### 2.2"):
+            _inserir_waterfall_streamlit(
+                info_mes, mes_nome, ano,
+                tipo_waterfall="mensal",
+                simbolo_moeda=simbolo_moeda,
+            )
+
+
+# ═══════════════════════════════════════════════════════════════
 #  HELPER — GRÁFICOS WATERFALL NA ABA RELATÓRIO
 # ═══════════════════════════════════════════════════════════════
 
@@ -679,7 +727,7 @@ def _inserir_waterfall_streamlit(
                     y_label=cpu_label,
                 )
                 if png:
-                    st.image(png, width=900)
+                    st.image(png, use_container_width=True)
 
         # Waterfall Mensal
         if tipo_waterfall in ("mensal", "ambos"):
@@ -693,7 +741,7 @@ def _inserir_waterfall_streamlit(
                     y_label=cpu_label,
                 )
                 if png:
-                    st.image(png, width=900)
+                    st.image(png, use_container_width=True)
 
     elif secao == "oficina" and ofc_nome:
         graf_oficinas = dados_graf.get("oficinas", {})
@@ -711,7 +759,7 @@ def _inserir_waterfall_streamlit(
                 y_label=cpu_label,
             )
             if png:
-                st.image(png, width=900)
+                st.image(png, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -372,7 +372,7 @@ def gerar_texto_volume_completo(
 # ═══════════════════════════════════════════════════════════════
 
 def gerar_texto_comparativos(
-    dados_formatados: str,
+    dados_formatados: dict[str, str],
     variacoes: dict,
     mes_nome: str = "",
     ano: int = 0,
@@ -381,10 +381,16 @@ def gerar_texto_comparativos(
     simbolo: str = "R$",
 ) -> str:
     """
-    Gera texto analítico para os 3 comparativos.
+    Gera texto analítico para os comparativos.
 
-    Recebe dados_formatados (output de formatar_dados_comparativos_agrupado)
-    para incluir o drill-down detalhado. Envelopa com parágrafos narrativos.
+    Cada sub-tópico (2.1, 2.2, 2.3) é separado pelo marcador ``<!-- SPLIT -->``,
+    permitindo que os renderers (Streamlit / PDF) insiram gráficos entre eles.
+
+    Sub-tópicos são omitidos quando os dados de referência não existem.
+
+    Args:
+        dados_formatados: Dict retornado por formatar_dados_comparativos_agrupado()
+            com chaves "budget_flex", "mes_anterior" e "ano_anterior".
     """
     fp = variacoes["custo_fp"]
     v = variacoes["volume"]
@@ -403,21 +409,22 @@ def gerar_texto_comparativos(
     efeito_op = fp_real - fp_flex
     delta_total = fp_real - fp_bud
 
-    partes = []
+    subsecoes: list[str] = []
 
     # ── 2.1 Real vs Budget (Efeito Flex Volume) ──
-    partes.append("### 2.1 Real vs Budget (Efeito Flex Volume)")
+    bloco_21: list[str] = []
+    bloco_21.append("### 2.1 Real vs Budget (Efeito Flex Volume)")
     rel_vol = "superou" if vol_real > vol_bud else "ficou abaixo do"
     imp_vol = "negativamente" if efeito_vol > 0 else "positivamente"
     imp_op = "gerou economia" if efeito_op < 0 else "gerou aumento"
     perf_op = "melhor" if efeito_op < 0 else "pior"
 
-    partes.append(
+    bloco_21.append(
         f"O Custo FP Real de **{_fmt_k(fp_real, moeda=moeda)}** ({_fmt_cpu(cpu_real, simbolo)}) "
         f"compara-se ao Budget de {_fmt_k(fp_bud, moeda=moeda)} ({_fmt_cpu(cpu_bud, simbolo)}), "
         f"com delta total de {_sinal(delta_total)}{_fmt_k(delta_total, moeda=moeda)} ({_pct(fp_real, fp_bud)})."
     )
-    partes.append(
+    bloco_21.append(
         f"\nO volume real de {_fmt(vol_real, 0)} un. {rel_vol} Budget de "
         f"{_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)}), impactando {imp_vol} "
         f"o custo em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}. "
@@ -425,36 +432,46 @@ def gerar_texto_comparativos(
         f"O efeito operacional {imp_op} de {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance {perf_op} do que o esperado."
     )
+    # Drill-down Budget Flex
+    dd_bud = dados_formatados.get("budget_flex", "")
+    if dd_bud:
+        bloco_21.append("\n**Detalhamento por Type 05 → Type 06 → Account:**\n")
+        bloco_21.append(dd_bud)
+    subsecoes.append("\n".join(bloco_21))
 
     # ── 2.2 Real vs Mês Anterior ──
     sem_mes_ant = variacoes.get("sem_mes_anterior", False)
     if not sem_mes_ant and fp_ant > 0:
-        partes.append("\n### 2.2 Real vs Mês Anterior")
+        bloco_22: list[str] = []
+        bloco_22.append("### 2.2 Real vs Mês Anterior")
         delta_ant = fp_real - fp_ant
         v_ant, adj_ant = _verbo_custo(delta_ant)
         cpu_ant = _cpu(fp_ant, v["mes_anterior"])
-        partes.append(
+        bloco_22.append(
             f"O Custo FP Real de {_fmt_k(fp_real, moeda=moeda)} ({_fmt_cpu(cpu_real, simbolo)}) "
             f"{v_ant} em {_fmt_k(abs(delta_ant), moeda=moeda)} ({_pct(fp_real, fp_ant)}) "
             f"em relação ao mês anterior de {_fmt_k(fp_ant, moeda=moeda)} ({_fmt_cpu(cpu_ant, simbolo)}). "
             f"Essa variação é considerada **{adj_ant}**."
         )
+        dd_ant = dados_formatados.get("mes_anterior", "")
+        if dd_ant:
+            bloco_22.append("\n**Detalhamento por Type 05 → Type 06 → Account:**\n")
+            bloco_22.append(dd_ant)
+        subsecoes.append("\n".join(bloco_22))
 
     # ── 2.3 Real vs Ano Anterior ──
     sem_ano_ant = variacoes.get("sem_ano_anterior", False)
     if not sem_ano_ant:
-        partes.append(f"\n### 2.3 Real vs Mesmo Mês de {ano_anterior}")
-        partes.append(
-            f"Comparação disponível no drill-down detalhado abaixo."
-        )
+        bloco_23: list[str] = []
+        bloco_23.append(f"### 2.3 Real vs Mesmo Mês de {ano_anterior}")
+        dd_yoy = dados_formatados.get("ano_anterior", "")
+        if dd_yoy:
+            bloco_23.append(dd_yoy)
+        else:
+            bloco_23.append("Dados do ano anterior indisponíveis.")
+        subsecoes.append("\n".join(bloco_23))
 
-    # ── Incluir drill-down completo gerado pelo data_collector ──
-    partes.append("\n---\n")
-    partes.append("**Detalhamento por Type 05 → Type 06 → Account:**")
-    partes.append("")
-    partes.append(dados_formatados)
-
-    return "\n".join(partes)
+    return "\n\n<!-- SPLIT -->\n\n".join(subsecoes)
 
 
 # ═══════════════════════════════════════════════════════════════
