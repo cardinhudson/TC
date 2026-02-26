@@ -621,15 +621,15 @@ def _construir_capitulo_mes(
             import re as _re_ofc
             blocos_ofc = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
             for idx_b, bloco_ofc in enumerate(blocos_ofc):
-                paragraphs = _texto_para_paragraphs(bloco_ofc, estilos["corpo"])
-                elements.extend(paragraphs)
-                # Inserir waterfall correspondente: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
+                # Inserir waterfall ANTES do texto: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
                 _tipos_ofc = ["budget", "mensal", "ano_anterior"]
                 if idx_b < len(_tipos_ofc):
                     _inserir_grafico_oficina(
                         elements, graf_ofc, ofc_nome, mes_nome, info_mes,
                         simbolo_moeda, tipo_waterfall=_tipos_ofc[idx_b],
                     )
+                paragraphs = _texto_para_paragraphs(bloco_ofc, estilos["corpo"])
+                elements.extend(paragraphs)
         else:
             # Fallback: um único gráfico budget antes do texto
             if graf_ofc:
@@ -668,11 +668,7 @@ def _renderizar_comparativos_pdf(
         blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
 
     for bloco in blocos:
-        # Renderizar texto do bloco
-        paragraphs = _texto_para_paragraphs(bloco, estilos["corpo"])
-        elements.extend(paragraphs)
-
-        # Inserir gráfico adequado após o sub-tópico
+        # Inserir gráfico ANTES do texto do sub-tópico
         if graf_global:
             if bloco.lstrip().startswith("### 2.1") or bloco.lstrip().startswith("**2.1"):
                 _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
@@ -680,6 +676,10 @@ def _renderizar_comparativos_pdf(
                 _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
             elif bloco.lstrip().startswith("### 2.3") or bloco.lstrip().startswith("**2.3"):
                 _inserir_waterfall_ano_anterior(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+
+        # Renderizar texto do bloco
+        paragraphs = _texto_para_paragraphs(bloco, estilos["corpo"])
+        elements.extend(paragraphs)
 
         elements.append(Spacer(1, 0.3 * cm))
 

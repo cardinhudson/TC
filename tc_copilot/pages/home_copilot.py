@@ -605,15 +605,15 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                                     if not _conteudo:
                                         continue
                                     st.markdown(f"**{_titulo}**")
-                                    st.markdown(
-                                        _conteudo.replace("$", "\\$"),
-                                    )
-                                    # Inserir waterfall correspondente ao sub-tópico
+                                    # Inserir waterfall ANTES do texto do sub-tópico
                                     _inserir_waterfall_streamlit(
                                         info_mes, mes_nome, ano,
                                         secao="oficina", ofc_nome=ofc_nome,
                                         tipo_waterfall=_wf_tipo,
                                         simbolo_moeda=_simbolo_view,
+                                    )
+                                    st.markdown(
+                                        _conteudo.replace("$", "\\$"),
                                     )
                                     st.markdown("")
 
@@ -667,10 +667,7 @@ def _renderizar_comparativos_streamlit(
         blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
 
     for bloco in blocos:
-        # Renderizar texto do bloco
-        st.markdown(bloco.replace("$", "\\$"))
-
-        # Inserir gráfico adequado após o sub-tópico
+        # Inserir gráfico ANTES do texto do sub-tópico
         if bloco.lstrip().startswith("### 2.1"):
             _inserir_waterfall_streamlit(
                 info_mes, mes_nome, ano,
@@ -689,6 +686,9 @@ def _renderizar_comparativos_streamlit(
                 tipo_waterfall="ano_anterior",
                 simbolo_moeda=simbolo_moeda,
             )
+
+        # Renderizar texto do bloco
+        st.markdown(bloco.replace("$", "\\$"))
 
 
 # ═══════════════════════════════════════════════════════════════
