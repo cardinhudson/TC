@@ -621,15 +621,24 @@ def _construir_capitulo_mes(
             import re as _re_ofc
             blocos_ofc = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
             for idx_b, bloco_ofc in enumerate(blocos_ofc):
-                # Inserir waterfall ANTES do texto: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
+                # Separar título (1ª linha) do corpo
+                _lo = bloco_ofc.split("\n", 1)
+                titulo_ofc_linha = _lo[0].strip()
+                corpo_ofc = _lo[1].strip() if len(_lo) > 1 else ""
+
+                # 1) Título
+                elements.extend(_texto_para_paragraphs(titulo_ofc_linha, estilos["corpo"]))
+                # 2) Waterfall: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
                 _tipos_ofc = ["budget", "mensal", "ano_anterior"]
                 if idx_b < len(_tipos_ofc):
                     _inserir_grafico_oficina(
                         elements, graf_ofc, ofc_nome, mes_nome, info_mes,
                         simbolo_moeda, tipo_waterfall=_tipos_ofc[idx_b],
                     )
-                paragraphs = _texto_para_paragraphs(bloco_ofc, estilos["corpo"])
-                elements.extend(paragraphs)
+                # 3) Corpo do texto
+                if corpo_ofc:
+                    paragraphs = _texto_para_paragraphs(corpo_ofc, estilos["corpo"])
+                    elements.extend(paragraphs)
         else:
             # Fallback: um único gráfico budget antes do texto
             if graf_ofc:
@@ -668,18 +677,28 @@ def _renderizar_comparativos_pdf(
         blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
 
     for bloco in blocos:
-        # Inserir gráfico ANTES do texto do sub-tópico
+        # Separar título (1ª linha) do corpo analítico
+        _linhas = bloco.split("\n", 1)
+        titulo_linha = _linhas[0].strip()
+        corpo = _linhas[1].strip() if len(_linhas) > 1 else ""
+
+        # 1) Renderizar título do sub-tópico
+        elements.extend(_texto_para_paragraphs(titulo_linha, estilos["corpo"]))
+
+        # 2) Inserir gráfico logo abaixo do título
+        _tl = titulo_linha.lstrip("# ")
         if graf_global:
-            if bloco.lstrip().startswith("### 2.1") or bloco.lstrip().startswith("**2.1"):
+            if _tl.startswith("2.1") or _tl.startswith("**2.1"):
                 _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
-            elif bloco.lstrip().startswith("### 2.2") or bloco.lstrip().startswith("**2.2"):
+            elif _tl.startswith("2.2") or _tl.startswith("**2.2"):
                 _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
-            elif bloco.lstrip().startswith("### 2.3") or bloco.lstrip().startswith("**2.3"):
+            elif _tl.startswith("2.3") or _tl.startswith("**2.3"):
                 _inserir_waterfall_ano_anterior(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
 
-        # Renderizar texto do bloco
-        paragraphs = _texto_para_paragraphs(bloco, estilos["corpo"])
-        elements.extend(paragraphs)
+        # 3) Renderizar corpo do texto
+        if corpo:
+            paragraphs = _texto_para_paragraphs(corpo, estilos["corpo"])
+            elements.extend(paragraphs)
 
         elements.append(Spacer(1, 0.3 * cm))
 

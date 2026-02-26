@@ -667,28 +667,38 @@ def _renderizar_comparativos_streamlit(
         blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
 
     for bloco in blocos:
-        # Inserir gráfico ANTES do texto do sub-tópico
-        if bloco.lstrip().startswith("### 2.1"):
+        # Separar título (1ª linha) do corpo analítico
+        _linhas = bloco.split("\n", 1)
+        titulo_linha = _linhas[0].strip()
+        corpo = _linhas[1].strip() if len(_linhas) > 1 else ""
+
+        # 1) Renderizar título do sub-tópico
+        st.markdown(titulo_linha.replace("$", "\\$"))
+
+        # 2) Inserir gráfico logo abaixo do título
+        _tl = titulo_linha.lstrip("# ")
+        if _tl.startswith("2.1"):
             _inserir_waterfall_streamlit(
                 info_mes, mes_nome, ano,
                 tipo_waterfall="budget",
                 simbolo_moeda=simbolo_moeda,
             )
-        elif bloco.lstrip().startswith("### 2.2"):
+        elif _tl.startswith("2.2"):
             _inserir_waterfall_streamlit(
                 info_mes, mes_nome, ano,
                 tipo_waterfall="mensal",
                 simbolo_moeda=simbolo_moeda,
             )
-        elif bloco.lstrip().startswith("### 2.3"):
+        elif _tl.startswith("2.3"):
             _inserir_waterfall_streamlit(
                 info_mes, mes_nome, ano,
                 tipo_waterfall="ano_anterior",
                 simbolo_moeda=simbolo_moeda,
             )
 
-        # Renderizar texto do bloco
-        st.markdown(bloco.replace("$", "\\$"))
+        # 3) Renderizar corpo do texto
+        if corpo:
+            st.markdown(corpo.replace("$", "\\$"))
 
 
 # ═══════════════════════════════════════════════════════════════
