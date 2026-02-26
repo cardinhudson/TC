@@ -623,15 +623,19 @@ def gerar_texto_oficina(
     partes.append(ofc_dict.get("resumo", ""))
     partes.append("")
 
-    # Sub-seções de comparativo (já com drill-down)
+    # Sub-seções de comparativo (já com drill-down) — separadas por marcador
     sub_secoes = [
         ("budget_flex", "Real vs Budget (Efeito Flex Volume)"),
         ("mes_anterior", "Real vs Mês Anterior"),
         ("ano_anterior", "Real vs Ano Anterior"),
     ]
+    first_sub = True
     for chave, titulo in sub_secoes:
         conteudo = ofc_dict.get(chave, "")
         if conteudo:
+            if not first_sub:
+                partes.append("<!-- SPLIT -->")
+            first_sub = False
             partes.append(f"**{titulo}:**\n")
             partes.append(conteudo)
             partes.append("")

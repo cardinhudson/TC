@@ -614,12 +614,32 @@ def _construir_capitulo_mes(
         titulo_ofc = _aplicar_formatacao(_substituir_emojis(titulo_template.format(oficina=ofc_nome)))
         elements.append(Paragraph(titulo_ofc, estilos["titulo_secao"]))
 
-        # ── Inserir gráfico waterfall da oficina ──
-        if ofc_nome in graf_oficinas:
-            _inserir_grafico_oficina(elements, graf_oficinas[ofc_nome], ofc_nome, mes_nome, info_mes, simbolo_moeda)
+        graf_ofc = graf_oficinas.get(ofc_nome, {})
 
-        paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
-        elements.extend(paragraphs)
+        # Interleavar gráficos waterfall nos sub-tópicos da oficina
+        if "<!-- SPLIT -->" in texto and graf_ofc:
+            import re as _re_ofc
+            blocos_ofc = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
+            for idx_b, bloco_ofc in enumerate(blocos_ofc):
+                paragraphs = _texto_para_paragraphs(bloco_ofc, estilos["corpo"])
+                elements.extend(paragraphs)
+                # Inserir waterfall correspondente: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
+                _tipos_ofc = ["budget", "mensal", "ano_anterior"]
+                if idx_b < len(_tipos_ofc):
+                    _inserir_grafico_oficina(
+                        elements, graf_ofc, ofc_nome, mes_nome, info_mes,
+                        simbolo_moeda, tipo_waterfall=_tipos_ofc[idx_b],
+                    )
+        else:
+            # Fallback: um único gráfico budget antes do texto
+            if graf_ofc:
+                _inserir_grafico_oficina(
+                    elements, graf_ofc, ofc_nome, mes_nome, info_mes,
+                    simbolo_moeda, tipo_waterfall="budget",
+                )
+            paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
+            elements.extend(paragraphs)
+
         elements.append(Spacer(1, 0.5 * cm))
 
     elements.append(PageBreak())
@@ -658,6 +678,8 @@ def _renderizar_comparativos_pdf(
                 _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
             elif bloco.lstrip().startswith("### 2.2") or bloco.lstrip().startswith("**2.2"):
                 _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+            elif bloco.lstrip().startswith("### 2.3") or bloco.lstrip().startswith("**2.3"):
+                _inserir_waterfall_ano_anterior(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
 
         elements.append(Spacer(1, 0.3 * cm))
 
@@ -714,6 +736,33 @@ def _inserir_waterfall_mensal(
         _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
+def _inserir_waterfall_ano_anterior(
+    elements: list,
+    graf_global: dict,
+    mes_nome: str,
+    info_mes: dict,
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Insere gráfico waterfall Ano Anterior (YoY, CPU) no PDF."""
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        return
+
+    cpu_label = f"{simbolo_moeda}/veíc"
+    ano_rel = graf_global.get("ano", "")
+    ano_ant_rel = graf_global.get("ano_anterior", "")
+    wf_aa_labels = graf_global.get("wf_ano_ant_labels", [])
+    wf_aa_values = graf_global.get("wf_ano_ant_values", [])
+    if wf_aa_labels and len(wf_aa_labels) >= 3:
+        png = gerar_waterfall_from_arrays(
+            {"labels": wf_aa_labels, "values": wf_aa_values},
+            titulo=f"Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+            y_label=cpu_label,
+        )
+        _inserir_grafico(elements, png, largura_max=17 * cm)
+
+
 def _inserir_grafico_oficina(
     elements: list,
     graf_ofc: dict,
@@ -721,8 +770,12 @@ def _inserir_grafico_oficina(
     mes_nome: str,
     info_mes: dict,
     simbolo_moeda: str = "R$",
+    tipo_waterfall: str = "ambos",
 ) -> None:
-    """Gera e insere gráfico waterfall Budget completo (CPU) para uma oficina."""
+    """Gera e insere gráficos waterfall (CPU) para uma oficina.
+
+    tipo_waterfall: "budget", "mensal", "ano_anterior" ou "ambos".
+    """
     try:
         from tc_copilot.chart_generator import gerar_waterfall_from_arrays
     except ImportError:
@@ -730,16 +783,43 @@ def _inserir_grafico_oficina(
 
     cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_ofc.get("ano", info_mes.get("dados_graficos", {}).get("global", {}).get("ano", ""))
-    wf_labels = graf_ofc.get("wf_budget_labels", [])
-    wf_values = graf_ofc.get("wf_budget_values", [])
+    ano_ant_rel = graf_ofc.get("ano_anterior", "")
 
-    if wf_labels and len(wf_labels) >= 3:
-        png = gerar_waterfall_from_arrays(
-            {"labels": wf_labels, "values": wf_values},
-            titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
-            y_label=cpu_label,
-        )
-        _inserir_grafico(elements, png, largura_max=17 * cm)
+    # Budget
+    if tipo_waterfall in ("budget", "ambos"):
+        wf_labels = graf_ofc.get("wf_budget_labels", [])
+        wf_values = graf_ofc.get("wf_budget_values", [])
+        if wf_labels and len(wf_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_labels, "values": wf_values},
+                titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                y_label=cpu_label,
+            )
+            _inserir_grafico(elements, png, largura_max=17 * cm)
+
+    # Mensal
+    if tipo_waterfall in ("mensal", "ambos"):
+        wf_labels = graf_ofc.get("wf_mensal_labels", [])
+        wf_values = graf_ofc.get("wf_mensal_values", [])
+        if wf_labels and len(wf_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_labels, "values": wf_values},
+                titulo=f"Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                y_label=cpu_label,
+            )
+            _inserir_grafico(elements, png, largura_max=17 * cm)
+
+    # Ano Anterior (YoY)
+    if tipo_waterfall in ("ano_anterior", "ambos"):
+        wf_labels = graf_ofc.get("wf_ano_ant_labels", [])
+        wf_values = graf_ofc.get("wf_ano_ant_values", [])
+        if wf_labels and len(wf_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_labels, "values": wf_values},
+                titulo=f"Waterfall Ano Anterior — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+                y_label=cpu_label,
+            )
+            _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
 def gerar_pdf(ano: int, idioma: str = "pt-BR") -> str:
@@ -1180,12 +1260,50 @@ def gerar_relatorio_mes_local(
     else:
         wf_mensal = {}
 
+    # Waterfall Ano Anterior (YoY) — filtrar historico_custo/vol pelo mesmo mês do ano anterior
+    sem_ano_anterior = variacoes.get("sem_ano_anterior", False)
+    wf_ano_ant: dict[str, Any] = {}
+    if not sem_ano_anterior:
+        import pandas as _pd
+        hist_custo = dados.get("historico_custo")
+        hist_vol = dados.get("historico_vol")
+        _ano_ant = dados.get("ano_anterior", ano - 1)
+        if hist_custo is not None and not hist_custo.empty:
+            _mask_c = _pd.Series(True, index=hist_custo.index)
+            if "Ano" in hist_custo.columns:
+                _mask_c = _mask_c & (hist_custo["Ano"] == _ano_ant)
+            if "Período" in hist_custo.columns:
+                _mask_c = _mask_c & (hist_custo["Período"] == mes_nome)
+            custo_ano_ant = hist_custo.loc[_mask_c].copy() if _mask_c.any() else None
+        else:
+            custo_ano_ant = None
+        if hist_vol is not None and not hist_vol.empty:
+            _mask_v = _pd.Series(True, index=hist_vol.index)
+            if "Ano" in hist_vol.columns:
+                _mask_v = _mask_v & (hist_vol["Ano"] == _ano_ant)
+            if "Período" in hist_vol.columns:
+                _mask_v = _mask_v & (hist_vol["Período"] == mes_nome)
+            vol_ano_ant = hist_vol.loc[_mask_v].copy() if _mask_v.any() else None
+        else:
+            vol_ano_ant = None
+        if custo_ano_ant is not None and not custo_ano_ant.empty:
+            wf_ano_ant = calcular_waterfall_mensal_cpu(
+                custo_real=dados.get("custo_real"),
+                custo_ant=custo_ano_ant,
+                vol_real=dados.get("volume_real"),
+                vol_ant=vol_ano_ant,
+                label_ant=f"{mes_nome}/{_ano_ant}",
+                label_real=f"{mes_nome}/{ano}",
+            )
+
     dados_graficos: dict[str, Any] = {
         "global": {
             "wf_budget_labels": wf_budget.get("labels", []),
             "wf_budget_values": [float(v) for v in wf_budget.get("values", [])],
             "wf_mensal_labels": wf_mensal.get("labels", []),
             "wf_mensal_values": [float(v) for v in wf_mensal.get("values", [])],
+            "wf_ano_ant_labels": wf_ano_ant.get("labels", []),
+            "wf_ano_ant_values": [float(v) for v in wf_ano_ant.get("values", [])],
             "ano": ano,
             "ano_anterior": dados.get("ano_anterior", ano - 1),
         },
@@ -1194,16 +1312,60 @@ def gerar_relatorio_mes_local(
     for ofc in oficinas:
         try:
             dados_ofc = _filtrar_por_oficina(dados, ofc)
-            wf_ofc = calcular_waterfall_budget_cpu(
+
+            # 1) Waterfall Budget (oficina)
+            wf_ofc_budget = calcular_waterfall_budget_cpu(
                 custo_real=dados_ofc.get("custo_real"),
                 custo_bud=dados_ofc.get("custo_bud"),
                 vol_real=dados.get("volume_real"),
                 vol_bud=dados.get("volume_bud"),
             )
+
+            # 2) Waterfall Mensal (oficina)
+            wf_ofc_mensal: dict[str, Any] = {}
+            if not sem_mes_anterior:
+                wf_ofc_mensal = calcular_waterfall_mensal_cpu(
+                    custo_real=dados_ofc.get("custo_real"),
+                    custo_ant=dados_ofc.get("custo_real_ant"),
+                    vol_real=dados.get("volume_real"),
+                    vol_ant=dados.get("volume_real_ant"),
+                    label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                    label_real=mes_nome,
+                )
+
+            # 3) Waterfall Ano Anterior (oficina)
+            wf_ofc_ano_ant: dict[str, Any] = {}
+            if not sem_ano_anterior:
+                hist_custo_ofc = dados_ofc.get("historico_custo")
+                if hist_custo_ofc is not None and not hist_custo_ofc.empty:
+                    _mask_oc = _pd.Series(True, index=hist_custo_ofc.index)
+                    if "Ano" in hist_custo_ofc.columns:
+                        _mask_oc = _mask_oc & (hist_custo_ofc["Ano"] == _ano_ant)
+                    if "Período" in hist_custo_ofc.columns:
+                        _mask_oc = _mask_oc & (hist_custo_ofc["Período"] == mes_nome)
+                    custo_aa_ofc = hist_custo_ofc.loc[_mask_oc].copy() if _mask_oc.any() else None
+                else:
+                    custo_aa_ofc = None
+                # Volume YoY usa volume global (oficinas não possuem volume próprio)
+                if custo_aa_ofc is not None and not custo_aa_ofc.empty:
+                    wf_ofc_ano_ant = calcular_waterfall_mensal_cpu(
+                        custo_real=dados_ofc.get("custo_real"),
+                        custo_ant=custo_aa_ofc,
+                        vol_real=dados.get("volume_real"),
+                        vol_ant=vol_ano_ant,
+                        label_ant=f"{mes_nome}/{_ano_ant}",
+                        label_real=f"{mes_nome}/{ano}",
+                    )
+
             dados_graficos["oficinas"][ofc] = {
-                "wf_budget_labels": wf_ofc.get("labels", []),
-                "wf_budget_values": [float(v) for v in wf_ofc.get("values", [])],
+                "wf_budget_labels": wf_ofc_budget.get("labels", []),
+                "wf_budget_values": [float(v) for v in wf_ofc_budget.get("values", [])],
+                "wf_mensal_labels": wf_ofc_mensal.get("labels", []),
+                "wf_mensal_values": [float(v) for v in wf_ofc_mensal.get("values", [])],
+                "wf_ano_ant_labels": wf_ofc_ano_ant.get("labels", []),
+                "wf_ano_ant_values": [float(v) for v in wf_ofc_ano_ant.get("values", [])],
                 "ano": ano,
+                "ano_anterior": dados.get("ano_anterior", ano - 1),
             }
         except Exception as e:
             logger.warning("Falha gráfico oficina %s: %s", ofc, e)

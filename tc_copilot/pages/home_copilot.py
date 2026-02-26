@@ -586,13 +586,6 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                         titulo_ofc = titulo_template.format(oficina=ofc_nome)
                         st.markdown(f"#### {titulo_ofc}")
 
-                        # ── Gráfico waterfall da oficina ──
-                        _inserir_waterfall_streamlit(
-                            info_mes, mes_nome, ano,
-                            secao="oficina", ofc_nome=ofc_nome,
-                            simbolo_moeda=_simbolo_view,
-                        )
-
                         # Tentar renderizar com sub-tópicos estruturados
                         if _dados_frescos_ok:
                             try:
@@ -601,19 +594,26 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                                 st.markdown(ofc_dict["resumo"].replace("$", "\\$"))
                                 st.markdown("")
 
-                                # Sub-tópicos por comparativo
+                                # Sub-tópicos por comparativo com waterfall individual
                                 _sub_topicos = [
-                                    ("budget_flex", "📊 Real vs Budget (Efeito Flex Volume)"),
-                                    ("mes_anterior", "📊 Real vs Mês Anterior"),
-                                    ("ano_anterior", f"📊 Real vs Ano Anterior"),
+                                    ("budget_flex", "📊 Real vs Budget (Efeito Flex Volume)", "budget"),
+                                    ("mes_anterior", "📊 Real vs Mês Anterior", "mensal"),
+                                    ("ano_anterior", f"📊 Real vs Ano Anterior", "ano_anterior"),
                                 ]
-                                for _tipo, _titulo in _sub_topicos:
+                                for _tipo, _titulo, _wf_tipo in _sub_topicos:
                                     _conteudo = ofc_dict.get(_tipo, "")
                                     if not _conteudo:
                                         continue
                                     st.markdown(f"**{_titulo}**")
                                     st.markdown(
                                         _conteudo.replace("$", "\\$"),
+                                    )
+                                    # Inserir waterfall correspondente ao sub-tópico
+                                    _inserir_waterfall_streamlit(
+                                        info_mes, mes_nome, ano,
+                                        secao="oficina", ofc_nome=ofc_nome,
+                                        tipo_waterfall=_wf_tipo,
+                                        simbolo_moeda=_simbolo_view,
                                     )
                                     st.markdown("")
 
@@ -683,6 +683,12 @@ def _renderizar_comparativos_streamlit(
                 tipo_waterfall="mensal",
                 simbolo_moeda=simbolo_moeda,
             )
+        elif bloco.lstrip().startswith("### 2.3"):
+            _inserir_waterfall_streamlit(
+                info_mes, mes_nome, ano,
+                tipo_waterfall="ano_anterior",
+                simbolo_moeda=simbolo_moeda,
+            )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -698,7 +704,7 @@ def _inserir_waterfall_streamlit(
 ) -> None:
     """Renderiza gráficos waterfall (Account, CPU) no Streamlit com fundo transparente.
 
-    tipo_waterfall: "budget", "mensal" ou "ambos".
+    tipo_waterfall: "budget", "mensal", "ano_anterior" ou "ambos".
     """
     dados_graf = info_mes.get("dados_graficos", {})
 
@@ -743,23 +749,65 @@ def _inserir_waterfall_streamlit(
                 if png:
                     st.image(png, use_container_width=True)
 
+        # Waterfall Ano Anterior (YoY)
+        if tipo_waterfall in ("ano_anterior", "ambos"):
+            wf_aa_labels = graf.get("wf_ano_ant_labels", [])
+            wf_aa_values = graf.get("wf_ano_ant_values", [])
+            ano_ant_rel = graf.get("ano_anterior", ano_rel - 1)
+            if wf_aa_labels and len(wf_aa_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_aa_labels, "values": wf_aa_values},
+                    titulo=f"Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+                    transparent=True,
+                    y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, use_container_width=True)
+
     elif secao == "oficina" and ofc_nome:
         graf_oficinas = dados_graf.get("oficinas", {})
         graf = graf_oficinas.get(ofc_nome, {})
         if not graf:
             return
         ano_rel = graf.get("ano", ano)
-        wf_labels = graf.get("wf_budget_labels", [])
-        wf_values = graf.get("wf_budget_values", [])
-        if wf_labels and len(wf_labels) >= 3:
-            png = gerar_waterfall_from_arrays(
-                {"labels": wf_labels, "values": wf_values},
-                titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
-                transparent=True,
-                y_label=cpu_label,
-            )
-            if png:
-                st.image(png, use_container_width=True)
+
+        # Selecionar tipo de waterfall
+        if tipo_waterfall in ("budget", "ambos"):
+            wf_labels = graf.get("wf_budget_labels", [])
+            wf_values = graf.get("wf_budget_values", [])
+            titulo_wf = f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
+            if wf_labels and len(wf_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_labels, "values": wf_values},
+                    titulo=titulo_wf, transparent=True, y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, use_container_width=True)
+
+        if tipo_waterfall in ("mensal", "ambos"):
+            wf_labels = graf.get("wf_mensal_labels", [])
+            wf_values = graf.get("wf_mensal_values", [])
+            titulo_wf = f"Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
+            if wf_labels and len(wf_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_labels, "values": wf_values},
+                    titulo=titulo_wf, transparent=True, y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, use_container_width=True)
+
+        if tipo_waterfall in ("ano_anterior", "ambos"):
+            wf_labels = graf.get("wf_ano_ant_labels", [])
+            wf_values = graf.get("wf_ano_ant_values", [])
+            ano_ant_rel = graf.get("ano_anterior", ano_rel - 1)
+            titulo_wf = f"Waterfall Ano Anterior — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}"
+            if wf_labels and len(wf_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_labels, "values": wf_values},
+                    titulo=titulo_wf, transparent=True, y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════
