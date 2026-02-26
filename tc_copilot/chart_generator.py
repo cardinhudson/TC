@@ -326,6 +326,7 @@ def gerar_waterfall_from_arrays(
     width: int = 14,
     height: int = 5,
     transparent: bool = False,
+    y_label: str | None = None,
 ) -> Optional[bytes]:
     """
     Renderiza waterfall a partir de arrays pré-calculados
@@ -343,6 +344,9 @@ def gerar_waterfall_from_arrays(
     if not labels or len(labels) < 3:
         return None
 
+    if y_label is None:
+        y_label = "R$/veíc"
+
     n = len(values)
     cores: list[str] = []
     for i, (lbl, val) in enumerate(zip(labels, values)):
@@ -358,7 +362,7 @@ def gerar_waterfall_from_arrays(
             cores.append(COR_VERDE)
 
     return _render_waterfall(labels, values, cores, titulo, width, height,
-                             y_label="R$/veíc", transparent=transparent)
+                             y_label=y_label, transparent=transparent)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -444,11 +448,24 @@ def _render_waterfall(
         )
 
         # Conectores (linhas tracejadas entre barras)
+        # Usa o nível acumulado real de cada barra para posicionar corretamente
+        cumulative_levels: list[float] = []
+        _cum = 0.0
+        for i, val in enumerate(values):
+            if i == 0:
+                _cum = val
+                cumulative_levels.append(_cum)
+            elif i == n - 1:
+                cumulative_levels.append(val)  # barra absoluta, sem conector
+            else:
+                _cum += val
+                cumulative_levels.append(_cum)
+
         for i in range(n - 1):
-            top_i = bases[i] + heights[i]
+            level = cumulative_levels[i]
             ax.plot(
                 [i + bar_width / 2, i + 1 - bar_width / 2],
-                [top_i, top_i],
+                [level, level],
                 color="#CCCCCC",
                 linewidth=0.8,
                 linestyle="--",
@@ -529,7 +546,7 @@ def _render_waterfall(
 
         # Exportar para bytes
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=200, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
                     facecolor=bg, edgecolor="none", transparent=transparent)
         plt.close(fig)
         buf.seek(0)

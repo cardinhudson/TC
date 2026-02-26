@@ -522,6 +522,7 @@ def _construir_capitulo_mes(
     mes_numero: int,
     info_mes: dict,
     idioma: str,
+    simbolo_moeda: str = "R$",
 ):
     """Adiciona capítulo de um mês ao documento."""
     mes_nome = info_mes.get("mes_nome", f"Mês {mes_numero}")
@@ -583,9 +584,13 @@ def _construir_capitulo_mes(
         titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
         elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
 
-        # ── Inserir gráficos waterfall na seção Comparativos ──
+        # ── Gráfico waterfall Budget na seção Volume ──
+        if tipo_secao == "volume_completo" and graf_global:
+            _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+
+        # ── Gráfico waterfall Mensal na seção Comparativos ──
         if tipo_secao == "comparativos" and graf_global:
-            _inserir_graficos_comparativos(elements, graf_global, mes_nome, info_mes)
+            _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
 
         # Adicionar parágrafos do texto
         paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
@@ -605,7 +610,7 @@ def _construir_capitulo_mes(
 
         # ── Inserir gráfico waterfall da oficina ──
         if ofc_nome in graf_oficinas:
-            _inserir_grafico_oficina(elements, graf_oficinas[ofc_nome], ofc_nome, mes_nome, info_mes)
+            _inserir_grafico_oficina(elements, graf_oficinas[ofc_nome], ofc_nome, mes_nome, info_mes, simbolo_moeda)
 
         paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
         elements.extend(paragraphs)
@@ -614,38 +619,54 @@ def _construir_capitulo_mes(
     elements.append(PageBreak())
 
 
-def _inserir_graficos_comparativos(
+def _inserir_waterfall_budget(
     elements: list,
     graf_global: dict,
     mes_nome: str,
     info_mes: dict,
+    simbolo_moeda: str = "R$",
 ) -> None:
-    """Gera e insere os gráficos waterfall completos (CPU, com todas as categorias)."""
+    """Insere gráfico waterfall Budget (CPU) no PDF."""
     try:
         from tc_copilot.chart_generator import gerar_waterfall_from_arrays
     except ImportError:
-        logger.warning("chart_generator não disponível — gráficos omitidos.")
         return
 
+    cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_global.get("ano", "")
-
-    # 2.1 Waterfall Budget completo (BUD → Flex → categorias → Real)
     wf_bud_labels = graf_global.get("wf_budget_labels", [])
     wf_bud_values = graf_global.get("wf_budget_values", [])
     if wf_bud_labels and len(wf_bud_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_bud_labels, "values": wf_bud_values},
-            titulo=f"Waterfall Budget — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+            titulo=f"Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
 
-    # 2.2 Waterfall Mensal completo (Mês Ant → Flex → categorias → Real)
+
+def _inserir_waterfall_mensal(
+    elements: list,
+    graf_global: dict,
+    mes_nome: str,
+    info_mes: dict,
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Insere gráfico waterfall Mensal (CPU) no PDF."""
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        return
+
+    cpu_label = f"{simbolo_moeda}/veíc"
+    ano_rel = graf_global.get("ano", "")
     wf_men_labels = graf_global.get("wf_mensal_labels", [])
     wf_men_values = graf_global.get("wf_mensal_values", [])
     if wf_men_labels and len(wf_men_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_men_labels, "values": wf_men_values},
-            titulo=f"Waterfall Mensal — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+            titulo=f"Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
 
@@ -656,6 +677,7 @@ def _inserir_grafico_oficina(
     ofc_nome: str,
     mes_nome: str,
     info_mes: dict,
+    simbolo_moeda: str = "R$",
 ) -> None:
     """Gera e insere gráfico waterfall Budget completo (CPU) para uma oficina."""
     try:
@@ -663,6 +685,7 @@ def _inserir_grafico_oficina(
     except ImportError:
         return
 
+    cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_ofc.get("ano", info_mes.get("dados_graficos", {}).get("global", {}).get("ano", ""))
     wf_labels = graf_ofc.get("wf_budget_labels", [])
     wf_values = graf_ofc.get("wf_budget_values", [])
@@ -670,7 +693,8 @@ def _inserir_grafico_oficina(
     if wf_labels and len(wf_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_labels, "values": wf_values},
-            titulo=f"Waterfall Budget — {ofc_nome} — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+            titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
 
@@ -969,7 +993,7 @@ def adicionar_mes_ao_relatorio_local(
     return dados
 
 
-def gerar_pdf_local(ano: int, idioma: str = "pt-BR") -> str:
+def gerar_pdf_local(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "R$") -> str:
     """
     Gera PDF do relatório LOCAL (sem API).
     Mesma estrutura do gerar_pdf() mas usa JSON e caminho separados.
@@ -1002,7 +1026,7 @@ def gerar_pdf_local(ano: int, idioma: str = "pt-BR") -> str:
         key=lambda x: int(x[0]),
     )
     for str_mes, info_mes in meses_ordenados:
-        _construir_capitulo_mes(elements, estilos, int(str_mes), info_mes, idioma)
+        _construir_capitulo_mes(elements, estilos, int(str_mes), info_mes, idioma, simbolo_moeda)
 
     def _on_page(canvas, doc_):
         _header_footer(canvas, doc_, ano)
@@ -1030,11 +1054,17 @@ def gerar_relatorio_mes_local(
     ano: int,
     mes_numero: int,
     idioma: str = "pt-BR",
+    moeda: str = "BRL",
+    taxas: dict[str, float] | None = None,
 ) -> str:
     """
     Pipeline completo SEM API: coleta dados → gera texto via templates → JSON → PDF.
 
     Não requer chave OpenAI. Textos gerados por text_templates.py.
+
+    Args:
+        moeda: Código da moeda para o relatório (BRL, USD, EUR).
+        taxas: Dict com taxas multiplicativas {\"USD\": 0.20, \"EUR\": 0.18} (1 BRL → X moeda).
 
     Returns:
         Caminho do PDF gerado.
@@ -1047,9 +1077,29 @@ def gerar_relatorio_mes_local(
         formatar_dados_oficina,
     )
     from tc_copilot.text_templates import gerar_todas_secoes_local
+    from tc_core.finance.currency import converter_coluna_moeda, obter_simbolo_moeda
+
+    if taxas is None:
+        taxas = {}
+    simbolo = obter_simbolo_moeda(moeda)
 
     # 1. Coletar dados
     dados = coletar_dados_mes(ano, mes_numero)
+
+    # 1b. Converter custos para moeda selecionada (se != BRL)
+    if moeda != "BRL":
+        _colunas_custo = ["Custo FP", "Custo MP", "Custo Log.", "Custo Emb.",
+                          "Custo Total", "Amort. Fer.", "Amort. Eng.",
+                          "Delta Volume", "Delta Mix"]
+        for chave_df in ("custo_real", "custo_bud", "custo_real_ant", "custo_bud_ant",
+                         "custo_real_ano_ant", "custo_bud_ano_ant"):
+            df = dados.get(chave_df)
+            if df is not None and not df.empty:
+                for col in _colunas_custo:
+                    dados[chave_df] = converter_coluna_moeda(
+                        dados[chave_df], col, moeda, taxas,
+                    )
+
     variacoes = calcular_variacoes(dados)
 
     mes_nome = dados["mes_nome"]
@@ -1072,14 +1122,20 @@ def gerar_relatorio_mes_local(
         vol_real=dados.get("volume_real"),
         vol_bud=dados.get("volume_bud"),
     )
-    wf_mensal = calcular_waterfall_mensal_cpu(
-        custo_real=dados.get("custo_real"),
-        custo_ant=dados.get("custo_real_ant"),
-        vol_real=dados.get("volume_real"),
-        vol_ant=dados.get("volume_real_ant"),
-        label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
-        label_real=mes_nome,
-    )
+
+    # Só gera waterfall mensal se houver dados de mês anterior
+    sem_mes_anterior = variacoes.get("sem_mes_anterior", False)
+    if not sem_mes_anterior:
+        wf_mensal = calcular_waterfall_mensal_cpu(
+            custo_real=dados.get("custo_real"),
+            custo_ant=dados.get("custo_real_ant"),
+            vol_real=dados.get("volume_real"),
+            vol_ant=dados.get("volume_real_ant"),
+            label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+            label_real=mes_nome,
+        )
+    else:
+        wf_mensal = {}
 
     dados_graficos: dict[str, Any] = {
         "global": {
@@ -1116,10 +1172,12 @@ def gerar_relatorio_mes_local(
         dados_graficos=dados_graficos,
         oficinas_info=oficinas_info,
         idioma=idioma,
+        moeda=moeda,
+        simbolo=simbolo,
     )
 
     # 5. Salvar no JSON local
     adicionar_mes_ao_relatorio_local(ano, mes_numero, secoes_geradas, dados_graficos)
 
     # 6. Gerar PDF local
-    return gerar_pdf_local(ano, idioma)
+    return gerar_pdf_local(ano, idioma, simbolo_moeda=simbolo)

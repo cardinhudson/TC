@@ -272,6 +272,10 @@ def _render_relatorio_local():
 
     if btn_gerar:
         meses_para_gerar = meses_disp if gerar_todos else [mes_selecionado]
+        # Obter configuração de moeda da sessão
+        _moeda = st.session_state.get("copilot_moeda", "BRL")
+        _taxas = st.session_state.get("copilot_taxas", {})
+
         progress = st.progress(0, text="Iniciando geração...")
         total = len(meses_para_gerar)
         pdf_path = None
@@ -287,6 +291,8 @@ def _render_relatorio_local():
                     ano=ano,
                     mes_numero=mes_num,
                     idioma=idioma,
+                    moeda=_moeda,
+                    taxas=_taxas,
                 )
             except Exception as e:
                 st.error(f"Erro ao gerar {nome_mes}: {e}")
@@ -494,6 +500,9 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
     secoes_legado = ["analise_volume", "variacoes_modelo", "comparativos", "anomalias", "observacoes_finais"]
     labels_idioma = LABELS.get(idioma, LABELS["pt-BR"])
 
+    # Obter símbolo de moeda da sessão
+    _simbolo_view = st.session_state.get("copilot_simbolo", "R$")
+
     # Tabs por mês gerado
     meses_ordenados = sorted(meses_salvos.items(), key=lambda x: int(x[0]))
     nomes_tabs = [info.get("mes_nome", f"Mês {num}") for num, info in meses_ordenados]
@@ -527,9 +536,21 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                     titulo = labels_idioma.get(label_key, tipo_secao)
                     st.markdown(f"### {titulo}")
 
-                    # ── Inserir gráficos waterfall na seção Comparativos ──
+                    # ── Gráfico waterfall Budget na seção Volume ──
+                    if tipo_secao == "volume_completo":
+                        _inserir_waterfall_streamlit(
+                            info_mes, mes_nome, ano,
+                            tipo_waterfall="budget",
+                            simbolo_moeda=_simbolo_view,
+                        )
+
+                    # ── Gráfico waterfall Mensal na seção Comparativos ──
                     if tipo_secao == "comparativos":
-                        _inserir_waterfall_streamlit(info_mes, mes_nome, ano)
+                        _inserir_waterfall_streamlit(
+                            info_mes, mes_nome, ano,
+                            tipo_waterfall="mensal",
+                            simbolo_moeda=_simbolo_view,
+                        )
 
                     st.markdown(texto.replace("$", "\\$"))
                     st.markdown("---")
@@ -568,6 +589,7 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                         _inserir_waterfall_streamlit(
                             info_mes, mes_nome, ano,
                             secao="oficina", ofc_nome=ofc_nome,
+                            simbolo_moeda=_simbolo_view,
                         )
 
                         # Tentar renderizar com sub-tópicos estruturados
@@ -623,14 +645,21 @@ def _inserir_waterfall_streamlit(
     info_mes: dict, mes_nome: str, ano: int,
     *, secao: str = "global",
     ofc_nome: str | None = None,
+    tipo_waterfall: str = "ambos",
+    simbolo_moeda: str = "R$",
 ) -> None:
-    """Renderiza gráficos waterfall (Account, CPU) no Streamlit com fundo transparente."""
+    """Renderiza gráficos waterfall (Account, CPU) no Streamlit com fundo transparente.
+
+    tipo_waterfall: "budget", "mensal" ou "ambos".
+    """
     dados_graf = info_mes.get("dados_graficos", {})
 
     try:
         from tc_copilot.chart_generator import gerar_waterfall_from_arrays
     except ImportError:
         return
+
+    cpu_label = f"{simbolo_moeda}/veíc"
 
     if secao == "global":
         graf = dados_graf.get("global", {})
@@ -639,28 +668,32 @@ def _inserir_waterfall_streamlit(
         ano_rel = graf.get("ano", ano)
 
         # Waterfall Budget
-        wf_bud_labels = graf.get("wf_budget_labels", [])
-        wf_bud_values = graf.get("wf_budget_values", [])
-        if wf_bud_labels and len(wf_bud_labels) >= 3:
-            png = gerar_waterfall_from_arrays(
-                {"labels": wf_bud_labels, "values": wf_bud_values},
-                titulo=f"Waterfall Budget — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
-                transparent=True,
-            )
-            if png:
-                st.image(png, use_container_width=True)
+        if tipo_waterfall in ("budget", "ambos"):
+            wf_bud_labels = graf.get("wf_budget_labels", [])
+            wf_bud_values = graf.get("wf_budget_values", [])
+            if wf_bud_labels and len(wf_bud_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_bud_labels, "values": wf_bud_values},
+                    titulo=f"Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    transparent=True,
+                    y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, width=900)
 
         # Waterfall Mensal
-        wf_men_labels = graf.get("wf_mensal_labels", [])
-        wf_men_values = graf.get("wf_mensal_values", [])
-        if wf_men_labels and len(wf_men_labels) >= 3:
-            png = gerar_waterfall_from_arrays(
-                {"labels": wf_men_labels, "values": wf_men_values},
-                titulo=f"Waterfall Mensal — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
-                transparent=True,
-            )
-            if png:
-                st.image(png, use_container_width=True)
+        if tipo_waterfall in ("mensal", "ambos"):
+            wf_men_labels = graf.get("wf_mensal_labels", [])
+            wf_men_values = graf.get("wf_mensal_values", [])
+            if wf_men_labels and len(wf_men_labels) >= 3:
+                png = gerar_waterfall_from_arrays(
+                    {"labels": wf_men_labels, "values": wf_men_values},
+                    titulo=f"Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    transparent=True,
+                    y_label=cpu_label,
+                )
+                if png:
+                    st.image(png, width=900)
 
     elif secao == "oficina" and ofc_nome:
         graf_oficinas = dados_graf.get("oficinas", {})
@@ -673,11 +706,12 @@ def _inserir_waterfall_streamlit(
         if wf_labels and len(wf_labels) >= 3:
             png = gerar_waterfall_from_arrays(
                 {"labels": wf_labels, "values": wf_values},
-                titulo=f"Waterfall Budget — {ofc_nome} — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+                titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                 transparent=True,
+                y_label=cpu_label,
             )
             if png:
-                st.image(png, use_container_width=True)
+                st.image(png, width=900)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -745,13 +779,72 @@ def _render_configuracao():
     )
     st.session_state["copilot_idioma"] = idioma
 
+    # ── Moeda do Relatório ──
+    st.markdown("#### 💱 Moeda do Relatório")
+    try:
+        from tc_core.finance.currency_db import carregar_taxas_banco, salvar_taxas_banco, inicializar_banco_taxas
+        from tc_core.finance.currency import obter_simbolo_moeda
+        inicializar_banco_taxas()
+        taxas_entrada = carregar_taxas_banco()
+    except ImportError:
+        taxas_entrada = {"USD": 5.0, "EUR": 5.5}
+
+    moedas_opcoes = ["BRL", "USD", "EUR"]
+    moeda_atual = st.session_state.get("copilot_moeda", "BRL")
+    moeda_idx = moedas_opcoes.index(moeda_atual) if moeda_atual in moedas_opcoes else 0
+
+    moeda = st.radio(
+        "Moeda",
+        moedas_opcoes,
+        index=moeda_idx,
+        horizontal=True,
+        key="copilot_moeda_radio",
+        format_func=lambda x: {"BRL": "🇧🇷 R$ (BRL)", "USD": "🇺🇸 $ (USD)", "EUR": "🇪🇺 € (EUR)"}.get(x, x),
+    )
+    st.session_state["copilot_moeda"] = moeda
+
+    if moeda != "BRL":
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            taxas_entrada["USD"] = st.number_input(
+                "🇺🇸 1 USD = R$",
+                value=taxas_entrada.get("USD", 5.0),
+                min_value=0.01, step=0.01, format="%.2f",
+                key="copilot_taxa_usd",
+            )
+        with col_t2:
+            taxas_entrada["EUR"] = st.number_input(
+                "🇪🇺 1 EUR = R$",
+                value=taxas_entrada.get("EUR", 5.5),
+                min_value=0.01, step=0.01, format="%.2f",
+                key="copilot_taxa_eur",
+            )
+        try:
+            salvar_taxas_banco(taxas_entrada)
+        except Exception:
+            pass
+
+    # Calcular taxas inversas (1 BRL → X moeda) para conversão
+    taxa_usd = taxas_entrada.get("USD", 5.0)
+    taxa_eur = taxas_entrada.get("EUR", 5.5)
+    taxas_inversas = {
+        "BRL": 1.0,
+        "USD": 1.0 / taxa_usd if taxa_usd > 0 else 0.20,
+        "EUR": 1.0 / taxa_eur if taxa_eur > 0 else 0.18,
+    }
+    st.session_state["copilot_taxas"] = taxas_inversas
+
+    simbolo = {"BRL": "R$", "USD": "$", "EUR": "€"}.get(moeda, "R$")
+    st.session_state["copilot_simbolo"] = simbolo
+
     # ── Resumo ──
     st.divider()
     st.markdown("**Configuração ativa:**")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("API Key", "✅" if chave_atual else "❌")
     col2.metric("Modelo", modelo)
     col3.metric("Idioma", IDIOMAS.get(idioma, idioma))
+    col4.metric("Moeda", moeda)
 
     # ── Bibliotecas e Roadmap ──
     st.divider()

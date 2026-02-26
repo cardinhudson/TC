@@ -29,28 +29,28 @@ def _fmt(valor: float, decimais: int = 2) -> str:
         return str(valor)
 
 
-def _fmt_k(valor: float, decimais: int = 1) -> str:
-    """Formata valor em kBRL (÷1000)."""
+def _fmt_k(valor: float, decimais: int = 1, moeda: str = "BRL") -> str:
+    """Formata valor em kMOEDA (÷1000)."""
     import pandas as pd
     if pd.isna(valor) or valor is None:
-        return "0 kBRL"
+        return f"0 k{moeda}"
     try:
         v = float(valor) / 1000
         s = f"{v:,.{decimais}f}"
-        return s.replace(",", "X").replace(".", ",").replace("X", ".") + " kBRL"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".") + f" k{moeda}"
     except (ValueError, TypeError):
         return str(valor)
 
 
-def _fmt_cpu(valor: float) -> str:
-    """Formata valor como R$/veíc."""
+def _fmt_cpu(valor: float, simbolo: str = "R$") -> str:
+    """Formata valor como Símbolo/veíc."""
     import pandas as pd
     if pd.isna(valor) or valor is None:
-        return "0 R$/veíc"
+        return f"0 {simbolo}/veíc"
     try:
         v = float(valor)
         s = f"{v:,.1f}"
-        return s.replace(",", "X").replace(".", ",").replace("X", ".") + " R$/veíc"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".") + f" {simbolo}/veíc"
     except (ValueError, TypeError):
         return str(valor)
 
@@ -122,6 +122,8 @@ def gerar_texto_resumo_executivo(
     mes_nome: str = "",
     ano: int = 0,
     oficinas_resumo: list[tuple[str, float, float]] | None = None,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
 ) -> str:
     """
     Gera texto do resumo executivo com 6 parágrafos temáticos.
@@ -175,12 +177,12 @@ def gerar_texto_resumo_executivo(
     v_imp = "negativamente" if efeito_vol > 0 else "positivamente"
     op_verbo, op_adj = _verbo_custo(efeito_op)
     p2 = (
-        f"O Custo FP Real totalizou **{_fmt_k(fp_real)}** ({_fmt_cpu(cpu_real)}), "
-        f"contra um Budget de {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)}), "
-        f"resultando em um delta de {_sinal(delta_bud)}{_fmt_k(delta_bud)} ({_pct(fp_real, fp_bud)}). "
-        f"O efeito volume impactou {v_imp} em {_sinal(efeito_vol)}{_fmt_k(efeito_vol)}, "
-        f"levando o Flex Budget a {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}). "
-        f"O efeito operacional (preço e mix) {op_verbo} {_fmt_k(abs(efeito_op))}, "
+        f"O Custo FP Real totalizou **{_fmt_k(fp_real, moeda=moeda)}** ({_fmt_cpu(cpu_real, simbolo)}), "
+        f"contra um Budget de {_fmt_k(fp_bud, moeda=moeda)} ({_fmt_cpu(cpu_bud, simbolo)}), "
+        f"resultando em um delta de {_sinal(delta_bud)}{_fmt_k(delta_bud, moeda=moeda)} ({_pct(fp_real, fp_bud)}). "
+        f"O efeito volume impactou {v_imp} em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}, "
+        f"levando o Flex Budget a {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
+        f"O efeito operacional (preço e mix) {op_verbo} {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance **{op_adj}** frente ao esperado."
     )
     paragrafos.append(p2)
@@ -198,9 +200,10 @@ def gerar_texto_resumo_executivo(
         top3 = diffs[:3]
         items = []
         for m, r, b, d in top3:
-            items.append(f"{m} ({_fmt_cpu(r)}, Δ {_sinal(d)}{_fmt_cpu(d)})")
+            items.append(f"{m} ({_fmt_cpu(r, simbolo)}, Δ {_sinal(d)}{_fmt_cpu(d, simbolo)})")
+        cpu_label = f"{simbolo}/veíc"
         p3 = (
-            f"Em termos de CPU (R$/veíc), os modelos com maior desvio vs Budget foram: "
+            f"Em termos de CPU ({cpu_label}), os modelos com maior desvio vs Budget foram: "
             f"{'; '.join(items)}."
         )
         paragrafos.append(p3)
@@ -217,7 +220,7 @@ def gerar_texto_resumo_executivo(
         items_t05 = []
         for lbl, val in top_cats:
             lbl_clean = lbl.replace("\n", " ").strip()
-            items_t05.append(f"{_cor_custo(val)} {lbl_clean} ({_sinal(val)}{_fmt_cpu(val)})")
+            items_t05.append(f"{_cor_custo(val)} {lbl_clean} ({_sinal(val)}{_fmt_cpu(val, simbolo)})")
         p4 = (
             f"As categorias de custo com maior impacto no waterfall Budget (CPU) foram: "
             f"{', '.join(items_t05)}."
@@ -231,7 +234,7 @@ def gerar_texto_resumo_executivo(
         items_ofc = []
         for nome, fp_r, delta in top_ofc:
             items_ofc.append(
-                f"{_cor_custo(delta)} {nome} ({_fmt_k(fp_r)}, Δ {_sinal(delta)}{_fmt_k(delta)})"
+                f"{_cor_custo(delta)} {nome} ({_fmt_k(fp_r, moeda=moeda)}, Δ {_sinal(delta)}{_fmt_k(delta, moeda=moeda)})"
             )
         p5 = f"As oficinas com maiores desvios vs Budget foram: {', '.join(items_ofc)}."
         paragrafos.append(p5)
@@ -248,7 +251,7 @@ def gerar_texto_resumo_executivo(
         )
     if abs(efeito_op) > 0 and fp_flex > 0 and abs(efeito_op) / fp_flex > 0.05:
         alertas.append(
-            f"⚠️ Efeito operacional de {_sinal(efeito_op)}{_fmt_k(efeito_op)} "
+            f"⚠️ Efeito operacional de {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)} "
             f"({_pct(fp_real, fp_flex)} vs Flex) — investigar causas de preço/mix."
         )
     if variacoes.get("sem_ano_anterior"):
@@ -271,9 +274,12 @@ def gerar_texto_volume_completo(
     mes_nome: str = "",
     ano: int = 0,
     ano_anterior: int = 0,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
 ) -> str:
     """
     Gera texto analítico para a seção de volume (4 sub-tópicos).
+    Oculta sub-seções quando não há dados de referência.
     """
     v = variacoes["volume"]
     modelos = variacoes["variacao_modelos"]
@@ -314,10 +320,11 @@ def gerar_texto_volume_completo(
             )
 
     # ── 1.3 Real vs Mês Anterior ──
-    delta_ant = vol_real - vol_ant
-    v_verbo_ant, _ = _verbo_vol(delta_ant)
-    partes.append(f"\n### 1.3 Real vs Mês Anterior")
-    if vol_ant > 0:
+    sem_mes_ant = variacoes.get("sem_mes_anterior", False)
+    if not sem_mes_ant and vol_ant > 0:
+        delta_ant = vol_real - vol_ant
+        v_verbo_ant, _ = _verbo_vol(delta_ant)
+        partes.append(f"\n### 1.3 Real vs Mês Anterior")
         partes.append(
             f"O volume {v_verbo_ant} o mês anterior em "
             f"**{_sinal(delta_ant)}{_fmt(abs(delta_ant), 0)} un.** ({_pct(vol_real, vol_ant)})."
@@ -333,12 +340,11 @@ def gerar_texto_volume_completo(
                     f"- {_cor_vol(d)} **{nome}**: {_fmt(info['vol_real'], 0)} un. "
                     f"(Δ {_sinal(d)}{_fmt(abs(d), 0)} un., {pct_str})"
                 )
-    else:
-        partes.append("⚠️ Mês anterior sem dados de volume para comparação.")
 
     # ── 1.4 Real vs Ano Anterior ──
-    partes.append(f"\n### 1.4 Real vs Mesmo Mês de {ano_anterior}")
-    if vol_ano_ant > 0:
+    sem_ano_ant = variacoes.get("sem_ano_anterior", False)
+    if not sem_ano_ant and vol_ano_ant > 0:
+        partes.append(f"\n### 1.4 Real vs Mesmo Mês de {ano_anterior}")
         delta_yoy = vol_real - vol_ano_ant
         v_verbo_yoy, _ = _verbo_vol(delta_yoy)
         partes.append(
@@ -357,8 +363,6 @@ def gerar_texto_volume_completo(
                     f"- {_cor_vol(d)} **{nome}**: {_fmt(info['vol_real'], 0)} un. "
                     f"(Δ {_sinal(d)}{_fmt(abs(d), 0)} un., {pct_str})"
                 )
-    else:
-        partes.append(f"⚠️ Sem dados de volume de {ano_anterior} para comparação.")
 
     return "\n".join(partes)
 
@@ -373,6 +377,8 @@ def gerar_texto_comparativos(
     mes_nome: str = "",
     ano: int = 0,
     ano_anterior: int = 0,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
 ) -> str:
     """
     Gera texto analítico para os 3 comparativos.
@@ -407,39 +413,37 @@ def gerar_texto_comparativos(
     perf_op = "melhor" if efeito_op < 0 else "pior"
 
     partes.append(
-        f"O Custo FP Real de **{_fmt_k(fp_real)}** ({_fmt_cpu(cpu_real)}) "
-        f"compara-se ao Budget de {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)}), "
-        f"com delta total de {_sinal(delta_total)}{_fmt_k(delta_total)} ({_pct(fp_real, fp_bud)})."
+        f"O Custo FP Real de **{_fmt_k(fp_real, moeda=moeda)}** ({_fmt_cpu(cpu_real, simbolo)}) "
+        f"compara-se ao Budget de {_fmt_k(fp_bud, moeda=moeda)} ({_fmt_cpu(cpu_bud, simbolo)}), "
+        f"com delta total de {_sinal(delta_total)}{_fmt_k(delta_total, moeda=moeda)} ({_pct(fp_real, fp_bud)})."
     )
     partes.append(
         f"\nO volume real de {_fmt(vol_real, 0)} un. {rel_vol} Budget de "
         f"{_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)}), impactando {imp_vol} "
-        f"o custo em {_sinal(efeito_vol)}{_fmt_k(efeito_vol)}. "
-        f"O Flex Budget resultante ficou em {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}). "
-        f"O efeito operacional {imp_op} de {_fmt_k(abs(efeito_op))}, "
+        f"o custo em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}. "
+        f"O Flex Budget resultante ficou em {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
+        f"O efeito operacional {imp_op} de {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance {perf_op} do que o esperado."
     )
 
     # ── 2.2 Real vs Mês Anterior ──
-    partes.append("\n### 2.2 Real vs Mês Anterior")
-    if fp_ant > 0:
+    sem_mes_ant = variacoes.get("sem_mes_anterior", False)
+    if not sem_mes_ant and fp_ant > 0:
+        partes.append("\n### 2.2 Real vs Mês Anterior")
         delta_ant = fp_real - fp_ant
         v_ant, adj_ant = _verbo_custo(delta_ant)
         cpu_ant = _cpu(fp_ant, v["mes_anterior"])
         partes.append(
-            f"O Custo FP Real de {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real)}) "
-            f"{v_ant} em {_fmt_k(abs(delta_ant))} ({_pct(fp_real, fp_ant)}) "
-            f"em relação ao mês anterior de {_fmt_k(fp_ant)} ({_fmt_cpu(cpu_ant)}). "
+            f"O Custo FP Real de {_fmt_k(fp_real, moeda=moeda)} ({_fmt_cpu(cpu_real, simbolo)}) "
+            f"{v_ant} em {_fmt_k(abs(delta_ant), moeda=moeda)} ({_pct(fp_real, fp_ant)}) "
+            f"em relação ao mês anterior de {_fmt_k(fp_ant, moeda=moeda)} ({_fmt_cpu(cpu_ant, simbolo)}). "
             f"Essa variação é considerada **{adj_ant}**."
         )
-    else:
-        partes.append("⚠️ Mês anterior sem dados de custo para comparação.")
 
     # ── 2.3 Real vs Ano Anterior ──
-    partes.append(f"\n### 2.3 Real vs Mesmo Mês de {ano_anterior}")
-    if variacoes.get("sem_ano_anterior"):
-        partes.append(f"⚠️ Sem dados de {ano_anterior} para comparação neste período.")
-    else:
+    sem_ano_ant = variacoes.get("sem_ano_anterior", False)
+    if not sem_ano_ant:
+        partes.append(f"\n### 2.3 Real vs Mesmo Mês de {ano_anterior}")
         partes.append(
             f"Comparação disponível no drill-down detalhado abaixo."
         )
@@ -461,6 +465,8 @@ def gerar_texto_conclusoes(
     variacoes: dict,
     mes_nome: str = "",
     ano: int = 0,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
 ) -> str:
     """
     Gera conclusões, alertas e recomendações baseados nos dados.
@@ -499,7 +505,7 @@ def gerar_texto_conclusoes(
         )
 
     # Custo FP vs Mês Anterior
-    if fp_ant > 0 and abs(fp_real - fp_ant) / fp_ant > 0.15:
+    if not variacoes.get("sem_mes_anterior") and fp_ant > 0 and abs(fp_real - fp_ant) / fp_ant > 0.15:
         direcao = "aumento" if fp_real > fp_ant else "redução"
         alertas.append(
             f"- ⚠️ {direcao.capitalize()} de **{_pct(fp_real, fp_ant)}** no Custo FP vs mês anterior — "
@@ -515,7 +521,7 @@ def gerar_texto_conclusoes(
             )
 
     if variacoes.get("sem_ano_anterior"):
-        alertas.append("- ⚠️ Dados do ano anterior indisponíveis — análise YoY prejudicada.")
+        alertas.append("- ⚠️ Dados do ano anterior indisponíveis — análise YoY não incluída.")
 
     if alertas:
         partes.extend(alertas)
@@ -527,16 +533,16 @@ def gerar_texto_conclusoes(
     efeito_op = fp_real - fp_flex
     if efeito_op < 0:
         partes.append(
-            f"- O efeito operacional foi **favorável** em {_fmt_k(abs(efeito_op))}, "
+            f"- O efeito operacional foi **favorável** em {_fmt_k(abs(efeito_op), moeda=moeda)}, "
             f"sugerindo boa gestão de preço e mix no período."
         )
     elif efeito_op > 0:
         partes.append(
-            f"- O efeito operacional foi **desfavorável** em {_sinal(efeito_op)}{_fmt_k(efeito_op)}, "
+            f"- O efeito operacional foi **desfavorável** em {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)}, "
             f"indicando necessidade de revisão de preços/mix de produção."
         )
 
-    if vol_ant > 0:
+    if not variacoes.get("sem_mes_anterior") and vol_ant > 0:
         delta_vol_ant = vol_real - vol_ant
         if abs(delta_vol_ant) > 0:
             partes.append(
@@ -643,6 +649,8 @@ def gerar_todas_secoes_local(
     dados_graficos: dict | None = None,
     oficinas_info: dict[str, dict] | None = None,
     idioma: str = "pt-BR",
+    moeda: str = "BRL",
+    simbolo: str = "R$",
 ) -> dict[str, str]:
     """
     Gera todas as seções do relatório sem usar API.
@@ -653,6 +661,8 @@ def gerar_todas_secoes_local(
         dados_graficos: Dados de gráficos waterfall
         oficinas_info: Dict {nome_oficina: ofc_dict} de formatar_dados_oficina()
         idioma: Idioma do relatório
+        moeda: Código da moeda (BRL, USD, EUR)
+        simbolo: Símbolo da moeda (R$, $, €)
 
     Returns:
         Dict {tipo_secao: texto} no mesmo formato que gerar_relatorio_mes() produz
@@ -670,6 +680,7 @@ def gerar_todas_secoes_local(
     # ── Volume Completo ──
     secoes["volume_completo"] = gerar_texto_volume_completo(
         variacoes, mes_nome=mes_nome, ano=ano, ano_anterior=ano_anterior,
+        moeda=moeda, simbolo=simbolo,
     )
 
     # ── Comparativos (com drill-down detalhado do data_collector) ──
@@ -677,11 +688,13 @@ def gerar_todas_secoes_local(
     secoes["comparativos"] = gerar_texto_comparativos(
         dados_comp, variacoes,
         mes_nome=mes_nome, ano=ano, ano_anterior=ano_anterior,
+        moeda=moeda, simbolo=simbolo,
     )
 
     # ── Conclusões ──
     secoes["conclusoes"] = gerar_texto_conclusoes(
         variacoes, mes_nome=mes_nome, ano=ano,
+        moeda=moeda, simbolo=simbolo,
     )
 
     # ── Oficinas ──
@@ -691,8 +704,6 @@ def gerar_todas_secoes_local(
             secoes[f"oficina_{ofc_nome}"] = gerar_texto_oficina(
                 ofc_dict, ofc_nome, mes_nome=mes_nome, ano=ano,
             )
-            # Extrair delta para o resumo executivo
-            # (parse simples do texto de resumo)
             try:
                 from tc_copilot.data_collector import (
                     _filtrar_por_oficina,
@@ -712,6 +723,8 @@ def gerar_todas_secoes_local(
         mes_nome=mes_nome,
         ano=ano,
         oficinas_resumo=oficinas_resumo if oficinas_resumo else None,
+        moeda=moeda,
+        simbolo=simbolo,
     )
 
     return secoes
