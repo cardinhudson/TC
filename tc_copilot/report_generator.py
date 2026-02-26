@@ -1057,14 +1057,59 @@ def gerar_relatorio_mes(
     )
 
     # Waterfall global — Mensal (Mês Ant → Flex → categorias → Real)
-    wf_mensal = calcular_waterfall_mensal_cpu(
-        custo_real=dados.get("custo_real"),
-        custo_ant=dados.get("custo_real_ant"),
-        vol_real=dados.get("volume_real"),
-        vol_ant=dados.get("volume_real_ant"),
-        label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
-        label_real=mes_nome,
-    )
+    sem_mes_anterior = variacoes.get("sem_mes_anterior", False)
+    if not sem_mes_anterior:
+        wf_mensal = calcular_waterfall_mensal_cpu(
+            custo_real=dados.get("custo_real"),
+            custo_ant=dados.get("custo_real_ant"),
+            vol_real=dados.get("volume_real"),
+            vol_ant=dados.get("volume_real_ant"),
+            label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+            label_real=mes_nome,
+        )
+    else:
+        wf_mensal = {}
+
+    # Waterfall global — Ano Anterior (YoY)
+    sem_ano_anterior = variacoes.get("sem_ano_anterior", False)
+    wf_ano_ant: dict[str, Any] = {}
+    if not sem_ano_anterior:
+        import pandas as _pd
+        hist_custo = dados.get("historico_custo")
+        hist_vol = dados.get("historico_vol")
+        _ano_ant = dados.get("ano_anterior", ano - 1)
+        if hist_custo is not None and not hist_custo.empty:
+            _mask_c = _pd.Series(True, index=hist_custo.index)
+            if "Ano" in hist_custo.columns:
+                _mask_c = _mask_c & (hist_custo["Ano"] == _ano_ant)
+            if "Período" in hist_custo.columns:
+                _mask_c = _mask_c & (hist_custo["Período"] == mes_nome)
+            custo_ano_ant = hist_custo.loc[_mask_c].copy() if _mask_c.any() else None
+        else:
+            custo_ano_ant = None
+        if hist_vol is not None and not hist_vol.empty:
+            _mask_v = _pd.Series(True, index=hist_vol.index)
+            if "Ano" in hist_vol.columns:
+                _mask_v = _mask_v & (hist_vol["Ano"] == _ano_ant)
+            if "Período" in hist_vol.columns:
+                _mask_v = _mask_v & (hist_vol["Período"] == mes_nome)
+            vol_ano_ant = hist_vol.loc[_mask_v].copy() if _mask_v.any() else None
+        else:
+            vol_ano_ant = None
+        if custo_ano_ant is not None and not custo_ano_ant.empty:
+            wf_ano_ant = calcular_waterfall_mensal_cpu(
+                custo_real=dados.get("custo_real"),
+                custo_ant=custo_ano_ant,
+                vol_real=dados.get("volume_real"),
+                vol_ant=vol_ano_ant,
+                label_ant=f"{mes_nome}/{_ano_ant}",
+                label_real=f"{mes_nome}/{ano}",
+            )
+
+    # Extrair volume por veículo para gráfico de barras
+    _var_modelos = variacoes.get("variacao_modelos", {})
+    _vol_real_modelos = {m: float(v.get("vol_real", 0)) for m, v in _var_modelos.items() if v.get("vol_real", 0) > 0}
+    _vol_bud_modelos = {m: float(v.get("vol_budget", 0)) for m, v in _var_modelos.items() if v.get("vol_budget", 0) > 0}
 
     dados_graficos: dict[str, Any] = {
         "global": {
@@ -1072,6 +1117,10 @@ def gerar_relatorio_mes(
             "wf_budget_values": [float(v) for v in wf_budget.get("values", [])],
             "wf_mensal_labels": wf_mensal.get("labels", []),
             "wf_mensal_values": [float(v) for v in wf_mensal.get("values", [])],
+            "wf_ano_ant_labels": wf_ano_ant.get("labels", []),
+            "wf_ano_ant_values": [float(v) for v in wf_ano_ant.get("values", [])],
+            "vol_modelos_real": _vol_real_modelos,
+            "vol_modelos_budget": _vol_bud_modelos,
             "ano": ano,
             "ano_anterior": ano_anterior,
         },
@@ -1080,17 +1129,59 @@ def gerar_relatorio_mes(
     for ofc in oficinas:
         try:
             dados_ofc = _filtrar_por_oficina(dados, ofc)
-            # Waterfall Budget por oficina
+
+            # 1) Waterfall Budget por oficina
             wf_ofc_budget = calcular_waterfall_budget_cpu(
                 custo_real=dados_ofc.get("custo_real"),
                 custo_bud=dados_ofc.get("custo_bud"),
                 vol_real=dados.get("volume_real"),
                 vol_bud=dados.get("volume_bud"),
             )
+
+            # 2) Waterfall Mensal por oficina
+            wf_ofc_mensal: dict[str, Any] = {}
+            if not sem_mes_anterior:
+                wf_ofc_mensal = calcular_waterfall_mensal_cpu(
+                    custo_real=dados_ofc.get("custo_real"),
+                    custo_ant=dados_ofc.get("custo_real_ant"),
+                    vol_real=dados.get("volume_real"),
+                    vol_ant=dados.get("volume_real_ant"),
+                    label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                    label_real=mes_nome,
+                )
+
+            # 3) Waterfall Ano Anterior por oficina
+            wf_ofc_ano_ant: dict[str, Any] = {}
+            if not sem_ano_anterior:
+                hist_custo_ofc = dados_ofc.get("historico_custo")
+                if hist_custo_ofc is not None and not hist_custo_ofc.empty:
+                    _mask_oc = _pd.Series(True, index=hist_custo_ofc.index)
+                    if "Ano" in hist_custo_ofc.columns:
+                        _mask_oc = _mask_oc & (hist_custo_ofc["Ano"] == _ano_ant)
+                    if "Período" in hist_custo_ofc.columns:
+                        _mask_oc = _mask_oc & (hist_custo_ofc["Período"] == mes_nome)
+                    custo_aa_ofc = hist_custo_ofc.loc[_mask_oc].copy() if _mask_oc.any() else None
+                else:
+                    custo_aa_ofc = None
+                if custo_aa_ofc is not None and not custo_aa_ofc.empty:
+                    wf_ofc_ano_ant = calcular_waterfall_mensal_cpu(
+                        custo_real=dados_ofc.get("custo_real"),
+                        custo_ant=custo_aa_ofc,
+                        vol_real=dados.get("volume_real"),
+                        vol_ant=vol_ano_ant,
+                        label_ant=f"{mes_nome}/{_ano_ant}",
+                        label_real=f"{mes_nome}/{ano}",
+                    )
+
             dados_graficos["oficinas"][ofc] = {
                 "wf_budget_labels": wf_ofc_budget.get("labels", []),
                 "wf_budget_values": [float(v) for v in wf_ofc_budget.get("values", [])],
+                "wf_mensal_labels": wf_ofc_mensal.get("labels", []),
+                "wf_mensal_values": [float(v) for v in wf_ofc_mensal.get("values", [])],
+                "wf_ano_ant_labels": wf_ofc_ano_ant.get("labels", []),
+                "wf_ano_ant_values": [float(v) for v in wf_ofc_ano_ant.get("values", [])],
                 "ano": ano,
+                "ano_anterior": dados.get("ano_anterior", ano - 1),
             }
         except Exception as e:
             logger.warning("Falha ao coletar dados de gráfico para oficina %s: %s", ofc, e)
