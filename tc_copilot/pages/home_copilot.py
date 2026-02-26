@@ -178,18 +178,160 @@ def _render_chatbot():
 # ═══════════════════════════════════════════════════════════════
 
 def _render_gerar_relatorio():
+    """Renderiza a aba de relatório com sub-tabs: Automático (sem API) e Com IA."""
+    st.subheader("Gerar Relatório Anual")
+
+    sub_auto, sub_ia = st.tabs([
+        "📄 Relatório Automático",
+        "🤖 Relatório com IA",
+    ])
+
+    with sub_auto:
+        _render_relatorio_local()
+
+    with sub_ia:
+        _render_relatorio_ia()
+
+
+# ── SUB-TAB: RELATÓRIO AUTOMÁTICO (SEM API) ──
+
+def _render_relatorio_local():
     from tc_copilot.data_collector import (
         descobrir_anos_disponiveis,
         descobrir_meses_disponiveis,
     )
     from tc_copilot.report_generator import (
-        carregar_dados_relatorio,
+        carregar_dados_relatorio_local,
+        gerar_relatorio_mes_local,
+        meses_ja_gerados_local,
+    )
+    from tc_copilot.config import caminho_relatorio_local
+    from tc_copilot.prompts import LABELS, obter_nome_mes
+
+    st.info(
+        "📄 Relatório gerado **sem API** — textos analíticos "
+        "produzidos automaticamente por templates Python."
+    )
+
+    # ── Selecionar ano ──
+    anos = descobrir_anos_disponiveis()
+    if not anos:
+        st.error("Nenhum ano com dados processados encontrado em dados/TC_Principal/")
+        return
+
+    ano = st.selectbox("Ano", anos, key="rel_local_ano")
+
+    # ── Meses disponíveis vs já gerados ──
+    meses_disp = descobrir_meses_disponiveis(ano)
+    meses_gerados = meses_ja_gerados_local(ano)
+
+    if not meses_disp:
+        st.warning(f"Nenhum mês com dados Real encontrado para {ano}.")
+        return
+
+    # Mostrar status
+    st.markdown("**Status dos meses:**")
+    cols = st.columns(min(len(meses_disp), 6))
+    for i, mes_num in enumerate(meses_disp):
+        col = cols[i % len(cols)]
+        nome = obter_nome_mes(mes_num, "pt-BR")[:3]
+        status = "✅" if mes_num in meses_gerados else "⬜"
+        col.markdown(f"{status} **{nome}**")
+
+    st.divider()
+
+    # ── Seletor de mês ──
+    opcoes_meses = {
+        f"{obter_nome_mes(m, 'pt-BR')} {'✅' if m in meses_gerados else ''}": m
+        for m in meses_disp
+    }
+    mes_selecionado_label = st.selectbox(
+        "Mês a gerar/regenerar",
+        list(opcoes_meses.keys()),
+        key="rel_local_mes",
+    )
+    mes_selecionado = opcoes_meses[mes_selecionado_label]
+
+    gerar_todos = st.checkbox(
+        "Gerar todos os meses disponíveis de uma vez",
+        help="Gera capítulos para todos os meses com dados.",
+        key="rel_local_todos",
+    )
+
+    idioma = st.session_state.get("copilot_idioma", "pt-BR")
+
+    # ── Botão gerar ──
+    col_btn1, col_btn2 = st.columns([1, 3])
+    with col_btn1:
+        btn_gerar = st.button(
+            "🚀 Gerar Relatório",
+            use_container_width=True,
+            type="primary",
+            key="btn_gerar_local",
+        )
+
+    if btn_gerar:
+        meses_para_gerar = meses_disp if gerar_todos else [mes_selecionado]
+        progress = st.progress(0, text="Iniciando geração...")
+        total = len(meses_para_gerar)
+        pdf_path = None
+
+        for idx, mes_num in enumerate(meses_para_gerar):
+            nome_mes = obter_nome_mes(mes_num, "pt-BR")
+            progress.progress(
+                (idx) / total,
+                text=f"Gerando capítulo: {nome_mes} ({idx+1}/{total})...",
+            )
+            try:
+                pdf_path = gerar_relatorio_mes_local(
+                    ano=ano,
+                    mes_numero=mes_num,
+                    idioma=idioma,
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar {nome_mes}: {e}")
+                continue
+
+        progress.progress(1.0, text="Concluído!")
+        if pdf_path and os.path.exists(pdf_path):
+            st.success("✅ Relatório gerado com sucesso!")
+            st.balloons()
+
+    # ── Download do PDF ──
+    pdf_existente = str(caminho_relatorio_local(ano))
+    if os.path.exists(pdf_existente):
+        st.divider()
+        tamanho_mb = os.path.getsize(pdf_existente) / (1024 * 1024)
+        col1, col2, col3 = st.columns([1, 1, 2])
+        col1.metric("Meses gerados", len(meses_gerados))
+        col2.metric("Tamanho PDF", f"{tamanho_mb:.1f} MB")
+        with col3:
+            with open(pdf_existente, "rb") as f:
+                st.download_button(
+                    label="📥 Baixar PDF",
+                    data=f.read(),
+                    file_name=f"relatorio_tc_{ano}_local.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="dl_pdf_local",
+                )
+
+    # ── Exibir relatório ──
+    _render_resultado_relatorio(ano, idioma, modo="local")
+
+
+# ── SUB-TAB: RELATÓRIO COM IA ──
+
+def _render_relatorio_ia():
+    from tc_copilot.data_collector import (
+        descobrir_anos_disponiveis,
+        descobrir_meses_disponiveis,
+    )
+    from tc_copilot.report_generator import (
         gerar_relatorio_mes,
         meses_ja_gerados,
     )
-    from tc_copilot.prompts import LABELS, obter_nome_mes
-
-    st.subheader("Gerar Relatório Anual")
+    from tc_copilot.prompts import obter_nome_mes
 
     api_key = carregar_api_key()
     if not api_key:
@@ -309,152 +451,168 @@ def _render_gerar_relatorio():
                     use_container_width=True,
                 )
 
-    # ══════════════════════════════════════════════
-    #  EXIBIR TEXTO DO RELATÓRIO NA PÁGINA
-    # ══════════════════════════════════════════════
-    dados_relatorio = carregar_dados_relatorio(ano)
+    # ── Exibir relatório ──
+    _render_resultado_relatorio(ano, idioma, modo="ia")
+
+
+# ═══════════════════════════════════════════════════════════════
+#  EXIBIÇÃO COMPARTILHADA DO RELATÓRIO (LOCAL / IA)
+# ═══════════════════════════════════════════════════════════════
+
+def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
+    """Exibe seções do relatório gerado — reutilizado pelas sub-tabs Local e IA."""
+    from tc_copilot.prompts import LABELS
+
+    if modo == "local":
+        from tc_copilot.report_generator import carregar_dados_relatorio_local
+        dados_relatorio = carregar_dados_relatorio_local(ano)
+    else:
+        from tc_copilot.report_generator import carregar_dados_relatorio
+        dados_relatorio = carregar_dados_relatorio(ano)
+
     meses_salvos = dados_relatorio.get("meses", {})
+    if not meses_salvos:
+        return
 
-    if meses_salvos:
-        st.divider()
-        st.subheader("📖 Relatório Completo")
+    st.divider()
+    st.subheader("📖 Relatório Completo")
 
-        # Mapeamento tipo_secao → label key (v2 + legado)
-        secao_labels = {
-            "resumo_executivo": "sec_resumo_executivo",
-            "volume_completo": "sec_volume_completo",
-            "comparativos": "sec_comparativos",
-            "conclusoes": "sec_conclusoes",
-            # Legado (compatibilidade com relatórios já gerados)
-            "analise_volume": "sec_volume",
-            "variacoes_modelo": "sec_variacoes",
-            "anomalias": "sec_anomalias",
-            "observacoes_finais": "sec_obs_finais",
-        }
-        # Ordem de prioridade: v2 primeiro, legado se existir
-        secoes_v2 = ["resumo_executivo", "volume_completo", "comparativos", "conclusoes"]
-        secoes_legado = ["analise_volume", "variacoes_modelo", "comparativos", "anomalias", "observacoes_finais"]
-        labels_idioma = LABELS.get(idioma, LABELS["pt-BR"])
+    # Mapeamento tipo_secao → label key (v2 + legado)
+    secao_labels = {
+        "resumo_executivo": "sec_resumo_executivo",
+        "volume_completo": "sec_volume_completo",
+        "comparativos": "sec_comparativos",
+        "conclusoes": "sec_conclusoes",
+        # Legado (compatibilidade com relatórios já gerados)
+        "analise_volume": "sec_volume",
+        "variacoes_modelo": "sec_variacoes",
+        "anomalias": "sec_anomalias",
+        "observacoes_finais": "sec_obs_finais",
+    }
+    # Ordem de prioridade: v2 primeiro, legado se existir
+    secoes_v2 = ["resumo_executivo", "volume_completo", "comparativos", "conclusoes"]
+    secoes_legado = ["analise_volume", "variacoes_modelo", "comparativos", "anomalias", "observacoes_finais"]
+    labels_idioma = LABELS.get(idioma, LABELS["pt-BR"])
 
-        # Tabs por mês gerado
-        meses_ordenados = sorted(meses_salvos.items(), key=lambda x: int(x[0]))
-        nomes_tabs = [info.get("mes_nome", f"Mês {num}") for num, info in meses_ordenados]
-        tabs_meses = st.tabs(nomes_tabs)
+    # Tabs por mês gerado
+    meses_ordenados = sorted(meses_salvos.items(), key=lambda x: int(x[0]))
+    nomes_tabs = [info.get("mes_nome", f"Mês {num}") for num, info in meses_ordenados]
+    tabs_meses = st.tabs(nomes_tabs)
 
-        for tab, (str_mes, info_mes) in zip(tabs_meses, meses_ordenados):
-            with tab:
-                mes_nome = info_mes.get("mes_nome", f"Mês {str_mes}")
-                gerado_em = info_mes.get("gerado_em", "")
-                if gerado_em:
+    for tab, (str_mes, info_mes) in zip(tabs_meses, meses_ordenados):
+        with tab:
+            mes_nome = info_mes.get("mes_nome", f"Mês {str_mes}")
+            gerado_em = info_mes.get("gerado_em", "")
+            if gerado_em:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(gerado_em)
+                    st.caption(f"Gerado em: {dt.strftime('%d/%m/%Y %H:%M')}")
+                except Exception:
+                    st.caption(f"Gerado em: {gerado_em}")
+
+            secoes = info_mes.get("secoes", {})
+
+            # Detectar se é formato v2 ou legado
+            has_v2 = any(k in secoes for k in secoes_v2)
+            secoes_ordem = secoes_v2 if has_v2 else secoes_legado
+
+            # ── EXPANDER com seções globais do mês (SEM oficinas) ──
+            with st.expander(f"**📄 Relatório de {mes_nome}**", expanded=False):
+                for tipo_secao in secoes_ordem:
+                    texto = secoes.get(tipo_secao, "")
+                    if not texto:
+                        continue
+                    label_key = secao_labels.get(tipo_secao, tipo_secao)
+                    titulo = labels_idioma.get(label_key, tipo_secao)
+                    st.markdown(f"### {titulo}")
+
+                    # ── Inserir gráficos waterfall na seção Comparativos ──
+                    if tipo_secao == "comparativos":
+                        _inserir_waterfall_streamlit(info_mes, mes_nome, ano)
+
+                    st.markdown(texto.replace("$", "\\$"))
+                    st.markdown("---")
+
+            # ── EXPANDER separado para análise por oficina ──
+            oficina_keys = sorted([k for k in secoes if k.startswith("oficina_")])
+            if oficina_keys:
+                with st.expander(
+                    f"**🏭 Análise por Oficina — {mes_nome}** "
+                    f"({len(oficina_keys)} oficinas)",
+                    expanded=False,
+                ):
+                    # Gerar dados frescos para sub-tópicos
                     try:
-                        from datetime import datetime
-                        dt = datetime.fromisoformat(gerado_em)
-                        st.caption(f"Gerado em: {dt.strftime('%d/%m/%Y %H:%M')}")
+                        from tc_copilot.data_collector import (
+                            coletar_dados_mes,
+                            calcular_variacoes,
+                            formatar_dados_oficina as _fmt_ofc,
+                        )
+                        _mes_num = int(str_mes)
+                        _dados_mes = coletar_dados_mes(ano, _mes_num)
+                        _vars_mes = calcular_variacoes(_dados_mes)
+                        _dados_frescos_ok = True
                     except Exception:
-                        st.caption(f"Gerado em: {gerado_em}")
+                        _dados_frescos_ok = False
 
-                secoes = info_mes.get("secoes", {})
+                    for ofc_key in oficina_keys:
+                        ofc_nome = ofc_key.replace("oficina_", "")
+                        titulo_template = labels_idioma.get(
+                            "sec_oficina", "🏭 Oficina {oficina}"
+                        )
+                        titulo_ofc = titulo_template.format(oficina=ofc_nome)
+                        st.markdown(f"#### {titulo_ofc}")
 
-                # Detectar se é formato v2 ou legado
-                has_v2 = any(k in secoes for k in secoes_v2)
-                secoes_ordem = secoes_v2 if has_v2 else secoes_legado
+                        # ── Gráfico waterfall da oficina ──
+                        _inserir_waterfall_streamlit(
+                            info_mes, mes_nome, ano,
+                            secao="oficina", ofc_nome=ofc_nome,
+                        )
 
-                # ── EXPANDER com seções globais do mês (SEM oficinas) ──
-                with st.expander(f"**📄 Relatório de {mes_nome}**", expanded=False):
-                    for tipo_secao in secoes_ordem:
-                        texto = secoes.get(tipo_secao, "")
-                        if not texto:
-                            continue
-                        label_key = secao_labels.get(tipo_secao, tipo_secao)
-                        titulo = labels_idioma.get(label_key, tipo_secao)
-                        st.markdown(f"### {titulo}")
+                        # Tentar renderizar com sub-tópicos estruturados
+                        if _dados_frescos_ok:
+                            try:
+                                ofc_dict = _fmt_ofc(_dados_mes, _vars_mes, ofc_nome)
+                                # Resumo (Custo FP + deltas)
+                                st.markdown(ofc_dict["resumo"].replace("$", "\\$"))
+                                st.markdown("")
 
-                        # ── Inserir gráficos waterfall na seção Comparativos ──
-                        if tipo_secao == "comparativos":
-                            _inserir_waterfall_streamlit(info_mes, mes_nome, ano)
-
-                        st.markdown(texto.replace("$", "\\$"))
-                        st.markdown("---")
-
-                # ── EXPANDER separado para análise por oficina ──
-                oficina_keys = sorted([k for k in secoes if k.startswith("oficina_")])
-                if oficina_keys:
-                    with st.expander(
-                        f"**🏭 Análise por Oficina — {mes_nome}** "
-                        f"({len(oficina_keys)} oficinas)",
-                        expanded=False,
-                    ):
-                        # Gerar dados frescos para sub-tópicos
-                        # (carrega dados + variações uma vez para todas as oficinas do mês)
-                        try:
-                            from tc_copilot.data_collector import (
-                                coletar_dados_mes,
-                                calcular_variacoes,
-                                formatar_dados_oficina as _fmt_ofc,
-                            )
-                            _mes_num = int(str_mes)
-                            _dados_mes = coletar_dados_mes(ano, _mes_num)
-                            _vars_mes = calcular_variacoes(_dados_mes)
-                            _dados_frescos_ok = True
-                        except Exception:
-                            _dados_frescos_ok = False
-
-                        for ofc_key in oficina_keys:
-                            ofc_nome = ofc_key.replace("oficina_", "")
-                            titulo_template = labels_idioma.get(
-                                "sec_oficina", "🏭 Oficina {oficina}"
-                            )
-                            titulo_ofc = titulo_template.format(oficina=ofc_nome)
-                            st.markdown(f"#### {titulo_ofc}")
-
-                            # ── Gráfico waterfall da oficina ──
-                            _inserir_waterfall_streamlit(
-                                info_mes, mes_nome, ano,
-                                secao="oficina", ofc_nome=ofc_nome,
-                            )
-
-                            # Tentar renderizar com sub-tópicos estruturados
-                            if _dados_frescos_ok:
-                                try:
-                                    ofc_dict = _fmt_ofc(_dados_mes, _vars_mes, ofc_nome)
-                                    # Resumo (Custo FP + deltas)
-                                    st.markdown(ofc_dict["resumo"].replace("$", "\\$"))
+                                # Sub-tópicos por comparativo
+                                _sub_topicos = [
+                                    ("budget_flex", "📊 Real vs Budget (Efeito Flex Volume)"),
+                                    ("mes_anterior", "📊 Real vs Mês Anterior"),
+                                    ("ano_anterior", f"📊 Real vs Ano Anterior"),
+                                ]
+                                for _tipo, _titulo in _sub_topicos:
+                                    _conteudo = ofc_dict.get(_tipo, "")
+                                    if not _conteudo:
+                                        continue
+                                    st.markdown(f"**{_titulo}**")
+                                    st.markdown(
+                                        _conteudo.replace("$", "\\$"),
+                                    )
                                     st.markdown("")
 
-                                    # Sub-tópicos por comparativo
-                                    _sub_topicos = [
-                                        ("budget_flex", "📊 Real vs Budget (Efeito Flex Volume)"),
-                                        ("mes_anterior", "📊 Real vs Mês Anterior"),
-                                        ("ano_anterior", f"📊 Real vs Ano Anterior"),
-                                    ]
-                                    for _tipo, _titulo in _sub_topicos:
-                                        _conteudo = ofc_dict.get(_tipo, "")
-                                        if not _conteudo:
-                                            continue
-                                        st.markdown(f"**{_titulo}**")
-                                        st.markdown(
-                                            _conteudo.replace("$", "\\$"),
-                                        )
-                                        st.markdown("")
+                                # Análise textual (LLM ou template)
+                                texto_analise = secoes.get(ofc_key, "")
+                                if texto_analise:
+                                    label_analise = "💡 Análise IA" if modo == "ia" else "💡 Análise"
+                                    st.markdown(f"**{label_analise}**")
+                                    st.markdown(texto_analise.replace("$", "\\$"))
 
-                                    # Análise LLM (se houver texto salvo)
-                                    texto_llm = secoes.get(ofc_key, "")
-                                    if texto_llm:
-                                        st.markdown("**💡 Análise**")
-                                        st.markdown(texto_llm.replace("$", "\\$"))
-
-                                except Exception:
-                                    # Fallback: texto salvo pelo report generator
-                                    texto = secoes.get(ofc_key, "")
-                                    if texto:
-                                        st.markdown(texto.replace("$", "\\$"))
-                            else:
-                                # Fallback: texto monolítico salvo
+                            except Exception:
+                                # Fallback: texto salvo pelo report generator
                                 texto = secoes.get(ofc_key, "")
                                 if texto:
                                     st.markdown(texto.replace("$", "\\$"))
+                        else:
+                            # Fallback: texto monolítico salvo
+                            texto = secoes.get(ofc_key, "")
+                            if texto:
+                                st.markdown(texto.replace("$", "\\$"))
 
-                            st.divider()
+                        st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════

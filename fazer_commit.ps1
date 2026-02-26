@@ -1,32 +1,22 @@
 # Script para fazer commit das alterações do Stellantis Cost Intelligence (SCI)
-# Data: 15/01/2026
+# Data: 15/01/2026 | Atualizado: 26/02/2026
 
 Write-Host "🚀 Preparando commit das alterações..." -ForegroundColor Cyan
 Write-Host ""
 
-# Adicionar arquivos modificados importantes
+# Adicionar TODOS os arquivos do projeto (respeitando .gitignore)
 Write-Host "📦 Adicionando arquivos ao commit..." -ForegroundColor Yellow
 
-# Adicionar arquivos principais do projeto
-git add .gitignore
-git add app.py
-git add versao.json
-git add controle_paginas.json
-git add taxas_cambio.db
-
-# Adicionar arquivos de documentação e scripts
-git add *.md
-git add *.py
-
-# Adicionar requirements
-git add requirements*.txt
+# Usa git add -A para capturar TUDO: raiz + subdiretorios
+# .gitignore já exclui venv/, __pycache__/, build/, dist/, etc.
+git add -A
 
 Write-Host ""
 Write-Host "📊 Status atual:" -ForegroundColor Yellow
 git status --short
 
 Write-Host ""
-Write-Host "💡 Arquivos grandes (parquet, xlsx) foram excluídos do commit via .gitignore" -ForegroundColor Green
+Write-Host "💡 Arquivos ignorados (venv, __pycache__, build, etc.) são excluídos automaticamente via .gitignore" -ForegroundColor Green
 Write-Host ""
 
 # Perguntar confirmação

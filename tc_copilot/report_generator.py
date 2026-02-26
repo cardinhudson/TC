@@ -39,7 +39,9 @@ from tc_copilot.config import (
     PASTA_RELATORIOS,
     ROOT,
     caminho_dados_relatorio,
+    caminho_dados_relatorio_local,
     caminho_relatorio,
+    caminho_relatorio_local,
     garantir_pasta_relatorios,
 )
 from tc_copilot.prompts import LABELS, obter_nome_mes
@@ -911,3 +913,213 @@ def meses_ja_gerados(ano: int) -> list[int]:
     """Retorna lista de meses já gerados no relatório."""
     dados = carregar_dados_relatorio(ano)
     return sorted(int(m) for m in dados.get("meses", {}).keys())
+
+
+# ═══════════════════════════════════════════════════════════════
+#  RELATÓRIO LOCAL (SEM API) — JSON + PDF separados
+# ═══════════════════════════════════════════════════════════════
+
+def carregar_dados_relatorio_local(ano: int) -> dict[str, Any]:
+    """Carrega dados do relatório LOCAL já salvos em JSON."""
+    caminho = caminho_dados_relatorio_local(ano)
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning("Erro ao carregar JSON local: %s", e)
+    return {"ano": ano, "modo": "local", "meses": {}}
+
+
+def salvar_dados_relatorio_local(ano: int, dados: dict[str, Any]):
+    """Salva dados do relatório LOCAL em JSON."""
+    garantir_pasta_relatorios()
+    caminho = caminho_dados_relatorio_local(ano)
+    try:
+        with open(caminho, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error("Erro ao salvar JSON local: %s", e)
+
+
+def adicionar_mes_ao_relatorio_local(
+    ano: int,
+    mes_numero: int,
+    secoes: dict[str, str],
+    dados_graficos: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Adiciona/atualiza um mês no JSON do relatório LOCAL."""
+    dados = carregar_dados_relatorio_local(ano)
+    dados["ano"] = ano
+    dados["modo"] = "local"
+
+    str_mes = str(mes_numero)
+    entry: dict[str, Any] = {
+        "mes_numero": mes_numero,
+        "mes_nome": obter_nome_mes(mes_numero, "pt-BR"),
+        "gerado_em": datetime.now().isoformat(),
+        "modo": "local",
+        "secoes": secoes,
+    }
+    if dados_graficos:
+        entry["dados_graficos"] = dados_graficos
+
+    dados["meses"][str_mes] = entry
+    salvar_dados_relatorio_local(ano, dados)
+    return dados
+
+
+def gerar_pdf_local(ano: int, idioma: str = "pt-BR") -> str:
+    """
+    Gera PDF do relatório LOCAL (sem API).
+    Mesma estrutura do gerar_pdf() mas usa JSON e caminho separados.
+    """
+    garantir_pasta_relatorios()
+    dados_relatorio = carregar_dados_relatorio_local(ano)
+    estilos = _criar_estilos()
+
+    pdf_path = str(caminho_relatorio_local(ano))
+
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=A4,
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+        title=f"Relatório Anual TC {ano} (Automático)",
+        author="SCI — TC Copilot (modo local)",
+    )
+
+    elements: list = []
+
+    # Capa, sumário e capítulos — reutiliza as mesmas funções
+    _construir_capa(elements, estilos, ano, idioma)
+    _construir_sumario(elements, estilos, dados_relatorio, idioma)
+
+    meses_ordenados = sorted(
+        dados_relatorio.get("meses", {}).items(),
+        key=lambda x: int(x[0]),
+    )
+    for str_mes, info_mes in meses_ordenados:
+        _construir_capitulo_mes(elements, estilos, int(str_mes), info_mes, idioma)
+
+    def _on_page(canvas, doc_):
+        _header_footer(canvas, doc_, ano)
+
+    def _on_first_page(canvas, doc_):
+        pass
+
+    try:
+        doc.build(elements, onFirstPage=_on_first_page, onLaterPages=_on_page)
+        logger.info("PDF local gerado: %s", pdf_path)
+    except Exception as e:
+        logger.error("Erro ao gerar PDF local: %s", e)
+        raise
+
+    return pdf_path
+
+
+def meses_ja_gerados_local(ano: int) -> list[int]:
+    """Retorna lista de meses já gerados no relatório LOCAL."""
+    dados = carregar_dados_relatorio_local(ano)
+    return sorted(int(m) for m in dados.get("meses", {}).keys())
+
+
+def gerar_relatorio_mes_local(
+    ano: int,
+    mes_numero: int,
+    idioma: str = "pt-BR",
+) -> str:
+    """
+    Pipeline completo SEM API: coleta dados → gera texto via templates → JSON → PDF.
+
+    Não requer chave OpenAI. Textos gerados por text_templates.py.
+
+    Returns:
+        Caminho do PDF gerado.
+    """
+    from tc_copilot.data_collector import (
+        _filtrar_por_oficina,
+        calcular_variacoes,
+        coletar_dados_mes,
+        descobrir_oficinas,
+        formatar_dados_oficina,
+    )
+    from tc_copilot.text_templates import gerar_todas_secoes_local
+
+    # 1. Coletar dados
+    dados = coletar_dados_mes(ano, mes_numero)
+    variacoes = calcular_variacoes(dados)
+
+    mes_nome = dados["mes_nome"]
+
+    # 2. Preparar dados de oficinas
+    oficinas = descobrir_oficinas(dados)
+    oficinas_info: dict[str, dict] = {}
+    for ofc in oficinas:
+        oficinas_info[ofc] = formatar_dados_oficina(dados, variacoes, ofc)
+
+    # 3. Gerar gráficos waterfall (CPU) — mesma lógica do relatório com API
+    from tc_copilot.chart_generator import (
+        calcular_waterfall_budget_cpu,
+        calcular_waterfall_mensal_cpu,
+    )
+
+    wf_budget = calcular_waterfall_budget_cpu(
+        custo_real=dados.get("custo_real"),
+        custo_bud=dados.get("custo_bud"),
+        vol_real=dados.get("volume_real"),
+        vol_bud=dados.get("volume_bud"),
+    )
+    wf_mensal = calcular_waterfall_mensal_cpu(
+        custo_real=dados.get("custo_real"),
+        custo_ant=dados.get("custo_real_ant"),
+        vol_real=dados.get("volume_real"),
+        vol_ant=dados.get("volume_real_ant"),
+        label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+        label_real=mes_nome,
+    )
+
+    dados_graficos: dict[str, Any] = {
+        "global": {
+            "wf_budget_labels": wf_budget.get("labels", []),
+            "wf_budget_values": [float(v) for v in wf_budget.get("values", [])],
+            "wf_mensal_labels": wf_mensal.get("labels", []),
+            "wf_mensal_values": [float(v) for v in wf_mensal.get("values", [])],
+            "ano": ano,
+            "ano_anterior": dados.get("ano_anterior", ano - 1),
+        },
+        "oficinas": {},
+    }
+    for ofc in oficinas:
+        try:
+            dados_ofc = _filtrar_por_oficina(dados, ofc)
+            wf_ofc = calcular_waterfall_budget_cpu(
+                custo_real=dados_ofc.get("custo_real"),
+                custo_bud=dados_ofc.get("custo_bud"),
+                vol_real=dados.get("volume_real"),
+                vol_bud=dados.get("volume_bud"),
+            )
+            dados_graficos["oficinas"][ofc] = {
+                "wf_budget_labels": wf_ofc.get("labels", []),
+                "wf_budget_values": [float(v) for v in wf_ofc.get("values", [])],
+                "ano": ano,
+            }
+        except Exception as e:
+            logger.warning("Falha gráfico oficina %s: %s", ofc, e)
+
+    # 4. Gerar textos via templates (SEM API)
+    secoes_geradas = gerar_todas_secoes_local(
+        dados=dados,
+        variacoes=variacoes,
+        dados_graficos=dados_graficos,
+        oficinas_info=oficinas_info,
+        idioma=idioma,
+    )
+
+    # 5. Salvar no JSON local
+    adicionar_mes_ao_relatorio_local(ano, mes_numero, secoes_geradas, dados_graficos)
+
+    # 6. Gerar PDF local
+    return gerar_pdf_local(ano, idioma)

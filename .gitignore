@@ -51,5 +51,13 @@ dados/**/.processamento_log_BUD.txt
 ~$*.xlsx
 ~$*.xls
 
+# ═══════════════════════════════════════════════════════════════
+#  DADOS — NUNCA versionar (pesados, específicos de cada PC)
+# ═══════════════════════════════════════════════════════════════
+dados/
+*.parquet
+*.xlsx
+*.xls
+
 
 

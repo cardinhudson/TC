@@ -151,9 +151,19 @@ def caminho_relatorio(ano: int) -> Path:
     return garantir_pasta_relatorios() / f"relatorio_{ano}.pdf"
 
 
+def caminho_relatorio_local(ano: int) -> Path:
+    """Retorna o path do PDF local (sem API) anual."""
+    return garantir_pasta_relatorios() / f"relatorio_{ano}_local.pdf"
+
+
 def caminho_dados_relatorio(ano: int) -> Path:
     """Retorna o path do JSON intermediário com dados acumulados."""
     return garantir_pasta_relatorios() / f".relatorio_{ano}_dados.json"
+
+
+def caminho_dados_relatorio_local(ano: int) -> Path:
+    """Retorna o path do JSON intermediário (modo local) com dados acumulados."""
+    return garantir_pasta_relatorios() / f".relatorio_{ano}_local_dados.json"
 
 
 # ═══════════════════════════════════════════════════════════════
