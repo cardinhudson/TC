@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re as _re
 from datetime import datetime
+from io import BytesIO as _BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -222,6 +224,7 @@ def adicionar_mes_ao_relatorio(
     ano: int,
     mes_numero: int,
     secoes: dict[str, str],
+    dados_graficos: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Adiciona ou atualiza um mês no JSON intermediário.
@@ -230,6 +233,18 @@ def adicionar_mes_ao_relatorio(
         ano: Ano do relatório
         mes_numero: Número do mês (1-12)
         secoes: Dict com chave = tipo_secao, valor = texto gerado
+        dados_graficos: Dados numéricos para geração de gráficos waterfall.
+            Estrutura esperada::
+
+                {
+                    "global": {"fp_bud": ..., "fp_flex": ..., "fp_real": ...,
+                               "fp_mes_anterior": ..., "fp_ano_anterior": ...,
+                               "ano_anterior": ...},
+                    "oficinas": {
+                        "Compras": {"fp_bud": ..., "fp_flex": ..., "fp_real": ...},
+                        ...
+                    }
+                }
 
     Returns:
         Dados completos do relatório atualizado
@@ -238,12 +253,16 @@ def adicionar_mes_ao_relatorio(
     dados["ano"] = ano
 
     str_mes = str(mes_numero)
-    dados["meses"][str_mes] = {
+    entry: dict[str, Any] = {
         "mes_numero": mes_numero,
         "mes_nome": obter_nome_mes(mes_numero, "pt-BR"),
         "gerado_em": datetime.now().isoformat(),
         "secoes": secoes,
     }
+    if dados_graficos:
+        entry["dados_graficos"] = dados_graficos
+
+    dados["meses"][str_mes] = entry
 
     salvar_dados_relatorio(ano, dados)
     return dados
@@ -474,6 +493,27 @@ def _texto_para_paragraphs(texto: str, estilo: ParagraphStyle) -> list:
     return elements
 
 
+def _inserir_grafico(
+    elements: list,
+    png_bytes: bytes | None,
+    largura_max: float = 14 * cm,
+) -> None:
+    """Insere imagem PNG (bytes) como flowable no PDF, centralizada."""
+    if not png_bytes:
+        return
+    buf = _BytesIO(png_bytes)
+    img = Image(buf)
+    # Escalar para caber na largura da página mantendo proporção
+    ratio = img.imageWidth / img.imageHeight if img.imageHeight else 1
+    img_width = min(largura_max, img.imageWidth)
+    img_height = img_width / ratio
+    img.drawWidth = img_width
+    img.drawHeight = img_height
+    img.hAlign = "CENTER"
+    elements.append(img)
+    elements.append(Spacer(1, 0.3 * cm))
+
+
 def _construir_capitulo_mes(
     elements: list,
     estilos: dict,
@@ -491,6 +531,11 @@ def _construir_capitulo_mes(
         estilos["titulo_capitulo"],
     ))
     elements.append(Spacer(1, 0.5 * cm))
+
+    # ── Dados de gráficos (armazenados no JSON) ──
+    dados_graf = info_mes.get("dados_graficos", {})
+    graf_global = dados_graf.get("global", {})
+    graf_oficinas = dados_graf.get("oficinas", {})
 
     # Seções do capítulo
     secoes = info_mes.get("secoes", {})
@@ -536,6 +581,10 @@ def _construir_capitulo_mes(
         titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
         elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
 
+        # ── Inserir gráficos waterfall na seção Comparativos ──
+        if tipo_secao == "comparativos" and graf_global:
+            _inserir_graficos_comparativos(elements, graf_global, mes_nome, info_mes)
+
         # Adicionar parágrafos do texto
         paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
         elements.extend(paragraphs)
@@ -551,11 +600,77 @@ def _construir_capitulo_mes(
         titulo_template = labels.get("sec_oficina", "🏭 Oficina {oficina}")
         titulo_ofc = _aplicar_formatacao(_substituir_emojis(titulo_template.format(oficina=ofc_nome)))
         elements.append(Paragraph(titulo_ofc, estilos["titulo_secao"]))
+
+        # ── Inserir gráfico waterfall da oficina ──
+        if ofc_nome in graf_oficinas:
+            _inserir_grafico_oficina(elements, graf_oficinas[ofc_nome], ofc_nome, mes_nome, info_mes)
+
         paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
         elements.extend(paragraphs)
         elements.append(Spacer(1, 0.5 * cm))
 
     elements.append(PageBreak())
+
+
+def _inserir_graficos_comparativos(
+    elements: list,
+    graf_global: dict,
+    mes_nome: str,
+    info_mes: dict,
+) -> None:
+    """Gera e insere os gráficos waterfall completos (CPU, com todas as categorias)."""
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        logger.warning("chart_generator não disponível — gráficos omitidos.")
+        return
+
+    ano_rel = graf_global.get("ano", "")
+
+    # 2.1 Waterfall Budget completo (BUD → Flex → categorias → Real)
+    wf_bud_labels = graf_global.get("wf_budget_labels", [])
+    wf_bud_values = graf_global.get("wf_budget_values", [])
+    if wf_bud_labels and len(wf_bud_labels) >= 3:
+        png = gerar_waterfall_from_arrays(
+            {"labels": wf_bud_labels, "values": wf_bud_values},
+            titulo=f"Waterfall Budget — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+        )
+        _inserir_grafico(elements, png, largura_max=17 * cm)
+
+    # 2.2 Waterfall Mensal completo (Mês Ant → Flex → categorias → Real)
+    wf_men_labels = graf_global.get("wf_mensal_labels", [])
+    wf_men_values = graf_global.get("wf_mensal_values", [])
+    if wf_men_labels and len(wf_men_labels) >= 3:
+        png = gerar_waterfall_from_arrays(
+            {"labels": wf_men_labels, "values": wf_men_values},
+            titulo=f"Waterfall Mensal — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+        )
+        _inserir_grafico(elements, png, largura_max=17 * cm)
+
+
+def _inserir_grafico_oficina(
+    elements: list,
+    graf_ofc: dict,
+    ofc_nome: str,
+    mes_nome: str,
+    info_mes: dict,
+) -> None:
+    """Gera e insere gráfico waterfall Budget completo (CPU) para uma oficina."""
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        return
+
+    ano_rel = graf_ofc.get("ano", info_mes.get("dados_graficos", {}).get("global", {}).get("ano", ""))
+    wf_labels = graf_ofc.get("wf_budget_labels", [])
+    wf_values = graf_ofc.get("wf_budget_values", [])
+
+    if wf_labels and len(wf_labels) >= 3:
+        png = gerar_waterfall_from_arrays(
+            {"labels": wf_labels, "values": wf_values},
+            titulo=f"Waterfall Budget — {ofc_nome} — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+        )
+        _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
 def gerar_pdf(ano: int, idioma: str = "pt-BR") -> str:
@@ -654,6 +769,7 @@ def gerar_relatorio_mes(
         Caminho do PDF gerado
     """
     from tc_copilot.data_collector import (
+        _filtrar_por_oficina,
         calcular_variacoes,
         coletar_dados_mes,
         descobrir_oficinas,
@@ -731,10 +847,63 @@ def gerar_relatorio_mes(
         ano_anterior=ano_anterior,
     )
 
-    # 5. Salvar no JSON intermediário
-    adicionar_mes_ao_relatorio(ano, mes_numero, secoes_geradas)
+    # 5b. Preparar dados numéricos para gráficos waterfall (CPU — R$/veíc)
+    from tc_copilot.chart_generator import (
+        calcular_waterfall_budget_cpu,
+        calcular_waterfall_mensal_cpu,
+    )
 
-    # 6. Gerar PDF completo (cumulativo)
+    # Waterfall global — Budget (BUD → Flex → categorias → Real)
+    wf_budget = calcular_waterfall_budget_cpu(
+        custo_real=dados.get("custo_real"),
+        custo_bud=dados.get("custo_bud"),
+        vol_real=dados.get("volume_real"),
+        vol_bud=dados.get("volume_bud"),
+    )
+
+    # Waterfall global — Mensal (Mês Ant → Flex → categorias → Real)
+    wf_mensal = calcular_waterfall_mensal_cpu(
+        custo_real=dados.get("custo_real"),
+        custo_ant=dados.get("custo_real_ant"),
+        vol_real=dados.get("volume_real"),
+        vol_ant=dados.get("volume_real_ant"),
+        label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+        label_real=mes_nome,
+    )
+
+    dados_graficos: dict[str, Any] = {
+        "global": {
+            "wf_budget_labels": wf_budget.get("labels", []),
+            "wf_budget_values": [float(v) for v in wf_budget.get("values", [])],
+            "wf_mensal_labels": wf_mensal.get("labels", []),
+            "wf_mensal_values": [float(v) for v in wf_mensal.get("values", [])],
+            "ano": ano,
+            "ano_anterior": ano_anterior,
+        },
+        "oficinas": {},
+    }
+    for ofc in oficinas:
+        try:
+            dados_ofc = _filtrar_por_oficina(dados, ofc)
+            # Waterfall Budget por oficina
+            wf_ofc_budget = calcular_waterfall_budget_cpu(
+                custo_real=dados_ofc.get("custo_real"),
+                custo_bud=dados_ofc.get("custo_bud"),
+                vol_real=dados.get("volume_real"),
+                vol_bud=dados.get("volume_bud"),
+            )
+            dados_graficos["oficinas"][ofc] = {
+                "wf_budget_labels": wf_ofc_budget.get("labels", []),
+                "wf_budget_values": [float(v) for v in wf_ofc_budget.get("values", [])],
+                "ano": ano,
+            }
+        except Exception as e:
+            logger.warning("Falha ao coletar dados de gráfico para oficina %s: %s", ofc, e)
+
+    # 6. Salvar no JSON intermediário (inclui dados de gráficos)
+    adicionar_mes_ao_relatorio(ano, mes_numero, secoes_geradas, dados_graficos)
+
+    # 7. Gerar PDF completo (cumulativo)
     return gerar_pdf(ano, idioma)
 
 

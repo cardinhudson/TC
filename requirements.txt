@@ -58,6 +58,9 @@ openai>=1.0.0
 reportlab>=4.0
 # Geração de PDFs profissionais com ReportLab
 
+matplotlib>=3.8.0
+# Gráficos waterfall para inclusão no relatório PDF (TC Copilot)
+
 python-dotenv>=1.0.0
 # Carregamento de variáveis de ambiente do arquivo .env
 

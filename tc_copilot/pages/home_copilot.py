@@ -368,6 +368,11 @@ def _render_gerar_relatorio():
                         label_key = secao_labels.get(tipo_secao, tipo_secao)
                         titulo = labels_idioma.get(label_key, tipo_secao)
                         st.markdown(f"### {titulo}")
+
+                        # ── Inserir gráficos waterfall na seção Comparativos ──
+                        if tipo_secao == "comparativos":
+                            _inserir_waterfall_streamlit(info_mes, mes_nome, ano)
+
                         st.markdown(texto.replace("$", "\\$"))
                         st.markdown("---")
 
@@ -401,6 +406,12 @@ def _render_gerar_relatorio():
                             )
                             titulo_ofc = titulo_template.format(oficina=ofc_nome)
                             st.markdown(f"#### {titulo_ofc}")
+
+                            # ── Gráfico waterfall da oficina ──
+                            _inserir_waterfall_streamlit(
+                                info_mes, mes_nome, ano,
+                                secao="oficina", ofc_nome=ofc_nome,
+                            )
 
                             # Tentar renderizar com sub-tópicos estruturados
                             if _dados_frescos_ok:
@@ -444,6 +455,71 @@ def _render_gerar_relatorio():
                                     st.markdown(texto.replace("$", "\\$"))
 
                             st.divider()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  HELPER — GRÁFICOS WATERFALL NA ABA RELATÓRIO
+# ═══════════════════════════════════════════════════════════════
+
+def _inserir_waterfall_streamlit(
+    info_mes: dict, mes_nome: str, ano: int,
+    *, secao: str = "global",
+    ofc_nome: str | None = None,
+) -> None:
+    """Renderiza gráficos waterfall (Account, CPU) no Streamlit com fundo transparente."""
+    dados_graf = info_mes.get("dados_graficos", {})
+
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        return
+
+    if secao == "global":
+        graf = dados_graf.get("global", {})
+        if not graf:
+            return
+        ano_rel = graf.get("ano", ano)
+
+        # Waterfall Budget
+        wf_bud_labels = graf.get("wf_budget_labels", [])
+        wf_bud_values = graf.get("wf_budget_values", [])
+        if wf_bud_labels and len(wf_bud_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_bud_labels, "values": wf_bud_values},
+                titulo=f"Waterfall Budget — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+                transparent=True,
+            )
+            if png:
+                st.image(png, use_container_width=True)
+
+        # Waterfall Mensal
+        wf_men_labels = graf.get("wf_mensal_labels", [])
+        wf_men_values = graf.get("wf_mensal_values", [])
+        if wf_men_labels and len(wf_men_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_men_labels, "values": wf_men_values},
+                titulo=f"Waterfall Mensal — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+                transparent=True,
+            )
+            if png:
+                st.image(png, use_container_width=True)
+
+    elif secao == "oficina" and ofc_nome:
+        graf_oficinas = dados_graf.get("oficinas", {})
+        graf = graf_oficinas.get(ofc_nome, {})
+        if not graf:
+            return
+        ano_rel = graf.get("ano", ano)
+        wf_labels = graf.get("wf_budget_labels", [])
+        wf_values = graf.get("wf_budget_values", [])
+        if wf_labels and len(wf_labels) >= 3:
+            png = gerar_waterfall_from_arrays(
+                {"labels": wf_labels, "values": wf_values},
+                titulo=f"Waterfall Budget — {ofc_nome} — CPU (R$/veíc) — {mes_nome}/{ano_rel}",
+                transparent=True,
+            )
+            if png:
+                st.image(png, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════
