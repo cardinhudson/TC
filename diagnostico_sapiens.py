@@ -7,7 +7,7 @@ print("=" * 80)
 print("DIAGNÓSTICO: Reporting fluxo anexo.xlsx - Aba Sapiens")
 print("=" * 80)
 
-arquivo = 'dados/2026/Reporting fluxo anexo.xlsx'
+arquivo = 'dados/TC_Ext/2026/Reporting fluxo anexo.xlsx'
 
 # Ler aba Sapiens com header=1
 df = pd.read_excel(arquivo, sheet_name='Sapiens', header=1)

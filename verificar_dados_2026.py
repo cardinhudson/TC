@@ -2,9 +2,9 @@ import pandas as pd
 import os
 
 # Verificar arquivo SAPIENS
-if os.path.exists('dados/2026/Dados SAPIENS.xlsx'):
+if os.path.exists('dados/TC_Ext/2026/Dados SAPIENS.xlsx'):
     print("📁 Verificando Dados SAPIENS.xlsx...")
-    df = pd.read_excel('dados/2026/Dados SAPIENS.xlsx', sheet_name='Base conso')
+    df = pd.read_excel('dados/TC_Ext/2026/Dados SAPIENS.xlsx', sheet_name='Base conso')
     if 'Período' in df.columns:
         periodos = sorted(df['Período'].unique())
         print(f"Períodos encontrados: {periodos}")
@@ -19,9 +19,9 @@ else:
 print("\n" + "="*50 + "\n")
 
 # Verificar arquivo Reporting
-if os.path.exists('dados/2026/Reporting fluxo anexo.xlsx'):
+if os.path.exists('dados/TC_Ext/2026/Reporting fluxo anexo.xlsx'):
     print("📁 Verificando Reporting fluxo anexo.xlsx...")
-    df = pd.read_excel('dados/2026/Reporting fluxo anexo.xlsx', sheet_name='Sapiens', header=1)
+    df = pd.read_excel('dados/TC_Ext/2026/Reporting fluxo anexo.xlsx', sheet_name='Sapiens', header=1)
     if 'Período' in df.columns:
         periodos = sorted(df['Período'].unique())
         print(f"Períodos encontrados: {periodos}")

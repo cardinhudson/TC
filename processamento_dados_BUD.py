@@ -258,12 +258,12 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
     arquivos_faltando = []
 
     def _resolver_e_copiar_para_pasta_ano(nome_arquivo: str) -> str:
-        """Garante que o arquivo de entrada fique em dados/{ano}/.
+        """Garante que o arquivo de entrada fique em dados/TC_Ext/{ano}/.
 
         Ordem de busca (compatibilidade):
-        1) dados/{ano}/<arquivo>
-        2) raiz do projeto ./<arquivo>  -> copia para dados/{ano}/
-        3) dados/{ano}/BUD/<arquivo>   -> copia para dados/{ano}/ (legado; BUD deve ser apenas outputs)
+        1) dados/TC_Ext/{ano}/<arquivo>
+        2) raiz do projeto ./<arquivo>  -> copia para dados/TC_Ext/{ano}/
+        3) dados/TC_Ext/{ano}/BUD/<arquivo>   -> copia para dados/TC_Ext/{ano}/ (legado; BUD deve ser apenas outputs)
         """
 
         destino_ano = os.path.join(pasta_ano, nome_arquivo)
@@ -301,7 +301,7 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
         raise Exception(f"❌ Arquivos não encontrados: {[a[0] for a in arquivos_faltando]}")
     
     # Definir caminhos
-    # Entradas padronizadas em dados/{ano}/
+    # Entradas padronizadas em dados/TC_Ext/{ano}/
     caminho_sapiens = os.path.join(pasta_ano, 'Dados SAPIENS.xlsx')
     caminho_rateio = os.path.join(pasta_ano, 'Reporting fluxo anexo.xlsx')
     

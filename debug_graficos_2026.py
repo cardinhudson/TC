@@ -3,8 +3,8 @@ import pandas as pd
 import os
 
 # Carregar dados de 2026
-caminho_2026 = "dados/2026/df_final.parquet"
-caminho_vol_2026 = "dados/2026/df_vol.parquet"
+caminho_2026 = "dados/TC_Ext/2026/df_final.parquet"
+caminho_vol_2026 = "dados/TC_Ext/2026/df_vol.parquet"
 
 print("=" * 80)
 print("DEBUG: Verificando dados disponíveis para gráficos em 2026")
@@ -64,7 +64,7 @@ else:
     print(f"\n❌ Arquivo não encontrado: {caminho_vol_2026}")
 
 # Verificar arquivos de budget
-caminho_budget = "dados/historico_consolidado/BUD/df_final_historico_BUD.parquet"
+caminho_budget = "dados/TC_Ext/historico_consolidado/BUD/df_final_historico_BUD.parquet"
 if os.path.exists(caminho_budget):
     df_budget = pd.read_parquet(caminho_budget)
     if 'Ano' in df_budget.columns:

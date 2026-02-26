@@ -24,7 +24,7 @@ print(f"DEBUG DETALHADO - VERIFICANDO DADOS PARA {ano}")
 print("="*80)
 
 # 1. Verificar dados reais
-arquivo_real = Path(f'dados/{ano}/df_final.parquet')
+arquivo_real = Path(f'dados/TC_Ext/{ano}/df_final.parquet')
 if arquivo_real.exists():
     df_real = pd.read_parquet(arquivo_real)
     df_real = limpar_periodo_sufixos(df_real)
@@ -47,7 +47,7 @@ else:
     print(f"   ❌ Arquivo não encontrado: {arquivo_real}")
 
 # 2. Verificar dados de volume
-arquivo_vol = Path(f'dados/{ano}/df_vol.parquet')
+arquivo_vol = Path(f'dados/TC_Ext/{ano}/df_vol.parquet')
 if arquivo_vol.exists():
     df_vol = pd.read_parquet(arquivo_vol)
     df_vol = limpar_periodo_sufixos(df_vol)
@@ -70,7 +70,7 @@ else:
     print(f"   ❌ Arquivo não encontrado: {arquivo_vol}")
 
 # 3. Verificar dados de budget
-arquivo_budget = Path('dados/historico_consolidado/BUD/df_final_historico_BUD.parquet')
+arquivo_budget = Path('dados/TC_Ext/historico_consolidado/BUD/df_final_historico_BUD.parquet')
 if arquivo_budget.exists():
     df_budget = pd.read_parquet(arquivo_budget)
     df_budget = limpar_periodo_sufixos(df_budget)
@@ -97,7 +97,7 @@ else:
     print(f"   ❌ Arquivo não encontrado: {arquivo_budget}")
 
 # 4. Verificar dados de volume budget
-arquivo_vol_budget = Path('dados/historico_consolidado/BUD/df_vol_historico_BUD.parquet')
+arquivo_vol_budget = Path('dados/TC_Ext/historico_consolidado/BUD/df_vol_historico_BUD.parquet')
 if arquivo_vol_budget.exists():
     df_vol_budget = pd.read_parquet(arquivo_vol_budget)
     df_vol_budget = limpar_periodo_sufixos(df_vol_budget)

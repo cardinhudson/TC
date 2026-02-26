@@ -8,7 +8,7 @@ import os
 print("🔍 Verificando TODAS as planilhas dos arquivos Excel de 2026...\n")
 
 # Verificar Dados SAPIENS
-arquivo1 = 'dados/2026/Dados SAPIENS.xlsx'
+arquivo1 = 'dados/TC_Ext/2026/Dados SAPIENS.xlsx'
 if os.path.exists(arquivo1):
     print(f"📁 {arquivo1}")
     print("=" * 70)
@@ -39,7 +39,7 @@ else:
 print("\n" + "=" * 70 + "\n")
 
 # Verificar Reporting fluxo anexo
-arquivo2 = 'dados/2026/Reporting fluxo anexo.xlsx'
+arquivo2 = 'dados/TC_Ext/2026/Reporting fluxo anexo.xlsx'
 if os.path.exists(arquivo2):
     print(f"📁 {arquivo2}")
     print("=" * 70)

@@ -11,12 +11,12 @@ print("=" * 80)
 
 # Arquivos a verificar
 arquivos = [
-    ("2025", "dados/2025/df_final.xlsx"),
-    ("2026", "dados/2026/df_final.xlsx"),
-    ("2025", "dados/2025/Dados SAPIENS.xlsx"),
-    ("2026", "dados/2026/Dados SAPIENS.xlsx"),
-    ("2025", "dados/2025/Reporting fluxo anexo.xlsx"),
-    ("2026", "dados/2026/Reporting fluxo anexo.xlsx"),
+    ("2025", "dados/TC_Ext/2025/df_final.xlsx"),
+    ("2026", "dados/TC_Ext/2026/df_final.xlsx"),
+    ("2025", "dados/TC_Ext/2025/Dados SAPIENS.xlsx"),
+    ("2026", "dados/TC_Ext/2026/Dados SAPIENS.xlsx"),
+    ("2025", "dados/TC_Ext/2025/Reporting fluxo anexo.xlsx"),
+    ("2026", "dados/TC_Ext/2026/Reporting fluxo anexo.xlsx"),
 ]
 
 resultados = {}

@@ -9,8 +9,8 @@ print("VERIFICAÇÃO: DADOS DE BUDGET 2026")
 print("=" * 80)
 
 arquivos_budget = [
-    'dados/2026/BUD/df_budget.parquet',
-    'dados/historico_consolidado/BUD/df_budget_historico.parquet'
+    'dados/TC_Ext/2026/BUD/df_final_BUD.parquet',
+    'dados/TC_Ext/historico_consolidado/BUD/df_final_historico_BUD.parquet'
 ]
 
 for arq in arquivos_budget:

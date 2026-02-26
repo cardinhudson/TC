@@ -137,43 +137,73 @@ Ordem hierárquica:
 ### Estrutura do Projeto
 
 ```
-C:\GIT\TC\
-├── app.py                    # Portal / Router (st.navigation)
-├── pages\
-│   ├── 1 - Waterfall.py     # Waterfall (~4.000 linhas)
+TC/
+├── app.py                        # Portal / Router (st.navigation)
+├── pages/                        # Páginas legadas (TC Ext)
+│   ├── 1 - Waterfall.py
 │   ├── 2 - Best Estimate - Simulador.py
 │   ├── 5 - Extração de Dados.py
 │   └── 6 - Documentacao.py
-├── tc_ext\
-│   └── pages\
-│       ├── home_ext.py       # Home TC Ext
-│       └── be_analise_ext.py # BE Análise
-├── tc_principal\             # TC Veículos
-├── tc_core\                  # Módulos compartilhados
-├── tc_copilot\               # Agente de IA
-└── dados\                    # Dados Parquet
+├── tc_ext/                       # Módulo TC Ext (Linhas Secundárias)
+│   ├── metricas_tc_ext.py
+│   ├── normalizacao.py
+│   └── pages/
+│       ├── home_ext.py
+│       └── be_analise_ext.py
+├── tc_principal/                 # Módulo TC Veículos (TC Principal)
+│   ├── shared.py
+│   ├── ui_components.py
+│   └── pages/
+│       ├── home_tc.py
+│       ├── waterfall_tc.py
+│       ├── best_estimate_simulador_tc.py
+│       ├── extracao_dados_tc.py
+│       └── debug_calculos_tc.py
+├── tc_core/                      # Utilitários compartilhados (paths, períodos, schema, moedas, UI)
+│   ├── data/paths.py             # Constantes PASTA_TC_EXT / PASTA_TC_PRINCIPAL
+│   └── utils/portabilidade.py    # get_base_path() (Dev ↔ EXE)
+├── tc_copilot/                   # Agente de IA (chat + relatório PDF)
+└── dados/                        # Dados (Parquet/Excel) por módulo
 ```
 
 ### Estrutura da Pasta dados/
 
 ```
 dados/
-├── historico_consolidado/    # Dados consolidados (PRINCIPAL)
-│   ├── df_final_historico.parquet
-│   ├── df_ke5z_historico.parquet
-│   ├── df_vol_historico.parquet
-│   └── BUD/
-│       └── (mesmos com sufixo _BUD)
-├── {ano}/                    # Dados por ano
-│   ├── df_final.parquet
-│   ├── df_vol.parquet
-│   ├── Dados SAPIENS.xlsx
-│   └── BUD/
-├── TC_Principal/             # TC Veículos
-│   ├── {ano}/
-│   ├── Forecast/
-│   └── historico_consolidado/
-└── Forecast/                 # Forecast TC Ext
+├── TC_Ext/                       # TC Ext (Linhas Secundárias)
+│   ├── {ANO}/
+│   │   ├── df_final.parquet
+│   │   ├── df_vol.parquet
+│   │   ├── df_ke5z_group.parquet
+│   │   ├── Dados SAPIENS.xlsx
+│   │   ├── Reporting fluxo anexo.xlsx
+│   │   └── BUD/
+│   │       ├── df_final_BUD.parquet
+│   │       ├── df_vol_BUD.parquet
+│   │       └── df_ke5z_group_BUD.parquet
+│   ├── historico_consolidado/
+│   │   ├── df_final_historico.parquet
+│   │   ├── df_vol_historico.parquet
+│   │   ├── df_ke5z_historico.parquet
+│   │   └── BUD/
+│   │       ├── df_final_historico_BUD.parquet
+│   │       ├── df_vol_historico_BUD.parquet
+│   │       └── df_ke5z_historico_BUD.parquet
+│   └── Forecast/                 # Outputs do Best Estimate / Forecast (TC Ext)
+└── TC_Principal/                 # TC Veículos (TC Principal)
+    ├── {ANO}/
+    │   ├── df_principal.parquet
+    │   ├── df_tc_sapiens.parquet
+    │   ├── df_veiculos_custo_fp.parquet
+    │   ├── df_vol_veiculos_actual.parquet
+    │   └── BUD/
+    │       ├── df_principal_BUD.parquet
+    │       ├── df_veiculos_custo_fp_BUD.parquet
+    │       └── df_vol_veiculos_BUD.parquet
+    ├── historico_consolidado/
+    └── Forecast/                 # Outputs do Best Estimate (TC Veículos)
+        ├── forecast_completo.parquet
+        └── premissas.json
 ```
 
 Prioriza histórico consolidado para análises multi-anos. Budget e Real separados. Histórico sempre concatenado, nunca substituído.
@@ -181,7 +211,7 @@ Prioriza histórico consolidado para análises multi-anos. Budget e Real separad
 ### Stack Tecnológico
 
 - **Streamlit** — Framework web
-- **Python** 3.8+
+- **Python** 3.11+ (ambiente do projeto testado em 3.13)
 - **Pandas** 2.0.0+ — Manipulação de dados
 - **NumPy** 1.24.0+
 - **Altair** 5.0.0+ — Gráficos interativos
@@ -211,7 +241,7 @@ Mes, Período, Ano, Nºconta, Centrocst, Nºdoc.ref., Dt.lçto., Valor, QTD, Vol
 |---------|-------------------|--------------------------|
 | Guia Dados | "Sapiens" | "Voz de custo BDG" |
 | Guia Rateio | "Rateio" | "Rateio BDG" |
-| Pasta Saída | dados/{ANO}/ | dados/{ANO}/BUD/ |
+| Pasta Saída | dados/TC_Ext/{ANO}/ | dados/TC_Ext/{ANO}/BUD/ |
 | Sufixo | Sem | _BUD |
 
 ### Fluxo
@@ -261,7 +291,7 @@ Excel → Notebook → Merges → Parquet → Consolidar Histórico
 ### Simulador — Funcionalidades
 - Configuração interativa (períodos, sensibilidades, inflação, volume)
 - Custos Específicos (BE Manual): Pontual ou Constante, rateio automático
-- Salvos em `dados/Forecast/custos_especificos.parquet`
+- Salvos em `dados/TC_Ext/Forecast/custos_especificos.parquet`
 
 ### Arquivos Gerados
 - `forecast_completo.parquet`

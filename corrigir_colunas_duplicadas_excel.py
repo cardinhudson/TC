@@ -118,8 +118,8 @@ print("CORREÇÃO DE COLUNAS DUPLICADAS EM ARQUIVOS EXCEL")
 print("=" * 80)
 
 arquivos_para_corrigir = [
-    'dados/2025/Reporting fluxo anexo.xlsx',
-    'dados/2026/Reporting fluxo anexo.xlsx',
+    'dados/TC_Ext/2025/Reporting fluxo anexo.xlsx',
+    'dados/TC_Ext/2026/Reporting fluxo anexo.xlsx',
 ]
 
 arquivos_corrigidos = 0

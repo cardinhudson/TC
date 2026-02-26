@@ -974,8 +974,8 @@ if df_total is not None:
 # 🔧 MODO CPU: Preparar dados para visualização (mesma lógica do TC_Ext)
 # ====================================================================
 # IMPORTANTE: Usar dados da pasta Forecast
-# - Valores: dados\Forecast\forecast_completo.parquet
-# - Volume: dados\Forecast\df_vol_historico.parquet
+# - Valores: dados/TC_Ext/Forecast/forecast_completo.parquet
+# - Volume: dados/TC_Ext/Forecast/df_vol_historico.parquet
 # 🔧 OTIMIZAÇÃO: Verificar se df_filtrado está disponível antes de processar
 if df_filtrado is not None and tipo_visualizacao == "CPU (Custo por Unidade)":
     # 🔧 OTIMIZAÇÃO: Usar função com cache em vez de carregar diretamente
@@ -1246,7 +1246,7 @@ else:
 if 'Veículo' in df_visualizacao.columns and 'Oficina' in df_visualizacao.columns and 'Período' in df_visualizacao.columns:
     # 🔧 CORREÇÃO CRÍTICA: Carregar volume da MESMA fonte e com a MESMA lógica usada no forecast
     # O volume deve ser exatamente o mesmo usado para calcular o forecast linha a linha
-    # Fonte: C:\GIT\TC\dados\Forecast\df_vol_historico.parquet (mesmo arquivo usado no forecast)
+    # Fonte (canônica): dados/TC_Ext/Forecast/df_vol_historico.parquet (mesmo arquivo usado no forecast)
     # IMPORTANTE: Este é o mesmo arquivo usado na função calcular_forecast_completo (linha 5274)
     # que calcula o forecast linha a linha. Garantir que o volume seja o mesmo garante que
     # quando sensibilidade = 1 e inflação = 0, o CPU seja constante (igual à média)

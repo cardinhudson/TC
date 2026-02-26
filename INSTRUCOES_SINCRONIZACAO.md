@@ -10,7 +10,7 @@
 
 ### Opção 1: Pull Normal (se não houver conflitos)
 ```bash
-cd C:\GIT\TC
+cd <CAMINHO_PARA_O_REPO>\TC
 git fetch origin
 git pull origin main
 ```
@@ -19,7 +19,7 @@ git pull origin main
 ⚠️ **ATENÇÃO**: Este comando vai descartar todas as alterações locais não commitadas!
 
 ```bash
-cd C:\GIT\TC
+cd <CAMINHO_PARA_O_REPO>\TC
 git fetch origin
 git reset --hard origin/main
 ```
@@ -27,7 +27,7 @@ git reset --hard origin/main
 ### Opção 3: Clone Limpo (se nada funcionar)
 ```bash
 # Fazer backup do diretório atual primeiro!
-cd C:\GIT
+cd <CAMINHO_PARA_ONDE_VOCE_QUER_O_REPO>
 # Renomear o diretório atual para backup
 mv TC TC_backup
 # Clonar novamente

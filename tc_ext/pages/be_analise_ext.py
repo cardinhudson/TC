@@ -1364,9 +1364,9 @@ if is_main_page:
 def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     """
     Busca arquivo parquet na seguinte ordem de prioridade:
-    1. Se ano_selecionado for None ou "Todos": Histórico consolidado (dados/historico_consolidado/)
-    2. Se ano_selecionado for especificado: Pasta do ano (dados/{ANO}/)
-    3. Pasta do ano mais recente (dados/{ANO}/)
+    1. Se ano_selecionado for None ou "Todos": Histórico consolidado (dados/TC_Ext/historico_consolidado/)
+    2. Se ano_selecionado for especificado: Pasta do ano (dados/TC_Ext/{ANO}/)
+    3. Pasta do ano mais recente (dados/TC_Ext/{ANO}/)
     4. Raiz do projeto (compatibilidade)
     """
     return _core_encontrar_arquivo_parquet(nome_arquivo, ano_selecionado)

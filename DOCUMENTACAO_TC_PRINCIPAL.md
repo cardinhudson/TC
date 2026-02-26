@@ -330,7 +330,7 @@ Arquivos Excel (Entrada)
 ```
 
 **Busca de arquivos:**
-1. `dados/{ANO}/Nome_do_Arquivo.xlsx` (prioridade)
+1. `dados/TC_Principal/{ANO}/Nome_do_Arquivo.xlsx` (prioridade)
 2. `./Nome_do_Arquivo.xlsx` (raiz)
 
 ---

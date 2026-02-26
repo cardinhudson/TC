@@ -354,7 +354,7 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
     msgs: list[str] = []
     ok = True
 
-    # Padronização: arquivos de entrada ficam em dados/{ano}/ (mesma fonte para REAIS e BUDGET)
+    # Padronização (TC Ext): arquivos de entrada ficam em dados/TC_Ext/{ano}/ (mesma fonte para REAIS e BUDGET)
     caminho_sapiens = _encontrar_arquivo(ano, 'Dados SAPIENS.xlsx', incluir_bud=False)
     caminho_rateio = _encontrar_arquivo(ano, 'Reporting fluxo anexo.xlsx', incluir_bud=False)
     if not caminho_sapiens or not caminho_rateio:
@@ -597,7 +597,7 @@ with tab1:
     st.markdown("#### 📄 Arquivos (usados por REAIS e/ou BUDGET)")
     st.caption(
         "Os processamentos de REAIS e BUDGET usam os mesmos arquivos de entrada. "
-        "Padrão: manter os Excels em `dados/{ano}/`."
+        "Padrão: manter os Excels em `dados/TC_Ext/{ano}/`."
     )
 
     _salvar_upload_unificado(

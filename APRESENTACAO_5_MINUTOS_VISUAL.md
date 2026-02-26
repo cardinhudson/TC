@@ -497,7 +497,100 @@
 
 ---
 
-## 📈 SLIDE 7: RESULTADOS E ENCERRAMENTO
+## 🗺️ SLIDE 7: ESTRUTURA DE PAGES (NAVEGAÇÃO)
+### ⏱️ 30 segundos
+
+<div align="center">
+
+# 🗺️ Mapa de Páginas do SCI
+
+### Como o app organiza as telas (Streamlit `st.navigation`)
+
+</div>
+
+---
+
+### 🧭 Router (app.py) → Grupos e Páginas
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  📌 Fonte de verdade: app.py (dict PAGES)                           │
+│                                                                     │
+│  1) 🚗 TC Veículos (tc_principal/pages/)                            │
+│     • Home (TC Veículos)            → tc_principal/pages/home_tc.py │
+│     • Waterfall                     → tc_principal/pages/waterfall_tc.py │
+│     • Best Estimate (Simulador)     → tc_principal/pages/best_estimate_simulador_tc.py │
+│     • Extração de Dados             → tc_principal/pages/extracao_dados_tc.py │
+│     • Debug de Cálculos             → tc_principal/pages/debug_calculos_tc.py │
+│                                                                     │
+│  2) 📊 TC Ext (Linhas Secundárias)                                  │
+│     • Home (TC Ext)                 → tc_ext/pages/home_ext.py      │
+│     • Waterfall                     → pages/1 - Waterfall.py       │
+│     • Best Estimate (Simulador)     → pages/2 - Best Estimate - Simulador.py │
+│     • Extração de Dados             → pages/5 - Extração de Dados.py │
+│                                                                     │
+│  3) 📚 Documentação                                                 │
+│     • Documentação (Projeto)        → pages/6 - Documentacao.py     │
+│                                                                     │
+│  4) 🤖 TC Copilot                                                   │
+│     • TC Copilot                    → tc_copilot/pages/home_copilot.py │
+│                                                                     │
+│  🎯 Leitura rápida:                                                 │
+│     UI do TC Veículos fica em tc_principal/pages/                   │
+│     TC Ext reusa wrappers em pages/ (estrutura parecida)            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🚗 SLIDE 8: PÁGINAS DO TC VEÍCULOS (RESUMO)
+### ⏱️ 45 segundos
+
+<div align="center">
+
+# 🚗 TC Veículos — O que cada Page faz
+
+### (estrutura similar ao TC Ext; foco aqui no TC Veículos)
+
+</div>
+
+---
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  🏠 HOME (TC Veículos) — tc_principal/pages/home_tc.py              │
+│  • Painel principal com 6 tabs (KPIs, Flex, Volume, Oficinas, Tempo,│
+│    Detalhado)                                                      │
+│  • Aplica filtros globais (Ano, Moeda, Fator, Tipo)                 │
+│  • Consome Real/Budget e, quando disponível, Forecast (BE)          │
+│                                                                     │
+│  🌊 WATERFALL — tc_principal/pages/waterfall_tc.py                  │
+│  • “O que mudou entre períodos?”: Volume × Custo + cadeia TC        │
+│  • Suporta seleção de veículo (Todos vs Veículo → rateio)           │
+│  • Pode mesclar BE para meses sem Real (quando existir)             │
+│                                                                     │
+│  🔮 BEST ESTIMATE (Simulador) — tc_principal/pages/best_estimate_simulador_tc.py │
+│  • Define premissas (sensibilidade, inflação, volumes) e gera Forecast│
+│  • Salva/consome parquets em dados/TC_Principal/Forecast/           │
+│  • Rateia BE por veículo quando necessário                          │
+│                                                                     │
+│  📥 EXTRAÇÃO DE DADOS — tc_principal/pages/extracao_dados_tc.py      │
+│  • Upload + pré-validação + processamento (Real/Budget)             │
+│  • Gera parquets em dados/TC_Principal/{ano}/ e consolida histórico │
+│                                                                     │
+│  🧪 DEBUG DE CÁLCULOS — tc_principal/pages/debug_calculos_tc.py      │
+│  • Abas de auditoria para rastrear inconsistências e validar fórmulas│
+│  • Ajuda a conferir cadeia: Despesa Primária → FA → FP → D&A → CPU  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📈 SLIDE 9: RESULTADOS E ENCERRAMENTO
 ### ⏱️ 30 segundos
 
 <div align="center">

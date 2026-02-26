@@ -9,7 +9,7 @@ print("VERIFICAÇÃO DETALHADA: DADOS 2026")
 print("=" * 80)
 
 # 1. Verificar parquet de 2026
-arquivo_2026 = 'dados/2026/df_final.parquet'
+arquivo_2026 = 'dados/TC_Ext/2026/df_final.parquet'
 if os.path.exists(arquivo_2026):
     print(f"\n📂 Arquivo: {arquivo_2026}")
     df = pd.read_parquet(arquivo_2026)
@@ -33,7 +33,7 @@ else:
     print(f"❌ Arquivo não encontrado: {arquivo_2026}")
 
 # 2. Verificar histórico consolidado
-arquivo_historico = 'dados/historico_consolidado/df_final_historico.parquet'
+arquivo_historico = 'dados/TC_Ext/historico_consolidado/df_final_historico.parquet'
 if os.path.exists(arquivo_historico):
     print(f"\n{'='*80}")
     print(f"📂 Arquivo: {arquivo_historico}")
@@ -49,18 +49,21 @@ if os.path.exists(arquivo_historico):
         print(f"\n   📅 Períodos de 2026 ({len(periodos_2026)}):")
         for p in sorted(periodos_2026):
             count = len(df_2026[df_2026['Período'] == p])
-            valores = df_2026[df_2026['Período'] == p]['Valor'].sum() if 'Valor' in df_2026.columns else 0
-            print(f"      - '{p}' ({count} registros, Valor total: {valores:,.2f})")
+            col_valor = 'Total' if 'Total' in df_2026.columns else ('Valor' if 'Valor' in df_2026.columns else None)
+            valores = df_2026[df_2026['Período'] == p][col_valor].sum() if col_valor else 0
+            print(f"      - '{p}' ({count} registros, Soma: {valores:,.2f})")
         
         print(f"\n   📊 Amostra de dados 2026:")
-        print(df_2026[['Ano', 'Período', 'Valor']].head(10))
+        col_valor = 'Total' if 'Total' in df_2026.columns else ('Valor' if 'Valor' in df_2026.columns else None)
+        cols = ['Ano', 'Período'] + ([col_valor] if col_valor else [])
+        print(df_2026[cols].head(10))
     else:
         print("   ⚠️  Nenhum dado de 2026 encontrado no histórico!")
 else:
     print(f"❌ Arquivo não encontrado: {arquivo_historico}")
 
 # 3. Verificar Excel original
-arquivo_excel = 'dados/2026/Reporting fluxo anexo.xlsx'
+arquivo_excel = 'dados/TC_Ext/2026/Reporting fluxo anexo.xlsx'
 if os.path.exists(arquivo_excel):
     print(f"\n{'='*80}")
     print(f"📂 Verificando Excel: {arquivo_excel}")

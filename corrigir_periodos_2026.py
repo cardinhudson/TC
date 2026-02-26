@@ -8,7 +8,7 @@ import os
 print("🔍 Verificando e corrigindo dados de 2026...\n")
 
 # Verificar arquivo parquet do ano
-arquivo_ano = 'dados/2026/df_final.parquet'
+arquivo_ano = 'dados/TC_Ext/2026/df_final.parquet'
 if os.path.exists(arquivo_ano):
     print(f"📊 Lendo {arquivo_ano}...")
     df = pd.read_parquet(arquivo_ano)
@@ -46,7 +46,7 @@ else:
 print("\n" + "="*60 + "\n")
 
 # Verificar e corrigir histórico consolidado
-arquivo_historico = 'dados/historico_consolidado/df_final_historico.parquet'
+arquivo_historico = 'dados/TC_Ext/historico_consolidado/df_final_historico.parquet'
 if os.path.exists(arquivo_historico):
     print(f"📊 Lendo {arquivo_historico}...")
     df_hist = pd.read_parquet(arquivo_historico)
