@@ -536,11 +536,10 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                     titulo = labels_idioma.get(label_key, tipo_secao)
                     st.markdown(f"### {titulo}")
 
-                    # ── Gráfico waterfall Budget na seção Volume ──
+                    # ── Gráfico Volume por Veículo na seção Volume ──
                     if tipo_secao == "volume_completo":
-                        _inserir_waterfall_streamlit(
+                        _inserir_grafico_volume_streamlit(
                             info_mes, mes_nome, ano,
-                            tipo_waterfall="budget",
                             simbolo_moeda=_simbolo_view,
                         )
                         st.markdown(texto.replace("$", "\\$"))
@@ -636,6 +635,45 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                                 st.markdown(texto.replace("$", "\\$"))
 
                         st.divider()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  HELPER — COMPARATIVOS: TEXTO + GRÁFICOS INTERLEAVED
+# ═══════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════
+#  HELPER — GRÁFICO VOLUME POR VEÍCULO
+# ═══════════════════════════════════════════════════════════════
+
+def _inserir_grafico_volume_streamlit(
+    info_mes: dict, mes_nome: str, ano: int,
+    *, simbolo_moeda: str = "R$",
+) -> None:
+    """Renderiza gráfico de barras Volume Real vs Budget por veículo."""
+    dados_graf = info_mes.get("dados_graficos", {})
+    graf = dados_graf.get("global", {})
+    if not graf:
+        return
+
+    vol_real = graf.get("vol_modelos_real", {})
+    vol_bud = graf.get("vol_modelos_budget", {})
+    if not vol_real and not vol_bud:
+        return
+
+    try:
+        from tc_copilot.chart_generator import gerar_grafico_volume_por_veiculo
+    except ImportError:
+        return
+
+    ano_rel = graf.get("ano", ano)
+    png = gerar_grafico_volume_por_veiculo(
+        vol_modelos_real=vol_real,
+        vol_modelos_budget=vol_bud,
+        titulo=f"Volume por Veículo — Real vs Budget — {mes_nome}/{ano_rel}",
+        transparent=True,
+    )
+    if png:
+        st.image(png, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════

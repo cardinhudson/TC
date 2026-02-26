@@ -48,6 +48,129 @@ def _safe_vol(df: pd.DataFrame | None) -> float:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  GRÁFICO: VOLUME POR VEÍCULO — REAL vs BUDGET (barras agrupadas)
+# ═══════════════════════════════════════════════════════════════
+
+def gerar_grafico_volume_por_veiculo(
+    vol_modelos_real: dict[str, float],
+    vol_modelos_budget: dict[str, float],
+    titulo: str = "Volume por Veículo — Real vs Budget",
+    width: int = 14,
+    height: int = 5,
+    transparent: bool = False,
+) -> Optional[bytes]:
+    """
+    Gera gráfico de barras agrupadas: Volume Real vs Budget por veículo.
+
+    Args:
+        vol_modelos_real: {modelo: volume_real}
+        vol_modelos_budget: {modelo: volume_budget}
+        titulo: Título do gráfico
+        transparent: Fundo transparente (para Streamlit dark mode)
+
+    Returns:
+        Bytes PNG ou None se falhar.
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.ticker as mticker
+    except ImportError:
+        logger.warning("matplotlib não disponível — gráfico volume não gerado.")
+        return None
+
+    # Unir todos os modelos e ordenar por volume real (desc)
+    todos_modelos = sorted(
+        set(list(vol_modelos_real.keys()) + list(vol_modelos_budget.keys())),
+        key=lambda m: vol_modelos_real.get(m, 0),
+        reverse=True,
+    )
+    if not todos_modelos:
+        return None
+
+    reais = [vol_modelos_real.get(m, 0) for m in todos_modelos]
+    budgets = [vol_modelos_budget.get(m, 0) for m in todos_modelos]
+
+    try:
+        n = len(todos_modelos)
+        x = np.arange(n)
+        bar_w = max(0.25, min(0.38, 6.0 / max(n, 1)))
+
+        fig, ax = plt.subplots(figsize=(width, height))
+        bg = "none" if transparent else COR_FUNDO
+        fig.patch.set_facecolor(bg)
+        fig.patch.set_alpha(0.0 if transparent else 1.0)
+        ax.set_facecolor(bg)
+        ax.patch.set_alpha(0.0 if transparent else 1.0)
+        txt_color = "#E0E0E0" if transparent else "#333333"
+        txt_sec = "#AAAAAA" if transparent else "#666666"
+
+        bars_real = ax.bar(x - bar_w / 2, reais, bar_w,
+                           label="Real", color=COR_AZUL, zorder=3)
+        bars_bud = ax.bar(x + bar_w / 2, budgets, bar_w,
+                          label="Budget", color=COR_AMARELA, zorder=3)
+
+        # Anotações de valor
+        fsize = max(7, min(9, 120 // max(n, 1)))
+        for bar_group in (bars_real, bars_bud):
+            for bar in bar_group:
+                h = bar.get_height()
+                if h > 0:
+                    ax.annotate(
+                        f"{h:,.0f}",
+                        xy=(bar.get_x() + bar.get_width() / 2, h),
+                        ha="center", va="bottom",
+                        fontsize=fsize, fontweight="bold",
+                        color=txt_color,
+                        xytext=(0, 2), textcoords="offset points",
+                    )
+
+        # Eixos
+        lbl_fsize = max(7, min(10, 140 // max(n, 1)))
+        rotation = 45 if n > 6 else 0
+        ha = "right" if rotation > 0 else "center"
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(todos_modelos, fontsize=lbl_fsize, color=txt_color,
+                           rotation=rotation, ha=ha)
+        ax.set_ylabel("Volume (un.)", fontsize=9, color=txt_sec)
+        ax.tick_params(axis="y", labelsize=8, colors=txt_sec)
+        titulo_color = txt_color if transparent else COR_TITULO
+        ax.set_title(titulo, fontsize=11, fontweight="bold", color=titulo_color, pad=10)
+
+        # Grid + spines
+        ax.yaxis.grid(True, alpha=0.2, color="#CCCCCC", zorder=1)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        spine_color = "#555555" if transparent else "#CCCCCC"
+        ax.spines["left"].set_color(spine_color)
+        ax.spines["bottom"].set_color(spine_color)
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+        # Legenda
+        leg_color = txt_color
+        leg = ax.legend(fontsize=9, framealpha=0.3)
+        for text in leg.get_texts():
+            text.set_color(leg_color)
+
+        plt.tight_layout()
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
+                    facecolor=bg, edgecolor="none", transparent=transparent)
+        plt.close(fig)
+        buf.seek(0)
+        png_bytes = buf.getvalue()
+        logger.info("Gráfico volume por veículo exportado: %d bytes", len(png_bytes))
+        return png_bytes
+
+    except Exception as e:
+        logger.warning("Falha ao gerar gráfico volume por veículo: %s", e)
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
 #  CÁLCULO: WATERFALL BUDGET → CPU  (Tab Budget do waterfall_tc)
 # ═══════════════════════════════════════════════════════════════
 

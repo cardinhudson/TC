@@ -584,12 +584,12 @@ def _construir_capitulo_mes(
         titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
         elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
 
-        # ── Volume: texto + gráfico Budget ──
+        # ── Volume: gráfico de volume por veículo + texto ──
         if tipo_secao == "volume_completo":
+            if graf_global:
+                _inserir_grafico_volume_pdf(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
             paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
             elements.extend(paragraphs)
-            if graf_global:
-                _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
 
         # ── Comparativos: interleavar gráficos nos sub-tópicos ──
         elif tipo_secao == "comparativos":
@@ -652,6 +652,33 @@ def _construir_capitulo_mes(
         elements.append(Spacer(1, 0.5 * cm))
 
     elements.append(PageBreak())
+
+
+def _inserir_grafico_volume_pdf(
+    elements: list,
+    graf_global: dict,
+    mes_nome: str,
+    info_mes: dict,
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Insere gráfico de barras Volume Real vs Budget por veículo no PDF."""
+    try:
+        from tc_copilot.chart_generator import gerar_grafico_volume_por_veiculo
+    except ImportError:
+        return
+
+    vol_real = graf_global.get("vol_modelos_real", {})
+    vol_bud = graf_global.get("vol_modelos_budget", {})
+    if not vol_real and not vol_bud:
+        return
+
+    ano_rel = graf_global.get("ano", "")
+    png = gerar_grafico_volume_por_veiculo(
+        vol_modelos_real=vol_real,
+        vol_modelos_budget=vol_bud,
+        titulo=f"Volume por Veículo — Real vs Budget — {mes_nome}/{ano_rel}",
+    )
+    _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
 def _renderizar_comparativos_pdf(
@@ -1315,6 +1342,11 @@ def gerar_relatorio_mes_local(
                 label_real=f"{mes_nome}/{ano}",
             )
 
+    # Extrair volume por veículo para gráfico de barras
+    _var_modelos = variacoes.get("variacao_modelos", {})
+    _vol_real_modelos = {m: float(v.get("vol_real", 0)) for m, v in _var_modelos.items() if v.get("vol_real", 0) > 0}
+    _vol_bud_modelos = {m: float(v.get("vol_budget", 0)) for m, v in _var_modelos.items() if v.get("vol_budget", 0) > 0}
+
     dados_graficos: dict[str, Any] = {
         "global": {
             "wf_budget_labels": wf_budget.get("labels", []),
@@ -1323,6 +1355,8 @@ def gerar_relatorio_mes_local(
             "wf_mensal_values": [float(v) for v in wf_mensal.get("values", [])],
             "wf_ano_ant_labels": wf_ano_ant.get("labels", []),
             "wf_ano_ant_values": [float(v) for v in wf_ano_ant.get("values", [])],
+            "vol_modelos_real": _vol_real_modelos,
+            "vol_modelos_budget": _vol_bud_modelos,
             "ano": ano,
             "ano_anterior": dados.get("ano_anterior", ano - 1),
         },
