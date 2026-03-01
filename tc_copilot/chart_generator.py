@@ -10,14 +10,84 @@ inclusão no relatório PDF com ReportLab.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import logging
+import os
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
 
+# Inicializar matplotlib uma única vez no módulo (evita re-import em cada chamada)
+try:
+    import matplotlib
+    matplotlib.use("Agg")  # Backend sem GUI
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+    _MPL_OK = True
+except ImportError:
+    _MPL_OK = False
+
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════
+#  CACHE DE GRÁFICOS  (evita re-renderizar PNGs iguais)
+# ═══════════════════════════════════════════════════════════════
+_CHART_CACHE: dict[str, bytes] = {}
+_CHART_CACHE_DIR: Path | None = None
+
+
+def _get_cache_dir() -> Path:
+    """Retorna diretório de cache de gráficos, criando se necessário."""
+    global _CHART_CACHE_DIR
+    if _CHART_CACHE_DIR is None:
+        _CHART_CACHE_DIR = Path(__file__).resolve().parent.parent / "documentacao_anual" / ".chart_cache"
+        _CHART_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return _CHART_CACHE_DIR
+
+
+def _cache_key(*args) -> str:
+    """Calcula hash MD5 determinístico dos argumentos."""
+    raw = repr(args).encode("utf-8")
+    return hashlib.md5(raw).hexdigest()
+
+
+def _cache_get(key: str) -> bytes | None:
+    """Busca no cache em memória e, se não encontrar, no disco."""
+    if key in _CHART_CACHE:
+        return _CHART_CACHE[key]
+    fp = _get_cache_dir() / f"{key}.png"
+    if fp.exists():
+        data = fp.read_bytes()
+        _CHART_CACHE[key] = data  # promover para memória
+        return data
+    return None
+
+
+def _cache_put(key: str, data: bytes) -> None:
+    """Armazena PNG no cache em memória e no disco."""
+    _CHART_CACHE[key] = data
+    try:
+        fp = _get_cache_dir() / f"{key}.png"
+        fp.write_bytes(data)
+    except Exception:
+        pass  # falha de escrita em disco não é crítica
+
+
+def limpar_cache_graficos() -> int:
+    """Remove todos os gráficos em cache (memória + disco). Retorna qtd removida."""
+    n = len(_CHART_CACHE)
+    _CHART_CACHE.clear()
+    cache_dir = _get_cache_dir()
+    for f in cache_dir.glob("*.png"):
+        try:
+            f.unlink()
+            n += 1
+        except Exception:
+            pass
+    return n
 
 # ═══════════════════════════════════════════════════════════════
 #  CORES (mesmas do app — waterfall_tc.py)
@@ -71,14 +141,17 @@ def gerar_grafico_volume_por_veiculo(
     Returns:
         Bytes PNG ou None se falhar.
     """
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.ticker as mticker
-    except ImportError:
+    if not _MPL_OK:
         logger.warning("matplotlib não disponível — gráfico volume não gerado.")
         return None
+
+    # ── Cache hit? ──
+    _ck = _cache_key("vol", tuple(sorted(vol_modelos_real.items())),
+                      tuple(sorted(vol_modelos_budget.items())),
+                      titulo, width, height, transparent)
+    _cached = _cache_get(_ck)
+    if _cached is not None:
+        return _cached
 
     # Unir todos os modelos e ordenar por volume real (desc)
     todos_modelos = sorted(
@@ -157,11 +230,12 @@ def gerar_grafico_volume_por_veiculo(
         plt.tight_layout()
 
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
                     facecolor=bg, edgecolor="none", transparent=transparent)
         plt.close(fig)
         buf.seek(0)
         png_bytes = buf.getvalue()
+        _cache_put(_ck, png_bytes)
         logger.info("Gráfico volume por veículo exportado: %d bytes", len(png_bytes))
         return png_bytes
 
@@ -511,14 +585,16 @@ def _render_waterfall(
     Returns:
         Bytes PNG ou None se falhar.
     """
-    try:
-        import matplotlib
-        matplotlib.use("Agg")  # Backend sem GUI
-        import matplotlib.pyplot as plt
-        import matplotlib.ticker as mticker
-    except ImportError:
+    if not _MPL_OK:
         logger.warning("matplotlib não disponível — gráfico waterfall não gerado.")
         return None
+
+    # ── Cache hit? ──
+    _ck = _cache_key("wf", tuple(labels), tuple(round(v, 6) for v in values),
+                      tuple(cores), titulo, width, height, y_label, transparent)
+    _cached = _cache_get(_ck)
+    if _cached is not None:
+        return _cached
 
     try:
         n = len(values)
@@ -669,11 +745,12 @@ def _render_waterfall(
 
         # Exportar para bytes
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
                     facecolor=bg, edgecolor="none", transparent=transparent)
         plt.close(fig)
         buf.seek(0)
         png_bytes = buf.getvalue()
+        _cache_put(_ck, png_bytes)
         logger.info("Gráfico waterfall exportado: %d bytes", len(png_bytes))
         return png_bytes
 

@@ -120,7 +120,7 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             fontSize=14,
             leading=18,
             textColor=COR_SECUNDARIA,
-            spaceBefore=16,
+            spaceBefore=28,
             spaceAfter=8,
             keepWithNext=1,
         ),
@@ -615,7 +615,7 @@ def _construir_sumario(
                     )
                     elements.append(Paragraph(
                         f'<a href="#{anc_anx}" color="#666666">'
-                        f'{_anx_lbl}</a>',
+                        f'3.1 {_anx_lbl}</a>',
                         estilos["toc_nivel3"],
                     ))
 
@@ -733,7 +733,7 @@ def _construir_sumario_mensal(
                 )
                 elements.append(Paragraph(
                     f'<a href="#{anc_anx}" '
-                    f'color="#666666">{_anx_lbl}</a>',
+                    f'color="#666666">3.1 {_anx_lbl}</a>',
                     estilos["toc_nivel3"],
                 ))
 
@@ -886,7 +886,8 @@ def _texto_para_paragraphs(texto: str, estilo: ParagraphStyle) -> list:
         fontName="Helvetica-Bold",
         fontSize=estilo.fontSize + 2,
         textColor=COR_SECUNDARIA,
-        spaceBefore=10, spaceAfter=6,
+        spaceBefore=18, spaceAfter=6,
+        keepWithNext=1,
     )
 
     for linha in texto.split("\n"):
@@ -1050,10 +1051,12 @@ def _construir_capitulo_mes(
                     )
                 ))
                 anc_anx = f'<a name="cap{mes_numero}_anexos"/>'
-                elements.append(Paragraph(
-                    f'{anc_anx}{_anx_titulo}',
+                # Usar KeepTogether para título + 1ª tabela não ficarem órfãos
+                _anx_title_p = Paragraph(
+                    f'{anc_anx}3.1 {_anx_titulo}',
                     estilos["titulo_secao"],
-                ))
+                )
+                elements.append(KeepTogether([_anx_title_p, Spacer(1, 0.1 * cm)]))
                 for idx_t, tab_data in enumerate(tabelas_g):
                     t_num = chr(65 + idx_t)
                     anc = f"cap{mes_numero}_tab3{t_num}"
@@ -1180,10 +1183,12 @@ def _construir_capitulo_mes(
                 f'<a name="cap{mes_numero}'
                 f'_ofc{idx_ofc + 1}_anexos"/>'
             )
-            elements.append(Paragraph(
-                f'{anc_anx_ofc}{_anx_ofc_titulo}',
+            _anx_ofc_num = f"4.{idx_ofc + 1}.1"
+            _anx_ofc_p = Paragraph(
+                f'{anc_anx_ofc}{_anx_ofc_num} {_anx_ofc_titulo}',
                 estilos["titulo_secao"],
-            ))
+            )
+            elements.append(KeepTogether([_anx_ofc_p, Spacer(1, 0.1 * cm)]))
             for idx_t, tab_data in enumerate(tabelas_ofc):
                 t_num = chr(65 + idx_t)
                 anc_t = (
@@ -1296,6 +1301,8 @@ def _renderizar_comparativos_pdf(
                 elements, graf_global, pref_t05, pref_t06,
                 mes_nome, info_mes, simbolo_moeda,
             )
+            # Espaço entre Type 06 e Account
+            elements.append(Spacer(1, 0.5 * cm))
             # Waterfall principal (Account)
             fn_account(
                 elements, graf_global, mes_nome,
@@ -1355,6 +1362,7 @@ def _renderizar_tabela_pdf(
             leading=14,
             spaceBefore=8,
             spaceAfter=4,
+            keepWithNext=1,
         ),
     ))
 
@@ -1457,10 +1465,10 @@ def _inserir_waterfall_pair(
     cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_global.get("ano", "")
 
-    for pref, dim_label, h in [
+    for idx_chart, (pref, dim_label, h) in enumerate([
         (prefixo_t05, "Type 05", 3.5),
         (prefixo_t06, "Type 06", 5),
-    ]:
+    ]):
         lbls = graf_global.get(f"{pref}_labels", [])
         vals = graf_global.get(f"{pref}_values", [])
         if not lbls or len(lbls) < 3:
@@ -1481,8 +1489,11 @@ def _inserir_waterfall_pair(
         img.drawWidth = target_w
         img.drawHeight = target_w / ratio
         img.hAlign = "CENTER"
+        # Espaço extra antes do gráfico (separar Type 05 / Type 06)
+        if idx_chart > 0:
+            elements.append(Spacer(1, 0.5 * cm))
         elements.append(img)
-        elements.append(Spacer(1, 0.2 * cm))
+        elements.append(Spacer(1, 0.3 * cm))
 
 
 def _inserir_waterfall_budget(
@@ -1594,6 +1605,8 @@ def _inserir_grafico_oficina(
             "wf_budget_type05", "wf_budget_type06",
             mes_nome, info_mes, simbolo_moeda,
         )
+        # Espaço entre Type 06 e Account
+        elements.append(Spacer(1, 0.5 * cm))
         # Depois Account
         wf_labels = graf_ofc.get("wf_budget_labels", [])
         wf_values = graf_ofc.get("wf_budget_values", [])
@@ -1612,6 +1625,8 @@ def _inserir_grafico_oficina(
             "wf_mensal_type05", "wf_mensal_type06",
             mes_nome, info_mes, simbolo_moeda,
         )
+        # Espaço entre Type 06 e Account
+        elements.append(Spacer(1, 0.5 * cm))
         wf_labels = graf_ofc.get("wf_mensal_labels", [])
         wf_values = graf_ofc.get("wf_mensal_values", [])
         if wf_labels and len(wf_labels) >= 3:
@@ -1629,6 +1644,8 @@ def _inserir_grafico_oficina(
             "wf_ano_ant_type05", "wf_ano_ant_type06",
             mes_nome, info_mes, simbolo_moeda,
         )
+        # Espaço entre Type 06 e Account
+        elements.append(Spacer(1, 0.5 * cm))
         wf_labels = graf_ofc.get("wf_ano_ant_labels", [])
         wf_values = graf_ofc.get("wf_ano_ant_values", [])
         if wf_labels and len(wf_labels) >= 3:
