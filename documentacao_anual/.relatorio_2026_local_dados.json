@@ -5,7 +5,7 @@
     "2": {
       "mes_numero": 2,
       "mes_nome": "Fevereiro",
-      "gerado_em": "2026-03-01T11:41:29.251000",
+      "gerado_em": "2026-03-01T14:43:38.311962",
       "modo": "local",
       "secoes": {
         "volume_completo": "### 1.1 Volume Total — Fevereiro/2026\nO volume real de produção em Fevereiro foi de **3.661 unidades**. O volume Actual (projeção) era de 3.661 un. e o Budget de 3.657 un.\n\n### 1.2 Real vs Budget\nO volume real superou o Budget em **+4 unidades** (+0.1%).\n\n**Top 10 modelos por impacto (Real vs Budget):**\n- 🟢 **CC21 monoton**: 1.526 un. (Δ +3 un., +0.2%)\n- 🟢 **CC21 biton**: 170 un. (Δ +1 un., +0.6%)\n- ⚪ **CC22 biton**: 374 un. (Δ +0 un., +0.0%)\n- ⚪ **CC22 monoton**: 1.120 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 biton 5L**: 82 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 biton 7L**: 60 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 monoton 5L**: 190 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 monoton 7L**: 139 un. (Δ +0 un., +0.0%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)\n\n### 1.3 Real vs Mês Anterior\nO volume ficou abaixo o mês anterior em **1.198 un.** (-24.7%).\n\n**Top 10 modelos por impacto (Real vs Mês Anterior):**\n- 🔴 **CC22 monoton**: 1.120 un. (Δ 709 un., -38.8%)\n- 🟢 **CC21 monoton**: 1.526 un. (Δ +300 un., +24.5%)\n- 🔴 **CC24 biton 5L**: 82 un. (Δ 240 un., -74.5%)\n- 🔴 **CC24 monoton 7L**: 139 un. (Δ 203 un., -59.4%)\n- 🔴 **CC21 biton**: 170 un. (Δ 175 un., -50.7%)\n- 🔴 **CC24 monoton 5L**: 190 un. (Δ 160 un., -45.7%)\n- 🔴 **CC22 biton**: 374 un. (Δ 17 un., -4.3%)\n- 🟢 **CC24 biton 7L**: 60 un. (Δ +6 un., +11.1%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)",
@@ -245,7 +245,6 @@
             {
               "titulo": "Material — Top 10 Real",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -256,7 +255,6 @@
               ],
               "linhas": [
                 [
-                  "AS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -266,7 +264,6 @@
                   -28154.442988204457
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -276,7 +273,6 @@
                   17829.229820368513
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -286,7 +282,6 @@
                   -16089.400971397732
                 ],
                 [
-                  "BS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -296,7 +291,6 @@
                   -10869.0756302521
                 ],
                 [
-                  "BS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -306,7 +300,6 @@
                   8916.023436897694
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -316,7 +309,6 @@
                   7923.179400200446
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -326,7 +318,6 @@
                   6830.478760311464
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -336,7 +327,6 @@
                   5119.830390871945
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -346,7 +336,6 @@
                   4306.916968622311
                 ],
                 [
-                  "PS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -360,7 +349,6 @@
             {
               "titulo": "Supplier Failure Recovery",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -371,7 +359,6 @@
               ],
               "linhas": [
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -381,7 +368,6 @@
                   26702.798550612904
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -391,7 +377,6 @@
                   -19591.55038162054
                 ],
                 [
-                  "QY",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -401,7 +386,6 @@
                   -8385.475291033845
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -411,7 +395,6 @@
                   -7058.533651992908
                 ],
                 [
-                  "QY",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -421,7 +404,6 @@
                   5875.876956287102
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -435,7 +417,6 @@
             {
               "titulo": "Health and others - BC",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -446,7 +427,6 @@
               ],
               "linhas": [
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -456,7 +436,6 @@
                   49967.465885436744
                 ],
                 [
-                  "PS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -466,7 +445,6 @@
                   19986.986354174696
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -476,7 +454,6 @@
                   18037.03646596253
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -486,7 +463,6 @@
                   16818.317785829928
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -496,7 +472,6 @@
                   14868.367897617763
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -506,7 +481,6 @@
                   10968.468121193431
                 ],
                 [
-                  "PL",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -516,7 +490,6 @@
                   9993.493177087348
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -526,7 +499,6 @@
                   9506.005705034306
                 ],
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -536,7 +508,6 @@
                   8774.774496954746
                 ],
                 [
-                  "GS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -550,7 +521,6 @@
             {
               "titulo": "D Class (Quality)",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -561,7 +531,6 @@
               ],
               "linhas": [
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -571,7 +540,6 @@
                   127477.04725927068
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -581,7 +549,6 @@
                   -126369.79107239225
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -591,7 +558,6 @@
                   22737.7472823992
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -601,7 +567,6 @@
                   20963.71289800324
                 ],
                 [
-                  "QY",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -611,7 +576,6 @@
                   -9625.012720684603
                 ],
                 [
-                  "QY",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -621,7 +585,6 @@
                   9588.745663402975
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -631,7 +594,6 @@
                   9408.332433890986
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -641,7 +603,6 @@
                   8351.931231208078
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -651,7 +612,6 @@
                   7837.966232364504
                 ],
                 [
-                  "QY",
                   "Labor",
                   "Indirect Labor",
                   "D Class (Quality)",
@@ -738,6 +698,106 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              109.04474277974452,
+              -0.03800319520318851,
+              13.354540779694162,
+              2.1810361506828837,
+              124.54231651491838
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              88.61600355643637,
+              7.270362483085165,
+              22.183410126669116,
+              6.6021369158233325,
+              -0.12959656709545975,
+              124.54231651491736
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Benefits - BC",
+              "Indirect Labor",
+              "WC & Trainee",
+              "Energy",
+              "Material Losses",
+              "Expenses",
+              "Benefits - WC",
+              "Consumption Material",
+              "Maintenance",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              109.04474277974452,
+              -0.03800319520318851,
+              43.339508168064526,
+              -17.52424633466974,
+              -17.38514056060225,
+              8.606662760882063,
+              -2.5408064541865283,
+              1.6797710441951275,
+              1.2691813441915534,
+              -1.2531695846927262,
+              -1.1414367997939372,
+              1.0468692799836736,
+              -0.4098536896904328,
+              -0.151762,
+              124.54231651491779
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "Expenses",
+              "Indirect Labor",
+              "Energy",
+              "Material Losses",
+              "Consumption Material",
+              "Benefits",
+              "Trips",
+              "Maintenance",
+              "Taxes, Insurance & Assets Amortization",
+              "WC & Trainee",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              88.61600355643637,
+              7.270362483085165,
+              20.03726202163587,
+              3.868377319177176,
+              2.4161187149077046,
+              1.2428540007263584,
+              0.9918152521911461,
+              0.8236952852536898,
+              -0.35936760501191145,
+              -0.1676944919739963,
+              -0.15691044955179212,
+              -0.12959656709545975,
+              0.08939699513745225,
+              124.54231651491736
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "AS — Material — Top 10 Real",
@@ -1126,6 +1186,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              123.4512986539437,
+              -0.07233450308214628,
+              19.26158381250999,
+              -2.860289288975583,
+              1.7151021948651746,
+              141.49536086926113
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              107.88124818039857,
+              17.238786148466644,
+              21.580115064495793,
+              -5.73753646010111,
+              0.5327479360012433,
+              141.4953608692611
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Indirect Labor",
+              "Direct Labor",
+              "Benefits - BC",
+              "Expenses",
+              "Maintenance",
+              "Consumption Material",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Energy",
+              "Benefits - WC",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              123.45129865394371,
+              -0.0723345030821605,
+              29.121603418851006,
+              15.968887458504021,
+              -13.626922056238818,
+              -11.5781625642326,
+              -3.6332814864162755,
+              -2.7740147074988015,
+              1.7842453828897011,
+              1.7151021948651746,
+              1.349755261621901,
+              0.8966310953623733,
+              -0.7867695436063271,
+              -0.320678,
+              141.49536086926113
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "Expenses",
+              "Indirect Labor",
+              "Maintenance",
+              "WC & Trainee",
+              "Energy",
+              "Benefits",
+              "Material Losses",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Consumption Material",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              107.88124818039857,
+              17.238786148466644,
+              12.590281467648486,
+              -5.822362243714347,
+              4.07108441879128,
+              -3.804811099753121,
+              3.3232857455093,
+              1.8738884278001455,
+              1.5954634325467367,
+              1.5635724314794543,
+              0.5327479360012433,
+              0.4235355586731655,
+              0.028640465413595884,
+              141.4953608692611
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "BS — Material — Top 10 Real",
@@ -1514,6 +1676,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              50.336070484356505,
+              -0.030611317974923224,
+              57.34901020883245,
+              9.986537446462748,
+              0.013619703818333662,
+              117.65462652549512
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              45.636358120714696,
+              8.914226244045075,
+              57.54098575915792,
+              3.5416430348354346,
+              2.0214133667420544,
+              117.65462652549515
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Consumption Material",
+              "Energy",
+              "Maintenance",
+              "Expenses",
+              "Benefits",
+              "Trips",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Scrap Sales",
+              "Material Losses",
+              "Stock Obsolescence % Overstock",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              50.33607048435651,
+              -0.03061131797493033,
+              12.877115845606843,
+              11.9240471323982,
+              10.780018942993923,
+              10.02286726228889,
+              9.715886494931615,
+              8.380079755281374,
+              5.541439025336924,
+              -5.455687428932996,
+              3.3650973906295634,
+              3.2631568950136938,
+              -3.2268163830675323,
+              0.161962,
+              117.65462652549513
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Material Losses",
+              "Direct Labor",
+              "Consumption Material",
+              "Benefits",
+              "Maintenance",
+              "Energy",
+              "Trips",
+              "Expenses",
+              "WC & Trainee",
+              "Taxes, Insurance & Assets Amortization",
+              "Indirect Labor",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              45.636358120714696,
+              8.914226244045075,
+              21.816086715390448,
+              12.652824148855757,
+              11.534012021470247,
+              -10.850615668245386,
+              9.850362458003257,
+              9.00838032783512,
+              7.694165005586696,
+              -2.3620207691278647,
+              2.081368517434368,
+              2.0214133667420544,
+              -0.3419339632093177,
+              117.65462652549515
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "GS — Material — Top 10 Real",
@@ -1902,6 +2166,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              38.37227496756749,
+              -0.013560964163119138,
+              19.755106272472723,
+              5.1210585316557085,
+              2.8769858199188185,
+              66.11186462745162
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "D&A",
+              "Burden",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              28.56280720000575,
+              4.805298161654754,
+              27.239393242525278,
+              3.5138790623456284,
+              1.9904869609202258,
+              66.11186462745164
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Expenses",
+              "Indirect Labor",
+              "Material Losses",
+              "Stock Obsolescence % Overstock",
+              "Benefits - BC",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Benefits - WC",
+              "Maintenance",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              38.37227496756749,
+              -0.013560964163119138,
+              17.533597051359354,
+              8.957902246976959,
+              6.464938891322781,
+              5.896371564571238,
+              -4.97339161680293,
+              -4.337175213932995,
+              -3.7697878186824147,
+              2.8769858199188185,
+              -2.308555975496628,
+              -0.8939948181630853,
+              0.81638765566698,
+              1.489873,
+              66.11186462745162
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Indirect Labor",
+              "Benefits",
+              "WC & Trainee",
+              "Direct Labor",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Expenses",
+              "Material Losses",
+              "Maintenance",
+              "Energy",
+              "Trips",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              28.56280720000575,
+              4.805298161654754,
+              12.707695244762455,
+              5.3846829837749155,
+              4.752050767521624,
+              4.3949642464662775,
+              3.5138790623456284,
+              2.2744495652967256,
+              -2.0425695800632173,
+              1.7192663376429866,
+              -0.059658646926042946,
+              0.0584500531379029,
+              0.040549231831878085,
+              66.11186462745164
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "PL — Material — Top 10 Real",
@@ -2331,6 +2697,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              111.76552327660576,
+              -0.03661427392469818,
+              9.095353497764279,
+              0.5196880119615415,
+              0.28164443336448386,
+              121.62559494577137
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "D&A",
+              "Burden",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              93.83379609682972,
+              6.834528508994623,
+              10.158104432139254,
+              5.539943226907278,
+              5.259222680900507,
+              121.62559494577138
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Expenses",
+              "WC & Trainee",
+              "Material Losses",
+              "Maintenance",
+              "Benefits - WC",
+              "Trips",
+              "Taxes, Insurance & Assets Amortization",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              111.76552327660575,
+              -0.03661427392469818,
+              20.749167279661176,
+              -12.897822157316952,
+              9.982421021103724,
+              -9.868623216628574,
+              -1.9918297658265696,
+              1.9316610410330668,
+              1.6382693551397438,
+              0.9650509034538519,
+              -0.8014504700881562,
+              0.41046369255510023,
+              0.28164443336448386,
+              -0.502266,
+              121.62559494577137
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "WC & Trainee",
+              "Direct Labor",
+              "Indirect Labor",
+              "Expenses",
+              "Material Losses",
+              "Benefits",
+              "Maintenance",
+              "Trips",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              93.83379609682972,
+              6.834528508994623,
+              8.787242814241125,
+              5.539943226907278,
+              -4.037594837091888,
+              3.8119593949457347,
+              3.0776090670189173,
+              2.5128220646262207,
+              -1.7978524773899187,
+              1.3664216988778852,
+              0.7557139055483795,
+              0.5305417897082139,
+              0.41046369255510023,
+              121.62559494577138
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "PS — Material — Top 10 Real",
@@ -2719,6 +3187,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              50.041781880594016,
+              -0.024944670768235255,
+              8.914672666021561,
+              0.7673157983388776,
+              0.013956378709147899,
+              59.71278205289536
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              46.35986184134544,
+              7.040451201358003,
+              8.53179798532846,
+              -4.141446242168167,
+              1.9221172670316173,
+              59.712782052895356
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Indirect Labor",
+              "Direct Labor",
+              "Benefits - BC",
+              "Expenses",
+              "Material Losses",
+              "Benefits - WC",
+              "Trips",
+              "Energy",
+              "Scraps",
+              "WC & Trainee",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              50.041781880594016,
+              -0.024944670768235255,
+              12.94402146986814,
+              -11.579816081691128,
+              7.3939130619181554,
+              -6.514157478585838,
+              6.506807657739567,
+              1.5545745724746298,
+              -1.3014080250854088,
+              0.48042088609296907,
+              0.44489048014350463,
+              -0.31284828426947253,
+              -0.17523714808505098,
+              0.254784,
+              59.71278205289537
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "WC & Trainee",
+              "Indirect Labor",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Material Losses",
+              "Benefits",
+              "Consumption Material",
+              "Expenses",
+              "Energy",
+              "Maintenance",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              46.35986184134544,
+              7.040451201358003,
+              4.127238947000624,
+              3.3552659475642255,
+              2.1161792959056616,
+              1.9221172670316173,
+              -1.9055931385131188,
+              -1.4317162694459695,
+              -1.0668862051420511,
+              -0.6709839989404984,
+              -0.5851753309899355,
+              0.2464167948218834,
+              0.20560570089948296,
+              59.712782052895356
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "QY — Material — Top 10 Real",
@@ -3049,6 +3619,108 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              51.42387872673113,
+              -0.046404637250248015,
+              54.668027786164444,
+              -46.46413871433823,
+              -5.316290154259244,
+              54.265073007047846
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              32.0309896998092,
+              4.507605052123729,
+              73.72969922196555,
+              -55.741570544326,
+              -0.26165042252463266,
+              54.26507300704781
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Indirect Labor",
+              "Expenses",
+              "Benefits",
+              "Material Losses",
+              "Scrap Sales",
+              "Direct Labor",
+              "WC & Trainee",
+              "Energy",
+              "Benefits - BC",
+              "Taxes, Insurance & Assets Amortization",
+              "Stock Obsolescence % Overstock",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              51.423878726731125,
+              -0.046404637250233804,
+              38.75562258513313,
+              -36.82994606661742,
+              22.839889231606126,
+              -22.307054349446897,
+              20.084696826575893,
+              -14.8992567947876,
+              14.40616604601129,
+              -6.687955286745872,
+              -6.027570017687324,
+              -5.316290154259244,
+              -1.8073289462894517,
+              0.676626,
+              54.26507300704786
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Expenses",
+              "Maintenance",
+              "Indirect Labor",
+              "Material Losses",
+              "Energy",
+              "WC & Trainee",
+              "Benefits",
+              "Direct Labor",
+              "Trips",
+              "Consumption Material",
+              "Taxes, Insurance & Assets Amortization",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              32.0309896998092,
+              4.507605052123729,
+              -52.17541248685638,
+              34.24005454076145,
+              34.14544960293016,
+              -24.369230224541568,
+              -14.868753876804314,
+              14.523989212721268,
+              12.633128615694693,
+              12.427131790619475,
+              2.5141389697970267,
+              -1.0823674666821805,
+              -0.26165042252463266,
+              54.26507300704781
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "SM — Material — Top 10 Real",
@@ -3185,7 +3857,7 @@
     "1": {
       "mes_numero": 1,
       "mes_nome": "Janeiro",
-      "gerado_em": "2026-03-01T11:40:31.268339",
+      "gerado_em": "2026-03-01T14:30:42.143283",
       "modo": "local",
       "secoes": {
         "volume_completo": "### 1.1 Volume Total — Janeiro/2026\nO volume real de produção em Janeiro foi de **4.859 unidades**. O volume Actual (projeção) era de 4.859 un. e o Budget de 4.640 un.\n\n### 1.2 Real vs Budget\nO volume real superou o Budget em **+219 unidades** (+4.7%).\n\n**Top 10 modelos por impacto (Real vs Budget):**\n- 🟢 **CC22 monoton**: 1.829 un. (Δ +245 un., +15.5%)\n- 🟢 **CC21 biton**: 345 un. (Δ +195 un., +130.0%)\n- 🔴 **CC22 biton**: 391 un. (Δ 137 un., -25.9%)\n- 🟢 **CC24 biton 5L**: 322 un. (Δ +127 un., +65.1%)\n- 🔴 **CC21 monoton**: 1.226 un. (Δ 123 un., -9.1%)\n- 🔴 **CC24 monoton 5L**: 350 un. (Δ 105 un., -23.1%)\n- 🟢 **CC24 monoton 7L**: 342 un. (Δ +77 un., +29.1%)\n- 🔴 **CC24 biton 7L**: 54 un. (Δ 60 un., -52.6%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)",
@@ -3349,7 +4021,6 @@
             {
               "titulo": "Material — Top 10 Real",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -3360,7 +4031,6 @@
               ],
               "linhas": [
                 [
-                  "SM",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3370,7 +4040,6 @@
                   -137568.81496806972
                 ],
                 [
-                  "BS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3380,7 +4049,6 @@
                   -54006.87654469073
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3390,7 +4058,6 @@
                   50464.52079343098
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3400,7 +4067,6 @@
                   -26566.380911557237
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3410,7 +4076,6 @@
                   -25878.925294888595
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3420,7 +4085,6 @@
                   -15418.314702027597
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3430,7 +4094,6 @@
                   -13263.75440057012
                 ],
                 [
-                  "GS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3440,7 +4103,6 @@
                   -10762.851360581655
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3450,7 +4112,6 @@
                   9206.32796237761
                 ],
                 [
-                  "SM",
                   "Burden",
                   "Maintenance",
                   "Material",
@@ -3464,7 +4125,6 @@
             {
               "titulo": "Supplier Failure Recovery",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -3475,7 +4135,6 @@
               ],
               "linhas": [
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3485,7 +4144,6 @@
                   69111.40605319626
                 ],
                 [
-                  "QY",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3495,7 +4153,6 @@
                   24950.187548645732
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3505,7 +4162,6 @@
                   -20814.260195501058
                 ],
                 [
-                  "QY",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3515,7 +4171,6 @@
                   -5855.195319201111
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3525,7 +4180,6 @@
                   -5501.975972773404
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3535,7 +4189,6 @@
                   -5357.615885893087
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3545,7 +4198,6 @@
                   -4901.863380356451
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3555,7 +4207,6 @@
                   4744.429882044561
                 ],
                 [
-                  "PL",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3565,7 +4216,6 @@
                   -3494.943857726744
                 ],
                 [
-                  "AS",
                   "Burden",
                   "Expenses",
                   "Supplier Failure Recovery",
@@ -3579,7 +4229,6 @@
             {
               "titulo": "Health and others - BC",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -3590,7 +4239,6 @@
               ],
               "linhas": [
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3600,7 +4248,6 @@
                   52221.04695089044
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3610,7 +4257,6 @@
                   24785.577912424676
                 ],
                 [
-                  "PS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3620,7 +4266,6 @@
                   19937.93157004396
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3630,7 +4275,6 @@
                   17473.93502185958
                 ],
                 [
-                  "GS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3640,7 +4284,6 @@
                   17346.128051417927
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3650,7 +4293,6 @@
                   14627.110651272174
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3660,7 +4302,6 @@
                   -12532.855309214166
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3670,7 +4311,6 @@
                   10626.04156734704
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3680,7 +4320,6 @@
                   10164.602316985749
                 ],
                 [
-                  "GS",
                   "Labor",
                   "Benefits",
                   "Health and others - BC",
@@ -3694,7 +4333,6 @@
             {
               "titulo": "Restaurant - BC",
               "colunas": [
-                "Oficina",
                 "Type 05",
                 "Type 06",
                 "Account",
@@ -3705,7 +4343,6 @@
               ],
               "linhas": [
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3715,7 +4352,6 @@
                   49037.87063449233
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3725,7 +4361,6 @@
                   25780.380217357335
                 ],
                 [
-                  "PS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3735,7 +4370,6 @@
                   19840.547328891884
                 ],
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3745,7 +4379,6 @@
                   18290.03777657852
                 ],
                 [
-                  "AS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3755,7 +4388,6 @@
                   17603.80387017192
                 ],
                 [
-                  "GS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3765,7 +4397,6 @@
                   16475.819312637897
                 ],
                 [
-                  "SM",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3775,7 +4406,6 @@
                   12597.052804004488
                 ],
                 [
-                  "QY",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3785,7 +4415,6 @@
                   10718.544397406848
                 ],
                 [
-                  "BS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3795,7 +4424,6 @@
                   9413.04157604375
                 ],
                 [
-                  "GS",
                   "Labor",
                   "Benefits",
                   "Restaurant - BC",
@@ -3850,6 +4478,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              96.61605634940865,
+              -1.2472784183787695,
+              -3.530654280021813,
+              -3.3115454479335966,
+              0.08942535336188051,
+              88.61600355643634
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Benefits - BC",
+              "Indirect Labor",
+              "Expenses",
+              "WC & Trainee",
+              "Benefits - WC",
+              "Maintenance",
+              "Energy",
+              "Scraps",
+              "Material Losses",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              96.61605634940867,
+              -1.2472784183787837,
+              42.846965801733305,
+              -37.72663179266059,
+              -11.897446861404559,
+              6.190544045974359,
+              -3.8588152325720815,
+              -1.9817194542035566,
+              -0.7432571873725412,
+              -0.5473840031079189,
+              0.43424275056122963,
+              -0.28895227815897,
+              0.2773660920004093,
+              0.542314,
+              88.61600355643637
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "AS — Material — Top 10 Real",
@@ -4247,6 +4933,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              107.86039697021819,
+              -2.428308900631535,
+              1.790642989316396,
+              0.5139714804739342,
+              0.14454564102157974,
+              107.88124818039857
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Direct Labor",
+              "Benefits",
+              "Indirect Labor",
+              "Benefits - BC",
+              "WC & Trainee",
+              "Consumption Material",
+              "Material Losses",
+              "Expenses",
+              "Trips",
+              "Benefits - WC",
+              "Scraps",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              107.86039697021819,
+              -2.428308900631535,
+              -27.1421493548903,
+              26.93291228864466,
+              11.89780303971274,
+              -8.105142555052485,
+              -2.5464900692511527,
+              1.7712630940951333,
+              -1.7226215792315958,
+              1.5834167099080925,
+              0.697857652293748,
+              -0.5229618686895248,
+              -0.33132272286275805,
+              -0.063405,
+              107.88124818039859
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "BS — Material — Top 10 Real",
@@ -4603,6 +5347,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              45.224563217089596,
+              -1.015578140646383,
+              7.605169094762214,
+              -4.645249370849681,
+              -1.5325466796410647,
+              45.63635812071469
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Material Losses",
+              "Direct Labor",
+              "Expenses",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Stock Obsolescence % Overstock",
+              "Scrap Sales",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              45.2245632170896,
+              -1.015578140646383,
+              20.27287817130499,
+              -18.580020997004635,
+              -12.870382600595478,
+              9.320002793340766,
+              5.373793844889278,
+              -3.7767636145680425,
+              -2.8446887017899773,
+              2.655824867817383,
+              2.3694125517807643,
+              -1.5325466796410647,
+              1.2753709727300198,
+              -0.235508,
+              45.63635812071469
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "GS — Material — Top 10 Real",
@@ -4959,6 +5761,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "D&A",
+              "Burden",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              36.91878379860671,
+              -0.5108671707533858,
+              -7.684291392746243,
+              -1.6408044087573401,
+              1.479986373656005,
+              28.56280720000575
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Expenses",
+              "Indirect Labor",
+              "WC & Trainee",
+              "Stock Obsolescence % Overstock",
+              "Direct Labor",
+              "Energy",
+              "Consumption Material",
+              "Benefits - BC",
+              "Material Losses",
+              "Taxes, Insurance & Assets Amortization",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              36.91878379860671,
+              -0.5108671707533858,
+              11.742953408589722,
+              9.078522407694662,
+              -7.517982028715399,
+              -4.190529288324137,
+              -4.118954988089439,
+              -3.831489560827425,
+              -3.813182587626435,
+              -3.798252368758171,
+              -3.247356157048992,
+              3.1472282847878836,
+              -1.6408044087573401,
+              0.344738,
+              28.56280720000575
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "PL — Material — Top 10 Real",
@@ -5374,6 +6234,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "D&A",
+              "Labor",
+              "Burden",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              98.93089207252454,
+              -1.1984876105413917,
+              -4.084990485731758,
+              1.9462013707695647,
+              -1.7598192501912422,
+              93.83379609682972
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "WC & Trainee",
+              "Benefits - WC",
+              "Maintenance",
+              "Material Losses",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              98.93089207252453,
+              -1.1984876105413917,
+              19.5138437380956,
+              -16.225818611942074,
+              7.469598956477501,
+              -6.78945641254506,
+              -5.9313622769592556,
+              -4.084990485731758,
+              3.9632795496449784,
+              -1.4948566401940493,
+              -0.5271096591223574,
+              0.2920086414542964,
+              0.27184765626185853,
+              -0.355593,
+              93.8337960968297
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "PS — Material — Top 10 Real",
@@ -5730,6 +6648,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              43.374704585948564,
+              -0.810222359540802,
+              10.700554184570223,
+              -5.4613705164343465,
+              -1.443804053198186,
+              46.35986184134545
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Indirect Labor",
+              "Benefits",
+              "Expenses",
+              "Benefits - BC",
+              "Direct Labor",
+              "Material Losses",
+              "WC & Trainee",
+              "Trips",
+              "Taxes, Insurance & Assets Amortization",
+              "Benefits - WC",
+              "Consumption Material",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              43.374704585948564,
+              -0.810222359540802,
+              -13.944002824763134,
+              13.238806534295295,
+              5.250065333695998,
+              -4.498764138613431,
+              3.2666741149175333,
+              2.9862908419205993,
+              -2.6754915445051806,
+              1.797408333924837,
+              -1.443804053198186,
+              -0.8485926577654324,
+              0.8248711790973248,
+              -0.158082,
+              46.35986184134546
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "QY — Material — Top 10 Real",
@@ -6118,6 +7094,64 @@
             "wf_ano_ant_values": [],
             "ano": 2026,
             "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              43.78661953197115,
+              -1.4985492242180598,
+              -18.098710483465972,
+              11.656343185236729,
+              -3.814713309714679,
+              32.03098969980917
+            ],
+            "wf_mensal_type05_labels": [],
+            "wf_mensal_type05_values": [],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Direct Labor",
+              "Maintenance",
+              "Scrap Sales",
+              "Expenses",
+              "Benefits",
+              "Energy",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Stock Obsolescence % Overstock",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              43.78661953197115,
+              -1.4985492242180598,
+              -27.83959272622495,
+              -27.054141076193964,
+              15.848498200552031,
+              11.973383053392276,
+              9.600854932613109,
+              9.428140175716932,
+              4.610172982202986,
+              -4.110546031583197,
+              -3.814713309714679,
+              2.068392637620116,
+              -1.5852853179758883,
+              0.617756,
+              32.030989699809176
+            ],
+            "wf_mensal_type06_labels": [],
+            "wf_mensal_type06_values": [],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
             "tabelas": [
               {
                 "titulo": "SM — Material — Top 10 Real",

@@ -25,6 +25,7 @@ from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
     Image,
+    KeepTogether,
     NextPageTemplate,
     PageBreak,
     PageTemplate,
@@ -110,6 +111,7 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             borderWidth=2,
             borderColor=COR_DESTAQUE,
             borderPadding=8,
+            keepWithNext=1,
         ),
         "titulo_secao": ParagraphStyle(
             "TituloSecao",
@@ -120,6 +122,7 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             textColor=COR_SECUNDARIA,
             spaceBefore=16,
             spaceAfter=8,
+            keepWithNext=1,
         ),
         "corpo": ParagraphStyle(
             "Corpo",
@@ -424,17 +427,21 @@ def _construir_sumario(
                         estilos["toc_nivel3"],
                     ))
 
-            # Nível 3 — Tabelas de Conclusões
+            # Nível 3 — Anexos (Tabelas de Conclusões)
             if tipo == "conclusoes":
                 graf = info.get("dados_graficos", {})
                 tabelas_g = graf.get("global", {}).get("tabelas", [])
-                for idx_t, tab in enumerate(tabelas_g):
-                    t_titulo = tab.get("titulo", "")
-                    t_num = chr(65 + idx_t)
-                    anc_t = f"cap{cap_n}_tab3{t_num}"
+                if tabelas_g:
+                    anc_anx = f"cap{cap_n}_anexos"
+                    _anx_lbl = _substituir_emojis(
+                        labels.get(
+                            "sec_anexos_tabelas",
+                            "Anexos — Tabelas Principais Despesas",
+                        )
+                    )
                     elements.append(Paragraph(
-                        f'<a href="#{anc_t}" color="#666666">'
-                        f'3.{t_num} {t_titulo}</a>',
+                        f'<a href="#{anc_anx}" color="#666666">'
+                        f'{_anx_lbl}</a>',
                         estilos["toc_nivel3"],
                     ))
 
@@ -542,12 +549,17 @@ def _construir_sumario_mensal(
         if tipo == "conclusoes":
             graf = info_mes.get("dados_graficos", {})
             tabelas_g = graf.get("global", {}).get("tabelas", [])
-            for idx_t, tab in enumerate(tabelas_g):
-                t_titulo = tab.get("titulo", "")
-                t_num = chr(65 + idx_t)
+            if tabelas_g:
+                anc_anx = f"cap{cap_n}_anexos"
+                _anx_lbl = _substituir_emojis(
+                    labels.get(
+                        "sec_anexos_tabelas",
+                        "Anexos — Tabelas Principais Despesas",
+                    )
+                )
                 elements.append(Paragraph(
-                    f'<a href="#cap{cap_n}_tab3{t_num}" '
-                    f'color="#666666">3.{t_num} {t_titulo}</a>',
+                    f'<a href="#{anc_anx}" '
+                    f'color="#666666">{_anx_lbl}</a>',
                     estilos["toc_nivel3"],
                 ))
 
@@ -853,17 +865,28 @@ def _construir_capitulo_mes(
         elif tipo_secao == "conclusoes":
             paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
             elements.extend(paragraphs)
-            # Tabelas de análise detalhada (global)
+            # Tabelas de análise detalhada (global) — Anexos
             tabelas_g = graf_global.get("tabelas", [])
             if tabelas_g:
-                elements.append(Spacer(1, 0.3 * cm))
+                elements.append(Spacer(1, 0.5 * cm))
+                _anx_titulo = _aplicar_formatacao(_substituir_emojis(
+                    labels.get(
+                        "sec_anexos_tabelas",
+                        "Anexos — Tabelas Principais Despesas",
+                    )
+                ))
+                anc_anx = f'<a name="cap{mes_numero}_anexos"/>'
+                elements.append(Paragraph(
+                    f'{anc_anx}{_anx_titulo}',
+                    estilos["titulo_secao"],
+                ))
                 for idx_t, tab_data in enumerate(tabelas_g):
                     t_num = chr(65 + idx_t)
                     anc = f"cap{mes_numero}_tab3{t_num}"
                     _renderizar_tabela_pdf(
                         elements, estilos, tab_data,
                         anchor_name=anc,
-                        numero=f"3.{t_num}",
+                        numero=f"{t_num}",
                         simbolo_moeda=simbolo_moeda,
                     )
 
@@ -899,7 +922,7 @@ def _construir_capitulo_mes(
                 ano_rel = graf_global.get("ano", "")
                 png_ofc_global = gerar_waterfall_from_arrays(
                     {"labels": wf_ofc_labels, "values": wf_ofc_values},
-                    titulo=f"Waterfall Budget vs Real por Oficina — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    titulo=f"Account — Waterfall Budget vs Real por Oficina — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                     y_label=cpu_label,
                 )
                 _inserir_grafico(elements, png_ofc_global, largura_max=17 * cm)
@@ -968,17 +991,37 @@ def _construir_capitulo_mes(
             )
             elements.extend(paragraphs)
 
-        # Tabelas de análise detalhada por oficina
+        # Tabelas de análise detalhada por oficina — Anexos
         tabelas_ofc = graf_ofc.get("tabelas", [])
-        for idx_t, tab_data in enumerate(tabelas_ofc):
-            t_num = chr(65 + idx_t)
-            anc_t = f"cap{mes_numero}_ofc{idx_ofc + 1}_tab{t_num}"
-            _renderizar_tabela_pdf(
-                elements, estilos, tab_data,
-                anchor_name=anc_t,
-                numero=f"4.{idx_ofc + 1}.{t_num}",
-                simbolo_moeda=simbolo_moeda,
+        if tabelas_ofc:
+            _anx_ofc_titulo = _aplicar_formatacao(
+                _substituir_emojis(
+                    labels.get(
+                        "sec_anexos_tabelas",
+                        "Anexos — Tabelas Principais Despesas",
+                    )
+                )
             )
+            anc_anx_ofc = (
+                f'<a name="cap{mes_numero}'
+                f'_ofc{idx_ofc + 1}_anexos"/>'
+            )
+            elements.append(Paragraph(
+                f'{anc_anx_ofc}{_anx_ofc_titulo}',
+                estilos["titulo_secao"],
+            ))
+            for idx_t, tab_data in enumerate(tabelas_ofc):
+                t_num = chr(65 + idx_t)
+                anc_t = (
+                    f"cap{mes_numero}_ofc{idx_ofc + 1}"
+                    f"_tab{t_num}"
+                )
+                _renderizar_tabela_pdf(
+                    elements, estilos, tab_data,
+                    anchor_name=anc_t,
+                    numero=f"{t_num}",
+                    simbolo_moeda=simbolo_moeda,
+                )
 
         elements.append(Spacer(1, 0.5 * cm))
 
@@ -1026,7 +1069,7 @@ def _renderizar_comparativos_pdf(
 
     Para cada sub-tópico (2.1, 2.2, 2.3):
       1. Anchor + título
-      2. Waterfall pair (Type 05 × Type 06)  ← side-by-side
+      2. Waterfall pair (Type 05 × Type 06)  ← empilhados verticalmente
       3. Waterfall principal (Account)
       4. Texto analítico
     """
@@ -1141,19 +1184,19 @@ def _renderizar_tabela_pdf(
         ),
     ))
 
-    # Formatar header
+    # Formatar header (estilo leve, sem fundo colorido)
     header_style = ParagraphStyle(
         "TabHeader", fontName="Helvetica-Bold",
-        fontSize=7, leading=9, textColor=colors.white,
+        fontSize=6, leading=8, textColor=COR_TEXTO,
         alignment=TA_CENTER,
     )
     cell_style = ParagraphStyle(
         "TabCell", fontName="Helvetica",
-        fontSize=7, leading=9, textColor=COR_TEXTO,
+        fontSize=6, leading=8, textColor=COR_TEXTO,
     )
     cell_num_style = ParagraphStyle(
         "TabCellNum", fontName="Helvetica",
-        fontSize=7, leading=9, textColor=COR_TEXTO,
+        fontSize=6, leading=8, textColor=COR_TEXTO,
         alignment=TA_CENTER,
     )
 
@@ -1161,13 +1204,13 @@ def _renderizar_tabela_pdf(
     col_display = []
     for c in colunas:
         if c == "Real":
-            col_display.append(f"Real (k{simbolo_moeda})")
+            col_display.append(f"real (k{simbolo_moeda})")
         else:
-            col_display.append(c)
+            col_display.append(c.lower())
 
     header_row = [Paragraph(c, header_style) for c in col_display]
 
-    # Linhas de dados
+    # Linhas de dados (texto em minúsculas)
     data_rows = []
     for linha in linhas:
         row = []
@@ -1178,8 +1221,9 @@ def _renderizar_tabela_pdf(
                 txt = f"{v_k:,.1f}"
                 row.append(Paragraph(txt, cell_num_style))
             else:
-                # Truncar texto longo
+                # Truncar texto longo e converter para minúsculas
                 txt = str(val)[:30] if len(str(val)) > 30 else str(val)
+                txt = txt.lower()
                 row.append(Paragraph(txt, cell_style))
         data_rows.append(row)
 
@@ -1192,37 +1236,29 @@ def _renderizar_tabela_pdf(
 
     tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
 
-    # Estilo da tabela
+    # Estilo leve: sem fundo, linhas finas
+    _cor_linha = colors.HexColor("#CCCCCC")
     style_cmds = [
         # Header
-        ("BACKGROUND", (0, 0), (-1, 0), COR_PRIMARIA),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("TEXTCOLOR", (0, 0), (-1, 0), COR_TEXTO),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("FONTSIZE", (0, 0), (-1, 0), 6),
         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 4),
-        ("TOPPADDING", (0, 0), (-1, 0), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+        ("TOPPADDING", (0, 0), (-1, 0), 3),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, COR_TEXTO),
         # Cells
         ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("FONTSIZE", (0, 1), (-1, -1), 6),
         ("TOPPADDING", (0, 1), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 1), (-1, -1), 2),
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
         ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-        # Grid
-        ("GRID", (0, 0), (-1, -1), 0.5, COR_CINZA),
-        ("LINEBELOW", (0, 0), (-1, 0), 1, COR_DESTAQUE),
+        # Linhas horizontais finas entre cada linha
+        ("LINEBELOW", (0, 1), (-1, -1), 0.25, _cor_linha),
         # Valor numérico alinhado à direita
         ("ALIGN", (-1, 1), (-1, -1), "RIGHT"),
     ]
-
-    # Zebra stripes
-    for i in range(1, len(table_data)):
-        if i % 2 == 0:
-            style_cmds.append(
-                ("BACKGROUND", (0, i), (-1, i),
-                 colors.HexColor("#F5F5F5"))
-            )
 
     tbl.setStyle(TableStyle(style_cmds))
     elements.append(tbl)
@@ -1238,7 +1274,7 @@ def _inserir_waterfall_pair(
     info_mes: dict,
     simbolo_moeda: str = "R$",
 ) -> None:
-    """Insere dois waterfalls (Type 05 × Type 06) lado a lado."""
+    """Insere dois waterfalls (Type 05 × Type 06) empilhados verticalmente."""
     try:
         from tc_copilot.chart_generator import gerar_waterfall_from_arrays
     except ImportError:
@@ -1247,46 +1283,30 @@ def _inserir_waterfall_pair(
     cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_global.get("ano", "")
 
-    imgs = []
     for pref, dim_label in [
         (prefixo_t05, "Type 05"), (prefixo_t06, "Type 06"),
     ]:
         lbls = graf_global.get(f"{pref}_labels", [])
         vals = graf_global.get(f"{pref}_values", [])
         if not lbls or len(lbls) < 3:
-            imgs.append(None)
             continue
         png = gerar_waterfall_from_arrays(
             {"labels": lbls, "values": vals},
             titulo=f"{dim_label} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
             y_label=cpu_label,
-            width=7,
-            height=4,
+            width=14,
+            height=5,
         )
         if not png:
-            imgs.append(None)
             continue
         buf = _BytesIO(png)
         img = Image(buf)
-        target_w = 8.2 * cm
+        target_w = 17 * cm
         ratio = img.imageWidth / img.imageHeight if img.imageHeight else 1
         img.drawWidth = target_w
         img.drawHeight = target_w / ratio
         img.hAlign = "CENTER"
-        imgs.append(img)
-
-    # Montar Table com 2 colunas se pelo menos 1 imagem
-    cells = [img if img else Paragraph("", ParagraphStyle("empty")) for img in imgs]
-    if any(imgs):
-        tbl = Table(
-            [cells],
-            colWidths=[8.5 * cm, 8.5 * cm],
-        )
-        tbl.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        elements.append(tbl)
+        elements.append(img)
         elements.append(Spacer(1, 0.2 * cm))
 
 
@@ -1310,7 +1330,7 @@ def _inserir_waterfall_budget(
     if wf_bud_labels and len(wf_bud_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_bud_labels, "values": wf_bud_values},
-            titulo=f"Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            titulo=f"Account — Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
             y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
@@ -1336,7 +1356,7 @@ def _inserir_waterfall_mensal(
     if wf_men_labels and len(wf_men_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_men_labels, "values": wf_men_values},
-            titulo=f"Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            titulo=f"Account — Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
             y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
@@ -1363,7 +1383,7 @@ def _inserir_waterfall_ano_anterior(
     if wf_aa_labels and len(wf_aa_labels) >= 3:
         png = gerar_waterfall_from_arrays(
             {"labels": wf_aa_labels, "values": wf_aa_values},
-            titulo=f"Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+            titulo=f"Account — Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
             y_label=cpu_label,
         )
         _inserir_grafico(elements, png, largura_max=17 * cm)
@@ -1393,36 +1413,53 @@ def _inserir_grafico_oficina(
 
     # Budget
     if tipo_waterfall in ("budget", "ambos"):
+        # Type 05 / Type 06 primeiro
+        _inserir_waterfall_pair(
+            elements, graf_ofc,
+            "wf_budget_type05", "wf_budget_type06",
+            mes_nome, info_mes, simbolo_moeda,
+        )
+        # Depois Account
         wf_labels = graf_ofc.get("wf_budget_labels", [])
         wf_values = graf_ofc.get("wf_budget_values", [])
         if wf_labels and len(wf_labels) >= 3:
             png = gerar_waterfall_from_arrays(
                 {"labels": wf_labels, "values": wf_values},
-                titulo=f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                titulo=f"Account — Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                 y_label=cpu_label,
             )
             _inserir_grafico(elements, png, largura_max=17 * cm)
 
     # Mensal
     if tipo_waterfall in ("mensal", "ambos"):
+        _inserir_waterfall_pair(
+            elements, graf_ofc,
+            "wf_mensal_type05", "wf_mensal_type06",
+            mes_nome, info_mes, simbolo_moeda,
+        )
         wf_labels = graf_ofc.get("wf_mensal_labels", [])
         wf_values = graf_ofc.get("wf_mensal_values", [])
         if wf_labels and len(wf_labels) >= 3:
             png = gerar_waterfall_from_arrays(
                 {"labels": wf_labels, "values": wf_values},
-                titulo=f"Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                titulo=f"Account — Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                 y_label=cpu_label,
             )
             _inserir_grafico(elements, png, largura_max=17 * cm)
 
     # Ano Anterior (YoY)
     if tipo_waterfall in ("ano_anterior", "ambos"):
+        _inserir_waterfall_pair(
+            elements, graf_ofc,
+            "wf_ano_ant_type05", "wf_ano_ant_type06",
+            mes_nome, info_mes, simbolo_moeda,
+        )
         wf_labels = graf_ofc.get("wf_ano_ant_labels", [])
         wf_values = graf_ofc.get("wf_ano_ant_values", [])
         if wf_labels and len(wf_labels) >= 3:
             png = gerar_waterfall_from_arrays(
                 {"labels": wf_labels, "values": wf_values},
-                titulo=f"Waterfall Ano Anterior — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+                titulo=f"Account — Waterfall Ano Anterior — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
                 y_label=cpu_label,
             )
             _inserir_grafico(elements, png, largura_max=17 * cm)
@@ -1505,7 +1542,7 @@ def gerar_pdf(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "€") -> st
 # ═══════════════════════════════════════════════════════════════
 
 _TABELA_COLS_GLOBAL = [
-    "Oficina", "Type 05", "Type 06", "Account",
+    "Type 05", "Type 06", "Account",
     "Centrocst", "Texto breve", "Fornecedor",
 ]
 _TABELA_COLS_OFC = [
@@ -2022,6 +2059,54 @@ def gerar_relatorio_mes(
                         label_real=f"{mes_nome}/{ano}",
                     )
 
+            # 4) Waterfalls Type 05 e Type 06 por oficina
+            _ofc_type_data: dict[str, Any] = {}
+            _cr_ofc = dados_ofc.get("custo_real")
+            _cb_ofc = dados_ofc.get("custo_bud")
+            for _dim_t in ("Type 05", "Type 06"):
+                _sfx = _dim_t.replace(" ", "").lower()
+                try:
+                    _wf_bt = calcular_waterfall_budget_cpu(
+                        custo_real=_cr_ofc, custo_bud=_cb_ofc,
+                        vol_real=dados.get("volume_real"),
+                        vol_bud=dados.get("volume_bud"), dim=_dim_t,
+                    )
+                except Exception:
+                    _wf_bt = {}
+                _ofc_type_data[f"wf_budget_{_sfx}_labels"] = _wf_bt.get("labels", [])
+                _ofc_type_data[f"wf_budget_{_sfx}_values"] = [float(v) for v in _wf_bt.get("values", [])]
+
+                _wf_mt: dict[str, Any] = {}
+                if not sem_mes_anterior:
+                    try:
+                        _wf_mt = calcular_waterfall_mensal_cpu(
+                            custo_real=_cr_ofc,
+                            custo_ant=dados_ofc.get("custo_real_ant"),
+                            vol_real=dados.get("volume_real"),
+                            vol_ant=dados.get("volume_real_ant"),
+                            label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                            label_real=mes_nome, dim=_dim_t,
+                        )
+                    except Exception:
+                        _wf_mt = {}
+                _ofc_type_data[f"wf_mensal_{_sfx}_labels"] = _wf_mt.get("labels", [])
+                _ofc_type_data[f"wf_mensal_{_sfx}_values"] = [float(v) for v in _wf_mt.get("values", [])]
+
+                _wf_at: dict[str, Any] = {}
+                if not sem_ano_anterior and custo_aa_ofc is not None:
+                    try:
+                        _wf_at = calcular_waterfall_mensal_cpu(
+                            custo_real=_cr_ofc, custo_ant=custo_aa_ofc,
+                            vol_real=dados.get("volume_real"),
+                            vol_ant=vol_ano_ant,
+                            label_ant=f"{mes_nome}/{_ano_ant}",
+                            label_real=f"{mes_nome}/{ano}", dim=_dim_t,
+                        )
+                    except Exception:
+                        _wf_at = {}
+                _ofc_type_data[f"wf_ano_ant_{_sfx}_labels"] = _wf_at.get("labels", [])
+                _ofc_type_data[f"wf_ano_ant_{_sfx}_values"] = [float(v) for v in _wf_at.get("values", [])]
+
             dados_graficos["oficinas"][ofc] = {
                 "wf_budget_labels": wf_ofc_budget.get("labels", []),
                 "wf_budget_values": [float(v) for v in wf_ofc_budget.get("values", [])],
@@ -2031,6 +2116,7 @@ def gerar_relatorio_mes(
                 "wf_ano_ant_values": [float(v) for v in wf_ofc_ano_ant.get("values", [])],
                 "ano": ano,
                 "ano_anterior": dados.get("ano_anterior", ano - 1),
+                **_ofc_type_data,
             }
         except Exception as e:
             logger.warning("Falha ao coletar dados de gráfico para oficina %s: %s", ofc, e)
@@ -2605,6 +2691,54 @@ def gerar_relatorio_mes_local(
                         label_real=f"{mes_nome}/{ano}",
                     )
 
+            # 4) Waterfalls Type 05 e Type 06 por oficina
+            _ofc_type_data_l: dict[str, Any] = {}
+            _cr_ofc_l = dados_ofc.get("custo_real")
+            _cb_ofc_l = dados_ofc.get("custo_bud")
+            for _dim_t in ("Type 05", "Type 06"):
+                _sfx = _dim_t.replace(" ", "").lower()
+                try:
+                    _wf_bt = calcular_waterfall_budget_cpu(
+                        custo_real=_cr_ofc_l, custo_bud=_cb_ofc_l,
+                        vol_real=dados.get("volume_real"),
+                        vol_bud=dados.get("volume_bud"), dim=_dim_t,
+                    )
+                except Exception:
+                    _wf_bt = {}
+                _ofc_type_data_l[f"wf_budget_{_sfx}_labels"] = _wf_bt.get("labels", [])
+                _ofc_type_data_l[f"wf_budget_{_sfx}_values"] = [float(v) for v in _wf_bt.get("values", [])]
+
+                _wf_mt: dict[str, Any] = {}
+                if not sem_mes_anterior:
+                    try:
+                        _wf_mt = calcular_waterfall_mensal_cpu(
+                            custo_real=_cr_ofc_l,
+                            custo_ant=dados_ofc.get("custo_real_ant"),
+                            vol_real=dados.get("volume_real"),
+                            vol_ant=dados.get("volume_real_ant"),
+                            label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                            label_real=mes_nome, dim=_dim_t,
+                        )
+                    except Exception:
+                        _wf_mt = {}
+                _ofc_type_data_l[f"wf_mensal_{_sfx}_labels"] = _wf_mt.get("labels", [])
+                _ofc_type_data_l[f"wf_mensal_{_sfx}_values"] = [float(v) for v in _wf_mt.get("values", [])]
+
+                _wf_at: dict[str, Any] = {}
+                if not sem_ano_anterior and custo_aa_ofc is not None:
+                    try:
+                        _wf_at = calcular_waterfall_mensal_cpu(
+                            custo_real=_cr_ofc_l, custo_ant=custo_aa_ofc,
+                            vol_real=dados.get("volume_real"),
+                            vol_ant=vol_ano_ant,
+                            label_ant=f"{mes_nome}/{_ano_ant}",
+                            label_real=f"{mes_nome}/{ano}", dim=_dim_t,
+                        )
+                    except Exception:
+                        _wf_at = {}
+                _ofc_type_data_l[f"wf_ano_ant_{_sfx}_labels"] = _wf_at.get("labels", [])
+                _ofc_type_data_l[f"wf_ano_ant_{_sfx}_values"] = [float(v) for v in _wf_at.get("values", [])]
+
             dados_graficos["oficinas"][ofc] = {
                 "wf_budget_labels": wf_ofc_budget.get("labels", []),
                 "wf_budget_values": [float(v) for v in wf_ofc_budget.get("values", [])],
@@ -2614,6 +2748,7 @@ def gerar_relatorio_mes_local(
                 "wf_ano_ant_values": [float(v) for v in wf_ofc_ano_ant.get("values", [])],
                 "ano": ano,
                 "ano_anterior": dados.get("ano_anterior", ano - 1),
+                **_ofc_type_data_l,
             }
         except Exception as e:
             logger.warning("Falha gráfico oficina %s: %s", ofc, e)
