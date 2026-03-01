@@ -5,7 +5,7 @@
     "2": {
       "mes_numero": 2,
       "mes_nome": "Fevereiro",
-      "gerado_em": "2026-03-01T11:12:43.923725",
+      "gerado_em": "2026-03-01T11:41:29.251000",
       "modo": "local",
       "secoes": {
         "volume_completo": "### 1.1 Volume Total — Fevereiro/2026\nO volume real de produção em Fevereiro foi de **3.661 unidades**. O volume Actual (projeção) era de 3.661 un. e o Budget de 3.657 un.\n\n### 1.2 Real vs Budget\nO volume real superou o Budget em **+4 unidades** (+0.1%).\n\n**Top 10 modelos por impacto (Real vs Budget):**\n- 🟢 **CC21 monoton**: 1.526 un. (Δ +3 un., +0.2%)\n- 🟢 **CC21 biton**: 170 un. (Δ +1 un., +0.6%)\n- ⚪ **CC22 biton**: 374 un. (Δ +0 un., +0.0%)\n- ⚪ **CC22 monoton**: 1.120 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 biton 5L**: 82 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 biton 7L**: 60 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 monoton 5L**: 190 un. (Δ +0 un., +0.0%)\n- ⚪ **CC24 monoton 7L**: 139 un. (Δ +0 un., +0.0%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)\n\n### 1.3 Real vs Mês Anterior\nO volume ficou abaixo o mês anterior em **1.198 un.** (-24.7%).\n\n**Top 10 modelos por impacto (Real vs Mês Anterior):**\n- 🔴 **CC22 monoton**: 1.120 un. (Δ 709 un., -38.8%)\n- 🟢 **CC21 monoton**: 1.526 un. (Δ +300 un., +24.5%)\n- 🔴 **CC24 biton 5L**: 82 un. (Δ 240 un., -74.5%)\n- 🔴 **CC24 monoton 7L**: 139 un. (Δ 203 un., -59.4%)\n- 🔴 **CC21 biton**: 170 un. (Δ 175 un., -50.7%)\n- 🔴 **CC24 monoton 5L**: 190 un. (Δ 160 un., -45.7%)\n- 🔴 **CC22 biton**: 374 un. (Δ 17 un., -4.3%)\n- 🟢 **CC24 biton 7L**: 60 un. (Δ +6 un., +11.1%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)",
@@ -3185,21 +3185,21 @@
     "1": {
       "mes_numero": 1,
       "mes_nome": "Janeiro",
-      "gerado_em": "2026-03-01T11:13:26.726497",
+      "gerado_em": "2026-03-01T11:40:31.268339",
       "modo": "local",
       "secoes": {
         "volume_completo": "### 1.1 Volume Total — Janeiro/2026\nO volume real de produção em Janeiro foi de **4.859 unidades**. O volume Actual (projeção) era de 4.859 un. e o Budget de 4.640 un.\n\n### 1.2 Real vs Budget\nO volume real superou o Budget em **+219 unidades** (+4.7%).\n\n**Top 10 modelos por impacto (Real vs Budget):**\n- 🟢 **CC22 monoton**: 1.829 un. (Δ +245 un., +15.5%)\n- 🟢 **CC21 biton**: 345 un. (Δ +195 un., +130.0%)\n- 🔴 **CC22 biton**: 391 un. (Δ 137 un., -25.9%)\n- 🟢 **CC24 biton 5L**: 322 un. (Δ +127 un., +65.1%)\n- 🔴 **CC21 monoton**: 1.226 un. (Δ 123 un., -9.1%)\n- 🔴 **CC24 monoton 5L**: 350 un. (Δ 105 un., -23.1%)\n- 🟢 **CC24 monoton 7L**: 342 un. (Δ +77 un., +29.1%)\n- 🔴 **CC24 biton 7L**: 54 un. (Δ 60 un., -52.6%)\n- ⚪ **J516 biton**: 0 un. (Δ +0 un., N/A)\n- ⚪ **J516 monoton**: 0 un. (Δ +0 un., N/A)",
-        "comparativos": "### 2.1 Real vs Budget (Efeito Flex Volume)\nO Custo FP Real de **13.957,8 kEUR** (2.872,6 €/veíc) compara-se ao Budget de 14.225,2 kEUR (3.065,8 €/veíc), com delta total de -267,4 kEUR (-1.9%).\n\nO volume real de 4.859 un. superou Budget de 4.640 un. (+4.7%), impactando negativamente o custo em +396,9 kEUR. O Flex Budget resultante ficou em 14.622,1 kEUR (3.009,3 €/veíc). O efeito operacional gerou economia de 664,3 kEUR, indicando performance melhor do que o esperado.\n\n**Detalhamento por Type 05 → Type 06 → Account:**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 14.225,2 kEUR (3.065,8 €/veíc)\n- **🔴 Efeito Flex Volume:** +396,9 kEUR (-56,5 €/veíc)\n- **🟢 Efeito Operacional:** -664,3 kEUR (-136,7 €/veíc) | -4.5% vs Flex\n- **🟢 Delta Total:** -267,4 kEUR (-193,2 €/veíc) | -1.9% vs Budget\n- **Real:** 13.957,8 kEUR (2.872,6 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 396,9 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 14.622,1 kEUR (3.009,3 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 664,3 kEUR (Δ -136,7 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 8.066,0 kEUR (1.660,0 €/veíc) | Δ -771,8 kEUR (Δ -158,8 €/veíc), -8.7% | ganho\n- 🔴 Benefits: 4.542,6 kEUR (934,9 €/veíc) | Δ +4.542,6 kEUR (Δ +934,9 €/veíc)\n  - 🔴 Restaurant - BC: +2.018,9 kEUR (Δ +415,5 €/veíc)\n  - 🔴 Health and others - BC: +1.636,2 kEUR (Δ +336,7 €/veíc)\n- 🟢 Direct Labor: 392,7 kEUR (80,8 €/veíc) | Δ -3.856,2 kEUR (Δ -793,6 €/veíc)\n  - 🟢 Main/Principal: -3.856,2 kEUR (Δ -793,6 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -1.337,0 kEUR (Δ -275,2 €/veíc)\n  - 🟢 Transport - BC: -830,7 kEUR (Δ -171,0 €/veíc)\n  - 🟢 Restaurant - BC: -506,2 kEUR (Δ -104,2 €/veíc)\n\n**🔴 Burden**: 3.727,6 kEUR (767,1 €/veíc) | Δ +494,5 kEUR (Δ +101,8 €/veíc), +15.3% | perda\n- 🔴 Expenses: 1.435,1 kEUR (295,3 €/veíc) | Δ +1.045,9 kEUR (Δ +215,2 €/veíc)\n  - 🔴 Third Part Services / Uma: +1.107,4 kEUR (Δ +227,9 €/veíc)\n  - 🟢 Headquarter: -374,4 kEUR (Δ -77,1 €/veíc)\n- 🟢 Maintenance: 91,4 kEUR (18,8 €/veíc) | Δ -820,0 kEUR (Δ -168,8 €/veíc)\n  - 🟢 Material: -783,6 kEUR (Δ -161,3 €/veíc)\n  - 🟢 Service: -36,4 kEUR (Δ -7,5 €/veíc)\n- 🔴 Scrap Sales: 0,0 kEUR (0,0 €/veíc) | Δ +583,1 kEUR (Δ +120,0 €/veíc)\n  - 🔴 Scrap Sales: +583,1 kEUR (Δ +120,0 €/veíc)\n\n**🟢 D&A**: 2.164,2 kEUR (445,4 €/veíc) | Δ -387,1 kEUR (Δ -79,7 €/veíc), -15.2% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 2.164,2 kEUR (445,4 €/veíc) | Δ -387,1 kEUR (Δ -79,7 €/veíc)\n  - 🟢 Plant Depreciation: -260,5 kEUR (Δ -53,6 €/veíc)\n  - 🟢 Taxes & Insurances: -126,5 kEUR (Δ -26,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.",
-        "conclusoes": "### Alertas e Anomalias\n- ⚠️ Modelo **CC21 biton**: variação de volume de +130% vs Budget.\n- ⚠️ Dados do ano anterior indisponíveis — análise YoY não incluída.\n\n### Aprendizados do Período\n- O efeito operacional foi **favorável** em 664,3 kEUR, sugerindo boa gestão de preço e mix no período.\n\n### Recomendações\n- Acompanhar evolução dos top modelos com maior desvio de CPU.\n- Monitorar oficinas com maiores deltas para ações corretivas.",
-        "oficina_AS": "**Oficina AS — Janeiro/2026**\n\n📊 Custo FP Total: 2.792,6 kEUR (Δ vs Flex: Δ -212,8 kEUR, -7.1%)\n   vs Budget: Δ -114,9 kEUR, -4.0%\n   vs Mês Anterior: Δ +2.792,6 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 2.907,4 kEUR (626,6 €/veíc)\n- **🔴 Efeito Flex Volume:** +97,9 kEUR (-8,1 €/veíc)\n- **🟢 Efeito Operacional:** -212,8 kEUR (-43,8 €/veíc) | -7.1% vs Flex\n- **🟢 Delta Total:** -114,9 kEUR (-51,9 €/veíc) | -4.0% vs Budget\n- **Real:** 2.792,6 kEUR (574,7 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 97,9 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 3.005,4 kEUR (618,5 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 212,8 kEUR (Δ -43,8 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 2.296,9 kEUR (472,7 €/veíc) | Δ -104,4 kEUR (Δ -21,5 €/veíc), -4.3% | ganho\n- 🔴 Benefits: 1.350,2 kEUR (277,9 €/veíc) | Δ +1.350,2 kEUR (Δ +277,9 €/veíc)\n  - 🔴 Restaurant - BC: +570,3 kEUR (Δ +117,4 €/veíc)\n  - 🔴 Health and others - BC: +441,5 kEUR (Δ +90,9 €/veíc)\n- 🟢 Direct Labor: 484,9 kEUR (99,8 €/veíc) | Δ -1.188,9 kEUR (Δ -244,7 €/veíc)\n  - 🟢 Main/Principal: -1.188,9 kEUR (Δ -244,7 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -374,9 kEUR (Δ -77,2 €/veíc)\n  - 🟢 Transport - BC: -233,0 kEUR (Δ -47,9 €/veíc)\n  - 🟢 Restaurant - BC: -142,0 kEUR (Δ -29,2 €/veíc)\n\n**🔴 D&A**: 349,8 kEUR (72,0 €/veíc) | Δ +2,8 kEUR (Δ +0,6 €/veíc), +0.8% | perda\n- 🔴 Taxes, Insurance & Assets Amortization: 349,8 kEUR (72,0 €/veíc) | Δ +2,8 kEUR (Δ +0,6 €/veíc)\n  - 🔴 Plant Depreciation: +2,8 kEUR (Δ +0,6 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🟢 Burden**: 145,8 kEUR (30,0 €/veíc) | Δ -111,3 kEUR (Δ -22,9 €/veíc), -43.3% | ganho\n- 🟢 Expenses: -107,6 kEUR (-22,2 €/veíc) | Δ -121,6 kEUR (Δ -25,0 €/veíc)\n  - 🟢 Other Manufacturing Income & Expenses: -125,8 kEUR (Δ -25,9 €/veíc)\n  - 🔴 Handling: +2,7 kEUR (Δ +0,6 €/veíc)\n- 🟢 Maintenance: 99,6 kEUR (20,5 €/veíc) | Δ -17,2 kEUR (Δ -3,6 €/veíc)\n  - 🟢 Service: -17,9 kEUR (Δ -3,7 €/veíc)\n  - 🔴 Material: +0,6 kEUR (Δ +0,1 €/veíc)\n- 🔴 Energy: 53,5 kEUR (11,0 €/veíc) | Δ +13,7 kEUR (Δ +2,8 €/veíc)\n  - 🔴 Electricity: +13,7 kEUR (Δ +2,8 €/veíc)\n  - ⚪ Energy Long Term lease: 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 2.792,6 kEUR (574,7 €/veíc) | Δ Δ +2.792,6 kEUR (+574,7 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 2.792,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 2.792,6 kEUR (574,7 €/veíc) | Δ Δ +2.792,6 kEUR (+574,7 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 2.792,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **AS** manteve-se dentro dos parâmetros esperados.",
-        "oficina_BS": "**Oficina BS — Janeiro/2026**\n\n📊 Custo FP Total: 3.399,7 kEUR (Δ vs Flex: Δ +77,2 kEUR, +2.3%)\n   vs Budget: Δ +153,9 kEUR, +4.7%\n   vs Mês Anterior: Δ +3.399,7 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 3.245,8 kEUR (699,5 €/veíc)\n- **🔴 Efeito Flex Volume:** +76,7 kEUR (-15,7 €/veíc)\n- **🔴 Efeito Operacional:** +77,2 kEUR (+15,9 €/veíc) | +2.3% vs Flex\n- **🔴 Delta Total:** +153,9 kEUR (+0,1 €/veíc) | +4.7% vs Budget\n- **Real:** 3.399,7 kEUR (699,7 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 76,7 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 3.322,5 kEUR (683,8 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 77,2 kEUR (Δ +15,9 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🔴 Labor**: 1.687,8 kEUR (347,4 €/veíc) | Δ +16,2 kEUR (Δ +3,3 €/veíc), +1.0% | perda\n- 🟢 Direct Labor: 288,5 kEUR (59,4 €/veíc) | Δ -855,3 kEUR (Δ -176,0 €/veíc)\n  - 🟢 Main/Principal: -855,3 kEUR (Δ -176,0 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 848,7 kEUR (174,7 €/veíc) | Δ +848,7 kEUR (Δ +174,7 €/veíc)\n  - 🔴 Restaurant - BC: +363,0 kEUR (Δ +74,7 €/veíc)\n  - 🔴 Health and others - BC: +273,6 kEUR (Δ +56,3 €/veíc)\n- 🔴 Indirect Labor: 374,9 kEUR (77,2 €/veíc) | Δ +374,9 kEUR (Δ +77,2 €/veíc)\n  - 🔴 C Class (Maintenance): +286,0 kEUR (Δ +58,9 €/veíc)\n  - 🔴 D Class (Quality): +51,6 kEUR (Δ +10,6 €/veíc)\n\n**🔴 D&A**: 1.150,0 kEUR (236,7 €/veíc) | Δ +4,6 kEUR (Δ +0,9 €/veíc), +0.4% | perda\n- 🔴 Taxes, Insurance & Assets Amortization: 1.150,0 kEUR (236,7 €/veíc) | Δ +4,6 kEUR (Δ +0,9 €/veíc)\n  - 🔴 Plant Depreciation: +4,6 kEUR (Δ +0,9 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🔴 Burden**: 561,9 kEUR (115,6 €/veíc) | Δ +56,4 kEUR (Δ +11,6 €/veíc), +11.2% | perda\n- 🔴 Consumption Material: 179,5 kEUR (36,9 €/veíc) | Δ +55,8 kEUR (Δ +11,5 €/veíc)\n  - 🔴 Consumption Material: +55,8 kEUR (Δ +11,5 €/veíc)\n- 🟢 Material Losses: -54,3 kEUR (-11,2 €/veíc) | Δ -54,3 kEUR (Δ -11,2 €/veíc)\n  - 🟢 Scraps: -54,3 kEUR (Δ -11,2 €/veíc)\n- 🔴 Expenses: 113,7 kEUR (23,4 €/veíc) | Δ +49,9 kEUR (Δ +10,3 €/veíc)\n  - 🔴 Other Manufacturing Income & Expenses: +60,1 kEUR (Δ +12,4 €/veíc)\n  - 🟢 Handling: -9,9 kEUR (Δ -2,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 3.399,7 kEUR (699,7 €/veíc) | Δ Δ +3.399,7 kEUR (+699,7 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 3.399,7 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 3.399,7 kEUR (699,7 €/veíc) | Δ Δ +3.399,7 kEUR (+699,7 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 3.399,7 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **BS** manteve-se dentro dos parâmetros esperados.",
-        "oficina_GS": "**Oficina GS — Janeiro/2026**\n\n📊 Custo FP Total: 1.438,1 kEUR (Δ vs Flex: Δ +45,0 kEUR, +3.2%)\n   vs Budget: Δ +77,2 kEUR, +5.7%\n   vs Mês Anterior: Δ +1.438,1 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 1.360,9 kEUR (293,3 €/veíc)\n- **🔴 Efeito Flex Volume:** +32,2 kEUR (-6,6 €/veíc)\n- **🔴 Efeito Operacional:** +45,0 kEUR (+9,3 €/veíc) | +3.2% vs Flex\n- **🔴 Delta Total:** +77,2 kEUR (+2,7 €/veíc) | +5.7% vs Budget\n- **Real:** 1.438,1 kEUR (296,0 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 32,2 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 1.393,2 kEUR (286,7 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 45,0 kEUR (Δ +9,3 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🔴 Labor**: 933,3 kEUR (192,1 €/veíc) | Δ +239,7 kEUR (Δ +49,3 €/veíc), +34.6% | perda\n- 🔴 Benefits: 638,9 kEUR (131,5 €/veíc) | Δ +638,9 kEUR (Δ +131,5 €/veíc)\n  - 🔴 Restaurant - BC: +308,6 kEUR (Δ +63,5 €/veíc)\n  - 🔴 Health and others - BC: +206,4 kEUR (Δ +42,5 €/veíc)\n- 🟢 Direct Labor: -431,2 kEUR (-88,7 €/veíc) | Δ -405,6 kEUR (Δ -83,5 €/veíc)\n  - 🟢 Main/Principal: -405,6 kEUR (Δ -83,5 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Indirect Labor: 682,6 kEUR (140,5 €/veíc) | Δ +169,3 kEUR (Δ +34,9 €/veíc)\n  - 🔴 D Class (Quality): +208,8 kEUR (Δ +43,0 €/veíc)\n  - 🟢 C Class (Maintenance): -39,4 kEUR (Δ -8,1 €/veíc)\n\n**🟢 Burden**: 418,3 kEUR (86,1 €/veíc) | Δ -146,4 kEUR (Δ -30,1 €/veíc), -25.9% | ganho\n- 🟢 Material Losses: -585,5 kEUR (-120,5 €/veíc) | Δ -585,5 kEUR (Δ -120,5 €/veíc)\n  - 🟢 Scrap Sales: -588,1 kEUR (Δ -121,0 €/veíc)\n  - 🔴 Stock Obsolescence % Overstock: +2,6 kEUR (Δ +0,5 €/veíc)\n- 🔴 Expenses: 167,8 kEUR (34,5 €/veíc) | Δ +293,7 kEUR (Δ +60,4 €/veíc)\n  - 🔴 Third Part Services / Uma: +244,0 kEUR (Δ +50,2 €/veíc)\n  - 🔴 Handling: +24,6 kEUR (Δ +5,1 €/veíc)\n- 🟢 Stock Obsolescence % Overstock: 0,0 kEUR (0,0 €/veíc) | Δ -89,6 kEUR (Δ -18,4 €/veíc)\n  - 🟢 Stock Obsolescence % Overstock: -89,6 kEUR (Δ -18,4 €/veíc)\n  - ⚪ Inventory Adjustments: 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🟢 D&A**: 86,6 kEUR (17,8 €/veíc) | Δ -48,3 kEUR (Δ -9,9 €/veíc), -35.8% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 86,6 kEUR (17,8 €/veíc) | Δ -48,3 kEUR (Δ -9,9 €/veíc)\n  - 🟢 Plant Depreciation: -48,3 kEUR (Δ -9,9 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 1.438,1 kEUR (296,0 €/veíc) | Δ Δ +1.438,1 kEUR (+296,0 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 1.438,1 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 1.438,1 kEUR (296,0 €/veíc) | Δ Δ +1.438,1 kEUR (+296,0 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 1.438,1 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **GS** manteve-se dentro dos parâmetros esperados.",
-        "oficina_PL": "**Oficina PL — Janeiro/2026**\n\n📊 Custo FP Total: 900,1 kEUR (Δ vs Flex: Δ -247,2 kEUR, -21.5%)\n   vs Budget: Δ -210,9 kEUR, -19.0%\n   vs Mês Anterior: Δ +900,1 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 1.111,0 kEUR (239,4 €/veíc)\n- **🔴 Efeito Flex Volume:** +36,3 kEUR (-3,3 €/veíc)\n- **🟢 Efeito Operacional:** -247,2 kEUR (-50,9 €/veíc) | -21.5% vs Flex\n- **🟢 Delta Total:** -210,9 kEUR (-54,2 €/veíc) | -19.0% vs Budget\n- **Real:** 900,1 kEUR (185,2 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 36,3 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 1.147,3 kEUR (236,1 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 247,2 kEUR (Δ -50,9 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 518,5 kEUR (106,7 €/veíc) | Δ -242,2 kEUR (Δ -49,8 €/veíc), -31.8% | ganho\n- 🔴 Benefits: 370,1 kEUR (76,2 €/veíc) | Δ +370,1 kEUR (Δ +76,2 €/veíc)\n  - 🔴 Restaurant - BC: +164,9 kEUR (Δ +33,9 €/veíc)\n  - 🔴 Health and others - BC: +108,3 kEUR (Δ +22,3 €/veíc)\n- 🟢 Indirect Labor: 216,0 kEUR (44,5 €/veíc) | Δ -236,9 kEUR (Δ -48,8 €/veíc)\n  - 🟢 B Class (Handling): -315,6 kEUR (Δ -65,0 €/veíc)\n  - 🔴 D Class (Quality): +75,1 kEUR (Δ +15,5 €/veíc)\n- 🟢 WC & Trainee: 81,0 kEUR (16,7 €/veíc) | Δ -132,1 kEUR (Δ -27,2 €/veíc)\n  - 🟢 WC & Trainee: -132,1 kEUR (Δ -27,2 €/veíc)\n\n**🟢 D&A**: 213,0 kEUR (43,8 €/veíc) | Δ -51,7 kEUR (Δ -10,6 €/veíc), -19.5% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 213,0 kEUR (43,8 €/veíc) | Δ -51,7 kEUR (Δ -10,6 €/veíc)\n  - 🟢 Plant Depreciation: -51,7 kEUR (Δ -10,6 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🔴 Burden**: 168,6 kEUR (34,7 €/veíc) | Δ +46,6 kEUR (Δ +9,6 €/veíc), +38.2% | perda\n- 🔴 Expenses: -8,3 kEUR (-1,7 €/veíc) | Δ +286,1 kEUR (Δ +58,9 €/veíc)\n  - 🔴 Handling: +204,7 kEUR (Δ +42,1 €/veíc)\n  - 🔴 Supplier Failure Recovery: +150,5 kEUR (Δ +31,0 €/veíc)\n- 🟢 Stock Obsolescence % Overstock: 0,0 kEUR (0,0 €/veíc) | Δ -129,8 kEUR (Δ -26,7 €/veíc)\n  - 🟢 Stock Obsolescence % Overstock: -129,8 kEUR (Δ -26,7 €/veíc)\n  - ⚪ Inventory Adjustments: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Energy: -1,8 kEUR (-0,4 €/veíc) | Δ -120,2 kEUR (Δ -24,7 €/veíc)\n  - 🟢 Electricity: -83,4 kEUR (Δ -17,2 €/veíc)\n  - 🟢 Water: -18,3 kEUR (Δ -3,8 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 900,1 kEUR (185,2 €/veíc) | Δ Δ +900,1 kEUR (+185,2 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 900,1 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 900,1 kEUR (185,2 €/veíc) | Δ Δ +900,1 kEUR (+185,2 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 900,1 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **PL** manteve-se dentro dos parâmetros esperados.",
-        "oficina_PS": "**Oficina PS — Janeiro/2026**\n\n📊 Custo FP Total: 2.957,0 kEUR (Δ vs Flex: Δ -122,9 kEUR, -4.0%)\n   vs Budget: Δ -20,1 kEUR, -0.7%\n   vs Mês Anterior: Δ +2.957,0 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 2.977,1 kEUR (641,6 €/veíc)\n- **🔴 Efeito Flex Volume:** +102,7 kEUR (-7,8 €/veíc)\n- **🟢 Efeito Operacional:** -122,9 kEUR (-25,3 €/veíc) | -4.0% vs Flex\n- **🟢 Delta Total:** -20,1 kEUR (-33,1 €/veíc) | -0.7% vs Budget\n- **Real:** 2.957,0 kEUR (608,6 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 102,7 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 3.079,8 kEUR (633,8 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 122,9 kEUR (Δ -25,3 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🔴 Labor**: 1.493,9 kEUR (307,5 €/veíc) | Δ +61,3 kEUR (Δ +12,6 €/veíc), +4.3% | perda\n- 🔴 Benefits: 614,9 kEUR (126,6 €/veíc) | Δ +614,9 kEUR (Δ +126,6 €/veíc)\n  - 🔴 Restaurant - BC: +290,5 kEUR (Δ +59,8 €/veíc)\n  - 🔴 Health and others - BC: +204,0 kEUR (Δ +42,0 €/veíc)\n- 🟢 Direct Labor: 442,8 kEUR (91,1 €/veíc) | Δ -511,3 kEUR (Δ -105,2 €/veíc)\n  - 🟢 Main/Principal: -511,3 kEUR (Δ -105,2 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Indirect Labor: 235,4 kEUR (48,4 €/veíc) | Δ +235,4 kEUR (Δ +48,4 €/veíc)\n  - 🔴 C Class (Maintenance): +187,7 kEUR (Δ +38,6 €/veíc)\n  - 🔴 D Class (Quality): +41,4 kEUR (Δ +8,5 €/veíc)\n\n**🟢 Burden**: 1.202,2 kEUR (247,4 €/veíc) | Δ -55,5 kEUR (Δ -11,4 €/veíc), -4.4% | ganho\n- 🟢 Energy: 845,4 kEUR (174,0 €/veíc) | Δ -186,9 kEUR (Δ -38,5 €/veíc)\n  - 🟢 Gas: -95,0 kEUR (Δ -19,6 €/veíc)\n  - 🟢 Electricity: -91,9 kEUR (Δ -18,9 €/veíc)\n- 🔴 Consumption Material: 197,9 kEUR (40,7 €/veíc) | Δ +124,9 kEUR (Δ +25,7 €/veíc)\n  - 🔴 Consumption Material: +124,9 kEUR (Δ +25,7 €/veíc)\n- 🔴 Maintenance: 121,4 kEUR (25,0 €/veíc) | Δ +9,2 kEUR (Δ +1,9 €/veíc)\n  - 🔴 Service: +4,7 kEUR (Δ +1,0 €/veíc)\n  - 🔴 Material: +4,5 kEUR (Δ +0,9 €/veíc)\n\n**🟢 D&A**: 260,9 kEUR (53,7 €/veíc) | Δ -128,7 kEUR (Δ -26,5 €/veíc), -33.0% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 260,9 kEUR (53,7 €/veíc) | Δ -128,7 kEUR (Δ -26,5 €/veíc)\n  - 🟢 Plant Depreciation: -128,7 kEUR (Δ -26,5 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 2.957,0 kEUR (608,6 €/veíc) | Δ Δ +2.957,0 kEUR (+608,6 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 2.957,0 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 2.957,0 kEUR (608,6 €/veíc) | Δ Δ +2.957,0 kEUR (+608,6 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 2.957,0 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **PS** manteve-se dentro dos parâmetros esperados.",
-        "oficina_QY": "**Oficina QY — Janeiro/2026**\n\n📊 Custo FP Total: 1.460,9 kEUR (Δ vs Flex: Δ +119,6 kEUR, +8.9%)\n   vs Budget: Δ +155,7 kEUR, +11.9%\n   vs Mês Anterior: Δ +1.460,9 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 1.305,3 kEUR (281,3 €/veíc)\n- **🔴 Efeito Flex Volume:** +36,1 kEUR (-5,3 €/veíc)\n- **🔴 Efeito Operacional:** +119,6 kEUR (+24,6 €/veíc) | +8.9% vs Flex\n- **🔴 Delta Total:** +155,7 kEUR (+19,4 €/veíc) | +11.9% vs Budget\n- **Real:** 1.460,9 kEUR (300,7 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 36,1 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 1.341,3 kEUR (276,1 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 119,6 kEUR (Δ +24,6 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🟢 Labor**: 901,1 kEUR (185,4 €/veíc) | Δ -172,1 kEUR (Δ -35,4 €/veíc), -16.0% | ganho\n- 🟢 Indirect Labor: 176,6 kEUR (36,3 €/veíc) | Δ -439,4 kEUR (Δ -90,4 €/veíc)\n  - 🟢 D Class (Quality): -439,4 kEUR (Δ -90,4 €/veíc)\n  - ⚪ C Class (Maintenance): 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 417,2 kEUR (85,9 €/veíc) | Δ +417,2 kEUR (Δ +85,9 €/veíc)\n  - 🔴 Restaurant - BC: +151,5 kEUR (Δ +31,2 €/veíc)\n  - 🔴 Health and others - BC: +123,5 kEUR (Δ +25,4 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -141,8 kEUR (Δ -29,2 €/veíc)\n  - 🟢 Transport - BC: -88,1 kEUR (Δ -18,1 €/veíc)\n  - 🟢 Restaurant - BC: -53,7 kEUR (Δ -11,0 €/veíc)\n\n**🔴 Burden**: 466,0 kEUR (95,9 €/veíc) | Δ +337,2 kEUR (Δ +69,4 €/veíc), +261.9% | perda\n- 🔴 Expenses: 239,7 kEUR (49,3 €/veíc) | Δ +165,4 kEUR (Δ +34,0 €/veíc)\n  - 🔴 Third Part Services / Uma: +277,9 kEUR (Δ +57,2 €/veíc)\n  - 🟢 Other Manufacturing Income & Expenses: -165,7 kEUR (Δ -34,1 €/veíc)\n- 🔴 Material Losses: 94,1 kEUR (19,4 €/veíc) | Δ +94,1 kEUR (Δ +19,4 €/veíc)\n  - 🔴 Scraps: +94,1 kEUR (Δ +19,4 €/veíc)\n- 🔴 Trips: 64,1 kEUR (13,2 €/veíc) | Δ +56,6 kEUR (Δ +11,7 €/veíc)\n  - 🔴 Trips: +56,6 kEUR (Δ +11,7 €/veíc)\n\n**🟢 D&A**: 93,9 kEUR (19,3 €/veíc) | Δ -45,5 kEUR (Δ -9,4 €/veíc), -32.6% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 93,9 kEUR (19,3 €/veíc) | Δ -45,5 kEUR (Δ -9,4 €/veíc)\n  - 🟢 Plant Depreciation: -45,5 kEUR (Δ -9,4 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 1.460,9 kEUR (300,7 €/veíc) | Δ Δ +1.460,9 kEUR (+300,7 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 1.460,9 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 1.460,9 kEUR (300,7 €/veíc) | Δ Δ +1.460,9 kEUR (+300,7 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 1.460,9 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **QY** manteve-se dentro dos parâmetros esperados.",
-        "oficina_SM": "**Oficina SM — Janeiro/2026**\n\n📊 Custo FP Total: 1.009,4 kEUR (Δ vs Flex: Δ -323,2 kEUR, -24.3%)\n   vs Budget: Δ -308,3 kEUR, -23.4%\n   vs Mês Anterior: Δ +1.009,4 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 1.317,7 kEUR (284,0 €/veíc)\n- **🔴 Efeito Flex Volume:** +15,0 kEUR (-9,7 €/veíc)\n- **🟢 Efeito Operacional:** -323,2 kEUR (-66,5 €/veíc) | -24.3% vs Flex\n- **🟢 Delta Total:** -308,3 kEUR (-76,2 €/veíc) | -23.4% vs Budget\n- **Real:** 1.009,4 kEUR (207,7 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 15,0 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 1.332,6 kEUR (274,3 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 323,2 kEUR (Δ -66,5 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🔴 Burden**: 764,8 kEUR (157,4 €/veíc) | Δ +367,3 kEUR (Δ +75,6 €/veíc), +92.4% | perda\n- 🟢 Maintenance: -813,0 kEUR (-167,3 €/veíc) | Δ -852,6 kEUR (Δ -175,5 €/veíc)\n  - 🟢 Material: -852,6 kEUR (Δ -175,5 €/veíc)\n  - ⚪ Service: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Scrap Sales: 0,0 kEUR (0,0 €/veíc) | Δ +499,4 kEUR (Δ +102,8 €/veíc)\n  - 🔴 Scrap Sales: +499,4 kEUR (Δ +102,8 €/veíc)\n- 🔴 Expenses: 1.000,8 kEUR (206,0 €/veíc) | Δ +377,3 kEUR (Δ +77,7 €/veíc)\n  - 🔴 Third Part Services / Uma: +628,6 kEUR (Δ +129,4 €/veíc)\n  - 🟢 Headquarter: -329,0 kEUR (Δ -67,7 €/veíc)\n\n**🟢 Labor**: 234,5 kEUR (48,3 €/veíc) | Δ -570,3 kEUR (Δ -117,4 €/veíc), -70.9% | ganho\n- 🟢 Direct Labor: -346,7 kEUR (-71,3 €/veíc) | Δ -877,3 kEUR (Δ -180,6 €/veíc)\n  - 🟢 Main/Principal: -877,3 kEUR (Δ -180,6 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 302,6 kEUR (62,3 €/veíc) | Δ +302,6 kEUR (Δ +62,3 €/veíc)\n  - 🔴 Health and others - BC: +279,0 kEUR (Δ +57,4 €/veíc)\n  - 🟢 Transport - BC: -205,0 kEUR (Δ -42,2 €/veíc)\n- 🔴 Indirect Labor: 145,3 kEUR (29,9 €/veíc) | Δ +145,3 kEUR (Δ +29,9 €/veíc)\n  - 🔴 D Class (Quality): +128,3 kEUR (Δ +26,4 €/veíc)\n  - 🔴 B Class (Handling): +17,0 kEUR (Δ +3,5 €/veíc)\n\n**🟢 D&A**: 10,0 kEUR (2,1 €/veíc) | Δ -120,2 kEUR (Δ -24,7 €/veíc), -92.3% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 10,0 kEUR (2,1 €/veíc) | Δ -120,2 kEUR (Δ -24,7 €/veíc)\n  - 🟢 Taxes & Insurances: -126,5 kEUR (Δ -26,0 €/veíc)\n  - 🔴 Plant Depreciation: +6,3 kEUR (Δ +1,3 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 1.009,4 kEUR (207,7 €/veíc) | Δ Δ +1.009,4 kEUR (+207,7 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 1.009,4 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 1.009,4 kEUR (207,7 €/veíc) | Δ Δ +1.009,4 kEUR (+207,7 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 1.009,4 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **SM** manteve-se dentro dos parâmetros esperados.",
-        "oficinas_intro": "A seguir, é apresentada a análise detalhada de custos por oficina referente a Janeiro/2026.\n\n\nNo waterfall Budget vs Real por oficina (CPU em €/veíc), os maiores impactos foram: 🟢 SM (-66,5 €/veíc), 🟢 PL (-50,9 €/veíc), 🟢 AS (-43,8 €/veíc), 🟢 PS (-25,3 €/veíc), 🔴 QY (+24,6 €/veíc).\n\n\nEm termos de custo total, as oficinas e seus desvios vs Budget são:\n- 🟢 **SM** (1.009,4 kEUR, Δ -308,3 kEUR)\n- 🟢 **PL** (900,1 kEUR, Δ -210,9 kEUR)\n- 🔴 **QY** (1.460,9 kEUR, Δ +155,7 kEUR)\n- 🔴 **BS** (3.399,7 kEUR, Δ +153,9 kEUR)\n- 🟢 **AS** (2.792,6 kEUR, Δ -114,9 kEUR)\n- 🔴 **GS** (1.438,1 kEUR, Δ +77,2 kEUR)\n- 🟢 **PS** (2.957,0 kEUR, Δ -20,1 kEUR)\n\n\nAs oficinas com desempenho **desfavorável** (custo acima do Budget) foram: QY, BS, GS.\n\nJá as oficinas com desempenho **favorável** (custo abaixo do Budget) foram: SM, PL, AS, PS.\n\n\nAs sub-seções a seguir detalham cada oficina individualmente, com drill-down por Type 05/06 e comparativos Budget, mensal e anual.",
-        "resumo_executivo": "No mês de Janeiro/2026, o volume real de produção atingiu **4.859 unidades**, o que superou o Budget de 4.640 un. em +219 un. (+4.7%). \n\nO Custo FP Real totalizou **13.957,8 kEUR** (2.872,6 €/veíc), contra um Budget de 14.225,2 kEUR (3.065,8 €/veíc), resultando em um delta de -267,4 kEUR (-1.9%). O efeito volume impactou negativamente em +396,9 kEUR, levando o Flex Budget a 14.622,1 kEUR (3.009,3 €/veíc). O efeito operacional (preço e mix) reduziu 664,3 kEUR, indicando performance **favorável** frente ao esperado.\n\nEm termos de CPU (€/veíc), os modelos com maior desvio vs Budget foram: CC21 biton (3.152,7 €/veíc, Δ -399,7 €/veíc); CC24 biton 5L (3.093,7 €/veíc, Δ -245,9 €/veíc); CC24 monoton 7L (2.916,8 €/veíc, Δ -219,3 €/veíc).\n\nAs categorias de custo com maior impacto no waterfall Budget (CPU) foram: 🟢 Main/Principal (-793,6 €/veíc), 🔴 Health and others - BC (+336,7 €/veíc), 🔴 Restaurant - BC (+311,3 €/veíc).\n\nAs oficinas com maiores desvios vs Budget foram: 🟢 SM (1.009,4 kEUR, Δ -308,3 kEUR), 🟢 PL (900,1 kEUR, Δ -210,9 kEUR), 🔴 QY (1.460,9 kEUR, Δ +155,7 kEUR).\n\n**Alertas e pontos de atenção:**\n- ⚠️ Dados do ano anterior não disponíveis — comparação YoY prejudicada."
+        "comparativos": "### 2.1 Real vs Budget (Efeito Flex Volume)\nO Custo FP Real de **2.152,2 kEUR** (442,9 €/veíc) compara-se ao Budget de 2.193,4 kEUR (472,7 €/veíc), com delta total de -41,2 kEUR (-1.9%).\n\nO volume real de 4.859 un. superou Budget de 4.640 un. (+4.7%), impactando negativamente o custo em +61,2 kEUR. O Flex Budget resultante ficou em 2.254,6 kEUR (464,0 €/veíc). O efeito operacional gerou economia de 102,4 kEUR, indicando performance melhor do que o esperado.\n\n**Detalhamento por Type 05 → Type 06 → Account:**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 2.193,4 kEUR (472,7 €/veíc)\n- **🔴 Efeito Flex Volume:** +61,2 kEUR (-8,7 €/veíc)\n- **🟢 Efeito Operacional:** -102,4 kEUR (-21,1 €/veíc) | -4.5% vs Flex\n- **🟢 Delta Total:** -41,2 kEUR (-29,8 €/veíc) | -1.9% vs Budget\n- **Real:** 2.152,2 kEUR (442,9 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 61,2 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 2.254,6 kEUR (464,0 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 102,4 kEUR (Δ -21,1 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 1.243,7 kEUR (256,0 €/veíc) | Δ -119,0 kEUR (Δ -24,5 €/veíc), -8.7% | ganho\n- 🔴 Benefits: 700,4 kEUR (144,1 €/veíc) | Δ +700,4 kEUR (Δ +144,1 €/veíc)\n  - 🔴 Restaurant - BC: +311,3 kEUR (Δ +64,1 €/veíc)\n  - 🔴 Health and others - BC: +252,3 kEUR (Δ +51,9 €/veíc)\n- 🟢 Direct Labor: 60,5 kEUR (12,5 €/veíc) | Δ -594,6 kEUR (Δ -122,4 €/veíc)\n  - 🟢 Main/Principal: -594,6 kEUR (Δ -122,4 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -206,1 kEUR (Δ -42,4 €/veíc)\n  - 🟢 Transport - BC: -128,1 kEUR (Δ -26,4 €/veíc)\n  - 🟢 Restaurant - BC: -78,1 kEUR (Δ -16,1 €/veíc)\n\n**🔴 Burden**: 574,8 kEUR (118,3 €/veíc) | Δ +76,2 kEUR (Δ +15,7 €/veíc), +15.3% | perda\n- 🔴 Expenses: 221,3 kEUR (45,5 €/veíc) | Δ +161,3 kEUR (Δ +33,2 €/veíc)\n  - 🔴 Third Part Services / Uma: +170,8 kEUR (Δ +35,1 €/veíc)\n  - 🟢 Headquarter: -57,7 kEUR (Δ -11,9 €/veíc)\n- 🟢 Maintenance: 14,1 kEUR (2,9 €/veíc) | Δ -126,4 kEUR (Δ -26,0 €/veíc)\n  - 🟢 Material: -120,8 kEUR (Δ -24,9 €/veíc)\n  - 🟢 Service: -5,6 kEUR (Δ -1,2 €/veíc)\n- 🔴 Scrap Sales: 0,0 kEUR (0,0 €/veíc) | Δ +89,9 kEUR (Δ +18,5 €/veíc)\n  - 🔴 Scrap Sales: +89,9 kEUR (Δ +18,5 €/veíc)\n\n**🟢 D&A**: 333,7 kEUR (68,7 €/veíc) | Δ -59,7 kEUR (Δ -12,3 €/veíc), -15.2% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 333,7 kEUR (68,7 €/veíc) | Δ -59,7 kEUR (Δ -12,3 €/veíc)\n  - 🟢 Plant Depreciation: -40,2 kEUR (Δ -8,3 €/veíc)\n  - 🟢 Taxes & Insurances: -19,5 kEUR (Δ -4,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.",
+        "conclusoes": "### Alertas e Anomalias\n- ⚠️ Modelo **CC21 biton**: variação de volume de +130% vs Budget.\n- ⚠️ Dados do ano anterior indisponíveis — análise YoY não incluída.\n\n### Aprendizados do Período\n- O efeito operacional foi **favorável** em 102,4 kEUR, sugerindo boa gestão de preço e mix no período.\n\n### Recomendações\n- Acompanhar evolução dos top modelos com maior desvio de CPU.\n- Monitorar oficinas com maiores deltas para ações corretivas.",
+        "oficina_AS": "**Oficina AS — Janeiro/2026**\n\n📊 Custo FP Total: 430,6 kEUR (Δ vs Flex: Δ -32,8 kEUR, -7.1%)\n   vs Budget: Δ -17,7 kEUR, -4.0%\n   vs Mês Anterior: Δ +430,6 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 448,3 kEUR (96,6 €/veíc)\n- **🔴 Efeito Flex Volume:** +15,1 kEUR (-1,2 €/veíc)\n- **🟢 Efeito Operacional:** -32,8 kEUR (-6,8 €/veíc) | -7.1% vs Flex\n- **🟢 Delta Total:** -17,7 kEUR (-8,0 €/veíc) | -4.0% vs Budget\n- **Real:** 430,6 kEUR (88,6 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 15,1 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 463,4 kEUR (95,4 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 32,8 kEUR (Δ -6,8 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 354,2 kEUR (72,9 €/veíc) | Δ -16,1 kEUR (Δ -3,3 €/veíc), -4.3% | ganho\n- 🔴 Benefits: 208,2 kEUR (42,8 €/veíc) | Δ +208,2 kEUR (Δ +42,8 €/veíc)\n  - 🔴 Restaurant - BC: +87,9 kEUR (Δ +18,1 €/veíc)\n  - 🔴 Health and others - BC: +68,1 kEUR (Δ +14,0 €/veíc)\n- 🟢 Direct Labor: 74,8 kEUR (15,4 €/veíc) | Δ -183,3 kEUR (Δ -37,7 €/veíc)\n  - 🟢 Main/Principal: -183,3 kEUR (Δ -37,7 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -57,8 kEUR (Δ -11,9 €/veíc)\n  - 🟢 Transport - BC: -35,9 kEUR (Δ -7,4 €/veíc)\n  - 🟢 Restaurant - BC: -21,9 kEUR (Δ -4,5 €/veíc)\n\n**🔴 D&A**: 53,9 kEUR (11,1 €/veíc) | Δ +0,4 kEUR (Δ +0,1 €/veíc), +0.8% | perda\n- 🔴 Taxes, Insurance & Assets Amortization: 53,9 kEUR (11,1 €/veíc) | Δ +0,4 kEUR (Δ +0,1 €/veíc)\n  - 🔴 Plant Depreciation: +0,4 kEUR (Δ +0,1 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🟢 Burden**: 22,5 kEUR (4,6 €/veíc) | Δ -17,2 kEUR (Δ -3,5 €/veíc), -43.3% | ganho\n- 🟢 Expenses: -16,6 kEUR (-3,4 €/veíc) | Δ -18,7 kEUR (Δ -3,9 €/veíc)\n  - 🟢 Other Manufacturing Income & Expenses: -19,4 kEUR (Δ -4,0 €/veíc)\n  - 🔴 Handling: +0,4 kEUR (Δ +0,1 €/veíc)\n- 🟢 Maintenance: 15,4 kEUR (3,2 €/veíc) | Δ -2,7 kEUR (Δ -0,5 €/veíc)\n  - 🟢 Service: -2,8 kEUR (Δ -0,6 €/veíc)\n  - 🔴 Material: +0,1 kEUR (Δ +0,0 €/veíc)\n- 🔴 Energy: 8,2 kEUR (1,7 €/veíc) | Δ +2,1 kEUR (Δ +0,4 €/veíc)\n  - 🔴 Electricity: +2,1 kEUR (Δ +0,4 €/veíc)\n  - ⚪ Energy Long Term lease: 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 430,6 kEUR (88,6 €/veíc) | Δ Δ +430,6 kEUR (+88,6 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 430,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 430,6 kEUR (88,6 €/veíc) | Δ Δ +430,6 kEUR (+88,6 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 430,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **AS** manteve-se dentro dos parâmetros esperados.",
+        "oficina_BS": "**Oficina BS — Janeiro/2026**\n\n📊 Custo FP Total: 524,2 kEUR (Δ vs Flex: Δ +11,9 kEUR, +2.3%)\n   vs Budget: Δ +23,7 kEUR, +4.7%\n   vs Mês Anterior: Δ +524,2 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 500,5 kEUR (107,9 €/veíc)\n- **🔴 Efeito Flex Volume:** +11,8 kEUR (-2,4 €/veíc)\n- **🔴 Efeito Operacional:** +11,9 kEUR (+2,4 €/veíc) | +2.3% vs Flex\n- **🔴 Delta Total:** +23,7 kEUR (+0,0 €/veíc) | +4.7% vs Budget\n- **Real:** 524,2 kEUR (107,9 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 11,8 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 512,3 kEUR (105,4 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 11,9 kEUR (Δ +2,4 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🔴 Labor**: 260,2 kEUR (53,6 €/veíc) | Δ +2,5 kEUR (Δ +0,5 €/veíc), +1.0% | perda\n- 🟢 Direct Labor: 44,5 kEUR (9,2 €/veíc) | Δ -131,9 kEUR (Δ -27,1 €/veíc)\n  - 🟢 Main/Principal: -131,9 kEUR (Δ -27,1 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 130,9 kEUR (26,9 €/veíc) | Δ +130,9 kEUR (Δ +26,9 €/veíc)\n  - 🔴 Restaurant - BC: +56,0 kEUR (Δ +11,5 €/veíc)\n  - 🔴 Health and others - BC: +42,2 kEUR (Δ +8,7 €/veíc)\n- 🔴 Indirect Labor: 57,8 kEUR (11,9 €/veíc) | Δ +57,8 kEUR (Δ +11,9 €/veíc)\n  - 🔴 C Class (Maintenance): +44,1 kEUR (Δ +9,1 €/veíc)\n  - 🔴 D Class (Quality): +8,0 kEUR (Δ +1,6 €/veíc)\n\n**🔴 D&A**: 177,3 kEUR (36,5 €/veíc) | Δ +0,7 kEUR (Δ +0,1 €/veíc), +0.4% | perda\n- 🔴 Taxes, Insurance & Assets Amortization: 177,3 kEUR (36,5 €/veíc) | Δ +0,7 kEUR (Δ +0,1 €/veíc)\n  - 🔴 Plant Depreciation: +0,7 kEUR (Δ +0,1 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🔴 Burden**: 86,6 kEUR (17,8 €/veíc) | Δ +8,7 kEUR (Δ +1,8 €/veíc), +11.2% | perda\n- 🔴 Consumption Material: 27,7 kEUR (5,7 €/veíc) | Δ +8,6 kEUR (Δ +1,8 €/veíc)\n  - 🔴 Consumption Material: +8,6 kEUR (Δ +1,8 €/veíc)\n- 🟢 Material Losses: -8,4 kEUR (-1,7 €/veíc) | Δ -8,4 kEUR (Δ -1,7 €/veíc)\n  - 🟢 Scraps: -8,4 kEUR (Δ -1,7 €/veíc)\n- 🔴 Expenses: 17,5 kEUR (3,6 €/veíc) | Δ +7,7 kEUR (Δ +1,6 €/veíc)\n  - 🔴 Other Manufacturing Income & Expenses: +9,3 kEUR (Δ +1,9 €/veíc)\n  - 🟢 Handling: -1,5 kEUR (Δ -0,3 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 524,2 kEUR (107,9 €/veíc) | Δ Δ +524,2 kEUR (+107,9 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 524,2 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 524,2 kEUR (107,9 €/veíc) | Δ Δ +524,2 kEUR (+107,9 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 524,2 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **BS** manteve-se dentro dos parâmetros esperados.",
+        "oficina_GS": "**Oficina GS — Janeiro/2026**\n\n📊 Custo FP Total: 221,7 kEUR (Δ vs Flex: Δ +6,9 kEUR, +3.2%)\n   vs Budget: Δ +11,9 kEUR, +5.7%\n   vs Mês Anterior: Δ +221,7 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 209,8 kEUR (45,2 €/veíc)\n- **🔴 Efeito Flex Volume:** +5,0 kEUR (-1,0 €/veíc)\n- **🔴 Efeito Operacional:** +6,9 kEUR (+1,4 €/veíc) | +3.2% vs Flex\n- **🔴 Delta Total:** +11,9 kEUR (+0,4 €/veíc) | +5.7% vs Budget\n- **Real:** 221,7 kEUR (45,6 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 5,0 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 214,8 kEUR (44,2 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 6,9 kEUR (Δ +1,4 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🔴 Labor**: 143,9 kEUR (29,6 €/veíc) | Δ +37,0 kEUR (Δ +7,6 €/veíc), +34.6% | perda\n- 🔴 Benefits: 98,5 kEUR (20,3 €/veíc) | Δ +98,5 kEUR (Δ +20,3 €/veíc)\n  - 🔴 Restaurant - BC: +47,6 kEUR (Δ +9,8 €/veíc)\n  - 🔴 Health and others - BC: +31,8 kEUR (Δ +6,6 €/veíc)\n- 🟢 Direct Labor: -66,5 kEUR (-13,7 €/veíc) | Δ -62,5 kEUR (Δ -12,9 €/veíc)\n  - 🟢 Main/Principal: -62,5 kEUR (Δ -12,9 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Indirect Labor: 105,2 kEUR (21,7 €/veíc) | Δ +26,1 kEUR (Δ +5,4 €/veíc)\n  - 🔴 D Class (Quality): +32,2 kEUR (Δ +6,6 €/veíc)\n  - 🟢 C Class (Maintenance): -6,1 kEUR (Δ -1,3 €/veíc)\n\n**🟢 Burden**: 64,5 kEUR (13,3 €/veíc) | Δ -22,6 kEUR (Δ -4,6 €/veíc), -25.9% | ganho\n- 🟢 Material Losses: -90,3 kEUR (-18,6 €/veíc) | Δ -90,3 kEUR (Δ -18,6 €/veíc)\n  - 🟢 Scrap Sales: -90,7 kEUR (Δ -18,7 €/veíc)\n  - 🔴 Stock Obsolescence % Overstock: +0,4 kEUR (Δ +0,1 €/veíc)\n- 🔴 Expenses: 25,9 kEUR (5,3 €/veíc) | Δ +45,3 kEUR (Δ +9,3 €/veíc)\n  - 🔴 Third Part Services / Uma: +37,6 kEUR (Δ +7,7 €/veíc)\n  - 🔴 Handling: +3,8 kEUR (Δ +0,8 €/veíc)\n- 🟢 Stock Obsolescence % Overstock: 0,0 kEUR (0,0 €/veíc) | Δ -13,8 kEUR (Δ -2,8 €/veíc)\n  - 🟢 Stock Obsolescence % Overstock: -13,8 kEUR (Δ -2,8 €/veíc)\n  - ⚪ Inventory Adjustments: 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🟢 D&A**: 13,3 kEUR (2,7 €/veíc) | Δ -7,4 kEUR (Δ -1,5 €/veíc), -35.8% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 13,3 kEUR (2,7 €/veíc) | Δ -7,4 kEUR (Δ -1,5 €/veíc)\n  - 🟢 Plant Depreciation: -7,4 kEUR (Δ -1,5 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 221,7 kEUR (45,6 €/veíc) | Δ Δ +221,7 kEUR (+45,6 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 221,7 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 221,7 kEUR (45,6 €/veíc) | Δ Δ +221,7 kEUR (+45,6 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 221,7 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **GS** manteve-se dentro dos parâmetros esperados.",
+        "oficina_PL": "**Oficina PL — Janeiro/2026**\n\n📊 Custo FP Total: 138,8 kEUR (Δ vs Flex: Δ -38,1 kEUR, -21.5%)\n   vs Budget: Δ -32,5 kEUR, -19.0%\n   vs Mês Anterior: Δ +138,8 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 171,3 kEUR (36,9 €/veíc)\n- **🔴 Efeito Flex Volume:** +5,6 kEUR (-0,5 €/veíc)\n- **🟢 Efeito Operacional:** -38,1 kEUR (-7,8 €/veíc) | -21.5% vs Flex\n- **🟢 Delta Total:** -32,5 kEUR (-8,4 €/veíc) | -19.0% vs Budget\n- **Real:** 138,8 kEUR (28,6 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 5,6 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 176,9 kEUR (36,4 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 38,1 kEUR (Δ -7,8 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🟢 Labor**: 79,9 kEUR (16,5 €/veíc) | Δ -37,3 kEUR (Δ -7,7 €/veíc), -31.8% | ganho\n- 🔴 Benefits: 57,1 kEUR (11,7 €/veíc) | Δ +57,1 kEUR (Δ +11,7 €/veíc)\n  - 🔴 Restaurant - BC: +25,4 kEUR (Δ +5,2 €/veíc)\n  - 🔴 Health and others - BC: +16,7 kEUR (Δ +3,4 €/veíc)\n- 🟢 Indirect Labor: 33,3 kEUR (6,9 €/veíc) | Δ -36,5 kEUR (Δ -7,5 €/veíc)\n  - 🟢 B Class (Handling): -48,7 kEUR (Δ -10,0 €/veíc)\n  - 🔴 D Class (Quality): +11,6 kEUR (Δ +2,4 €/veíc)\n- 🟢 WC & Trainee: 12,5 kEUR (2,6 €/veíc) | Δ -20,4 kEUR (Δ -4,2 €/veíc)\n  - 🟢 WC & Trainee: -20,4 kEUR (Δ -4,2 €/veíc)\n\n**🟢 D&A**: 32,8 kEUR (6,8 €/veíc) | Δ -8,0 kEUR (Δ -1,6 €/veíc), -19.5% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 32,8 kEUR (6,8 €/veíc) | Δ -8,0 kEUR (Δ -1,6 €/veíc)\n  - 🟢 Plant Depreciation: -8,0 kEUR (Δ -1,6 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n**🔴 Burden**: 26,0 kEUR (5,3 €/veíc) | Δ +7,2 kEUR (Δ +1,5 €/veíc), +38.2% | perda\n- 🔴 Expenses: -1,3 kEUR (-0,3 €/veíc) | Δ +44,1 kEUR (Δ +9,1 €/veíc)\n  - 🔴 Handling: +31,6 kEUR (Δ +6,5 €/veíc)\n  - 🔴 Supplier Failure Recovery: +23,2 kEUR (Δ +4,8 €/veíc)\n- 🟢 Stock Obsolescence % Overstock: 0,0 kEUR (0,0 €/veíc) | Δ -20,0 kEUR (Δ -4,1 €/veíc)\n  - 🟢 Stock Obsolescence % Overstock: -20,0 kEUR (Δ -4,1 €/veíc)\n  - ⚪ Inventory Adjustments: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🟢 Energy: -0,3 kEUR (-0,1 €/veíc) | Δ -18,5 kEUR (Δ -3,8 €/veíc)\n  - 🟢 Electricity: -12,9 kEUR (Δ -2,6 €/veíc)\n  - 🟢 Water: -2,8 kEUR (Δ -0,6 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 138,8 kEUR (28,6 €/veíc) | Δ Δ +138,8 kEUR (+28,6 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 138,8 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 138,8 kEUR (28,6 €/veíc) | Δ Δ +138,8 kEUR (+28,6 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 138,8 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **PL** manteve-se dentro dos parâmetros esperados.",
+        "oficina_PS": "**Oficina PS — Janeiro/2026**\n\n📊 Custo FP Total: 455,9 kEUR (Δ vs Flex: Δ -18,9 kEUR, -4.0%)\n   vs Budget: Δ -3,1 kEUR, -0.7%\n   vs Mês Anterior: Δ +455,9 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 459,0 kEUR (98,9 €/veíc)\n- **🔴 Efeito Flex Volume:** +15,8 kEUR (-1,2 €/veíc)\n- **🟢 Efeito Operacional:** -18,9 kEUR (-3,9 €/veíc) | -4.0% vs Flex\n- **🟢 Delta Total:** -3,1 kEUR (-5,1 €/veíc) | -0.7% vs Budget\n- **Real:** 455,9 kEUR (93,8 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 15,8 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 474,9 kEUR (97,7 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 18,9 kEUR (Δ -3,9 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🔴 Labor**: 230,3 kEUR (47,4 €/veíc) | Δ +9,5 kEUR (Δ +1,9 €/veíc), +4.3% | perda\n- 🔴 Benefits: 94,8 kEUR (19,5 €/veíc) | Δ +94,8 kEUR (Δ +19,5 €/veíc)\n  - 🔴 Restaurant - BC: +44,8 kEUR (Δ +9,2 €/veíc)\n  - 🔴 Health and others - BC: +31,5 kEUR (Δ +6,5 €/veíc)\n- 🟢 Direct Labor: 68,3 kEUR (14,1 €/veíc) | Δ -78,8 kEUR (Δ -16,2 €/veíc)\n  - 🟢 Main/Principal: -78,8 kEUR (Δ -16,2 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Indirect Labor: 36,3 kEUR (7,5 €/veíc) | Δ +36,3 kEUR (Δ +7,5 €/veíc)\n  - 🔴 C Class (Maintenance): +28,9 kEUR (Δ +6,0 €/veíc)\n  - 🔴 D Class (Quality): +6,4 kEUR (Δ +1,3 €/veíc)\n\n**🟢 Burden**: 185,4 kEUR (38,1 €/veíc) | Δ -8,6 kEUR (Δ -1,8 €/veíc), -4.4% | ganho\n- 🟢 Energy: 130,4 kEUR (26,8 €/veíc) | Δ -28,8 kEUR (Δ -5,9 €/veíc)\n  - 🟢 Gas: -14,7 kEUR (Δ -3,0 €/veíc)\n  - 🟢 Electricity: -14,2 kEUR (Δ -2,9 €/veíc)\n- 🔴 Consumption Material: 30,5 kEUR (6,3 €/veíc) | Δ +19,3 kEUR (Δ +4,0 €/veíc)\n  - 🔴 Consumption Material: +19,3 kEUR (Δ +4,0 €/veíc)\n- 🔴 Maintenance: 18,7 kEUR (3,9 €/veíc) | Δ +1,4 kEUR (Δ +0,3 €/veíc)\n  - 🔴 Service: +0,7 kEUR (Δ +0,2 €/veíc)\n  - 🔴 Material: +0,7 kEUR (Δ +0,1 €/veíc)\n\n**🟢 D&A**: 40,2 kEUR (8,3 €/veíc) | Δ -19,8 kEUR (Δ -4,1 €/veíc), -33.0% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 40,2 kEUR (8,3 €/veíc) | Δ -19,8 kEUR (Δ -4,1 €/veíc)\n  - 🟢 Plant Depreciation: -19,8 kEUR (Δ -4,1 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 455,9 kEUR (93,8 €/veíc) | Δ Δ +455,9 kEUR (+93,8 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 455,9 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 455,9 kEUR (93,8 €/veíc) | Δ Δ +455,9 kEUR (+93,8 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 455,9 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **PS** manteve-se dentro dos parâmetros esperados.",
+        "oficina_QY": "**Oficina QY — Janeiro/2026**\n\n📊 Custo FP Total: 225,3 kEUR (Δ vs Flex: Δ +18,4 kEUR, +8.9%)\n   vs Budget: Δ +24,0 kEUR, +11.9%\n   vs Mês Anterior: Δ +225,3 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 201,3 kEUR (43,4 €/veíc)\n- **🔴 Efeito Flex Volume:** +5,6 kEUR (-0,8 €/veíc)\n- **🔴 Efeito Operacional:** +18,4 kEUR (+3,8 €/veíc) | +8.9% vs Flex\n- **🔴 Delta Total:** +24,0 kEUR (+3,0 €/veíc) | +11.9% vs Budget\n- **Real:** 225,3 kEUR (46,4 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 5,6 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 206,8 kEUR (42,6 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 18,4 kEUR (Δ +3,8 €/veíc), indicando uma performance pior do que o esperado.\n\n\n**🟢 Labor**: 138,9 kEUR (28,6 €/veíc) | Δ -26,5 kEUR (Δ -5,5 €/veíc), -16.0% | ganho\n- 🟢 Indirect Labor: 27,2 kEUR (5,6 €/veíc) | Δ -67,8 kEUR (Δ -13,9 €/veíc)\n  - 🟢 D Class (Quality): -67,8 kEUR (Δ -13,9 €/veíc)\n  - ⚪ C Class (Maintenance): 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 64,3 kEUR (13,2 €/veíc) | Δ +64,3 kEUR (Δ +13,2 €/veíc)\n  - 🔴 Restaurant - BC: +23,4 kEUR (Δ +4,8 €/veíc)\n  - 🔴 Health and others - BC: +19,0 kEUR (Δ +3,9 €/veíc)\n- 🟢 Benefits - BC: 0,0 kEUR (0,0 €/veíc) | Δ -21,9 kEUR (Δ -4,5 €/veíc)\n  - 🟢 Transport - BC: -13,6 kEUR (Δ -2,8 €/veíc)\n  - 🟢 Restaurant - BC: -8,3 kEUR (Δ -1,7 €/veíc)\n\n**🔴 Burden**: 71,8 kEUR (14,8 €/veíc) | Δ +52,0 kEUR (Δ +10,7 €/veíc), +261.9% | perda\n- 🔴 Expenses: 37,0 kEUR (7,6 €/veíc) | Δ +25,5 kEUR (Δ +5,3 €/veíc)\n  - 🔴 Third Part Services / Uma: +42,8 kEUR (Δ +8,8 €/veíc)\n  - 🟢 Other Manufacturing Income & Expenses: -25,6 kEUR (Δ -5,3 €/veíc)\n- 🔴 Material Losses: 14,5 kEUR (3,0 €/veíc) | Δ +14,5 kEUR (Δ +3,0 €/veíc)\n  - 🔴 Scraps: +14,5 kEUR (Δ +3,0 €/veíc)\n- 🔴 Trips: 9,9 kEUR (2,0 €/veíc) | Δ +8,7 kEUR (Δ +1,8 €/veíc)\n  - 🔴 Trips: +8,7 kEUR (Δ +1,8 €/veíc)\n\n**🟢 D&A**: 14,5 kEUR (3,0 €/veíc) | Δ -7,0 kEUR (Δ -1,4 €/veíc), -32.6% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 14,5 kEUR (3,0 €/veíc) | Δ -7,0 kEUR (Δ -1,4 €/veíc)\n  - 🟢 Plant Depreciation: -7,0 kEUR (Δ -1,4 €/veíc)\n  - ⚪ Stamping/foundry and forges inhouse toolings (OSDI) PPA: 0,0 kEUR (Δ +0,0 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 225,3 kEUR (46,4 €/veíc) | Δ Δ +225,3 kEUR (+46,4 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 225,3 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 225,3 kEUR (46,4 €/veíc) | Δ Δ +225,3 kEUR (+46,4 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 225,3 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **QY** manteve-se dentro dos parâmetros esperados.",
+        "oficina_SM": "**Oficina SM — Janeiro/2026**\n\n📊 Custo FP Total: 155,6 kEUR (Δ vs Flex: Δ -49,8 kEUR, -24.3%)\n   vs Budget: Δ -47,5 kEUR, -23.4%\n   vs Mês Anterior: Δ +155,6 kEUR, sem base (ref.=0)\n⚠️ Mês anterior sem dados para esta oficina.\n\n**Real vs Budget (Efeito Flex Volume):**\n\nComparativo Real vs Budget (com Efeito Flex Volume):\n\n- **Budget:** 203,2 kEUR (43,8 €/veíc)\n- **🔴 Efeito Flex Volume:** +2,3 kEUR (-1,5 €/veíc)\n- **🟢 Efeito Operacional:** -49,8 kEUR (-10,3 €/veíc) | -24.3% vs Flex\n- **🟢 Delta Total:** -47,5 kEUR (-11,8 €/veíc) | -23.4% vs Budget\n- **Real:** 155,6 kEUR (32,0 €/veíc)\n\nO Efeito Flex Volume impactou negativamente o custo, resultando em um aumento de 2,3 kEUR devido ao volume real de 4.859 un., que superou Budget de 4.640 un. em +4.7%. Após o ajuste pelo volume, o Flex Budget ficou em 205,5 kEUR (42,3 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 49,8 kEUR (Δ -10,3 €/veíc), indicando uma performance melhor do que o esperado.\n\n\n**🔴 Burden**: 117,9 kEUR (24,3 €/veíc) | Δ +56,6 kEUR (Δ +11,7 €/veíc), +92.4% | perda\n- 🟢 Maintenance: -125,4 kEUR (-25,8 €/veíc) | Δ -131,5 kEUR (Δ -27,1 €/veíc)\n  - 🟢 Material: -131,5 kEUR (Δ -27,1 €/veíc)\n  - ⚪ Service: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Scrap Sales: 0,0 kEUR (0,0 €/veíc) | Δ +77,0 kEUR (Δ +15,8 €/veíc)\n  - 🔴 Scrap Sales: +77,0 kEUR (Δ +15,8 €/veíc)\n- 🔴 Expenses: 154,3 kEUR (31,8 €/veíc) | Δ +58,2 kEUR (Δ +12,0 €/veíc)\n  - 🔴 Third Part Services / Uma: +96,9 kEUR (Δ +19,9 €/veíc)\n  - 🟢 Headquarter: -50,7 kEUR (Δ -10,4 €/veíc)\n\n**🟢 Labor**: 36,2 kEUR (7,4 €/veíc) | Δ -87,9 kEUR (Δ -18,1 €/veíc), -70.9% | ganho\n- 🟢 Direct Labor: -53,5 kEUR (-11,0 €/veíc) | Δ -135,3 kEUR (Δ -27,8 €/veíc)\n  - 🟢 Main/Principal: -135,3 kEUR (Δ -27,8 €/veíc)\n  - ⚪ Scrap / Discard: 0,0 kEUR (Δ +0,0 €/veíc)\n- 🔴 Benefits: 46,7 kEUR (9,6 €/veíc) | Δ +46,7 kEUR (Δ +9,6 €/veíc)\n  - 🔴 Health and others - BC: +43,0 kEUR (Δ +8,9 €/veíc)\n  - 🟢 Transport - BC: -31,6 kEUR (Δ -6,5 €/veíc)\n- 🔴 Indirect Labor: 22,4 kEUR (4,6 €/veíc) | Δ +22,4 kEUR (Δ +4,6 €/veíc)\n  - 🔴 D Class (Quality): +19,8 kEUR (Δ +4,1 €/veíc)\n  - 🔴 B Class (Handling): +2,6 kEUR (Δ +0,5 €/veíc)\n\n**🟢 D&A**: 1,5 kEUR (0,3 €/veíc) | Δ -18,5 kEUR (Δ -3,8 €/veíc), -92.3% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 1,5 kEUR (0,3 €/veíc) | Δ -18,5 kEUR (Δ -3,8 €/veíc)\n  - 🟢 Taxes & Insurances: -19,5 kEUR (Δ -4,0 €/veíc)\n  - 🔴 Plant Depreciation: +1,0 kEUR (Δ +0,2 €/veíc)\n- ⚪ Expenses: 0,0 kEUR (0,0 €/veíc) | Δ 0,0 kEUR (Δ +0,0 €/veíc)\n  - ⚪ Other Manufacturing Incomes (Rental): 0,0 kEUR (Δ +0,0 €/veíc)\n\n🟢 = economia/ganho | 🔴 = perda/aumento de despesa\n\n**CPU por modelo (R$/veíc):**\n- 🟢 CC21 biton: 3.152,7 €/veíc | Δ -399,7 €/veíc, -11.3%\n- 🟢 CC21 monoton: 2.935,5 €/veíc | Δ -168,6 €/veíc, -5.4%\n- 🟢 CC22 biton: 2.944,8 €/veíc | Δ -202,7 €/veíc, -6.4%\n- 🟢 CC22 monoton: 2.727,3 €/veíc | Δ -198,3 €/veíc, -6.8%\n- 🟢 CC24 biton 5L: 3.093,7 €/veíc | Δ -245,9 €/veíc, -7.4%\n- 🟢 CC24 biton 7L: 3.251,6 €/veíc | Δ -160,1 €/veíc, -4.7%\n- 🟢 CC24 monoton 5L: 2.749,4 €/veíc | Δ -190,8 €/veíc, -6.5%\n- 🟢 CC24 monoton 7L: 2.916,8 €/veíc | Δ -219,3 €/veíc, -7.0%\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Mês Anterior:**\n\nComparativo Real vs Mês Anterior:\n\nCusto FP Total: 155,6 kEUR (32,0 €/veíc) | Δ Δ +155,6 kEUR (+32,0 €/veíc), sem base (ref.=0) vs Mês Anterior de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mês Anterior) não disponível para este período.\nCusto FP Real total: 155,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\n<!-- SPLIT -->\n**Real vs Ano Anterior:**\n\nComparativo Real vs Mesmo Mês 2025:\n\nCusto FP Total: 155,6 kEUR (32,0 €/veíc) | Δ Δ +155,6 kEUR (+32,0 €/veíc), sem base (ref.=0) vs Mesmo Mês 2025 de 0,0 kEUR (0,0 €/veíc)\n\n⚠️ Referência (Mesmo Mês 2025) não disponível para este período.\nCusto FP Real total: 155,6 kEUR. Delta não calculável.\n\n\n**CPU por modelo (R$/veíc):**\n- 🔴 CC21 biton: 3.152,7 €/veíc | Δ +3.152,7 €/veíc, sem base (ref.=0)\n- 🔴 CC21 monoton: 2.935,5 €/veíc | Δ +2.935,5 €/veíc, sem base (ref.=0)\n- 🔴 CC22 biton: 2.944,8 €/veíc | Δ +2.944,8 €/veíc, sem base (ref.=0)\n- 🔴 CC22 monoton: 2.727,3 €/veíc | Δ +2.727,3 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 5L: 3.093,7 €/veíc | Δ +3.093,7 €/veíc, sem base (ref.=0)\n- 🔴 CC24 biton 7L: 3.251,6 €/veíc | Δ +3.251,6 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 5L: 2.749,4 €/veíc | Δ +2.749,4 €/veíc, sem base (ref.=0)\n- 🔴 CC24 monoton 7L: 2.916,8 €/veíc | Δ +2.916,8 €/veíc, sem base (ref.=0)\n- ⚪ J516 biton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n- ⚪ J516 monoton: 0,0 €/veíc | Δ 0,0 €/veíc, sem ref.\n\nA oficina **SM** manteve-se dentro dos parâmetros esperados.",
+        "oficinas_intro": "A seguir, é apresentada a análise detalhada de custos por oficina referente a Janeiro/2026.\n\n\nNo waterfall Budget vs Real por oficina (CPU em €/veíc), os maiores impactos foram: 🟢 SM (-10,3 €/veíc), 🟢 PL (-7,8 €/veíc), 🟢 AS (-6,8 €/veíc), 🟢 PS (-3,9 €/veíc), 🔴 QY (+3,8 €/veíc).\n\n\nEm termos de custo total, as oficinas e seus desvios vs Budget são:\n- 🟢 **SM** (155,6 kEUR, Δ -47,5 kEUR)\n- 🟢 **PL** (138,8 kEUR, Δ -32,5 kEUR)\n- 🔴 **QY** (225,3 kEUR, Δ +24,0 kEUR)\n- 🔴 **BS** (524,2 kEUR, Δ +23,7 kEUR)\n- 🟢 **AS** (430,6 kEUR, Δ -17,7 kEUR)\n- 🔴 **GS** (221,7 kEUR, Δ +11,9 kEUR)\n- 🟢 **PS** (455,9 kEUR, Δ -3,1 kEUR)\n\n\nAs oficinas com desempenho **desfavorável** (custo acima do Budget) foram: QY, BS, GS.\n\nJá as oficinas com desempenho **favorável** (custo abaixo do Budget) foram: SM, PL, AS, PS.\n\n\nAs sub-seções a seguir detalham cada oficina individualmente, com drill-down por Type 05/06 e comparativos Budget, mensal e anual.",
+        "resumo_executivo": "No mês de Janeiro/2026, o volume real de produção atingiu **4.859 unidades**, o que superou o Budget de 4.640 un. em +219 un. (+4.7%). \n\nO Custo FP Real totalizou **2.152,2 kEUR** (442,9 €/veíc), contra um Budget de 2.193,4 kEUR (472,7 €/veíc), resultando em um delta de -41,2 kEUR (-1.9%). O efeito volume impactou negativamente em +61,2 kEUR, levando o Flex Budget a 2.254,6 kEUR (464,0 €/veíc). O efeito operacional (preço e mix) reduziu 102,4 kEUR, indicando performance **favorável** frente ao esperado.\n\nEm termos de CPU (€/veíc), os modelos com maior desvio vs Budget foram: CC21 biton (3.152,7 €/veíc, Δ -399,7 €/veíc); CC24 biton 5L (3.093,7 €/veíc, Δ -245,9 €/veíc); CC24 monoton 7L (2.916,8 €/veíc, Δ -219,3 €/veíc).\n\nAs categorias de custo com maior impacto no waterfall Budget (CPU) foram: 🟢 Main/Principal (-122,4 €/veíc), 🔴 Health and others - BC (+51,9 €/veíc), 🔴 Restaurant - BC (+48,0 €/veíc).\n\nAs oficinas com maiores desvios vs Budget foram: 🟢 SM (155,6 kEUR, Δ -47,5 kEUR), 🟢 PL (138,8 kEUR, Δ -32,5 kEUR), 🔴 QY (225,3 kEUR, Δ +24,0 kEUR).\n\n**Alertas e pontos de atenção:**\n- ⚠️ Dados do ano anterior não disponíveis — comparação YoY prejudicada."
       },
       "dados_graficos": {
         "global": {
@@ -3221,21 +3221,21 @@
             "Real"
           ],
           "wf_budget_values": [
-            3065.7737831778645,
-            -56.4841121291588,
-            -793.6266822967341,
-            336.74048875428633,
-            311.30955005806015,
-            227.90762556571116,
-            -161.2715538026098,
-            135.48980626518008,
-            124.08331921282779,
-            -114.1378679338678,
-            -91.52749366600443,
-            -77.05936208440339,
-            -67.6439280347774,
-            33.010992,
-            2872.564565082923
+            472.7120165257673,
+            -8.709291824710192,
+            -122.36939053222332,
+            51.922055162175056,
+            48.00085576409839,
+            35.14110331751,
+            -24.86647965501654,
+            20.89118900087581,
+            19.132421434404094,
+            -17.598931143916076,
+            -14.112634903400583,
+            -11.881792010547125,
+            -10.430025138351299,
+            5.089969,
+            442.9210646955397
           ],
           "wf_mensal_labels": [],
           "wf_mensal_values": [],
@@ -3272,12 +3272,12 @@
             "Real"
           ],
           "wf_budget_type05_values": [
-            3065.773783177865,
-            -56.48411212915926,
-            -158.8336299642624,
-            101.76919375059822,
-            -79.66066975211874,
-            2872.564565082923
+            472.71201652576747,
+            -8.709291824710306,
+            -24.490575894574476,
+            15.691803831716626,
+            -12.28288794265957,
+            442.9210646955397
           ],
           "wf_mensal_type05_labels": [],
           "wf_mensal_type05_values": [],
@@ -3301,21 +3301,21 @@
             "Real"
           ],
           "wf_budget_type06_values": [
-            3065.7737831778645,
-            -56.4841121291588,
-            934.879733073607,
-            -793.6266822967341,
-            -275.1504231116256,
-            215.24774114740399,
-            -168.7665670420078,
-            120.00978725990983,
-            -91.52749366600443,
-            91.31537314633039,
-            -79.66066975211874,
-            -78.275130978191,
-            -55.44407908044559,
-            44.273305,
-            2872.564565082923
+            472.71201652576747,
+            -8.709291824710363,
+            144.14921487527667,
+            -122.36939053222332,
+            -42.425475770815765,
+            33.189074265269284,
+            -26.022136618920328,
+            18.504323068369413,
+            -14.112634903400583,
+            14.079928015778343,
+            -12.28288794265957,
+            -12.0692515578122,
+            -8.548929007855305,
+            6.826506,
+            442.9210646955397
           ],
           "wf_mensal_type06_labels": [],
           "wf_mensal_type06_values": [],
@@ -3334,16 +3334,16 @@
             "Real"
           ],
           "wf_oficinas_values": [
-            3065.773783177864,
-            -56.48411212915789,
-            -66.52229628282026,
-            -50.87945719430547,
-            -43.79511820642631,
-            -25.28442455220261,
-            24.6149344926784,
-            15.884027898670638,
-            9.25722787862253,
-            2872.564565082923
+            472.7120165257674,
+            -8.709291824710306,
+            -10.257080607943912,
+            -7.845109427847575,
+            -6.7527743745935,
+            -3.898608365153436,
+            3.795379614937687,
+            2.449160110811917,
+            1.4273730442714623,
+            442.9210646955397
           ],
           "tabelas": [
             {
@@ -3367,7 +3367,7 @@
                   "02S2803",
                   "MOTOR EB2FAMK EURO 6.1 BVM",
                   "",
-                  -892202.5494754161
+                  -137568.81496806972
                 ],
                 [
                   "BS",
@@ -3377,7 +3377,7 @@
                   "02S2227",
                   "PROV CPC27",
                   "Melhoria de Ativos",
-                  -350261.5978305917
+                  -54006.87654469073
                 ],
                 [
                   "GS",
@@ -3387,7 +3387,7 @@
                   "02S2029",
                   "Transf. MI FPT - Porto Real",
                   "",
-                  327287.6496057966
+                  50464.52079343098
                 ],
                 [
                   "GS",
@@ -3397,7 +3397,7 @@
                   "02S3036",
                   "Consumption Material _ PEP SC MAT JAN_26",
                   "",
-                  -172296.26340190446
+                  -26566.380911557237
                 ],
                 [
                   "AS",
@@ -3407,7 +3407,7 @@
                   "02S2248",
                   "PROV CPC27",
                   "Melhoria de Ativos",
-                  -167837.77
+                  -25878.925294888595
                 ],
                 [
                   "AS",
@@ -3417,7 +3417,7 @@
                   "02S2248",
                   "R133 - Peças de Reposição das Máquinas _ PEP MON M",
                   "",
-                  -99995.48
+                  -15418.314702027597
                 ],
                 [
                   "GS",
@@ -3427,7 +3427,7 @@
                   "02S2029",
                   "MOTOR LINEAR (SEC) LSS120-B1-1050A BOSCH",
                   "",
-                  -86022.07916489751
+                  -13263.75440057012
                 ],
                 [
                   "GS",
@@ -3437,7 +3437,7 @@
                   "02S2029",
                   "PROTECAO TELESCOPICA LANDIS D213041",
                   "",
-                  -69802.47249905232
+                  -10762.851360581655
                 ],
                 [
                   "AS",
@@ -3447,7 +3447,7 @@
                   "02S2248",
                   "BOMBA DE BAIXA ES06003 CLEMESSY RAMBURE",
                   "",
-                  59707.64
+                  9206.32796237761
                 ],
                 [
                   "SM",
@@ -3457,7 +3457,7 @@
                   "02S3030",
                   "TELA LCD TP FANUC R30IA  FANUC",
                   "",
-                  55656.68187892923
+                  8581.710258103343
                 ]
               ]
             },
@@ -3482,7 +3482,7 @@
                   "02S2332",
                   "Provisão PNDs dez",
                   "",
-                  448222.02395800437
+                  69111.40605319626
                 ],
                 [
                   "QY",
@@ -3492,7 +3492,7 @@
                   "02S2408",
                   "Provisão PNDs dez",
                   "",
-                  161814.4413467419
+                  24950.187548645732
                 ],
                 [
                   "PL",
@@ -3502,7 +3502,7 @@
                   "02S2332",
                   "Provisão PNDs jan",
                   "",
-                  -134990.88449792212
+                  -20814.260195501058
                 ],
                 [
                   "QY",
@@ -3512,7 +3512,7 @@
                   "02S2408",
                   "Provisão PNDs jan",
                   "",
-                  -37973.869242678804
+                  -5855.195319201111
                 ],
                 [
                   "PL",
@@ -3522,7 +3522,7 @@
                   "02S2332",
                   "Pnd",
                   "",
-                  -35683.06517142191
+                  -5501.975972773404
                 ],
                 [
                   "PL",
@@ -3532,7 +3532,7 @@
                   "02S2332",
                   "783_2025_442/1_LOG_PIBR",
                   "NITTO DENKO AMERICA LATINA LTDA",
-                  -34746.81782795962
+                  -5357.615885893087
                 ],
                 [
                   "PL",
@@ -3542,7 +3542,7 @@
                   "02S2332",
                   "785_2025_3199/1_LOG_PIBR",
                   "FAURECIA AUTOMOTIVE DO BRASIL LTDA",
-                  -31791.034953301765
+                  -4901.863380356451
                 ],
                 [
                   "AS",
@@ -3552,7 +3552,7 @@
                   "02S2246",
                   "Provisão PNDs dez",
                   "",
-                  30770.0
+                  4744.429882044561
                 ],
                 [
                   "PL",
@@ -3562,7 +3562,7 @@
                   "02S2332",
                   "785_2025_3401/1_LOG_PIBR",
                   "APTIV MANUFATURA E SERVI. DE DIST.",
-                  -22666.4583892868
+                  -3494.943857726744
                 ],
                 [
                   "AS",
@@ -3572,7 +3572,7 @@
                   "02S2246",
                   "785_2025_3383/1_QUA_PIBR",
                   "BENTELER SISTEMAS AUTOMOTIVOS LTDA",
-                  -18730.0
+                  -2887.9808804255645
                 ]
               ]
             },
@@ -3597,7 +3597,7 @@
                   "02S3035",
                   "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  338679.6
+                  52221.04695089044
                 ],
                 [
                   "SM",
@@ -3607,7 +3607,7 @@
                   "02S2017",
                   "0057100745-0066 1 10137 PARTICIPACAO NOS RESULTADO",
                   "",
-                  160746.86555103023
+                  24785.577912424676
                 ],
                 [
                   "PS",
@@ -3617,7 +3617,7 @@
                   "02S2263",
                   "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  129307.4551975201
+                  19937.93157004396
                 ],
                 [
                   "BS",
@@ -3627,7 +3627,7 @@
                   "02S2229",
                   "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  113327.2055842703
+                  17473.93502185958
                 ],
                 [
                   "GS",
@@ -3637,7 +3637,7 @@
                   "02S2819",
                   "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  112498.31347747096
+                  17346.128051417927
                 ],
                 [
                   "SM",
@@ -3647,7 +3647,7 @@
                   "02S2810",
                   "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  94864.1261288257
+                  14627.110651272174
                 ],
                 [
                   "SM",
@@ -3657,7 +3657,7 @@
                   "02S1908",
                   "CUSTO EFF INSS",
                   "",
-                  -81281.83310790847
+                  -12532.855309214166
                 ],
                 [
                   "BS",
@@ -3667,7 +3667,7 @@
                   "02S2229",
                   "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  68915.19258502923
+                  10626.04156734704
                 ],
                 [
                   "SM",
@@ -3677,7 +3677,7 @@
                   "02S1908",
                   "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  65922.52832681108
+                  10164.602316985749
                 ],
                 [
                   "GS",
@@ -3687,7 +3687,7 @@
                   "02S3036",
                   "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                   "",
-                  59463.39426666323
+                  9168.667684320904
                 ]
               ]
             },
@@ -3712,7 +3712,7 @@
                   "02S3035",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  318035.11
+                  49037.87063449233
                 ],
                 [
                   "BS",
@@ -3722,7 +3722,7 @@
                   "02S2229",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  167198.655899671
+                  25780.380217357335
                 ],
                 [
                   "PS",
@@ -3732,7 +3732,7 @@
                   "02S2263",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  128675.86970152831
+                  19840.547328891884
                 ],
                 [
                   "AS",
@@ -3742,7 +3742,7 @@
                   "02S3035",
                   "0054850011-3629 1 4090 PROVISAO DE RESTAURANTE",
                   "",
-                  118620.04
+                  18290.03777657852
                 ],
                 [
                   "AS",
@@ -3752,7 +3752,7 @@
                   "02S3035",
                   "RATEIO -Restaurant - BC",
                   "",
-                  114169.47
+                  17603.80387017192
                 ],
                 [
                   "GS",
@@ -3762,7 +3762,7 @@
                   "02S2819",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  106853.9261521131
+                  16475.819312637897
                 ],
                 [
                   "SM",
@@ -3772,7 +3772,7 @@
                   "02S2810",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  81698.1859603711
+                  12597.052804004488
                 ],
                 [
                   "QY",
@@ -3782,7 +3782,7 @@
                   "02S2405",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  69515.11968938212
+                  10718.544397406848
                 ],
                 [
                   "BS",
@@ -3792,7 +3792,7 @@
                   "02S2229",
                   "RATEIO -Restaurant - BC",
                   "",
-                  61048.28114143174
+                  9413.04157604375
                 ],
                 [
                   "GS",
@@ -3802,7 +3802,7 @@
                   "02S3036",
                   "PROV -Restaurant - BC",
                   "Gr Servicos E Alimentacao Ltda",
-                  56766.74990646687
+                  8752.871776496318
                 ]
               ]
             }
@@ -3828,21 +3828,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              626.6034334540898,
-              -8.089224182395583,
-              -244.67607049130027,
-              90.85485285038074,
-              88.15075290253226,
-              33.959800370446594,
-              -25.893566577485103,
-              -12.852441520237164,
-              6.909592625056492,
-              4.9765877752623995,
-              4.833315346114112,
-              -3.6782507611195716,
-              3.356178225972423,
-              10.264131,
-              574.719091065268
+              96.61605634940867,
+              -1.247278418378798,
+              -37.72663179266059,
+              14.00892033773506,
+              13.591974851982467,
+              5.236265572499668,
+              -3.992532044944114,
+              -1.9817194542035566,
+              1.0653908912275836,
+              0.7673406484098989,
+              0.7452494558806739,
+              -0.5671499130552111,
+              0.5174895113672688,
+              1.582628,
+              88.61600355643637
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -3870,7 +3870,7 @@
                     "02S2248",
                     "PROV CPC27",
                     "Melhoria de Ativos",
-                    -167837.77
+                    -25878.925294888595
                   ],
                   [
                     "Burden",
@@ -3879,7 +3879,7 @@
                     "02S2248",
                     "R133 - Peças de Reposição das Máquinas _ PEP MON M",
                     "",
-                    -99995.48
+                    -15418.314702027597
                   ],
                   [
                     "Burden",
@@ -3888,7 +3888,7 @@
                     "02S2248",
                     "BOMBA DE BAIXA ES06003 CLEMESSY RAMBURE",
                     "",
-                    59707.64
+                    9206.32796237761
                   ],
                   [
                     "Burden",
@@ -3897,7 +3897,7 @@
                     "02S2248",
                     "RODA DE TRACAO DO AGV ASTI COD IE945101A",
                     "",
-                    36285.46
+                    5594.859301518773
                   ],
                   [
                     "Burden",
@@ -3906,7 +3906,7 @@
                     "02S2248",
                     "BOMBA SV40 B DOT 960305V2013 LEYBOLD",
                     "",
-                    32736.0
+                    5047.5676509135765
                   ],
                   [
                     "Burden",
@@ -3915,7 +3915,7 @@
                     "02S2248",
                     "RODA TRASEIRA POLIUR VER DIAM. 1AGV ASTI",
                     "",
-                    17636.52
+                    2719.3770719296895
                   ],
                   [
                     "Burden",
@@ -3924,7 +3924,7 @@
                     "02S2248",
                     "RODA GUIA DIANTEIRA AGV TH80K11FK ASTI",
                     "",
-                    17545.04
+                    2705.271760080179
                   ],
                   [
                     "Burden",
@@ -3933,7 +3933,7 @@
                     "02S2248",
                     "KIT REPARO SV40B DOT 971445760 LEYBOLD",
                     "",
-                    17220.5
+                    2655.2308996993293
                   ],
                   [
                     "Burden",
@@ -3942,7 +3942,7 @@
                     "02S2248",
                     "PLACA DEVICE NET AB4004-C ANYBUS",
                     "",
-                    15960.0
+                    2460.874257960065
                   ],
                   [
                     "Burden",
@@ -3951,7 +3951,7 @@
                     "02S2248",
                     "CONECTOR TERM MACHO 9330102601 HARTING",
                     "",
-                    14847.7
+                    2289.3685914732864
                   ]
                 ]
               },
@@ -3974,7 +3974,7 @@
                     "02S2246",
                     "Provisão PNDs dez",
                     "",
-                    30770.0
+                    4744.429882044561
                   ],
                   [
                     "Burden",
@@ -3983,7 +3983,7 @@
                     "02S2246",
                     "785_2025_3383/1_QUA_PIBR",
                     "BENTELER SISTEMAS AUTOMOTIVOS LTDA",
-                    -18730.0
+                    -2887.9808804255645
                   ],
                   [
                     "Burden",
@@ -3992,7 +3992,7 @@
                     "02S2246",
                     "785_2025_3481/1_QUA_PIBR",
                     "COOPER STANDARD AUTOMOTIVE BRASIL S",
-                    -12040.0
+                    -1856.4490016189961
                   ]
                 ]
               },
@@ -4015,7 +4015,7 @@
                     "02S3035",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    338679.6
+                    52221.04695089044
                   ],
                   [
                     "Labor",
@@ -4024,7 +4024,7 @@
                     "02S3035",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    56446.6
+                    8703.507825148408
                   ],
                   [
                     "Labor",
@@ -4033,7 +4033,7 @@
                     "02S2248",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    27416.92
+                    4227.418086500655
                   ],
                   [
                     "Labor",
@@ -4042,7 +4042,7 @@
                     "02S3035",
                     "0054850017-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    26915.7
+                    4150.134916351862
                   ],
                   [
                     "Labor",
@@ -4051,7 +4051,7 @@
                     "02S3035",
                     "PROVISÃO BENEFÍCIOS",
                     "",
-                    -16844.89
+                    -2597.31555007324
                   ],
                   [
                     "Labor",
@@ -4060,7 +4060,7 @@
                     "02S3035",
                     "0054850017-0537 1 4090 DESC PLANO DE SAUDE",
                     "",
-                    -15093.36
+                    -2327.2469354714362
                   ],
                   [
                     "Labor",
@@ -4069,7 +4069,7 @@
                     "02S2239",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    6451.04
+                    994.6866085883894
                   ],
                   [
                     "Labor",
@@ -4078,7 +4078,7 @@
                     "02S2239",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    6451.04
+                    994.6866085883894
                   ],
                   [
                     "Labor",
@@ -4087,7 +4087,7 @@
                     "02S3035",
                     "0054850019-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    4485.95
+                    691.6891527253102
                   ],
                   [
                     "Labor",
@@ -4096,7 +4096,7 @@
                     "02S2248",
                     "0054850019-0537 1 4090 DESC PLANO DE SAUDE",
                     "",
-                    -2664.11
+                    -410.7794310384704
                   ]
                 ]
               },
@@ -4119,7 +4119,7 @@
                     "02S3035",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    318035.11
+                    49037.87063449233
                   ],
                   [
                     "Labor",
@@ -4128,7 +4128,7 @@
                     "02S3035",
                     "0054850011-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    118620.04
+                    18290.03777657852
                   ],
                   [
                     "Labor",
@@ -4137,7 +4137,7 @@
                     "02S3035",
                     "RATEIO -Restaurant - BC",
                     "",
-                    114169.47
+                    17603.80387017192
                   ],
                   [
                     "Labor",
@@ -4146,7 +4146,7 @@
                     "02S2248",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    24066.16
+                    3710.7640120268293
                   ],
                   [
                     "Labor",
@@ -4155,7 +4155,7 @@
                     "02S3035",
                     "CUSTO EFF PROJ - ITATIAIA",
                     "",
-                    -20847.78
+                    -3214.5216251638267
                   ],
                   [
                     "Labor",
@@ -4164,7 +4164,7 @@
                     "02S3035",
                     "CUSTO EFF PROJ - LC",
                     "",
-                    -14716.08
+                    -2269.0740883509366
                   ],
                   [
                     "Labor",
@@ -4173,7 +4173,7 @@
                     "02S2239",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    12185.199999999999
+                    1878.837406522242
                   ],
                   [
                     "Labor",
@@ -4182,7 +4182,7 @@
                     "02S2248",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    9648.52
+                    1487.7064220183486
                   ],
                   [
                     "Labor",
@@ -4191,7 +4191,7 @@
                     "02S2248",
                     "RATEIO -Restaurant - BC",
                     "",
-                    8313.31
+                    1281.8302366818286
                   ],
                   [
                     "Labor",
@@ -4200,7 +4200,7 @@
                     "02S3035",
                     "CUSTO EFF PROJ - HVAC",
                     "",
-                    -4905.36
+                    -756.3580294503122
                   ]
                 ]
               }
@@ -4225,21 +4225,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              699.5286045503501,
-              -15.748797375045797,
-              -176.03040964114106,
-              58.86185389682323,
-              56.30599749941409,
-              54.79956617341575,
-              -16.51526134412834,
-              -13.32085577123293,
-              12.37692430035033,
-              11.487526796753997,
-              10.629391176201914,
-              7.671956541031837,
-              5.113573042686726,
-              4.503765,
-              699.663835073975
+              107.86039697021818,
+              -2.428308900631521,
+              -27.1421493548903,
+              9.075916104667831,
+              8.681828309215032,
+              8.449551487690346,
+              -2.5464900692511527,
+              -2.053944302094354,
+              1.9083993987125638,
+              1.7712630940951333,
+              1.6389470628636056,
+              1.1829398721813025,
+              0.7884624227409954,
+              0.694436,
+              107.88124818039857
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -4267,7 +4267,7 @@
                     "02S2227",
                     "PROV CPC27",
                     "Melhoria de Ativos",
-                    -350261.5978305917
+                    -54006.87654469073
                   ],
                   [
                     "Burden",
@@ -4276,7 +4276,7 @@
                     "02S2227",
                     "CONSERTO E REPARO DE EQUIPAMENTOS",
                     "TECPEN MANUTENCAO E COMERCIO INDUST",
-                    50480.75697717286
+                    7783.633794953799
                   ],
                   [
                     "Burden",
@@ -4285,7 +4285,7 @@
                     "02S2220",
                     "TELA LCD TP FANUC R30IA  FANUC",
                     "",
-                    39758.60279342296
+                    6130.383593157499
                   ],
                   [
                     "Burden",
@@ -4294,7 +4294,7 @@
                     "02S2220",
                     "PROV CPC27",
                     "Melhoria de Ativos",
-                    -39758.60279342296
+                    -6130.383593157499
                   ],
                   [
                     "Burden",
@@ -4303,7 +4303,7 @@
                     "02S2227",
                     "CONSERTO E REPARO DE EQUIPAMENTOS",
                     "AIR-BOMM TECNOLOGIA LTDA",
-                    39671.47859612314
+                    6116.949903033404
                   ],
                   [
                     "Burden",
@@ -4312,7 +4312,7 @@
                     "02S2227",
                     "FONTE ALIMENTACAO A16B-2203-0370 FANUC",
                     "",
-                    38498.791648380255
+                    5936.133166044292
                   ],
                   [
                     "Burden",
@@ -4321,7 +4321,7 @@
                     "02S3039",
                     "PISTOLA DE APLICACO SILICONE 05J1275",
                     "",
-                    38153.8937769768
+                    5882.953323101812
                   ],
                   [
                     "Burden",
@@ -4330,7 +4330,7 @@
                     "02S2227",
                     "MOTOR ELTRICO-A06B-0041-B605S042-FANUC",
                     "",
-                    35214.1191998366
+                    5429.669138823005
                   ],
                   [
                     "Burden",
@@ -4339,7 +4339,7 @@
                     "02S2227",
                     "SERVO AMPLIFICADOR A06B-6240-H209 FANUC",
                     "",
-                    29959.157955899023
+                    4619.40605287164
                   ],
                   [
                     "Burden",
@@ -4348,7 +4348,7 @@
                     "02S2227",
                     "MOTOR ELTRICO-A06B-0238-B605S000-FANUC",
                     "",
-                    29459.421156847522
+                    4542.351577649761
                   ]
                 ]
               },
@@ -4371,7 +4371,7 @@
                     "02S2229",
                     "F81401009-6151 1 4090 SALARIO MENSAL - GESTIONAL",
                     "",
-                    145683.33775043735
+                    22462.930807252695
                   ],
                   [
                     "Labor",
@@ -4380,7 +4380,7 @@
                     "02S2229",
                     "F81401009-6283 1 4090 AJUSTE PROV. BANCO DE HORAS",
                     "",
-                    -121702.26712815173
+                    -18765.2867362812
                   ],
                   [
                     "Labor",
@@ -4389,7 +4389,7 @@
                     "02S2229",
                     "F81401009-6280 1 4090 PROV. BANCO DE HORAS - GESTI",
                     "",
-                    115639.55299929735
+                    17830.476138971142
                   ],
                   [
                     "Labor",
@@ -4398,7 +4398,7 @@
                     "02S2229",
                     "F81401009-6037 1 4090 ESTORNO PROVISAO PLR ACUMULA",
                     "",
-                    -47108.73243152174
+                    -7263.700937710545
                   ],
                   [
                     "Labor",
@@ -4407,7 +4407,7 @@
                     "02S2229",
                     "F81401009-6053 1 4090 GPS - CONTRIB EMPRESA - GEST",
                     "",
-                    43324.57957121019
+                    6680.221967652485
                   ],
                   [
                     "Labor",
@@ -4416,7 +4416,7 @@
                     "02S2229",
                     "F81401009-6284 1 4090 AJUSTE PROV. BANCO DE HORAS",
                     "",
-                    -32938.055333352604
+                    -5078.72258628519
                   ],
                   [
                     "Labor",
@@ -4425,7 +4425,7 @@
                     "02S2229",
                     "F81401009-6281 1 4090 PROV. BANCO DE HORAS INSS -",
                     "",
-                    31006.18664719848
+                    4780.847528671417
                   ],
                   [
                     "Labor",
@@ -4434,7 +4434,7 @@
                     "02S2229",
                     "F81401009-6040 1 4090 FERIAS - GESTIONAL",
                     "",
-                    30708.540002581285
+                    4734.953357887794
                   ],
                   [
                     "Labor",
@@ -4443,7 +4443,7 @@
                     "02S2229",
                     "F81401009-7180 1 4090 ESTORNO PROVISAO FERIAS - GE",
                     "",
-                    -30708.540002581285
+                    -4734.953357887794
                   ],
                   [
                     "Labor",
@@ -4452,7 +4452,7 @@
                     "02S2229",
                     "F81401009-6152 1 4090 SALARIOS - GESTIONAL",
                     "",
-                    26576.07077375152
+                    4097.767446419169
                   ]
                 ]
               },
@@ -4475,7 +4475,7 @@
                     "02S2229",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    113327.2055842703
+                    17473.93502185958
                   ],
                   [
                     "Labor",
@@ -4484,7 +4484,7 @@
                     "02S2229",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    68915.19258502923
+                    10626.04156734704
                   ],
                   [
                     "Labor",
@@ -4493,7 +4493,7 @@
                     "02S3039",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    50537.80789568811
+                    7792.430482721164
                   ],
                   [
                     "Labor",
@@ -4502,7 +4502,7 @@
                     "02S2218",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    24503.17958578817
+                    3778.148112834503
                   ],
                   [
                     "Labor",
@@ -4511,7 +4511,7 @@
                     "02S2220",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    15314.487241117607
+                    2361.3425705215645
                   ],
                   [
                     "Labor",
@@ -4520,7 +4520,7 @@
                     "02S2229",
                     "0054850017-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    9006.391490200602
+                    1388.6965523399278
                   ],
                   [
                     "Labor",
@@ -4529,7 +4529,7 @@
                     "02S2229",
                     "PROVISÃO BENEFÍCIOS",
                     "",
-                    -7771.155541082903
+                    -1198.235377547283
                   ],
                   [
                     "Labor",
@@ -4538,7 +4538,7 @@
                     "02S2229",
                     "0054850017-0537 1 4090 DESC PLANO DE SAUDE",
                     "",
-                    -6197.725773236811
+                    -955.628058474568
                   ],
                   [
                     "Labor",
@@ -4547,7 +4547,7 @@
                     "02S2229",
                     "0054850019-0537 1 4090 DESC PLANO DE SAUDE",
                     "",
-                    -6159.609530407222
+                    -949.750910555427
                   ],
                   [
                     "Labor",
@@ -4556,7 +4556,7 @@
                     "02S2229",
                     "0054850019-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    5476.859689986853
+                    844.4776331796858
                   ]
                 ]
               }
@@ -4581,21 +4581,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              293.30390474443465,
-              -6.586532031162108,
-              -103.81329975799721,
-              -83.47086635616198,
-              54.231277587724314,
-              50.20968471285156,
-              42.962446848359654,
-              42.48265127686601,
-              -17.91230281330561,
-              15.248125392123303,
-              -9.939331490812119,
-              8.910905966842492,
-              8.271418443640552,
-              2.076518,
-              295.97460059189507
+              45.224563217089596,
+              -1.015578140646383,
+              -16.006984774959093,
+              -12.870382600595478,
+              8.3619270045061,
+              7.741837130961616,
+              6.62438468095901,
+              6.550404945935704,
+              -2.7619000560181344,
+              2.3511102292997172,
+              -1.5325466796410647,
+              1.3739736283775335,
+              1.2753709727300198,
+              0.320179,
+              45.63635812071469
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -4623,7 +4623,7 @@
                     "02S2029",
                     "Transf. MI FPT - Porto Real",
                     "",
-                    327287.6496057966
+                    50464.52079343098
                   ],
                   [
                     "Burden",
@@ -4632,7 +4632,7 @@
                     "02S3036",
                     "Consumption Material _ PEP SC MAT JAN_26",
                     "",
-                    -172296.26340190446
+                    -26566.380911557237
                   ],
                   [
                     "Burden",
@@ -4641,7 +4641,7 @@
                     "02S2029",
                     "MOTOR LINEAR (SEC) LSS120-B1-1050A BOSCH",
                     "",
-                    -86022.07916489751
+                    -13263.75440057012
                   ],
                   [
                     "Burden",
@@ -4650,7 +4650,7 @@
                     "02S2029",
                     "PROTECAO TELESCOPICA LANDIS D213041",
                     "",
-                    -69802.47249905232
+                    -10762.851360581655
                   ],
                   [
                     "Burden",
@@ -4659,7 +4659,7 @@
                     "02S3036",
                     "TUBO METALON 40 X 40 X 3,0 STALX",
                     "",
-                    49067.445658111894
+                    7565.715158139217
                   ],
                   [
                     "Burden",
@@ -4668,7 +4668,7 @@
                     "02S3036",
                     "TUBO METALON 50 X 50 X 3,0 STALX",
                     "",
-                    43186.70795920994
+                    6658.963527748044
                   ],
                   [
                     "Burden",
@@ -4677,7 +4677,7 @@
                     "02S3036",
                     "JACK RJ45 CAT6A SL BLINDADO CZ COMMSCOPE",
                     "",
-                    42795.44136561711
+                    6598.634086133237
                   ],
                   [
                     "Burden",
@@ -4686,7 +4686,7 @@
                     "02S3036",
                     "CHAPA LISA 4,75MM X 1200 X 3000MM",
                     "",
-                    40662.53818647041
+                    6269.761496641802
                   ],
                   [
                     "Burden",
@@ -4695,7 +4695,7 @@
                     "02S3036",
                     "BARRA CHATA 6 X 1/4 X 6000 MM",
                     "",
-                    34882.397376889974
+                    5378.520912325954
                   ],
                   [
                     "Burden",
@@ -4704,7 +4704,7 @@
                     "02S2029",
                     "FUSO DE ESF DANOBAT DES 16147636",
                     "",
-                    -32985.6950959689
+                    -5086.06816682891
                   ]
                 ]
               },
@@ -4727,7 +4727,7 @@
                     "02S2819",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    106853.9261521131
+                    16475.819312637897
                   ],
                   [
                     "Labor",
@@ -4736,7 +4736,7 @@
                     "02S3036",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    56766.74990646687
+                    8752.871776496318
                   ],
                   [
                     "Labor",
@@ -4745,7 +4745,7 @@
                     "02S2819",
                     "RATEIO -Restaurant - BC",
                     "",
-                    39764.311102799096
+                    6131.26375804473
                   ],
                   [
                     "Labor",
@@ -4754,7 +4754,7 @@
                     "02S2819",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    39024.65740196811
+                    6017.216467807895
                   ],
                   [
                     "Labor",
@@ -4763,7 +4763,7 @@
                     "02S3036",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    20926.265563374203
+                    3226.6233233172775
                   ],
                   [
                     "Labor",
@@ -4772,7 +4772,7 @@
                     "02S2819",
                     "CUSTO EFF PROJ - LIMPEZA",
                     "",
-                    -20774.857030798572
+                    -3203.2776240534376
                   ],
                   [
                     "Labor",
@@ -4781,7 +4781,7 @@
                     "02S3036",
                     "RATEIO -Restaurant - BC",
                     "",
-                    20434.441940544784
+                    3150.7889816582815
                   ],
                   [
                     "Labor",
@@ -4790,7 +4790,7 @@
                     "02S2029",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    20339.01689724189
+                    3136.075383122641
                   ],
                   [
                     "Labor",
@@ -4799,7 +4799,7 @@
                     "02S2029",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    7918.046429384834
+                    1220.8845007146456
                   ],
                   [
                     "Labor",
@@ -4808,7 +4808,7 @@
                     "02S2029",
                     "RATEIO -Restaurant - BC",
                     "",
-                    7179.668251271345
+                    1107.0338834741108
                   ]
                 ]
               },
@@ -4831,7 +4831,7 @@
                     "02S2029",
                     "SERVICO DE ALUGUEL",
                     "OPEA SECURITIZADORA S.A.",
-                    501508.34794270655
+                    77327.63055164699
                   ],
                   [
                     "Burden",
@@ -4840,7 +4840,7 @@
                     "",
                     "",
                     "",
-                    -386187.0824621259
+                    -59546.23120223975
                   ],
                   [
                     "Burden",
@@ -4849,7 +4849,7 @@
                     "02S3036",
                     "Third Part Services / Uma _ PEP SC MAT JAN_26",
                     "",
-                    -265195.4827385377
+                    -40890.522355799505
                   ],
                   [
                     "Burden",
@@ -4858,7 +4858,7 @@
                     "02S2029",
                     "PROV-800005040-VERZANI E SANDR",
                     "",
-                    258385.62639015005
+                    39840.50981268215
                   ],
                   [
                     "Burden",
@@ -4867,7 +4867,7 @@
                     "02S3036",
                     "TRABALHO DE TERCEIROS",
                     "CFN SANTA ANA EIRELI",
-                    246102.17321527336
+                    37946.522737687665
                   ],
                   [
                     "Burden",
@@ -4876,7 +4876,7 @@
                     "02S2029",
                     "PROV-800005040-VERZANI E SANDR",
                     "VERZANI & SANDRINI LTDA",
-                    -193789.21979261254
+                    -29880.382359511612
                   ],
                   [
                     "Burden",
@@ -4885,7 +4885,7 @@
                     "02S2029",
                     "SUBLOCAÇÃO SUBSTAÇÃO ENERGIA PORTO REAL JAN/26",
                     "Compartilhamento SE",
-                    -175391.33920595836
+                    -27043.61101009303
                   ],
                   [
                     "Burden",
@@ -4894,7 +4894,7 @@
                     "02S2032",
                     "PROV-800005040-VERZANI E SANDR",
                     "",
-                    129192.81319507502
+                    19920.254906341073
                   ],
                   [
                     "Burden",
@@ -4903,7 +4903,7 @@
                     "02S2032",
                     "PROV-800005040-VERZANI E SANDR",
                     "VERZANI & SANDRINI LTDA",
-                    -129192.81319507502
+                    -19920.254906341073
                   ],
                   [
                     "Burden",
@@ -4912,7 +4912,7 @@
                     "02S2032",
                     "PROV-800049439-CONSERPRAM COME",
                     "",
-                    125559.26750381192
+                    19359.998073211307
                   ]
                 ]
               }
@@ -4937,21 +4937,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              239.43677232586384,
-              -3.313229035921097,
-              -64.95712068488872,
-              42.1339500540281,
-              30.98008621015468,
-              -27.17767769942619,
-              25.953504603002727,
-              -24.849125546746258,
-              -24.63356573758112,
-              22.28237211080855,
-              -17.15725695665783,
-              15.461682447982191,
-              -10.641436992995729,
-              -18.274869,
-              185.2440860956373
+              36.91878379860671,
+              -0.5108671707533858,
+              -10.015746000291223,
+              6.496638663792782,
+              4.776823099245189,
+              -4.190529288324137,
+              4.001773896076282,
+              -3.831489560827425,
+              -3.798252368758171,
+              3.43572154973534,
+              -2.6454794474840537,
+              2.38403861660353,
+              -1.6408044087573401,
+              -2.817804,
+              28.562807200005743
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -4979,7 +4979,7 @@
                     "02S2329",
                     "TUBO RETANGULAR 20 X 30 X 3 X 6.000",
                     "",
-                    1994.4519096484792
+                    307.524772129902
                   ],
                   [
                     "Burden",
@@ -4988,7 +4988,7 @@
                     "02S2338",
                     "CHUMBADOR EXPANSAO 1/2X3.3/4 INOX",
                     "",
-                    1768.4420877848079
+                    272.6762913861395
                   ],
                   [
                     "Burden",
@@ -4997,7 +4997,7 @@
                     "02S2330",
                     "CHUMBADOR EXPANSAO 1/2X3.3/4 INOX",
                     "",
-                    1768.4420877848079
+                    272.6762913861395
                   ],
                   [
                     "Burden",
@@ -5006,7 +5006,7 @@
                     "02S2329",
                     "FILTRO DE OLEO DO MOTOR TEREX T6450551",
                     "",
-                    978.7834910018756
+                    150.91874042122822
                   ],
                   [
                     "Burden",
@@ -5015,7 +5015,7 @@
                     "",
                     "",
                     "",
-                    -417.9010133316595
+                    -64.43620589494402
                   ]
                 ]
               },
@@ -5038,7 +5038,7 @@
                     "02S2332",
                     "Provisão PNDs dez",
                     "",
-                    448222.02395800437
+                    69111.40605319626
                   ],
                   [
                     "Burden",
@@ -5047,7 +5047,7 @@
                     "02S2332",
                     "Provisão PNDs jan",
                     "",
-                    -134990.88449792212
+                    -20814.260195501058
                   ],
                   [
                     "Burden",
@@ -5056,7 +5056,7 @@
                     "02S2332",
                     "Pnd",
                     "",
-                    -35683.06517142191
+                    -5501.975972773404
                   ],
                   [
                     "Burden",
@@ -5065,7 +5065,7 @@
                     "02S2332",
                     "783_2025_442/1_LOG_PIBR",
                     "NITTO DENKO AMERICA LATINA LTDA",
-                    -34746.81782795962
+                    -5357.615885893087
                   ],
                   [
                     "Burden",
@@ -5074,7 +5074,7 @@
                     "02S2332",
                     "785_2025_3199/1_LOG_PIBR",
                     "FAURECIA AUTOMOTIVE DO BRASIL LTDA",
-                    -31791.034953301765
+                    -4901.863380356451
                   ],
                   [
                     "Burden",
@@ -5083,7 +5083,7 @@
                     "02S2332",
                     "785_2025_3401/1_LOG_PIBR",
                     "APTIV MANUFATURA E SERVI. DE DIST.",
-                    -22666.4583892868
+                    -3494.943857726744
                   ],
                   [
                     "Burden",
@@ -5092,7 +5092,7 @@
                     "02S2332",
                     "785_2025_3514/1_LOG_PIBR",
                     "FAURECIA AUTOMOTIVE DO BRASIL LTDA",
-                    -15461.737632308297
+                    -2384.047125481196
                   ],
                   [
                     "Burden",
@@ -5101,7 +5101,7 @@
                     "02S2332",
                     "783_2025_592/1_LOG_PIBR",
                     "ITAESBRA INDUSTRIA MECANICA LTDA",
-                    -10747.451022094514
+                    -1657.1507242455498
                   ],
                   [
                     "Burden",
@@ -5110,7 +5110,7 @@
                     "02S2332",
                     "785_2025_3506/1_LOG_PIBR",
                     "FAURECIA AUTOMOTIVE DO BRASIL LTDA",
-                    -9568.87936954107
+                    -1475.4266239366386
                   ],
                   [
                     "Burden",
@@ -5119,7 +5119,7 @@
                     "02S2332",
                     "785_2025_3507/1_LOG_PIBR",
                     "FAURECIA AUTOMOTIVE DO BRASIL LTDA",
-                    -9568.87936954107
+                    -1475.4266239366386
                   ]
                 ]
               },
@@ -5142,7 +5142,7 @@
                     "02S2332",
                     "AGENCIAMENTO CORRETAGEM TITULOS EM GERAL",
                     "AESA EMPILHADEIRAS LTDA",
-                    164094.1135265868
+                    25301.69046744072
                   ],
                   [
                     "Burden",
@@ -5151,7 +5151,7 @@
                     "02S2332",
                     "SERVICO DE LOCACAO DE EQUIPAMENTOS E",
                     "VAMOS LOCACAO DE CAMINHOES MAQUINAS",
-                    87172.34295558397
+                    13441.113708362342
                   ],
                   [
                     "Burden",
@@ -5160,7 +5160,7 @@
                     "02S2332",
                     "Rec Jan 26 - Expenses",
                     "",
-                    -66002.1483143739
+                    -10176.878932136906
                   ],
                   [
                     "Burden",
@@ -5169,7 +5169,7 @@
                     "02S3018",
                     "AGENCIAMENTO CORRETAGEM TITULOS EM GERAL",
                     "AESA EMPILHADEIRAS LTDA",
-                    39654.687950019725
+                    6114.36095135606
                   ],
                   [
                     "Burden",
@@ -5178,7 +5178,7 @@
                     "02S3018",
                     "Rec.Jan 26 - Expenses",
                     "",
-                    -39654.687950019725
+                    -6114.36095135606
                   ],
                   [
                     "Burden",
@@ -5187,7 +5187,7 @@
                     "02S2336",
                     "AGENCIAMENTO CORRETAGEM TITULOS EM GERAL",
                     "AESA EMPILHADEIRAS LTDA",
-                    25052.535940255322
+                    3862.8534330823104
                   ],
                   [
                     "Burden",
@@ -5196,7 +5196,7 @@
                     "02S2332",
                     "Rec.Jan 26 - Expenses",
                     "",
-                    -15706.579657297425
+                    -2421.799345817196
                   ],
                   [
                     "Burden",
@@ -5205,7 +5205,7 @@
                     "02S2331",
                     "AGENCIAMENTO CORRETAGEM TITULOS EM GERAL",
                     "AESA EMPILHADEIRAS LTDA",
-                    10647.326995129904
+                    1641.7125888720846
                   ],
                   [
                     "Burden",
@@ -5214,7 +5214,7 @@
                     "02S2331",
                     "0054400052 - ALUGUEL MEIOS DE TRABALHO",
                     "AESA EMPILHADEIRAS LTDA",
-                    -389.7393030930706
+                    -60.09394851485168
                   ],
                   [
                     "Burden",
@@ -5223,7 +5223,7 @@
                     "02S3018",
                     "0054400052 - ALUGUEL MEIOS DE TRABALHO",
                     "AESA EMPILHADEIRAS LTDA",
-                    -138.98883026905085
+                    -21.430703919366408
                   ]
                 ]
               },
@@ -5246,7 +5246,7 @@
                     "02S2307",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    54376.185929177285
+                    8384.270438544027
                   ],
                   [
                     "Labor",
@@ -5255,7 +5255,7 @@
                     "02S2331",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    26357.687123667332
+                    4064.0948459898755
                   ],
                   [
                     "Labor",
@@ -5264,7 +5264,7 @@
                     "02S3018",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    25644.729221733112
+                    3954.163784092685
                   ],
                   [
                     "Labor",
@@ -5273,7 +5273,7 @@
                     "02S2307",
                     "RATEIO -Restaurant - BC",
                     "",
-                    20304.147141020894
+                    3130.698811351614
                   ],
                   [
                     "Labor",
@@ -5282,7 +5282,7 @@
                     "02S2307",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    18138.435986807257
+                    2796.767556365316
                   ],
                   [
                     "Labor",
@@ -5291,7 +5291,7 @@
                     "02S2331",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    10175.220187721145
+                    1568.918385278104
                   ],
                   [
                     "Labor",
@@ -5300,7 +5300,7 @@
                     "02S3018",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    9732.819309994138
+                    1500.7045424399257
                   ],
                   [
                     "Labor",
@@ -5309,7 +5309,7 @@
                     "02S3018",
                     "RATEIO -Restaurant - BC",
                     "",
-                    9504.073518222755
+                    1465.4342021775892
                   ],
                   [
                     "Labor",
@@ -5318,7 +5318,7 @@
                     "02S2331",
                     "RATEIO -Restaurant - BC",
                     "",
-                    9072.07088510227
+                    1398.8236658857868
                   ],
                   [
                     "Labor",
@@ -5327,7 +5327,7 @@
                     "02S3018",
                     "CUSTO EFF PROJ - TECH CENTER",
                     "",
-                    -7088.204294925799
+                    -1092.9310453975481
                   ]
                 ]
               }
@@ -5352,21 +5352,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              641.6163005363578,
-              -7.772791398166078,
-              -105.23254660775035,
-              43.118970028461256,
-              41.97984489118946,
-              38.6348060232154,
-              -26.493205795213314,
-              25.7038495192225,
-              -19.555361300390516,
-              -18.912488746828743,
-              -12.08028578269768,
-              -9.694892739978506,
-              8.530500595972926,
-              8.716385,
-              608.559084585989
+              98.93089207252453,
+              -1.1984876105413775,
+              -16.225818611942074,
+              6.648519008320292,
+              6.472877170794766,
+              5.957105238334036,
+              -4.084990485731758,
+              3.9632795496449784,
+              -3.0152434354160054,
+              -2.91611884154325,
+              -1.8626606711429612,
+              -1.4948566401940493,
+              1.3153188799588198,
+              1.34398,
+              93.83379609682972
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -5394,7 +5394,7 @@
                     "02S2253",
                     "PROV CPC27",
                     "Melhoria de Ativos",
-                    -29286.680266888947
+                    -4515.71663971767
                   ],
                   [
                     "Burden",
@@ -5403,7 +5403,7 @@
                     "02S2253",
                     "CONJUNTO DE CELULA REF. CLTUB 800-2,50",
                     "",
-                    26760.612060577503
+                    4126.221888917971
                   ],
                   [
                     "Burden",
@@ -5412,7 +5412,7 @@
                     "02S2264",
                     "PROV CPC27",
                     "Melhoria de Ativos",
-                    -19173.636778889595
+                    -2956.385287007878
                   ],
                   [
                     "Burden",
@@ -5421,7 +5421,7 @@
                     "02S2264",
                     "COUPELLE 50 EC HI-TE AL 910003159 SAMES",
                     "",
-                    17975.722646680173
+                    2771.6787675090854
                   ],
                   [
                     "Burden",
@@ -5430,7 +5430,7 @@
                     "02S2264",
                     "SENSOR DE PRESSAO PN2094 IFM",
                     "",
-                    14846.942709272516
+                    2289.251824727857
                   ],
                   [
                     "Burden",
@@ -5439,7 +5439,7 @@
                     "02S2264",
                     "CONJUNTO CONTATO ELETRICO CATAFORESE",
                     "",
-                    11261.970975397824
+                    1736.4846157424754
                   ],
                   [
                     "Burden",
@@ -5448,7 +5448,7 @@
                     "02S2264",
                     "TRANSMISSOR SP96FA 0,3BAR SITRON",
                     "",
-                    8375.014930098856
+                    1291.3445270370605
                   ],
                   [
                     "Burden",
@@ -5457,7 +5457,7 @@
                     "02S2264",
                     "HASTE 16A462 BOMBA PNEUMTICA GRACO",
                     "",
-                    7995.275543966515
+                    1232.7924668825094
                   ],
                   [
                     "Burden",
@@ -5466,7 +5466,7 @@
                     "02S2264",
                     "IGNITION ELECTRODE ZE 16-1200 BERU",
                     "",
-                    7559.81262714004
+                    1165.6483890432564
                   ],
                   [
                     "Burden",
@@ -5475,7 +5475,7 @@
                     "02S2264",
                     "AGULHA M32020161 D6,8 M6 L38 SW8 DURR",
                     "",
-                    4868.920494365871
+                    750.739417834534
                   ]
                 ]
               },
@@ -5498,7 +5498,7 @@
                     "02S2263",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    128675.86970152831
+                    19840.547328891884
                   ],
                   [
                     "Labor",
@@ -5507,7 +5507,7 @@
                     "02S2263",
                     "RATEIO -Restaurant - BC",
                     "",
-                    46603.781874083885
+                    7185.842552476121
                   ],
                   [
                     "Labor",
@@ -5516,7 +5516,7 @@
                     "02S2263",
                     "0054850011-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    44395.7846369741
+                    6845.391201445394
                   ],
                   [
                     "Labor",
@@ -5525,7 +5525,7 @@
                     "02S2253",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    22339.52336640854
+                    3444.5337084894827
                   ],
                   [
                     "Labor",
@@ -5534,7 +5534,7 @@
                     "02S2264",
                     "PROV -Restaurant - BC",
                     "Gr Servicos E Alimentacao Ltda",
-                    18169.107449289157
+                    2801.496792735974
                   ],
                   [
                     "Labor",
@@ -5543,7 +5543,7 @@
                     "02S2253",
                     "RATEIO -Restaurant - BC",
                     "",
-                    8128.566151164703
+                    1253.3445611232291
                   ],
                   [
                     "Labor",
@@ -5552,7 +5552,7 @@
                     "02S2253",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    7214.315003508291
+                    1112.3760702348764
                   ],
                   [
                     "Labor",
@@ -5561,7 +5561,7 @@
                     "02S2264",
                     "RATEIO -Restaurant - BC",
                     "",
-                    7044.7586347125325
+                    1086.2321539916015
                   ],
                   [
                     "Labor",
@@ -5570,7 +5570,7 @@
                     "02S2264",
                     "0054850012-3629 1 4090 PROVISAO DE RESTAURANTE",
                     "",
-                    6659.367695546115
+                    1026.808680216809
                   ],
                   [
                     "Labor",
@@ -5579,7 +5579,7 @@
                     "02S2263",
                     "CUSTO EFF PROJ - LC",
                     "",
-                    -3597.2623950578013
+                    -554.6623074640045
                   ]
                 ]
               },
@@ -5602,7 +5602,7 @@
                     "02S2263",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    129307.4551975201
+                    19937.93157004396
                   ],
                   [
                     "Labor",
@@ -5611,7 +5611,7 @@
                     "02S2263",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    28384.563336041
+                    4376.619125131601
                   ],
                   [
                     "Labor",
@@ -5620,7 +5620,7 @@
                     "02S2253",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    20499.962409362943
+                    3160.891590372823
                   ],
                   [
                     "Labor",
@@ -5629,7 +5629,7 @@
                     "02S2264",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    18923.04222402733
+                    2917.746083421067
                   ],
                   [
                     "Labor",
@@ -5638,7 +5638,7 @@
                     "02S2263",
                     "0054850017-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    10276.381192902943
+                    1584.5164124435962
                   ],
                   [
                     "Labor",
@@ -5647,7 +5647,7 @@
                     "02S2263",
                     "0054850017-0537 1 4090 DESC PLANO DE SAUDE",
                     "",
-                    -9096.076830614582
+                    -1402.5251454189472
                   ],
                   [
                     "Labor",
@@ -5656,7 +5656,7 @@
                     "02S2263",
                     "PROVISÃO BENEFÍCIOS",
                     "",
-                    -6868.289380112114
+                    -1059.0223390813528
                   ],
                   [
                     "Labor",
@@ -5665,7 +5665,7 @@
                     "02S2264",
                     "0057311009-3773 1 4090 PREVIDENCIA PRIVADA",
                     "",
-                    4091.8123966332987
+                    630.9170297792458
                   ],
                   [
                     "Labor",
@@ -5674,7 +5674,7 @@
                     "02S2253",
                     "0057311009-3773 1 4090 PREVIDENCIA PRIVADA",
                     "",
-                    3307.810968642897
+                    510.0317583290258
                   ],
                   [
                     "Labor",
@@ -5683,7 +5683,7 @@
                     "02S2253",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    3153.840370671222
+                    486.2910139035112
                   ]
                 ]
               }
@@ -5708,21 +5708,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              281.3066465921694,
-              -5.254697112801864,
-              -90.4338303200013,
-              57.19034443299323,
-              -34.10495809497155,
-              25.422364426772237,
-              21.186014972297663,
-              20.12332157889242,
-              -17.35190041188833,
-              17.335813456162313,
-              13.296662563826445,
-              11.657091749669531,
-              -9.36379118701683,
-              9.657801,
-              300.6668839720459
+              43.374704585948564,
+              -0.810222359540802,
+              -13.944002824763134,
+              8.818185865853557,
+              -5.258647458942496,
+              3.919877330471395,
+              3.2666741149175333,
+              3.1028172968764816,
+              -2.6754915445051806,
+              2.673011094929043,
+              2.050213948627931,
+              1.797408333924837,
+              -1.443804053198186,
+              1.489138,
+              46.35986184134545
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -5750,7 +5750,7 @@
                     "02S2411",
                     "FECHADURA DE EMBUTIR INTELBRAS FD3000",
                     "",
-                    1524.6247423110894
+                    235.08206650390707
                   ],
                   [
                     "Burden",
@@ -5759,7 +5759,7 @@
                     "02S3208",
                     "TORNEIRA ESFERA C ALAVANCA 1/2 METAL",
                     "",
-                    58.41367206376171
+                    9.006810895653643
                   ]
                 ]
               },
@@ -5782,7 +5782,7 @@
                     "02S2408",
                     "Provisão PNDs dez",
                     "",
-                    161814.4413467419
+                    24950.187548645732
                   ],
                   [
                     "Burden",
@@ -5791,7 +5791,7 @@
                     "02S2408",
                     "Provisão PNDs jan",
                     "",
-                    -37973.869242678804
+                    -5855.195319201111
                   ],
                   [
                     "Burden",
@@ -5800,7 +5800,7 @@
                     "02S2408",
                     "785_2024_2627/3_QUA_PIBR",
                     "S RIKO AUTOMOTIVE HOSE DO BRASIL LT",
-                    -14855.527518365056
+                    -2290.5755174412234
                   ],
                   [
                     "Burden",
@@ -5809,7 +5809,7 @@
                     "02S2408",
                     "785_2025_1592/3_QUA_PIBR",
                     "S RIKO AUTOMOTIVE HOSE DO BRASIL LT",
-                    -11602.019512766592
+                    -1788.9167393056189
                   ],
                   [
                     "Burden",
@@ -5818,7 +5818,7 @@
                     "02S2408",
                     "785_2025_2684/3_QUA_PIBR",
                     "CLARIOS ENERGY SOLUTIONS BRASIL LTD",
-                    -6412.350387756851
+                    -988.7210527726237
                   ],
                   [
                     "Burden",
@@ -5827,7 +5827,7 @@
                     "02S2408",
                     "785_2025_974/2_QUA_PIBR",
                     "JOHNSON ELECTRIC AUTOMOTIVO BRASIL",
-                    -6135.3288791637815
+                    -946.0070741136044
                   ],
                   [
                     "Burden",
@@ -5836,7 +5836,7 @@
                     "02S2408",
                     "785_2025_3414/1_QUA_PIBR",
                     "MARELLI SISTEMAS AUTOMOTIVOS INDUST",
-                    -5794.532634779501
+                    -893.4596615186956
                   ],
                   [
                     "Burden",
@@ -5845,7 +5845,7 @@
                     "02S2408",
                     "785_2025_3205/1_QUA_PIBR",
                     "VISTEON AMAZONAS LTDA",
-                    -5794.532634779501
+                    -893.4596615186956
                   ],
                   [
                     "Burden",
@@ -5854,7 +5854,7 @@
                     "02S2408",
                     "785_2025_1075/3_QUA_PIBR",
                     "S RIKO AUTOMOTIVE HOSE DO BRASIL LT",
-                    -4434.337097982593
+                    -683.7309533548058
                   ],
                   [
                     "Burden",
@@ -5863,7 +5863,7 @@
                     "02S2408",
                     "785_2025_2491/2_QUA_PIBR",
                     "VISTEON AMAZONAS LTDA",
-                    -4431.347657242381
+                    -683.270011139061
                   ]
                 ]
               },
@@ -5886,7 +5886,7 @@
                     "02S2412",
                     "PROV-800032481-TRIGO BRASIL -",
                     "TRIGO BRASIL - SERVICOS DE ANALISES",
-                    80714.89998575057
+                    12445.439825109948
                   ],
                   [
                     "Burden",
@@ -5895,7 +5895,7 @@
                     "02S2409",
                     "PROV-800032481-TRIGO BRASIL -",
                     "TRIGO BRASIL - SERVICOS DE ANALISES",
-                    79718.41973901291
+                    12291.792419861678
                   ],
                   [
                     "Burden",
@@ -5904,7 +5904,7 @@
                     "02S2408",
                     "LOG OBT RECL IBIZA JANEIRO/26",
                     "",
-                    49485.75711712798
+                    7630.214650702024
                   ],
                   [
                     "Burden",
@@ -5913,7 +5913,7 @@
                     "02S2405",
                     "PROV-800032481-TRIGO BRASIL -",
                     "TRIGO BRASIL - SERVICOS DE ANALISES",
-                    29894.407402129844
+                    4609.422157448128
                   ],
                   [
                     "Burden",
@@ -5922,7 +5922,7 @@
                     "02S2408",
                     "PROV-800032481-TRIGO BRASIL -",
                     "TRIGO BRASIL - SERVICOS DE ANALISES",
-                    24912.006168441534
+                    3841.1851312067743
                   ],
                   [
                     "Burden",
@@ -5931,7 +5931,7 @@
                     "02S2407",
                     "PROV-800032481-TRIGO BRASIL -",
                     "TRIGO BRASIL - SERVICOS DE ANALISES",
-                    13950.72345432726
+                    2151.0636734757936
                   ],
                   [
                     "Burden",
@@ -5940,7 +5940,7 @@
                     "",
                     "",
                     "",
-                    -4088.8222088111397
+                    -630.4559723708487
                   ],
                   [
                     "Burden",
@@ -5949,7 +5949,7 @@
                     "02S2407",
                     "SERVIÇOS MANOBRISA ESTACIONAMENTO VEÍCUL",
                     "AMPRO LABORATORIO E ENGENHARIA LTDA",
-                    189.33124688015567
+                    29.193006997171484
                   ],
                   [
                     "Burden",
@@ -5958,7 +5958,7 @@
                     "02S2405",
                     "0057100230-3977 1 4090 PROVISAO NEA TELETRABALHO",
                     "",
-                    129.65204490303714
+                    19.991063896852538
                   ],
                   [
                     "Burden",
@@ -5990,7 +5990,7 @@
                     "02S2405",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    49819.587964587554
+                    7681.688067934246
                   ],
                   [
                     "Labor",
@@ -5999,7 +5999,7 @@
                     "02S2405",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    27320.419206386723
+                    4212.538617899425
                   ],
                   [
                     "Labor",
@@ -6008,7 +6008,7 @@
                     "02S2411",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    17677.91831001494
+                    2725.760282170216
                   ],
                   [
                     "Labor",
@@ -6017,7 +6017,7 @@
                     "02S2407",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    8035.417413643155
+                    1238.9819464410075
                   ],
                   [
                     "Labor",
@@ -6026,7 +6026,7 @@
                     "02S3043",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    6428.333930914523
+                    991.1855571528059
                   ],
                   [
                     "Labor",
@@ -6035,7 +6035,7 @@
                     "02S2406",
                     "0054850019-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    4821.250448185892
+                    743.3891678646045
                   ],
                   [
                     "Labor",
@@ -6044,7 +6044,7 @@
                     "02S2405",
                     "0054850017-3645 1 4090 PROVISAO DE BENEFICIOS",
                     "",
-                    3959.285069955348
+                    610.4826258507976
                   ],
                   [
                     "Labor",
@@ -6053,7 +6053,7 @@
                     "02S2407",
                     "0057311009-3773 1 4090 PREVIDENCIA PRIVADA",
                     "",
-                    3477.148067373798
+                    536.1418652954742
                   ],
                   [
                     "Labor",
@@ -6062,7 +6062,7 @@
                     "02S3043",
                     "0054850017-3677 1 4090 PROVISAO FEF DOTACOES",
                     "",
-                    3214.1669654572615
+                    495.59277857640296
                   ],
                   [
                     "Labor",
@@ -6071,7 +6071,7 @@
                     "02S2405",
                     "PROVISÃO BENEFÍCIOS",
                     "",
-                    -3194.0280996706933
+                    -492.4875645163354
                   ]
                 ]
               }
@@ -6096,21 +6096,21 @@
               "Real"
             ],
             "wf_budget_values": [
-              283.9781209745989,
-              -9.71884099366622,
-              -180.5536786259319,
-              -175.45963194965597,
-              157.1194296595173,
-              129.37390813831897,
-              102.7854350796802,
-              -95.97322654990518,
-              -67.70913740245902,
-              -58.745737453807536,
-              57.41240569885525,
-              26.396176283556937,
-              -26.041541230976346,
-              64.873302,
-              207.73698369811234
+              43.78661953197115,
+              -1.4985492242180598,
+              -27.83959272622495,
+              -27.054141076193964,
+              24.226263150029645,
+              19.948177956721754,
+              15.848498200552031,
+              -14.79812297431272,
+              -10.440079778345387,
+              -9.058012096801713,
+              8.85242551828776,
+              4.070029494033915,
+              -4.01534827399219,
+              10.002822,
+              32.03098969980917
             ],
             "wf_mensal_labels": [],
             "wf_mensal_values": [],
@@ -6138,7 +6138,7 @@
                     "02S2803",
                     "MOTOR EB2FAMK EURO 6.1 BVM",
                     "",
-                    -892202.5494754161
+                    -137568.81496806972
                   ],
                   [
                     "Burden",
@@ -6147,7 +6147,7 @@
                     "02S3030",
                     "TELA LCD TP FANUC R30IA  FANUC",
                     "",
-                    55656.68187892923
+                    8581.710258103343
                   ],
                   [
                     "Burden",
@@ -6156,7 +6156,7 @@
                     "02S3030",
                     "MOLA PARA FIXACAO POUTRE/FACADE METALTEC",
                     "",
-                    11386.23660064633
+                    1755.6451469657436
                   ],
                   [
                     "Burden",
@@ -6165,7 +6165,7 @@
                     "02S3030",
                     "MENBRANA TECLADO TP R30IA FANUC",
                     "",
-                    4914.13409689436
+                    757.7109084718771
                   ],
                   [
                     "Burden",
@@ -6174,7 +6174,7 @@
                     "02S3030",
                     "BOTAO EMERGENCIA TP R30IA  FANUC",
                     "",
-                    4914.124127236478
+                    757.7093712491678
                   ],
                   [
                     "Burden",
@@ -6183,7 +6183,7 @@
                     "02S3030",
                     "BOTAO ON/OFF TP FANUC R30IA  FANUC",
                     "",
-                    2355.5310677492807
+                    363.1996095519668
                   ]
                 ]
               },
@@ -6206,7 +6206,7 @@
                     "02S2017",
                     "PROV-800047562-GAS VERDE S/A",
                     "GAS VERDE S/A",
-                    -2876246.298919319
+                    -443488.75166437734
                   ],
                   [
                     "Burden",
@@ -6215,7 +6215,7 @@
                     "02S2017",
                     "FORNECIMENTO GAS NATURAL PRODUCAO",
                     "GAS VERDE S/A",
-                    2160393.9570616633
+                    333111.3957384416
                   ],
                   [
                     "Burden",
@@ -6224,7 +6224,7 @@
                     "02S2017",
                     "PROV-800047562-GAS VERDE S/A",
                     "",
-                    1385782.4455798452
+                    213673.95660779357
                   ],
                   [
                     "Burden",
@@ -6233,7 +6233,7 @@
                     "02S2017",
                     "Rateio Gás Natural",
                     "",
-                    -515160.2374948395
+                    -79432.61699095512
                   ],
                   [
                     "Burden",
@@ -6242,7 +6242,7 @@
                     "02S2017",
                     "Prov dez 25",
                     "",
-                    498482.89409346954
+                    76861.13547042935
                   ],
                   [
                     "Burden",
@@ -6251,7 +6251,7 @@
                     "02S2017",
                     "PROV--Gás Industrial",
                     "",
-                    237845.539877943
+                    36673.431482220796
                   ],
                   [
                     "Burden",
@@ -6260,7 +6260,7 @@
                     "02S2017",
                     "FORNECIMENTO GAS NATURAL PRODUCAO",
                     "CEG RIO SA",
-                    19402.63911029987
+                    2991.695183147
                   ]
                 ]
               },
@@ -6283,7 +6283,7 @@
                     "02S2017",
                     "PROV-800032481-TRIGO BRASIL -",
                     "",
-                    912223.6961910493
+                    140655.8779108857
                   ],
                   [
                     "Burden",
@@ -6292,7 +6292,7 @@
                     "02S2803",
                     "Pagamento SUBESTAÇÃO E ANEL DE DISTRIBUIÇÃO INTERN",
                     "IFRS 16",
-                    -477066.6233628212
+                    -73558.95819332683
                   ],
                   [
                     "Burden",
@@ -6301,7 +6301,7 @@
                     "02S2803",
                     "Amortizacao Acumulada Sub. E Anel De Distr. Intern",
                     "IFRS 16",
-                    178874.86396181735
+                    27580.736097728368
                   ],
                   [
                     "Burden",
@@ -6310,7 +6310,7 @@
                     "",
                     "",
                     "",
-                    -81148.40070150043
+                    -12512.281350936772
                   ],
                   [
                     "Burden",
@@ -6319,7 +6319,7 @@
                     "02S2017",
                     "0054900000 - OUTROS SERVICOS",
                     "ASSOCIACAO DESPORTIVA SOCIAL E CULT",
-                    14086.129621293263
+                    2171.9419661233924
                   ],
                   [
                     "Burden",
@@ -6328,7 +6328,7 @@
                     "02S2803",
                     "Estorno de Despesas  SUBESTAÇÃO E ANEL DE DISTRIBU",
                     "IFRS 16",
-                    1025.957553307415
+                    158.19251457981883
                   ],
                   [
                     "Burden",
@@ -6337,7 +6337,7 @@
                     "02S2803",
                     "Reversão Reclas CP SUBESTAÇÃO E ANEL DE DISTRIBUIÇ",
                     "IFRS 16",
-                    -1025.9575533074094
+                    -158.1925145798159
                   ],
                   [
                     "Burden",
@@ -6346,7 +6346,7 @@
                     "02S2017",
                     "LSTL SERVIÇOS DE ACOMPANHAMENTO/ADMINIST",
                     "CAMARA DE COMERCIALIZACAO DE ENERGI",
-                    478.7629108031319
+                    73.82050895121917
                   ],
                   [
                     "Burden",
@@ -6355,7 +6355,7 @@
                     "02S2017",
                     "0057100230-3977 1 4090 PROVISAO NEA TELETRABALHO",
                     "",
-                    389.1456561030079
+                    60.00241401634537
                   ],
                   [
                     "Burden",
@@ -6364,7 +6364,7 @@
                     "02S2027",
                     "0057100230-3977 1 4090 PROVISAO NEA TELETRABALHO",
                     "",
-                    389.1456561030079
+                    60.00241401634537
                   ]
                 ]
               }

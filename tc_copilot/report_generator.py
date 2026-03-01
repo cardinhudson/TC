@@ -364,6 +364,13 @@ def _construir_sumario(
         ("2.3", "sec_real_vs_ano_ant"),
     ]
 
+    import re as _re_toc
+
+    def _sub_presente(sub_id: str, txt: str) -> bool:
+        """Verifica se um sub-tópico existe como header real no texto."""
+        pattern = rf'(^|\n)\s*#{{1,4}}\s*\**{_re_toc.escape(sub_id)}'
+        return bool(_re_toc.search(pattern, txt))
+
     meses_ordenados = sorted(
         dados_relatorio.get("meses", {}).items(),
         key=lambda x: int(x[0]),
@@ -404,8 +411,8 @@ def _construir_sumario(
             if tipo == "comparativos":
                 _txt_comp = secoes.get("comparativos", "")
                 for sub_id, sub_lbl in sub_comparativos:
-                    # Só incluir no TOC se o sub-tópico existe no texto
-                    if sub_id not in _txt_comp:
+                    # Só incluir no TOC se o sub-tópico existe como header real
+                    if not _sub_presente(sub_id, _txt_comp):
                         continue
                     sub_titulo = _substituir_emojis(
                         labels.get(sub_lbl, sub_id)
@@ -497,6 +504,13 @@ def _construir_sumario_mensal(
         ("2.3", "sec_real_vs_ano_ant"),
     ]
 
+    import re as _re_toc_m
+
+    def _sub_presente_m(sub_id: str, txt: str) -> bool:
+        """Verifica se um sub-tópico existe como header real no texto."""
+        pattern = rf'(^|\n)\s*#{{1,4}}\s*\**{_re_toc_m.escape(sub_id)}'
+        return bool(_re_toc_m.search(pattern, txt))
+
     for tipo in secoes_ordem:
         if tipo not in secoes:
             continue
@@ -511,8 +525,8 @@ def _construir_sumario_mensal(
         if tipo == "comparativos":
             _txt_comp = secoes.get("comparativos", "")
             for sub_id, sub_lbl in sub_comp:
-                # Só incluir no TOC se o sub-tópico existe no texto
-                if sub_id not in _txt_comp:
+                # Só incluir no TOC se o sub-tópico existe como header real
+                if not _sub_presente_m(sub_id, _txt_comp):
                     continue
                 sub_titulo = _substituir_emojis(
                     labels.get(sub_lbl, sub_id)
@@ -1695,6 +1709,16 @@ def gerar_relatorio_mes(
 
     if taxas is None:
         taxas = {}
+    # Carregar taxas do banco se não fornecidas e moeda != BRL
+    if moeda != "BRL" and not taxas.get(moeda):
+        try:
+            from tc_core.finance.currency_db import carregar_taxas_banco
+            _taxas_banco = carregar_taxas_banco()
+            for _mk, _mv in _taxas_banco.items():
+                taxas.setdefault(_mk, 1.0 / _mv if _mv > 0 else 1.0)
+        except Exception:
+            taxas.setdefault("USD", 0.20)
+            taxas.setdefault("EUR", 0.18)
     simbolo = obter_simbolo_moeda(moeda)
 
     # Configurar moeda ativa para formatação automática
@@ -2340,6 +2364,16 @@ def gerar_relatorio_mes_local(
 
     if taxas is None:
         taxas = {}
+    # Carregar taxas do banco se não fornecidas e moeda != BRL
+    if moeda != "BRL" and not taxas.get(moeda):
+        try:
+            from tc_core.finance.currency_db import carregar_taxas_banco
+            _taxas_banco = carregar_taxas_banco()
+            for _mk, _mv in _taxas_banco.items():
+                taxas.setdefault(_mk, 1.0 / _mv if _mv > 0 else 1.0)
+        except Exception:
+            taxas.setdefault("USD", 0.20)
+            taxas.setdefault("EUR", 0.18)
     simbolo = obter_simbolo_moeda(moeda)
 
     # Configurar moeda ativa para formatação automática
