@@ -4,6 +4,9 @@ TC Copilot — Página Streamlit principal.
 Três abas:
   1. 💬 Chatbot — consulta inteligente ao vivo (dados parquet)
   2. 📄 Relatório — gerar relatório PDF e exibir na tela
+     2a. Relatório Automático (sem API)
+     2b. Relatório com IA (OpenAI)
+     2c. Biblioteca de PDFs — visualizar/baixar todos os PDFs gerados
   3. ⚙️ Configuração — API key, modelo, idioma
 """
 
@@ -15,6 +18,7 @@ import streamlit as st
 from tc_copilot.config import (
     IDIOMAS,
     MODELOS_LLM,
+    PASTA_RELATORIOS,
     carregar_api_key,
     carregar_idioma,
     carregar_modelo,
@@ -178,12 +182,13 @@ def _render_chatbot():
 # ═══════════════════════════════════════════════════════════════
 
 def _render_gerar_relatorio():
-    """Renderiza a aba de relatório com sub-tabs: Automático (sem API) e Com IA."""
+    """Renderiza a aba de relatório com sub-tabs: Automático, Com IA e Biblioteca."""
     st.subheader("Gerar Relatório Anual")
 
-    sub_auto, sub_ia = st.tabs([
+    sub_auto, sub_ia, sub_biblio = st.tabs([
         "📄 Relatório Automático",
         "🤖 Relatório com IA",
+        "📁 Biblioteca de PDFs",
     ])
 
     with sub_auto:
@@ -191,6 +196,9 @@ def _render_gerar_relatorio():
 
     with sub_ia:
         _render_relatorio_ia()
+
+    with sub_biblio:
+        _render_biblioteca_pdfs()
 
 
 # ── SUB-TAB: RELATÓRIO AUTOMÁTICO (SEM API) ──
@@ -240,17 +248,18 @@ def _render_relatorio_local():
 
     st.divider()
 
-    # ── Seletor de mês ──
+    # ── Seletor de mês (multiselect) ──
     opcoes_meses = {
         f"{obter_nome_mes(m, 'pt-BR')} {'✅' if m in meses_gerados else ''}": m
         for m in meses_disp
     }
-    mes_selecionado_label = st.selectbox(
+    meses_selecionados_labels = st.multiselect(
         "Mês a gerar/regenerar",
         list(opcoes_meses.keys()),
+        default=None,
         key="rel_local_mes",
     )
-    mes_selecionado = opcoes_meses[mes_selecionado_label]
+    meses_selecionados = [opcoes_meses[lbl] for lbl in meses_selecionados_labels]
 
     gerar_todos = st.checkbox(
         "Gerar todos os meses disponíveis de uma vez",
@@ -271,9 +280,12 @@ def _render_relatorio_local():
         )
 
     if btn_gerar:
-        meses_para_gerar = meses_disp if gerar_todos else [mes_selecionado]
+        meses_para_gerar = meses_disp if gerar_todos else meses_selecionados
+        if not meses_para_gerar:
+            st.warning("Selecione ao menos um mês para gerar.")
+            st.stop()
         # Obter configuração de moeda da sessão
-        _moeda = st.session_state.get("copilot_moeda", "BRL")
+        _moeda = st.session_state.get("copilot_moeda", "EUR")
         _taxas = st.session_state.get("copilot_taxas", {})
 
         progress = st.progress(0, text="Iniciando geração...")
@@ -314,13 +326,16 @@ def _render_relatorio_local():
         with col3:
             with open(pdf_existente, "rb") as f:
                 st.download_button(
-                    label="📥 Baixar PDF",
+                    label="📥 Baixar PDF Anual",
                     data=f.read(),
                     file_name=f"relatorio_tc_{ano}_local.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                     key="dl_pdf_local",
                 )
+
+    # ── Downloads mensais individuais ──
+    _render_downloads_mensais(ano, meses_gerados, modo="local")
 
     # ── Exibir relatório ──
     _render_resultado_relatorio(ano, idioma, modo="local")
@@ -374,17 +389,18 @@ def _render_relatorio_ia():
 
     st.divider()
 
-    # ── Selecionar mês para gerar ──
+    # ── Selecionar meses para gerar (multiselect) ──
     opcoes_meses = {
         f"{obter_nome_mes(m, 'pt-BR')} {'✅' if m in meses_gerados else ''}": m
         for m in meses_disp
     }
-    mes_selecionado_label = st.selectbox(
+    meses_selecionados_labels = st.multiselect(
         "Mês a gerar/regenerar",
         list(opcoes_meses.keys()),
+        default=None,
         key="rel_mes",
     )
-    mes_selecionado = opcoes_meses[mes_selecionado_label]
+    meses_selecionados = [opcoes_meses[lbl] for lbl in meses_selecionados_labels]
 
     # ── Opção de gerar múltiplos meses ──
     gerar_todos = st.checkbox(
@@ -408,7 +424,10 @@ def _render_relatorio_ia():
         )
 
     if btn_gerar:
-        meses_para_gerar = meses_disp if gerar_todos else [mes_selecionado]
+        meses_para_gerar = meses_disp if gerar_todos else meses_selecionados
+        if not meses_para_gerar:
+            st.warning("Selecione ao menos um mês para gerar.")
+            st.stop()
 
         progress = st.progress(0, text="Iniciando geração...")
         total = len(meses_para_gerar)
@@ -422,12 +441,16 @@ def _render_relatorio_ia():
             )
 
             try:
+                _moeda_ia = st.session_state.get("copilot_moeda", "EUR")
+                _taxas_ia = st.session_state.get("copilot_taxas", {})
                 pdf_path = gerar_relatorio_mes(
                     ano=ano,
                     mes_numero=mes_num,
                     api_key=api_key,
                     modelo=modelo,
                     idioma=idioma,
+                    moeda=_moeda_ia,
+                    taxas=_taxas_ia,
                 )
             except Exception as e:
                 st.error(f"Erro ao gerar {nome_mes}: {e}")
@@ -450,15 +473,288 @@ def _render_relatorio_ia():
         with col3:
             with open(pdf_existente, "rb") as f:
                 st.download_button(
-                    label="📥 Baixar PDF",
+                    label="📥 Baixar PDF Anual",
                     data=f.read(),
                     file_name=f"relatorio_tc_{ano}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
 
+    # ── Downloads mensais individuais ──
+    _render_downloads_mensais(ano, meses_gerados, modo="ia")
+
     # ── Exibir relatório ──
     _render_resultado_relatorio(ano, idioma, modo="ia")
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BIBLIOTECA DE PDFs
+# ═══════════════════════════════════════════════════════════════
+
+def _render_regenerar_mensais_faltantes():
+    """Verifica se há meses no JSON sem PDF mensal e oferece regeneração."""
+    from tc_copilot.config import caminho_relatorio_mensal
+    from tc_copilot.report_generator import (
+        meses_ja_gerados_local,
+        meses_ja_gerados,
+    )
+
+    faltantes: list[tuple[int, int, str]] = []  # (ano, mes, modo)
+
+    for ano in range(2024, 2028):
+        for modo, fn_meses in [
+            ("local", meses_ja_gerados_local),
+            ("ia", meses_ja_gerados),
+        ]:
+            try:
+                meses = fn_meses(ano)
+            except Exception:
+                continue
+            for m in meses:
+                pdf = str(caminho_relatorio_mensal(ano, m, modo))
+                if not os.path.exists(pdf):
+                    faltantes.append((ano, m, modo))
+
+    if not faltantes:
+        return
+
+    st.warning(
+        f"⚠️ **{len(faltantes)}** PDF(s) mensal(is) "
+        f"faltando para meses já gerados."
+    )
+    if st.button(
+        "🔄 Gerar PDFs mensais faltantes",
+        key="btn_regen_mensais",
+    ):
+        from tc_copilot.report_generator import gerar_pdf_mensal
+        progress = st.progress(0, text="Gerando...")
+        ok = 0
+        for i, (ano, mes, modo) in enumerate(faltantes):
+            progress.progress(
+                (i + 1) / len(faltantes),
+                text=f"Gerando {modo} {mes:02d}/{ano}...",
+            )
+            try:
+                r = gerar_pdf_mensal(ano, mes, modo=modo)
+                if r:
+                    ok += 1
+            except Exception:
+                pass
+        progress.progress(1.0, text="Concluído!")
+        st.success(f"✅ {ok}/{len(faltantes)} PDFs gerados.")
+        st.rerun()
+
+
+def _render_biblioteca_pdfs():
+    """Lista todos os PDFs da pasta documentacao_anual/ com download."""
+    import re
+    from datetime import datetime
+    from pathlib import Path
+
+    st.info(
+        "📁 Todos os relatórios PDF gerados ficam na pasta "
+        "`documentacao_anual/`. Aqui você pode visualizar e baixar qualquer um."
+    )
+
+    # ── Botão para gerar PDFs mensais faltantes ──
+    _render_regenerar_mensais_faltantes()
+
+    pasta = Path(PASTA_RELATORIOS)
+    if not pasta.exists():
+        st.warning("Nenhum relatório gerado ainda.")
+        return
+
+    # Coletar todos os PDFs (ignorar arquivos ocultos / JSON)
+    pdfs = sorted(pasta.glob("*.pdf"), key=lambda p: p.name)
+    if not pdfs:
+        st.warning("Nenhum PDF encontrado na pasta `documentacao_anual/`.")
+        return
+
+    st.success(f"**{len(pdfs)}** PDF(s) encontrado(s)")
+
+    # Classificar PDFs por tipo
+    anuais = []
+    mensais = []
+    outros = []
+    _re_mensal = re.compile(
+        r"relatorio_(\d{4})(_local)?_mes_(\d{2})\.pdf"
+    )
+    _re_anual = re.compile(
+        r"relatorio_(\d{4})(_local)?\.pdf$"
+    )
+
+    for pdf in pdfs:
+        m_mensal = _re_mensal.match(pdf.name)
+        m_anual = _re_anual.match(pdf.name)
+        if m_mensal:
+            mensais.append(pdf)
+        elif m_anual:
+            anuais.append(pdf)
+        else:
+            outros.append(pdf)
+
+    # ── Seção: PDFs Anuais ──
+    if anuais:
+        st.markdown("### 📘 Relatórios Anuais")
+        for pdf in anuais:
+            m = _re_anual.match(pdf.name)
+            ano = m.group(1) if m else "?"
+            modo_label = "Automático" if "_local" in pdf.name else "Com IA"
+            tamanho = pdf.stat().st_size
+            modificado = datetime.fromtimestamp(pdf.stat().st_mtime)
+            tamanho_str = (
+                f"{tamanho / (1024*1024):.1f} MB"
+                if tamanho > 1024 * 1024
+                else f"{tamanho / 1024:.0f} KB"
+            )
+
+            col_info, col_dl = st.columns([3, 1])
+            with col_info:
+                st.markdown(
+                    f"**📘 {pdf.name}**  \n"
+                    f"Ano: {ano} | Modo: {modo_label} | "
+                    f"Tamanho: {tamanho_str} | "
+                    f"Modificado: {modificado:%d/%m/%Y %H:%M}"
+                )
+            with col_dl:
+                with open(pdf, "rb") as f:
+                    st.download_button(
+                        label="📥 Baixar",
+                        data=f.read(),
+                        file_name=pdf.name,
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=f"bib_{pdf.name}",
+                    )
+
+    # ── Seção: PDFs Mensais ──
+    if mensais:
+        st.markdown("### 📅 Relatórios Mensais")
+        try:
+            from tc_copilot.prompts import obter_nome_mes
+        except ImportError:
+            obter_nome_mes = None
+
+        # Separar Local e IA
+        mensais_local = [
+            p for p in mensais if "_local" in p.name
+        ]
+        mensais_ia = [
+            p for p in mensais if "_local" not in p.name
+        ]
+
+        def _listar_mensais(lista, titulo):
+            if not lista:
+                return
+            st.markdown(f"**{titulo}**")
+            # Agrupar por ano
+            por_ano: dict[str, list] = {}
+            for pdf in lista:
+                m = _re_mensal.match(pdf.name)
+                ano_k = m.group(1) if m else "?"
+                por_ano.setdefault(ano_k, []).append(pdf)
+            for ano_k in sorted(por_ano, reverse=True):
+                for pdf in por_ano[ano_k]:
+                    m = _re_mensal.match(pdf.name)
+                    mes_num = int(m.group(3)) if m else 0
+                    nome_mes = (
+                        obter_nome_mes(mes_num, "pt-BR")
+                        if obter_nome_mes and mes_num
+                        else f"Mês {mes_num}"
+                    )
+                    sz = pdf.stat().st_size
+                    sz_str = (
+                        f"{sz / (1024*1024):.1f} MB"
+                        if sz > 1024 * 1024
+                        else f"{sz / 1024:.0f} KB"
+                    )
+                    mod = datetime.fromtimestamp(
+                        pdf.stat().st_mtime
+                    )
+                    col_i, col_d = st.columns([4, 1])
+                    with col_i:
+                        st.markdown(
+                            f"📄 {nome_mes}/{ano_k}"
+                            f" — {sz_str}"
+                            f" — {mod:%d/%m/%Y %H:%M}"
+                        )
+                    with col_d:
+                        with open(pdf, "rb") as f:
+                            st.download_button(
+                                "📥",
+                                data=f.read(),
+                                file_name=pdf.name,
+                                mime="application/pdf",
+                                key=f"bib_{pdf.name}",
+                            )
+
+        _listar_mensais(mensais_local, "📄 Automático (Local)")
+        _listar_mensais(mensais_ia, "🤖 Com IA")
+
+    # ── Outros PDFs ──
+    if outros:
+        st.markdown("### 📂 Outros")
+        for pdf in outros:
+            tamanho_kb = pdf.stat().st_size / 1024
+            col_info, col_dl = st.columns([3, 1])
+            with col_info:
+                st.markdown(f"**{pdf.name}** ({tamanho_kb:.0f} KB)")
+            with col_dl:
+                with open(pdf, "rb") as f:
+                    st.download_button(
+                        label="📥 Baixar",
+                        data=f.read(),
+                        file_name=pdf.name,
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=f"bib_{pdf.name}",
+                    )
+
+
+
+
+# ═══════════════════════════════════════════════════════════════
+#  DOWNLOADS MENSAIS INDIVIDUAIS
+# ═══════════════════════════════════════════════════════════════
+
+def _render_downloads_mensais(ano: int, meses_gerados: list[int], modo: str = "local"):
+    """Mostra grid de botões de download para PDFs mensais individuais."""
+    from tc_copilot.config import caminho_relatorio_mensal
+    from tc_copilot.prompts import obter_nome_mes
+
+    if not meses_gerados:
+        return
+
+    # Verificar quais PDFs mensais existem
+    pdfs_disponiveis = []
+    for mes_num in sorted(meses_gerados):
+        caminho = str(caminho_relatorio_mensal(ano, mes_num, modo))
+        if os.path.exists(caminho):
+            pdfs_disponiveis.append((mes_num, caminho))
+
+    if not pdfs_disponiveis:
+        return
+
+    st.markdown("##### 📁 PDFs Mensais Individuais")
+
+    # Grid de 4 colunas
+    num_cols = min(4, len(pdfs_disponiveis))
+    for i in range(0, len(pdfs_disponiveis), num_cols):
+        grupo = pdfs_disponiveis[i : i + num_cols]
+        cols = st.columns(num_cols)
+        for col, (mes_num, caminho) in zip(cols, grupo):
+            nome_mes = obter_nome_mes(mes_num, "pt-BR")
+            tamanho_kb = os.path.getsize(caminho) / 1024
+            with col:
+                with open(caminho, "rb") as f:
+                    st.download_button(
+                        label=f"📄 {nome_mes} ({tamanho_kb:.0f} KB)",
+                        data=f.read(),
+                        file_name=os.path.basename(caminho),
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=f"dl_mensal_{modo}_{mes_num}",
+                    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -520,6 +816,24 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                 except Exception:
                     st.caption(f"Gerado em: {gerado_em}")
 
+            # ── Botão download do PDF individual deste mês ──
+            _mes_num_tab = int(str_mes)
+            try:
+                from tc_copilot.config import caminho_relatorio_mensal
+                _pdf_mes_path = str(caminho_relatorio_mensal(ano, _mes_num_tab, modo))
+                if os.path.exists(_pdf_mes_path):
+                    _sz_kb = os.path.getsize(_pdf_mes_path) / 1024
+                    with open(_pdf_mes_path, "rb") as _f_pdf:
+                        st.download_button(
+                            label=f"📥 Baixar PDF de {mes_nome} ({_sz_kb:.0f} KB)",
+                            data=_f_pdf.read(),
+                            file_name=os.path.basename(_pdf_mes_path),
+                            mime="application/pdf",
+                            key=f"dl_tab_{modo}_{_mes_num_tab}",
+                        )
+            except Exception:
+                pass
+
             secoes = info_mes.get("secoes", {})
 
             # Detectar se é formato v2 ou legado
@@ -577,12 +891,15 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                     except Exception:
                         _dados_frescos_ok = False
 
-                    for ofc_key in oficina_keys:
+                    for idx_ofc, ofc_key in enumerate(oficina_keys):
                         ofc_nome = ofc_key.replace("oficina_", "")
                         titulo_template = labels_idioma.get(
-                            "sec_oficina", "🏭 Oficina {oficina}"
+                            "sec_oficina",
+                            "4.{idx} 🏭 Oficina {oficina}",
                         )
-                        titulo_ofc = titulo_template.format(oficina=ofc_nome)
+                        titulo_ofc = titulo_template.format(
+                            idx=idx_ofc + 1, oficina=ofc_nome,
+                        )
                         st.markdown(f"#### {titulo_ofc}")
 
                         # Tentar renderizar com sub-tópicos estruturados
@@ -934,7 +1251,7 @@ def _render_configuracao():
         taxas_entrada = {"USD": 5.0, "EUR": 5.5}
 
     moedas_opcoes = ["BRL", "USD", "EUR"]
-    moeda_atual = st.session_state.get("copilot_moeda", "BRL")
+    moeda_atual = st.session_state.get("copilot_moeda", "EUR")
     moeda_idx = moedas_opcoes.index(moeda_atual) if moeda_atual in moedas_opcoes else 0
 
     moeda = st.radio(

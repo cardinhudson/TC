@@ -128,12 +128,28 @@ def _extrair_colunas_rateio(caminho: str, sheet_name: str):
 
 
 def _ler_volume_para_validacao(caminho: str, sheet_name: str):
-    for h in [50, 0, 1, 2]:
+    """Tenta múltiplos valores de header, validando se as colunas fazem sentido.
+    
+    Retorna o primeiro DataFrame cujas colunas contenham meses ou 'Veículo'/'Oficina'
+    (indicando que o header correto foi encontrado).
+    """
+    pref_meses = {'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'}
+    primeiro_ok = None  # fallback: primeiro que leu sem erro
+    for h in [50, 1, 2, 0]:
         try:
             df = pd.read_excel(caminho, sheet_name=sheet_name, header=h, nrows=5)
-            return df, f"header={h}"
+            cn = [_normalizar_col(c) for c in df.columns]
+            pref = [c[:3] for c in cn if c]
+            tem_meses = any(p in pref_meses for p in pref)
+            tem_dim = 'oficina' in cn or 'veiculo' in cn or 'veculo' in cn
+            if tem_meses or tem_dim:
+                return df, f"header={h}"
+            if primeiro_ok is None:
+                primeiro_ok = (df, f"header={h}")
         except Exception:
             continue
+    if primeiro_ok is not None:
+        return primeiro_ok
     return None, None
 
 
@@ -198,14 +214,19 @@ def _validar_pre_extracao_budget(ano: int):
                 cn = [_normalizar_col(c) for c in dfv.columns]
                 pref = [c[:3] for c in cn if c]
                 meses = [p for p in pref if p in {'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'}]
-                if 'oficina' not in cn:
+                # Volume BDG em Reporting veículos.xlsx pode não ter 'Oficina'
+                # (só tem 'Veículo'). Aceitar qualquer uma das duas.
+                tem_oficina = 'oficina' in cn
+                tem_veiculo = 'veiculo' in cn or 'veculo' in cn
+                if not tem_oficina and not tem_veiculo:
                     ok = False
-                    msgs.append(f"❌ Aba 'Volume BDG': coluna 'Oficina' não encontrada ({info})")
+                    msgs.append(f"❌ Aba 'Volume BDG': coluna 'Oficina' ou 'Veículo' não encontrada ({info})")
                 if not meses:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume BDG': nenhum mês detectado ({info})")
                 else:
-                    msgs.append(f"✅ Aba 'Volume BDG': {len(set(meses))} meses detectados ({info})")
+                    dim_label = 'Oficina' if tem_oficina else ('Veículo' if tem_veiculo else '?')
+                    msgs.append(f"✅ Aba 'Volume BDG': {len(set(meses))} meses detectados, dimensão '{dim_label}' OK ({info})")
         except Exception as e:
             ok = False
             msgs.append(f"❌ Falha ao validar aba 'Volume BDG': {e}")

@@ -166,6 +166,18 @@ def caminho_dados_relatorio_local(ano: int) -> Path:
     return garantir_pasta_relatorios() / f".relatorio_{ano}_local_dados.json"
 
 
+def caminho_relatorio_mensal(ano: int, mes: int, modo: str = "local") -> Path:
+    """Retorna o path do PDF mensal individual.
+
+    Args:
+        ano: Ano do relatório.
+        mes: Mês (1-12).
+        modo: 'local' (sem API) ou 'ia' (com LLM).
+    """
+    sufixo = "_local" if modo == "local" else ""
+    return garantir_pasta_relatorios() / f"relatorio_{ano}{sufixo}_mes_{mes:02d}.pdf"
+
+
 # ═══════════════════════════════════════════════════════════════
 #  TOGGLE COPILOT (habilitar / desabilitar)
 # ═══════════════════════════════════════════════════════════════

@@ -976,13 +976,32 @@ else:
                     if not dims_cat:
                         st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
                     else:
-                        # Filtro de dimensão da categoria
-                        chosen_dim_waterfall_tc = st.selectbox(
-                            "Dimensão da categoria:",
-                            dims_cat,
-                            index=min(1, len(dims_cat)-1) if len(dims_cat) > 1 else 0,
-                            key="dim_waterfall_tc_real"
-                        )
+                        # Filtro de dimensão da categoria + Oficina lado a lado
+                        col_dim_tc_real, col_ofic_tc_real = st.columns(2)
+                        with col_dim_tc_real:
+                            chosen_dim_waterfall_tc = st.selectbox(
+                                "Dimensão da categoria:",
+                                dims_cat,
+                                index=min(1, len(dims_cat)-1) if len(dims_cat) > 1 else 0,
+                                key="dim_waterfall_tc_real"
+                            )
+                        with col_ofic_tc_real:
+                            # Filtro de oficina inline
+                            oficinas_inline_tc_real = ["Todos"]
+                            if 'Oficina' in df_analise.columns:
+                                oficinas_inline_tc_real += sorted(df_analise['Oficina'].dropna().astype(str).unique().tolist())
+                            oficina_inline_sel_tc_real = st.multiselect(
+                                "Oficina:",
+                                oficinas_inline_tc_real,
+                                default=["Todos"],
+                                key="oficina_inline_waterfall_tc_real"
+                            )
+                        
+                        # Aplicar filtro de oficina inline
+                        if 'Oficina' in df_analise.columns and oficina_inline_sel_tc_real and "Todos" not in oficina_inline_sel_tc_real:
+                            df_analise = df_analise[df_analise['Oficina'].astype(str).isin(oficina_inline_sel_tc_real)].copy()
+                            if 'Oficina' in df_temp.columns:
+                                df_temp = df_temp[df_temp['Oficina'].astype(str).isin(oficina_inline_sel_tc_real)].copy()
                         
                         # ═══ Bloco 4: Lazy aggregation — se "Todos" e dim ≠ Veículo, agregar agora ═══
                         if _todos_mode_real and chosen_dim_waterfall_tc != "Veículo":
@@ -2961,13 +2980,30 @@ else:
                                 if not dims_cat_budget:
                                     st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
                                 else:
-                                    # Filtro de dimensão da categoria
-                                    chosen_dim_budget = st.selectbox(
-                                        "Dimensão da categoria:",
-                                        dims_cat_budget,
-                                        index=min(1, len(dims_cat_budget)-1) if len(dims_cat_budget) > 1 else 0,
-                                        key="dim_waterfall_tc_budget"
-                                    )
+                                    # Filtro de dimensão da categoria + Oficina lado a lado
+                                    col_dim_tc_bud, col_ofic_tc_bud = st.columns(2)
+                                    with col_dim_tc_bud:
+                                        chosen_dim_budget = st.selectbox(
+                                            "Dimensão da categoria:",
+                                            dims_cat_budget,
+                                            index=min(1, len(dims_cat_budget)-1) if len(dims_cat_budget) > 1 else 0,
+                                            key="dim_waterfall_tc_budget"
+                                        )
+                                    with col_ofic_tc_bud:
+                                        # Filtro de oficina inline
+                                        oficinas_inline_tc_bud = ["Todos"]
+                                        if 'Oficina' in df_analise_budget.columns:
+                                            oficinas_inline_tc_bud += sorted(df_analise_budget['Oficina'].dropna().astype(str).unique().tolist())
+                                        oficina_inline_sel_tc_bud = st.multiselect(
+                                            "Oficina:",
+                                            oficinas_inline_tc_bud,
+                                            default=["Todos"],
+                                            key="oficina_inline_waterfall_tc_budget"
+                                        )
+                                    
+                                    # Aplicar filtro de oficina inline
+                                    if 'Oficina' in df_analise_budget.columns and oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
+                                        df_analise_budget = df_analise_budget[df_analise_budget['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
                                     
                                     # ═══ Bloco 4: Lazy aggregation Budget ═══
                                     if _todos_mode_budget and chosen_dim_budget != "Veículo":
@@ -3235,6 +3271,13 @@ else:
                                             df_budget_vol_filtrado = _df
                                         else:
                                             df_budget_filtrado = _df
+                                    
+                                    # Aplicar filtro inline de Oficina ao Budget (mesmo filtro usado no Real)
+                                    if oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
+                                        if 'Oficina' in df_budget_filtrado.columns:
+                                            df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
+                                        if df_budget_vol_filtrado is not None and 'Oficina' in df_budget_vol_filtrado.columns:
+                                            df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
                                     
                                     # Filtrar budget pelos períodos selecionados
                                     # IMPORTANTE: Sempre filtrar pelos períodos selecionados para garantir que o BUD seja calculado corretamente

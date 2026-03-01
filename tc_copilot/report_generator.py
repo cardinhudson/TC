@@ -42,6 +42,7 @@ from tc_copilot.config import (
     caminho_dados_relatorio_local,
     caminho_relatorio,
     caminho_relatorio_local,
+    caminho_relatorio_mensal,
     garantir_pasta_relatorios,
 )
 from tc_copilot.prompts import LABELS, obter_nome_mes
@@ -149,6 +150,24 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             leading=20,
             textColor=COR_SECUNDARIA,
             leftIndent=20,
+        ),
+        "toc_nivel2": ParagraphStyle(
+            "TocNivel2",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=11,
+            leading=16,
+            textColor=COR_SECUNDARIA,
+            leftIndent=40,
+        ),
+        "toc_nivel3": ParagraphStyle(
+            "TocNivel3",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=14,
+            textColor=COR_CINZA,
+            leftIndent=60,
         ),
         "rodape": ParagraphStyle(
             "Rodape",
@@ -322,20 +341,227 @@ def _construir_sumario(
     dados_relatorio: dict,
     idioma: str,
 ):
-    """Adiciona página de sumário."""
+    """Adiciona página de sumário com 3 níveis e links clicáveis."""
     titulo = "Sumário" if idioma == "pt-BR" else "Table of Contents"
     elements.append(Paragraph(titulo, estilos["titulo_capitulo"]))
     elements.append(Spacer(1, 1 * cm))
 
-    meses_ordenados = sorted(dados_relatorio.get("meses", {}).items(), key=lambda x: int(x[0]))
+    labels = LABELS.get(idioma, LABELS["pt-BR"])
+
+    secao_label_map = {
+        "resumo_executivo": "sec_resumo_executivo",
+        "volume_completo": "sec_volume_completo",
+        "comparativos": "sec_comparativos",
+        "conclusoes": "sec_conclusoes",
+    }
+    secoes_ordem = [
+        "resumo_executivo", "volume_completo",
+        "comparativos", "conclusoes",
+    ]
+    sub_comparativos = [
+        ("2.1", "sec_real_vs_budget_flex"),
+        ("2.2", "sec_real_vs_mes_ant"),
+        ("2.3", "sec_real_vs_ano_ant"),
+    ]
+
+    meses_ordenados = sorted(
+        dados_relatorio.get("meses", {}).items(),
+        key=lambda x: int(x[0]),
+    )
 
     for str_mes, info in meses_ordenados:
         mes_nome = info.get("mes_nome", f"Mês {str_mes}")
-        cap_label = f"Capítulo {int(str_mes)}" if idioma == "pt-BR" else f"Chapter {int(str_mes)}"
+        cap_n = int(str_mes)
+        cap_lbl = (
+            f"Capítulo {cap_n}" if idioma == "pt-BR"
+            else f"Chapter {cap_n}"
+        )
+        # Nível 1 — Mês
         elements.append(Paragraph(
-            f"<b>{cap_label}</b> — {mes_nome}",
+            f'<a href="#cap{cap_n}" color="#1a3c6e">'
+            f'<b>{cap_lbl}</b> — {mes_nome}</a>',
             estilos["toc_item"],
         ))
+
+        secoes = info.get("secoes", {})
+
+        # Nível 2 — Seções do mês
+        for tipo in secoes_ordem:
+            if tipo not in secoes:
+                continue
+            lbl_key = secao_label_map.get(tipo, tipo)
+            sec_titulo = _substituir_emojis(
+                labels.get(lbl_key, tipo)
+            )
+            anchor = f"cap{cap_n}_{tipo}"
+            elements.append(Paragraph(
+                f'<a href="#{anchor}" color="#2c5282">'
+                f'{sec_titulo}</a>',
+                estilos["toc_nivel2"],
+            ))
+
+            # Nível 3 — Sub-tópicos de Comparativos
+            if tipo == "comparativos":
+                _txt_comp = secoes.get("comparativos", "")
+                for sub_id, sub_lbl in sub_comparativos:
+                    # Só incluir no TOC se o sub-tópico existe no texto
+                    if sub_id not in _txt_comp:
+                        continue
+                    sub_titulo = _substituir_emojis(
+                        labels.get(sub_lbl, sub_id)
+                    )
+                    anc_sub = f"cap{cap_n}_sub{sub_id.replace('.', '_')}"
+                    elements.append(Paragraph(
+                        f'<a href="#{anc_sub}" color="#666666">'
+                        f'{sub_titulo}</a>',
+                        estilos["toc_nivel3"],
+                    ))
+
+            # Nível 3 — Tabelas de Conclusões
+            if tipo == "conclusoes":
+                graf = info.get("dados_graficos", {})
+                tabelas_g = graf.get("global", {}).get("tabelas", [])
+                for idx_t, tab in enumerate(tabelas_g):
+                    t_titulo = tab.get("titulo", "")
+                    t_num = chr(65 + idx_t)
+                    anc_t = f"cap{cap_n}_tab3{t_num}"
+                    elements.append(Paragraph(
+                        f'<a href="#{anc_t}" color="#666666">'
+                        f'3.{t_num} {t_titulo}</a>',
+                        estilos["toc_nivel3"],
+                    ))
+
+        # Nível 2 — Oficinas header
+        oficina_keys = sorted(
+            k for k in secoes if k.startswith("oficina_")
+        )
+        if oficina_keys:
+            ofc_header = _substituir_emojis(
+                labels.get("sec_oficinas_header", "4. Oficinas")
+            )
+            elements.append(Paragraph(
+                f'<a href="#cap{cap_n}_oficinas" color="#2c5282">'
+                f'{ofc_header}</a>',
+                estilos["toc_nivel2"],
+            ))
+            # Nível 3 — Cada oficina
+            graf = info.get("dados_graficos", {})
+            for idx_o, ofc_k in enumerate(oficina_keys):
+                ofc_nome = ofc_k.replace("oficina_", "")
+                ofc_tpl = labels.get(
+                    "sec_oficina",
+                    "4.{idx} Oficina {oficina}",
+                )
+                ofc_titulo = _substituir_emojis(
+                    ofc_tpl.format(idx=idx_o + 1, oficina=ofc_nome)
+                )
+                anc_o = f"cap{cap_n}_ofc{idx_o + 1}"
+                elements.append(Paragraph(
+                    f'<a href="#{anc_o}" color="#666666">'
+                    f'{ofc_titulo}</a>',
+                    estilos["toc_nivel3"],
+                ))
+
+    elements.append(PageBreak())
+
+
+def _construir_sumario_mensal(
+    elements: list,
+    estilos: dict,
+    mes_numero: int,
+    info_mes: dict,
+    idioma: str,
+):
+    """Adiciona sumário de um único mês com links clicáveis."""
+    titulo = "Sumário" if idioma == "pt-BR" else "Table of Contents"
+    elements.append(Paragraph(titulo, estilos["titulo_capitulo"]))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    labels = LABELS.get(idioma, LABELS["pt-BR"])
+    cap_n = mes_numero
+    secoes = info_mes.get("secoes", {})
+
+    secao_label_map = {
+        "resumo_executivo": "sec_resumo_executivo",
+        "volume_completo": "sec_volume_completo",
+        "comparativos": "sec_comparativos",
+        "conclusoes": "sec_conclusoes",
+    }
+    secoes_ordem = [
+        "resumo_executivo", "volume_completo",
+        "comparativos", "conclusoes",
+    ]
+    sub_comp = [
+        ("2.1", "sec_real_vs_budget_flex"),
+        ("2.2", "sec_real_vs_mes_ant"),
+        ("2.3", "sec_real_vs_ano_ant"),
+    ]
+
+    for tipo in secoes_ordem:
+        if tipo not in secoes:
+            continue
+        lbl_key = secao_label_map.get(tipo, tipo)
+        sec_titulo = _substituir_emojis(labels.get(lbl_key, tipo))
+        anchor = f"cap{cap_n}_{tipo}"
+        elements.append(Paragraph(
+            f'<a href="#{anchor}" color="#2c5282">'
+            f'{sec_titulo}</a>',
+            estilos["toc_nivel2"],
+        ))
+        if tipo == "comparativos":
+            _txt_comp = secoes.get("comparativos", "")
+            for sub_id, sub_lbl in sub_comp:
+                # Só incluir no TOC se o sub-tópico existe no texto
+                if sub_id not in _txt_comp:
+                    continue
+                sub_titulo = _substituir_emojis(
+                    labels.get(sub_lbl, sub_id)
+                )
+                anc_sub = (
+                    f"cap{cap_n}_sub{sub_id.replace('.', '_')}"
+                )
+                elements.append(Paragraph(
+                    f'<a href="#{anc_sub}" color="#666666">'
+                    f'{sub_titulo}</a>',
+                    estilos["toc_nivel3"],
+                ))
+        if tipo == "conclusoes":
+            graf = info_mes.get("dados_graficos", {})
+            tabelas_g = graf.get("global", {}).get("tabelas", [])
+            for idx_t, tab in enumerate(tabelas_g):
+                t_titulo = tab.get("titulo", "")
+                t_num = chr(65 + idx_t)
+                elements.append(Paragraph(
+                    f'<a href="#cap{cap_n}_tab3{t_num}" '
+                    f'color="#666666">3.{t_num} {t_titulo}</a>',
+                    estilos["toc_nivel3"],
+                ))
+
+    oficina_keys = sorted(
+        k for k in secoes if k.startswith("oficina_")
+    )
+    if oficina_keys:
+        ofc_header = _substituir_emojis(
+            labels.get("sec_oficinas_header", "4. Oficinas")
+        )
+        elements.append(Paragraph(
+            f'<a href="#cap{cap_n}_oficinas" color="#2c5282">'
+            f'{ofc_header}</a>',
+            estilos["toc_nivel2"],
+        ))
+        for idx_o, ofc_k in enumerate(oficina_keys):
+            ofc_nome = ofc_k.replace("oficina_", "")
+            ofc_tpl = labels.get(
+                "sec_oficina", "4.{idx} Oficina {oficina}",
+            )
+            ofc_titulo = _substituir_emojis(
+                ofc_tpl.format(idx=idx_o + 1, oficina=ofc_nome)
+            )
+            elements.append(Paragraph(
+                f'<a href="#cap{cap_n}_ofc{idx_o + 1}" '
+                f'color="#666666">{ofc_titulo}</a>',
+                estilos["toc_nivel3"],
+            ))
 
     elements.append(PageBreak())
 
@@ -527,10 +753,10 @@ def _construir_capitulo_mes(
     """Adiciona capítulo de um mês ao documento."""
     mes_nome = info_mes.get("mes_nome", f"Mês {mes_numero}")
 
-    # Título do capítulo
+    # Título do capítulo (com anchor para TOC)
     cap_label = f"Capítulo {mes_numero}" if idioma == "pt-BR" else f"Chapter {mes_numero}"
     elements.append(Paragraph(
-        f"{cap_label} — {mes_nome}",
+        f'<a name="cap{mes_numero}"/>{cap_label} — {mes_nome}',
         estilos["titulo_capitulo"],
     ))
     elements.append(Spacer(1, 0.5 * cm))
@@ -581,21 +807,51 @@ def _construir_capitulo_mes(
             continue
 
         label_key = secao_label_map.get(tipo_secao, tipo_secao)
-        titulo_secao = _aplicar_formatacao(_substituir_emojis(labels.get(label_key, tipo_secao)))
-        elements.append(Paragraph(titulo_secao, estilos["titulo_secao"]))
+        titulo_secao = _aplicar_formatacao(_substituir_emojis(
+            labels.get(label_key, tipo_secao)
+        ))
+        # Anchor para TOC
+        anchor_sec = f'<a name="cap{mes_numero}_{tipo_secao}"/>'
+        elements.append(Paragraph(
+            f'{anchor_sec}{titulo_secao}',
+            estilos["titulo_secao"],
+        ))
 
         # ── Volume: gráfico de volume por veículo + texto ──
         if tipo_secao == "volume_completo":
             if graf_global:
-                _inserir_grafico_volume_pdf(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+                _inserir_grafico_volume_pdf(
+                    elements, graf_global, mes_nome,
+                    info_mes, simbolo_moeda,
+                )
             paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
             elements.extend(paragraphs)
 
         # ── Comparativos: interleavar gráficos nos sub-tópicos ──
         elif tipo_secao == "comparativos":
             _renderizar_comparativos_pdf(
-                elements, estilos, texto, graf_global, mes_nome, info_mes, simbolo_moeda,
+                elements, estilos, texto, graf_global,
+                mes_nome, info_mes, simbolo_moeda,
+                mes_numero=mes_numero,
             )
+
+        # ── Conclusões: texto + tabelas globais ──
+        elif tipo_secao == "conclusoes":
+            paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
+            elements.extend(paragraphs)
+            # Tabelas de análise detalhada (global)
+            tabelas_g = graf_global.get("tabelas", [])
+            if tabelas_g:
+                elements.append(Spacer(1, 0.3 * cm))
+                for idx_t, tab_data in enumerate(tabelas_g):
+                    t_num = chr(65 + idx_t)
+                    anc = f"cap{mes_numero}_tab3{t_num}"
+                    _renderizar_tabela_pdf(
+                        elements, estilos, tab_data,
+                        anchor_name=anc,
+                        numero=f"3.{t_num}",
+                        simbolo_moeda=simbolo_moeda,
+                    )
 
         else:
             paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
@@ -603,51 +859,112 @@ def _construir_capitulo_mes(
 
         elements.append(Spacer(1, 0.5 * cm))
 
-    # Seções de Oficina
+    # ═══ Seção 4 — Oficinas (header + waterfall global + intro + sub-seções) ═══
     oficina_keys = sorted([k for k in secoes if k.startswith("oficina_")])
-    for ofc_key in oficina_keys:
+    if oficina_keys:
+        # 4.0 Título principal "4. Oficinas" (com anchor)
+        titulo_oficinas_header = labels.get(
+            "sec_oficinas_header", "4. 🏭 Oficinas"
+        )
+        titulo_oficinas_header = _aplicar_formatacao(
+            _substituir_emojis(titulo_oficinas_header)
+        )
+        anc_ofc_hdr = f'<a name="cap{mes_numero}_oficinas"/>'
+        elements.append(Paragraph(
+            f'{anc_ofc_hdr}{titulo_oficinas_header}',
+            estilos["titulo_secao"],
+        ))
+
+        # 4.0.1 Gráfico waterfall global por oficina (Budget vs Real)
+        wf_ofc_labels = graf_global.get("wf_oficinas_labels", [])
+        wf_ofc_values = graf_global.get("wf_oficinas_values", [])
+        if wf_ofc_labels and len(wf_ofc_labels) >= 3:
+            try:
+                from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+                cpu_label = f"{simbolo_moeda}/veíc"
+                ano_rel = graf_global.get("ano", "")
+                png_ofc_global = gerar_waterfall_from_arrays(
+                    {"labels": wf_ofc_labels, "values": wf_ofc_values},
+                    titulo=f"Waterfall Budget vs Real por Oficina — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    y_label=cpu_label,
+                )
+                _inserir_grafico(elements, png_ofc_global, largura_max=17 * cm)
+            except Exception:
+                pass
+
+        # 4.0.2 Texto introdutório das oficinas
+        texto_intro_oficinas = secoes.get("oficinas_intro", "")
+        if texto_intro_oficinas:
+            paragraphs = _texto_para_paragraphs(texto_intro_oficinas, estilos["corpo"])
+            elements.extend(paragraphs)
+            elements.append(Spacer(1, 0.3 * cm))
+
+    # Sub-seções de oficina (4.1, 4.2, ...)
+    for idx_ofc, ofc_key in enumerate(oficina_keys):
         texto = secoes.get(ofc_key, "")
         if not texto:
             continue
         ofc_nome = ofc_key.replace("oficina_", "")
-        titulo_template = labels.get("sec_oficina", "🏭 Oficina {oficina}")
-        titulo_ofc = _aplicar_formatacao(_substituir_emojis(titulo_template.format(oficina=ofc_nome)))
-        elements.append(Paragraph(titulo_ofc, estilos["titulo_secao"]))
+        titulo_template = labels.get(
+            "sec_oficina", "4.{idx} 🏭 Oficina {oficina}"
+        )
+        titulo_ofc = _aplicar_formatacao(_substituir_emojis(
+            titulo_template.format(idx=idx_ofc + 1, oficina=ofc_nome)
+        ))
+        # Anchor para TOC
+        anc_ofc = f'<a name="cap{mes_numero}_ofc{idx_ofc + 1}"/>'
+        elements.append(Paragraph(
+            f'{anc_ofc}{titulo_ofc}', estilos["titulo_secao"],
+        ))
 
         graf_ofc = graf_oficinas.get(ofc_nome, {})
 
         # Interleavar gráficos waterfall nos sub-tópicos da oficina
         if "<!-- SPLIT -->" in texto and graf_ofc:
-            import re as _re_ofc
             blocos_ofc = [b.strip() for b in texto.split("<!-- SPLIT -->") if b.strip()]
             for idx_b, bloco_ofc in enumerate(blocos_ofc):
-                # Separar título (1ª linha) do corpo
                 _lo = bloco_ofc.split("\n", 1)
                 titulo_ofc_linha = _lo[0].strip()
                 corpo_ofc = _lo[1].strip() if len(_lo) > 1 else ""
 
-                # 1) Título
-                elements.extend(_texto_para_paragraphs(titulo_ofc_linha, estilos["corpo"]))
-                # 2) Waterfall: 1o bloco → budget, 2o → mensal, 3o → ano_anterior
+                elements.extend(_texto_para_paragraphs(
+                    titulo_ofc_linha, estilos["corpo"],
+                ))
                 _tipos_ofc = ["budget", "mensal", "ano_anterior"]
                 if idx_b < len(_tipos_ofc):
                     _inserir_grafico_oficina(
-                        elements, graf_ofc, ofc_nome, mes_nome, info_mes,
-                        simbolo_moeda, tipo_waterfall=_tipos_ofc[idx_b],
+                        elements, graf_ofc, ofc_nome,
+                        mes_nome, info_mes, simbolo_moeda,
+                        tipo_waterfall=_tipos_ofc[idx_b],
                     )
-                # 3) Corpo do texto
                 if corpo_ofc:
-                    paragraphs = _texto_para_paragraphs(corpo_ofc, estilos["corpo"])
+                    paragraphs = _texto_para_paragraphs(
+                        corpo_ofc, estilos["corpo"],
+                    )
                     elements.extend(paragraphs)
         else:
-            # Fallback: um único gráfico budget antes do texto
             if graf_ofc:
                 _inserir_grafico_oficina(
-                    elements, graf_ofc, ofc_nome, mes_nome, info_mes,
-                    simbolo_moeda, tipo_waterfall="budget",
+                    elements, graf_ofc, ofc_nome,
+                    mes_nome, info_mes, simbolo_moeda,
+                    tipo_waterfall="budget",
                 )
-            paragraphs = _texto_para_paragraphs(texto, estilos["corpo"])
+            paragraphs = _texto_para_paragraphs(
+                texto, estilos["corpo"],
+            )
             elements.extend(paragraphs)
+
+        # Tabelas de análise detalhada por oficina
+        tabelas_ofc = graf_ofc.get("tabelas", [])
+        for idx_t, tab_data in enumerate(tabelas_ofc):
+            t_num = chr(65 + idx_t)
+            anc_t = f"cap{mes_numero}_ofc{idx_ofc + 1}_tab{t_num}"
+            _renderizar_tabela_pdf(
+                elements, estilos, tab_data,
+                anchor_name=anc_t,
+                numero=f"4.{idx_ofc + 1}.{t_num}",
+                simbolo_moeda=simbolo_moeda,
+            )
 
         elements.append(Spacer(1, 0.5 * cm))
 
@@ -689,11 +1006,15 @@ def _renderizar_comparativos_pdf(
     mes_nome: str,
     info_mes: dict,
     simbolo_moeda: str = "R$",
+    mes_numero: int = 0,
 ) -> None:
     """Renderiza seção Comparativos no PDF intercalando gráficos nos sub-tópicos.
 
-    - Após bloco 2.1 → chart waterfall Budget
-    - Após bloco 2.2 → chart waterfall Mensal
+    Para cada sub-tópico (2.1, 2.2, 2.3):
+      1. Anchor + título
+      2. Waterfall pair (Type 05 × Type 06)  ← side-by-side
+      3. Waterfall principal (Account)
+      4. Texto analítico
     """
     import re
 
@@ -703,31 +1024,256 @@ def _renderizar_comparativos_pdf(
     else:
         blocos = [b.strip() for b in re.split(r"(?=### 2\.)", texto) if b.strip()]
 
+    # Mapa sub-tópico → (prefixo_t05, prefixo_t06, inserir_account)
+    _sub_map = {
+        "2.1": ("wf_budget_type05", "wf_budget_type06",
+                _inserir_waterfall_budget),
+        "2.2": ("wf_mensal_type05", "wf_mensal_type06",
+                _inserir_waterfall_mensal),
+        "2.3": ("wf_ano_ant_type05", "wf_ano_ant_type06",
+                _inserir_waterfall_ano_anterior),
+    }
+
     for bloco in blocos:
-        # Separar título (1ª linha) do corpo analítico
         _linhas = bloco.split("\n", 1)
         titulo_linha = _linhas[0].strip()
         corpo = _linhas[1].strip() if len(_linhas) > 1 else ""
 
-        # 1) Renderizar título do sub-tópico
-        elements.extend(_texto_para_paragraphs(titulo_linha, estilos["corpo"]))
-
-        # 2) Inserir gráfico logo abaixo do título
+        # Detectar sub-tópico (2.1, 2.2, 2.3)
         _tl = titulo_linha.lstrip("# ")
-        if graf_global:
-            if _tl.startswith("2.1") or _tl.startswith("**2.1"):
-                _inserir_waterfall_budget(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
-            elif _tl.startswith("2.2") or _tl.startswith("**2.2"):
-                _inserir_waterfall_mensal(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
-            elif _tl.startswith("2.3") or _tl.startswith("**2.3"):
-                _inserir_waterfall_ano_anterior(elements, graf_global, mes_nome, info_mes, simbolo_moeda)
+        sub_id = ""
+        for sid in ("2.1", "2.2", "2.3"):
+            if _tl.startswith(sid) or _tl.startswith(f"**{sid}"):
+                sub_id = sid
+                break
 
-        # 3) Renderizar corpo do texto
+        # 1) Anchor + título
+        if sub_id and mes_numero:
+            anc_sub = f"cap{mes_numero}_sub{sub_id.replace('.', '_')}"
+            elements.append(Paragraph(
+                f'<a name="{anc_sub}"/>', estilos["corpo"],
+            ))
+        elements.extend(
+            _texto_para_paragraphs(titulo_linha, estilos["corpo"])
+        )
+
+        # 2-3) Gráficos
+        if graf_global and sub_id and sub_id in _sub_map:
+            pref_t05, pref_t06, fn_account = _sub_map[sub_id]
+            # Side-by-side Type 05 × Type 06
+            _inserir_waterfall_pair(
+                elements, graf_global, pref_t05, pref_t06,
+                mes_nome, info_mes, simbolo_moeda,
+            )
+            # Waterfall principal (Account)
+            fn_account(
+                elements, graf_global, mes_nome,
+                info_mes, simbolo_moeda,
+            )
+
+        # 4) Texto analítico
         if corpo:
-            paragraphs = _texto_para_paragraphs(corpo, estilos["corpo"])
+            paragraphs = _texto_para_paragraphs(
+                corpo, estilos["corpo"],
+            )
             elements.extend(paragraphs)
 
         elements.append(Spacer(1, 0.3 * cm))
+
+
+# ═══════════════════════════════════════════════════════════════
+#  TABELAS PDF (ReportLab Table)
+# ═══════════════════════════════════════════════════════════════
+
+def _renderizar_tabela_pdf(
+    elements: list,
+    estilos: dict,
+    tabela_data: dict[str, Any],
+    anchor_name: str = "",
+    numero: str = "",
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Renderiza uma tabela de análise detalhada no PDF.
+
+    Args:
+        tabela_data: {"titulo": str, "colunas": [...], "linhas": [[...],...]}
+        anchor_name: Nome do anchor para TOC.
+        numero: Numeração da tabela (ex: "3.A").
+        simbolo_moeda: Símbolo de moeda para formatar valores.
+    """
+    titulo = tabela_data.get("titulo", "")
+    colunas = tabela_data.get("colunas", [])
+    linhas = tabela_data.get("linhas", [])
+
+    if not linhas:
+        return
+
+    # Título com anchor
+    titulo_fmt = f"{numero} {titulo}" if numero else titulo
+    titulo_fmt = _aplicar_formatacao(_substituir_emojis(titulo_fmt))
+    if anchor_name:
+        titulo_fmt = f'<a name="{anchor_name}"/>{titulo_fmt}'
+
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(
+        titulo_fmt,
+        ParagraphStyle(
+            "TabelaTitulo",
+            parent=estilos.get("titulo_secao", estilos["corpo"]),
+            fontSize=11,
+            leading=14,
+            spaceBefore=8,
+            spaceAfter=4,
+        ),
+    ))
+
+    # Formatar header
+    header_style = ParagraphStyle(
+        "TabHeader", fontName="Helvetica-Bold",
+        fontSize=7, leading=9, textColor=colors.white,
+        alignment=TA_CENTER,
+    )
+    cell_style = ParagraphStyle(
+        "TabCell", fontName="Helvetica",
+        fontSize=7, leading=9, textColor=COR_TEXTO,
+    )
+    cell_num_style = ParagraphStyle(
+        "TabCellNum", fontName="Helvetica",
+        fontSize=7, leading=9, textColor=COR_TEXTO,
+        alignment=TA_CENTER,
+    )
+
+    # Renomear "Real" para incluir moeda
+    col_display = []
+    for c in colunas:
+        if c == "Real":
+            col_display.append(f"Real (k{simbolo_moeda})")
+        else:
+            col_display.append(c)
+
+    header_row = [Paragraph(c, header_style) for c in col_display]
+
+    # Linhas de dados
+    data_rows = []
+    for linha in linhas:
+        row = []
+        for i, val in enumerate(linha):
+            if isinstance(val, (int, float)):
+                # Formatar como kMoeda (dividir por 1000)
+                v_k = val / 1000.0
+                txt = f"{v_k:,.1f}"
+                row.append(Paragraph(txt, cell_num_style))
+            else:
+                # Truncar texto longo
+                txt = str(val)[:30] if len(str(val)) > 30 else str(val)
+                row.append(Paragraph(txt, cell_style))
+        data_rows.append(row)
+
+    table_data = [header_row] + data_rows
+
+    # Calcular largura das colunas (proporcional)
+    n_cols = len(colunas)
+    largura_total = 17 * cm
+    col_widths = [largura_total / n_cols] * n_cols
+
+    tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
+
+    # Estilo da tabela
+    style_cmds = [
+        # Header
+        ("BACKGROUND", (0, 0), (-1, 0), COR_PRIMARIA),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 4),
+        ("TOPPADDING", (0, 0), (-1, 0), 4),
+        # Cells
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("TOPPADDING", (0, 1), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        # Grid
+        ("GRID", (0, 0), (-1, -1), 0.5, COR_CINZA),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, COR_DESTAQUE),
+        # Valor numérico alinhado à direita
+        ("ALIGN", (-1, 1), (-1, -1), "RIGHT"),
+    ]
+
+    # Zebra stripes
+    for i in range(1, len(table_data)):
+        if i % 2 == 0:
+            style_cmds.append(
+                ("BACKGROUND", (0, i), (-1, i),
+                 colors.HexColor("#F5F5F5"))
+            )
+
+    tbl.setStyle(TableStyle(style_cmds))
+    elements.append(tbl)
+    elements.append(Spacer(1, 0.3 * cm))
+
+
+def _inserir_waterfall_pair(
+    elements: list,
+    graf_global: dict,
+    prefixo_t05: str,
+    prefixo_t06: str,
+    mes_nome: str,
+    info_mes: dict,
+    simbolo_moeda: str = "R$",
+) -> None:
+    """Insere dois waterfalls (Type 05 × Type 06) lado a lado."""
+    try:
+        from tc_copilot.chart_generator import gerar_waterfall_from_arrays
+    except ImportError:
+        return
+
+    cpu_label = f"{simbolo_moeda}/veíc"
+    ano_rel = graf_global.get("ano", "")
+
+    imgs = []
+    for pref, dim_label in [
+        (prefixo_t05, "Type 05"), (prefixo_t06, "Type 06"),
+    ]:
+        lbls = graf_global.get(f"{pref}_labels", [])
+        vals = graf_global.get(f"{pref}_values", [])
+        if not lbls or len(lbls) < 3:
+            imgs.append(None)
+            continue
+        png = gerar_waterfall_from_arrays(
+            {"labels": lbls, "values": vals},
+            titulo=f"{dim_label} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+            y_label=cpu_label,
+            width=7,
+            height=4,
+        )
+        if not png:
+            imgs.append(None)
+            continue
+        buf = _BytesIO(png)
+        img = Image(buf)
+        target_w = 8.2 * cm
+        ratio = img.imageWidth / img.imageHeight if img.imageHeight else 1
+        img.drawWidth = target_w
+        img.drawHeight = target_w / ratio
+        img.hAlign = "CENTER"
+        imgs.append(img)
+
+    # Montar Table com 2 colunas se pelo menos 1 imagem
+    cells = [img if img else Paragraph("", ParagraphStyle("empty")) for img in imgs]
+    if any(imgs):
+        tbl = Table(
+            [cells],
+            colWidths=[8.5 * cm, 8.5 * cm],
+        )
+        tbl.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elements.append(tbl)
+        elements.append(Spacer(1, 0.2 * cm))
 
 
 def _inserir_waterfall_budget(
@@ -868,7 +1414,7 @@ def _inserir_grafico_oficina(
             _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
-def gerar_pdf(ano: int, idioma: str = "pt-BR") -> str:
+def gerar_pdf(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "€") -> str:
     """
     Gera (ou regenera) o PDF completo do relatório anual.
 
@@ -916,6 +1462,7 @@ def gerar_pdf(ano: int, idioma: str = "pt-BR") -> str:
             int(str_mes),
             info_mes,
             idioma,
+            simbolo_moeda,
         )
 
     # ── Build ──
@@ -940,6 +1487,170 @@ def gerar_pdf(ano: int, idioma: str = "pt-BR") -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  HELPER — PRÉ-CÁLCULO DE TABELAS PARA O PDF
+# ═══════════════════════════════════════════════════════════════
+
+_TABELA_COLS_GLOBAL = [
+    "Oficina", "Type 05", "Type 06", "Account",
+    "Centrocst", "Texto breve", "Fornecedor",
+]
+_TABELA_COLS_OFC = [
+    "Type 05", "Type 06", "Account",
+    "Centrocst", "Texto breve", "Fornecedor",
+]
+_COL_VALOR = "Custo FP"
+
+
+def _construir_tabela_top(
+    df,
+    account_filter: str | None,
+    colunas: list[str],
+    titulo: str,
+    top_n: int = 10,
+    col_valor: str = _COL_VALOR,
+) -> dict[str, Any] | None:
+    """Constrói dict de tabela para serialização JSON.
+
+    Returns:
+        {"titulo": str, "colunas": [...], "linhas": [[...], ...]}
+        ou None se vazio.
+    """
+    import pandas as pd
+
+    if df is None or df.empty:
+        return None
+
+    df_f = df.copy()
+    if account_filter and "Account" in df_f.columns:
+        df_f = df_f[df_f["Account"] == account_filter]
+    if df_f.empty:
+        return None
+
+    # Selecionar colunas presentes
+    cols_disp = [c for c in colunas if c in df_f.columns]
+    if col_valor not in df_f.columns:
+        return None
+
+    # Agrupar para evitar linhas duplicadas
+    group_cols = [c for c in cols_disp if c in df_f.columns]
+    if group_cols:
+        df_agg = (
+            df_f.groupby(group_cols, dropna=False)[col_valor]
+            .sum()
+            .reset_index()
+        )
+    else:
+        df_agg = df_f[[col_valor]].copy()
+
+    # Ordenar por valor absoluto descendente e pegar top N
+    df_agg["_abs"] = df_agg[col_valor].abs()
+    df_agg = df_agg.sort_values("_abs", ascending=False).head(top_n)
+    df_agg = df_agg.drop(columns=["_abs"])
+
+    if df_agg.empty:
+        return None
+
+    # Converter para lista de listas
+    col_final = cols_disp + ["Real"]
+    linhas = []
+    for _, row in df_agg.iterrows():
+        linha = []
+        for c in cols_disp:
+            val = row.get(c, "")
+            linha.append("" if pd.isna(val) else str(val))
+        linha.append(float(row[col_valor]))
+        linhas.append(linha)
+
+    return {"titulo": titulo, "colunas": col_final, "linhas": linhas}
+
+
+def _extrair_piores_accounts(
+    wf_labels: list, wf_values: list, excluir: set | None = None,
+    n: int = 2,
+) -> list[str]:
+    """Extrai os N accounts com maior delta positivo (pior desempenho).
+
+    Ignora barras totais (primeira, última), Flex e Outros.
+    """
+    if not wf_labels or len(wf_labels) < 4:
+        return []
+    skip = {"Outros", "Others"}
+    if excluir:
+        skip |= excluir
+
+    pares = []
+    for lbl, val in zip(wf_labels[1:-1], wf_values[1:-1]):
+        clean = lbl.replace("\n", " ").strip()
+        if clean in skip or "flex" in clean.lower():
+            continue
+        pares.append((clean, val))
+
+    # Maior delta positivo = pior (custo real acima do budget)
+    pares.sort(key=lambda x: x[1], reverse=True)
+    return [p[0] for p in pares[:n] if p[1] > 0]
+
+
+def _calcular_tabelas_secao(
+    custo_real,
+    wf_budget_labels: list,
+    wf_budget_values: list,
+    colunas: list[str],
+    labels_dict: dict,
+    prefixo_titulo: str = "",
+) -> list[dict[str, Any]]:
+    """Calcula as 4 tabelas de uma seção (global ou oficina).
+
+    1. Material — Top 10
+    2. Supplier Failure Recovery
+    3-4. Dois piores accounts dinâmicos
+
+    Returns:
+        Lista de dicts de tabela (sem None).
+    """
+    tabelas: list[dict[str, Any]] = []
+
+    lbl_mat = labels_dict.get(
+        "sec_tabela_material", "Material — Top 10 Real"
+    )
+    lbl_sfr = labels_dict.get(
+        "sec_tabela_sfr", "Supplier Failure Recovery"
+    )
+    if prefixo_titulo:
+        lbl_mat = f"{prefixo_titulo} — {lbl_mat}"
+        lbl_sfr = f"{prefixo_titulo} — {lbl_sfr}"
+
+    # 1. Material
+    t = _construir_tabela_top(
+        custo_real, "Material", colunas, lbl_mat, top_n=10,
+    )
+    if t:
+        tabelas.append(t)
+
+    # 2. Supplier Failure Recovery
+    t = _construir_tabela_top(
+        custo_real, "Supplier Failure Recovery",
+        colunas, lbl_sfr, top_n=10,
+    )
+    if t:
+        tabelas.append(t)
+
+    # 3-4. Accounts dinâmicos (piores desempenhos)
+    excluir = {"Material", "Supplier Failure Recovery"}
+    piores = _extrair_piores_accounts(
+        wf_budget_labels, wf_budget_values, excluir, n=2,
+    )
+    for acc in piores:
+        titulo_acc = f"{prefixo_titulo} — {acc}" if prefixo_titulo else acc
+        t = _construir_tabela_top(
+            custo_real, acc, colunas, titulo_acc, top_n=10,
+        )
+        if t:
+            tabelas.append(t)
+
+    return tabelas
+
+
+# ═══════════════════════════════════════════════════════════════
 #  GERAR RELATÓRIO COMPLETO PARA UM MÊS
 # ═══════════════════════════════════════════════════════════════
 
@@ -949,6 +1660,8 @@ def gerar_relatorio_mes(
     api_key: str | None,
     modelo: str = "gpt-4o-mini",
     idioma: str = "pt-BR",
+    moeda: str = "EUR",
+    taxas: dict[str, float] | None = None,
 ) -> str:
     """
     Pipeline completo: coleta dados → gera texto LLM → salva JSON → gera PDF.
@@ -959,6 +1672,8 @@ def gerar_relatorio_mes(
         api_key: Chave OpenAI (pode ser None → fallback sem LLM)
         modelo: Modelo LLM
         idioma: 'pt-BR' ou 'en'
+        moeda: Código da moeda (BRL, USD, EUR)
+        taxas: Dict com taxas multiplicativas {"USD": 0.20, "EUR": 0.18}
 
     Returns:
         Caminho do PDF gerado
@@ -967,6 +1682,7 @@ def gerar_relatorio_mes(
         _filtrar_por_oficina,
         calcular_variacoes,
         coletar_dados_mes,
+        configurar_moeda_formatacao,
         descobrir_oficinas,
         formatar_dados_comparativos_agrupado,
         formatar_dados_conclusoes,
@@ -975,9 +1691,35 @@ def gerar_relatorio_mes(
         formatar_dados_volume_completo,
     )
     from tc_copilot.llm_integration import gerar_secao_relatorio
+    from tc_core.finance.currency import converter_coluna_moeda, obter_simbolo_moeda
+
+    if taxas is None:
+        taxas = {}
+    simbolo = obter_simbolo_moeda(moeda)
+
+    # Configurar moeda ativa para formatação automática
+    configurar_moeda_formatacao(moeda, simbolo)
 
     # 1. Coletar dados
     dados = coletar_dados_mes(ano, mes_numero)
+
+    # 1b. Converter custos para moeda selecionada (se != BRL)
+    if moeda != "BRL":
+        _colunas_custo = ["Custo FP", "Custo MP", "Custo Log.", "Custo Emb.",
+                          "Custo Total", "Amort. Fer.", "Amort. Eng.",
+                          "Delta Volume", "Delta Mix"]
+        for chave_df in ("custo_real", "custo_bud", "custo_real_ant",
+                         "custo_fp_real", "custo_fp_bud",
+                         "cpu_real", "cpu_bud",
+                         "_custo_bud_full", "_custo_real_full",
+                         "historico_custo"):
+            df = dados.get(chave_df)
+            if df is not None and not df.empty:
+                for col in _colunas_custo:
+                    dados[chave_df] = converter_coluna_moeda(
+                        dados[chave_df], col, moeda, taxas,
+                    )
+
     variacoes = calcular_variacoes(dados)
 
     mes_nome = dados["mes_nome"]
@@ -1041,6 +1783,22 @@ def gerar_relatorio_mes(
         model=modelo,
         ano_anterior=ano_anterior,
     )
+
+    # 5a. Gerar introdução da seção Oficinas (texto local, não via LLM)
+    try:
+        from tc_copilot.data_collector import _filtrar_por_oficina, _safe_sum
+        from tc_copilot.text_templates import gerar_texto_intro_oficinas
+        oficinas_resumo_ia = []
+        for ofc in oficinas:
+            dados_ofc = _filtrar_por_oficina(dados, ofc)
+            fp_real_ofc = _safe_sum(dados_ofc.get("custo_real"), "Custo FP")
+            fp_bud_ofc = _safe_sum(dados_ofc.get("custo_bud"), "Custo FP")
+            oficinas_resumo_ia.append((ofc, fp_real_ofc, fp_real_ofc - fp_bud_ofc))
+        # dados_graficos ainda não existe aqui — será criado em 5b.
+        # Será preenchido após a montagem dos dados_graficos (ver abaixo).
+        secoes_geradas["_oficinas_resumo_ia"] = oficinas_resumo_ia  # temp
+    except Exception:
+        pass
 
     # 5b. Preparar dados numéricos para gráficos waterfall (CPU — R$/veíc)
     from tc_copilot.chart_generator import (
@@ -1126,6 +1884,73 @@ def gerar_relatorio_mes(
         },
         "oficinas": {},
     }
+
+    # Waterfalls Type 05 e Type 06 (side-by-side no PDF)
+    _cr = dados.get("custo_real")
+    _cb = dados.get("custo_bud")
+    _vr = dados.get("volume_real")
+    _vb = dados.get("volume_bud")
+    for _dim_t in ("Type 05", "Type 06"):
+        _sfx = _dim_t.replace(" ", "").lower()  # type05, type06
+        try:
+            _wf_b = calcular_waterfall_budget_cpu(
+                custo_real=_cr, custo_bud=_cb,
+                vol_real=_vr, vol_bud=_vb, dim=_dim_t,
+            )
+        except Exception:
+            _wf_b = {}
+        dados_graficos["global"][f"wf_budget_{_sfx}_labels"] = _wf_b.get("labels", [])
+        dados_graficos["global"][f"wf_budget_{_sfx}_values"] = [
+            float(v) for v in _wf_b.get("values", [])]
+        # Mensal
+        _wf_m: dict[str, Any] = {}
+        if not sem_mes_anterior:
+            try:
+                _wf_m = calcular_waterfall_mensal_cpu(
+                    custo_real=_cr,
+                    custo_ant=dados.get("custo_real_ant"),
+                    vol_real=_vr,
+                    vol_ant=dados.get("volume_real_ant"),
+                    label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                    label_real=mes_nome, dim=_dim_t,
+                )
+            except Exception:
+                _wf_m = {}
+        dados_graficos["global"][f"wf_mensal_{_sfx}_labels"] = _wf_m.get("labels", [])
+        dados_graficos["global"][f"wf_mensal_{_sfx}_values"] = [
+            float(v) for v in _wf_m.get("values", [])]
+        # Ano anterior
+        _wf_a: dict[str, Any] = {}
+        if not sem_ano_anterior and custo_ano_ant is not None:
+            try:
+                _wf_a = calcular_waterfall_mensal_cpu(
+                    custo_real=_cr, custo_ant=custo_ano_ant,
+                    vol_real=_vr, vol_ant=vol_ano_ant,
+                    label_ant=f"{mes_nome}/{_ano_ant}",
+                    label_real=f"{mes_nome}/{ano}", dim=_dim_t,
+                )
+            except Exception:
+                _wf_a = {}
+        dados_graficos["global"][f"wf_ano_ant_{_sfx}_labels"] = _wf_a.get("labels", [])
+        dados_graficos["global"][f"wf_ano_ant_{_sfx}_values"] = [
+            float(v) for v in _wf_a.get("values", [])]
+
+    # Waterfall global com dim="Oficina" (para seção 4 do relatório)
+    try:
+        wf_oficinas_global = calcular_waterfall_budget_cpu(
+            custo_real=dados.get("custo_real"),
+            custo_bud=dados.get("custo_bud"),
+            vol_real=dados.get("volume_real"),
+            vol_bud=dados.get("volume_bud"),
+            dim="Oficina",
+        )
+        dados_graficos["global"]["wf_oficinas_labels"] = wf_oficinas_global.get("labels", [])
+        dados_graficos["global"]["wf_oficinas_values"] = [float(v) for v in wf_oficinas_global.get("values", [])]
+    except Exception as e:
+        logger.warning("Falha ao gerar waterfall global por oficina: %s", e)
+        dados_graficos["global"]["wf_oficinas_labels"] = []
+        dados_graficos["global"]["wf_oficinas_values"] = []
+
     for ofc in oficinas:
         try:
             dados_ofc = _filtrar_por_oficina(dados, ofc)
@@ -1186,11 +2011,72 @@ def gerar_relatorio_mes(
         except Exception as e:
             logger.warning("Falha ao coletar dados de gráfico para oficina %s: %s", ofc, e)
 
+    # 5c. Finalizar oficinas_intro (agora que dados_graficos existe)
+    _ofc_resumo_tmp = secoes_geradas.pop("_oficinas_resumo_ia", None)
+    if _ofc_resumo_tmp is not None:
+        try:
+            from tc_copilot.text_templates import gerar_texto_intro_oficinas as _gen_intro
+            secoes_geradas["oficinas_intro"] = _gen_intro(
+                oficinas_resumo=_ofc_resumo_tmp,
+                dados_graficos=dados_graficos,
+                mes_nome=mes_nome,
+                ano=ano,
+                moeda=moeda,
+                simbolo=simbolo,
+            )
+        except Exception as e:
+            logger.warning("Falha ao gerar oficinas_intro (IA): %s", e)
+
+    # 5d. Pré-calcular tabelas de análise detalhada
+    try:
+        _labels_tab = LABELS.get(idioma, LABELS["pt-BR"])
+        _g = dados_graficos["global"]
+        # Tabelas globais (com coluna Oficina)
+        _g["tabelas"] = _calcular_tabelas_secao(
+            custo_real=dados.get("custo_real"),
+            wf_budget_labels=_g.get("wf_budget_labels", []),
+            wf_budget_values=_g.get("wf_budget_values", []),
+            colunas=_TABELA_COLS_GLOBAL,
+            labels_dict=_labels_tab,
+        )
+        # Tabelas por oficina (sem coluna Oficina)
+        for ofc in oficinas:
+            _ofc_graf = dados_graficos.get("oficinas", {}).get(ofc, {})
+            _dados_ofc = _filtrar_por_oficina(dados, ofc)
+            _ofc_graf["tabelas"] = _calcular_tabelas_secao(
+                custo_real=_dados_ofc.get("custo_real"),
+                wf_budget_labels=_ofc_graf.get("wf_budget_labels", []),
+                wf_budget_values=_ofc_graf.get("wf_budget_values", []),
+                colunas=_TABELA_COLS_OFC,
+                labels_dict=_labels_tab,
+                prefixo_titulo=ofc,
+            )
+    except Exception as e:
+        logger.warning("Falha ao calcular tabelas (IA): %s", e)
+
     # 6. Salvar no JSON intermediário (inclui dados de gráficos)
     adicionar_mes_ao_relatorio(ano, mes_numero, secoes_geradas, dados_graficos)
 
-    # 7. Gerar PDF completo (cumulativo)
-    return gerar_pdf(ano, idioma)
+    # 7. PDF mensal individual + registro no banco
+    try:
+        from tc_copilot.relatorios_db import registrar_pdf
+        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="ia", idioma=idioma, simbolo_moeda=simbolo)
+        if pdf_mensal:
+            registrar_pdf(ano, mes_numero, modo="ia", moeda=moeda, caminho=pdf_mensal)
+    except Exception as e:
+        logger.warning("Falha ao gerar PDF mensal (IA) mês %s: %s", mes_numero, e)
+
+    # 8. Gerar PDF completo (cumulativo)
+    pdf_anual = gerar_pdf(ano, idioma, simbolo_moeda=simbolo)
+
+    # 9. Registrar PDF anual no banco
+    try:
+        from tc_copilot.relatorios_db import registrar_pdf as _reg
+        _reg(ano, 0, modo="ia", moeda=moeda, caminho=str(pdf_anual) if pdf_anual else "")
+    except Exception as _e:
+        logger.warning("Falha ao registrar PDF anual (IA): %s", _e)
+
+    return pdf_anual
 
 
 def meses_ja_gerados(ano: int) -> list[int]:
@@ -1310,11 +2196,123 @@ def meses_ja_gerados_local(ano: int) -> list[int]:
     return sorted(int(m) for m in dados.get("meses", {}).keys())
 
 
+# ═══════════════════════════════════════════════════════════════
+#  PDF MENSAL INDIVIDUAL (1 mês = 1 PDF)
+# ═══════════════════════════════════════════════════════════════
+
+def gerar_pdf_mensal(
+    ano: int,
+    mes_numero: int,
+    modo: str = "local",
+    idioma: str = "pt-BR",
+    simbolo_moeda: str = "€",
+) -> str | None:
+    """Gera PDF individual de um único mês.
+
+    Reutiliza ``_construir_capitulo_mes`` para montar o conteúdo.
+    O PDF inclui uma mini-capa e o capítulo completo (gráficos + texto).
+
+    Args:
+        ano: Ano.
+        mes_numero: Mês (1-12).
+        modo: 'local' ou 'ia'.
+        idioma: 'pt-BR' ou 'en'.
+        simbolo_moeda: Símbolo da moeda para labels de CPU no PDF.
+
+    Returns:
+        Caminho absoluto do PDF gerado, ou None em caso de erro.
+    """
+    garantir_pasta_relatorios()
+
+    # Carregar o JSON correto
+    if modo == "local":
+        dados_relatorio = carregar_dados_relatorio_local(ano)
+    else:
+        dados_relatorio = carregar_dados_relatorio(ano)
+
+    info_mes = dados_relatorio.get("meses", {}).get(str(mes_numero))
+    if not info_mes:
+        logger.warning("gerar_pdf_mensal: mês %s não encontrado no JSON (%s)", mes_numero, modo)
+        return None
+
+    mes_nome = info_mes.get("mes_nome", obter_nome_mes(mes_numero, idioma))
+    estilos = _criar_estilos()
+
+    pdf_path = str(caminho_relatorio_mensal(ano, mes_numero, modo))
+
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=A4,
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+        title=f"Relatório TC — {mes_nome}/{ano}",
+        author="SCI — TC Copilot",
+    )
+
+    elements: list = []
+
+    # ── Mini-capa ──
+    elements.append(Spacer(1, 4 * cm))
+    elements.append(Paragraph(
+        "Stellantis Cost Intelligence",
+        estilos.get("titulo_capa", estilos.get("titulo_capitulo")),
+    ))
+    elements.append(Spacer(1, 0.8 * cm))
+    elements.append(Paragraph(
+        f"Relatório Mensal — {mes_nome} / {ano}",
+        estilos.get("subtitulo_capa", estilos.get("titulo_capitulo")),
+    ))
+    elements.append(Spacer(1, 0.5 * cm))
+    modo_label = "Automático" if modo == "local" else "Com IA"
+    elements.append(Paragraph(
+        f"Modo: {modo_label} | Moeda: {simbolo_moeda}",
+        estilos.get("corpo", estilos.get("titulo_capitulo")),
+    ))
+    elements.append(Spacer(1, 1.5 * cm))
+
+    # ── Logo SCI (faixa) ──
+    logo_faixa = ROOT / "SCI_faixa.png"
+    if logo_faixa.exists():
+        img_w = 14 * cm
+        img_h = img_w * (457 / 1240)
+        elements.append(Image(
+            str(logo_faixa), width=img_w, height=img_h,
+        ))
+
+    elements.append(PageBreak())
+
+    # ── Sumário do mês ──
+    _construir_sumario_mensal(
+        elements, estilos, mes_numero, info_mes, idioma,
+    )
+
+    # ── Capítulo do mês ──
+    _construir_capitulo_mes(elements, estilos, mes_numero, info_mes, idioma, simbolo_moeda)
+
+    # ── Build ──
+    def _on_page(canvas, doc_):
+        _header_footer(canvas, doc_, ano)
+
+    def _on_first_page(canvas, doc_):
+        pass
+
+    try:
+        doc.build(elements, onFirstPage=_on_first_page, onLaterPages=_on_page)
+        logger.info("PDF mensal gerado: %s", pdf_path)
+    except Exception as e:
+        logger.error("Erro ao gerar PDF mensal %s/%s: %s", mes_numero, ano, e)
+        return None
+
+    return pdf_path
+
+
 def gerar_relatorio_mes_local(
     ano: int,
     mes_numero: int,
     idioma: str = "pt-BR",
-    moeda: str = "BRL",
+    moeda: str = "EUR",
     taxas: dict[str, float] | None = None,
 ) -> str:
     """
@@ -1333,6 +2331,7 @@ def gerar_relatorio_mes_local(
         _filtrar_por_oficina,
         calcular_variacoes,
         coletar_dados_mes,
+        configurar_moeda_formatacao,
         descobrir_oficinas,
         formatar_dados_oficina,
     )
@@ -1343,6 +2342,9 @@ def gerar_relatorio_mes_local(
         taxas = {}
     simbolo = obter_simbolo_moeda(moeda)
 
+    # Configurar moeda ativa para formatação automática
+    configurar_moeda_formatacao(moeda, simbolo)
+
     # 1. Coletar dados
     dados = coletar_dados_mes(ano, mes_numero)
 
@@ -1351,8 +2353,11 @@ def gerar_relatorio_mes_local(
         _colunas_custo = ["Custo FP", "Custo MP", "Custo Log.", "Custo Emb.",
                           "Custo Total", "Amort. Fer.", "Amort. Eng.",
                           "Delta Volume", "Delta Mix"]
-        for chave_df in ("custo_real", "custo_bud", "custo_real_ant", "custo_bud_ant",
-                         "custo_real_ano_ant", "custo_bud_ano_ant"):
+        for chave_df in ("custo_real", "custo_bud", "custo_real_ant",
+                         "custo_fp_real", "custo_fp_bud",
+                         "cpu_real", "cpu_bud",
+                         "_custo_bud_full", "_custo_real_full",
+                         "historico_custo"):
             df = dados.get(chave_df)
             if df is not None and not df.empty:
                 for col in _colunas_custo:
@@ -1453,6 +2458,71 @@ def gerar_relatorio_mes_local(
         },
         "oficinas": {},
     }
+
+    # Waterfalls Type 05 e Type 06 (side-by-side no PDF)
+    _cr = dados.get("custo_real")
+    _cb = dados.get("custo_bud")
+    _vr = dados.get("volume_real")
+    _vb = dados.get("volume_bud")
+    for _dim_t in ("Type 05", "Type 06"):
+        _sfx = _dim_t.replace(" ", "").lower()
+        try:
+            _wf_b = calcular_waterfall_budget_cpu(
+                custo_real=_cr, custo_bud=_cb,
+                vol_real=_vr, vol_bud=_vb, dim=_dim_t,
+            )
+        except Exception:
+            _wf_b = {}
+        dados_graficos["global"][f"wf_budget_{_sfx}_labels"] = _wf_b.get("labels", [])
+        dados_graficos["global"][f"wf_budget_{_sfx}_values"] = [
+            float(v) for v in _wf_b.get("values", [])]
+        _wf_m: dict[str, Any] = {}
+        if not sem_mes_anterior:
+            try:
+                _wf_m = calcular_waterfall_mensal_cpu(
+                    custo_real=_cr,
+                    custo_ant=dados.get("custo_real_ant"),
+                    vol_real=_vr,
+                    vol_ant=dados.get("volume_real_ant"),
+                    label_ant=dados.get("mes_nome_anterior", "Mês Ant"),
+                    label_real=mes_nome, dim=_dim_t,
+                )
+            except Exception:
+                _wf_m = {}
+        dados_graficos["global"][f"wf_mensal_{_sfx}_labels"] = _wf_m.get("labels", [])
+        dados_graficos["global"][f"wf_mensal_{_sfx}_values"] = [
+            float(v) for v in _wf_m.get("values", [])]
+        _wf_a: dict[str, Any] = {}
+        if not sem_ano_anterior and custo_ano_ant is not None:
+            try:
+                _wf_a = calcular_waterfall_mensal_cpu(
+                    custo_real=_cr, custo_ant=custo_ano_ant,
+                    vol_real=_vr, vol_ant=vol_ano_ant,
+                    label_ant=f"{mes_nome}/{_ano_ant}",
+                    label_real=f"{mes_nome}/{ano}", dim=_dim_t,
+                )
+            except Exception:
+                _wf_a = {}
+        dados_graficos["global"][f"wf_ano_ant_{_sfx}_labels"] = _wf_a.get("labels", [])
+        dados_graficos["global"][f"wf_ano_ant_{_sfx}_values"] = [
+            float(v) for v in _wf_a.get("values", [])]
+
+    # Waterfall global com dim="Oficina" (para seção 4 do relatório)
+    try:
+        wf_oficinas_global = calcular_waterfall_budget_cpu(
+            custo_real=dados.get("custo_real"),
+            custo_bud=dados.get("custo_bud"),
+            vol_real=dados.get("volume_real"),
+            vol_bud=dados.get("volume_bud"),
+            dim="Oficina",
+        )
+        dados_graficos["global"]["wf_oficinas_labels"] = wf_oficinas_global.get("labels", [])
+        dados_graficos["global"]["wf_oficinas_values"] = [float(v) for v in wf_oficinas_global.get("values", [])]
+    except Exception as e:
+        logger.warning("Falha ao gerar waterfall global por oficina (local): %s", e)
+        dados_graficos["global"]["wf_oficinas_labels"] = []
+        dados_graficos["global"]["wf_oficinas_values"] = []
+
     for ofc in oficinas:
         try:
             dados_ofc = _filtrar_por_oficina(dados, ofc)
@@ -1525,8 +2595,51 @@ def gerar_relatorio_mes_local(
         simbolo=simbolo,
     )
 
+    # 4b. Pré-calcular tabelas de análise detalhada
+    try:
+        _labels_tab = LABELS.get(idioma, LABELS["pt-BR"])
+        _g = dados_graficos["global"]
+        _g["tabelas"] = _calcular_tabelas_secao(
+            custo_real=dados.get("custo_real"),
+            wf_budget_labels=_g.get("wf_budget_labels", []),
+            wf_budget_values=_g.get("wf_budget_values", []),
+            colunas=_TABELA_COLS_GLOBAL,
+            labels_dict=_labels_tab,
+        )
+        for ofc in oficinas:
+            _ofc_graf = dados_graficos.get("oficinas", {}).get(ofc, {})
+            _dados_ofc = _filtrar_por_oficina(dados, ofc)
+            _ofc_graf["tabelas"] = _calcular_tabelas_secao(
+                custo_real=_dados_ofc.get("custo_real"),
+                wf_budget_labels=_ofc_graf.get("wf_budget_labels", []),
+                wf_budget_values=_ofc_graf.get("wf_budget_values", []),
+                colunas=_TABELA_COLS_OFC,
+                labels_dict=_labels_tab,
+                prefixo_titulo=ofc,
+            )
+    except Exception as e:
+        logger.warning("Falha ao calcular tabelas (local): %s", e)
+
     # 5. Salvar no JSON local
     adicionar_mes_ao_relatorio_local(ano, mes_numero, secoes_geradas, dados_graficos)
 
-    # 6. Gerar PDF local
-    return gerar_pdf_local(ano, idioma, simbolo_moeda=simbolo)
+    # 6. PDF mensal individual + registro no banco
+    try:
+        from tc_copilot.relatorios_db import registrar_pdf
+        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="local", idioma=idioma, simbolo_moeda=simbolo)
+        if pdf_mensal:
+            registrar_pdf(ano, mes_numero, modo="local", moeda=moeda, caminho=pdf_mensal)
+    except Exception as e:
+        logger.warning("Falha ao gerar PDF mensal (local) mês %s: %s", mes_numero, e)
+
+    # 7. Gerar PDF local (cumulativo)
+    pdf_anual = gerar_pdf_local(ano, idioma, simbolo_moeda=simbolo)
+
+    # 8. Registrar PDF anual no banco
+    try:
+        from tc_copilot.relatorios_db import registrar_pdf as _reg
+        _reg(ano, 0, modo="local", moeda=moeda, caminho=str(pdf_anual) if pdf_anual else "")
+    except Exception as _e:
+        logger.warning("Falha ao registrar PDF anual (local): %s", _e)
+
+    return pdf_anual

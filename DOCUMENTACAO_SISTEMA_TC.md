@@ -235,6 +235,45 @@ Mes, Período, Ano, Nºconta, Centrocst, Nºdoc.ref., Dt.lçto., Valor, QTD, Vol
 
 ## 5) Extração — TC Extendido
 
+### Fonte de verdade (produção)
+
+- **Página Streamlit (orquestração):** `pages/5 - Extração de Dados.py`
+- **Processamento:** `processamento_dados.py` (REAIS) e `processamento_dados_BUD.py` (BUDGET)
+- **Notebooks (referência/base):** `tc_ext/notebooks/dados.ipynb` e `tc_ext/notebooks/dados_BUD.ipynb`
+    - Quando necessário, o projeto sincroniza a lógica dos notebooks para `.py` via `sincronizar_notebooks.py`.
+
+### Arquivos de entrada (fonte única por ano)
+
+**Local padrão (recomendado):** `dados/TC_Ext/{ANO}/`
+
+- `Dados SAPIENS.xlsx`
+    - Aba obrigatória: `Base conso` (usada tanto em REAIS quanto em BUDGET)
+- `Reporting fluxo anexo.xlsx`
+    - **REAIS:** abas `Sapiens`, `Rateio`, `Volume`
+    - **BUDGET:** abas `Voz de custo BDG`, `Rateio BDG`, `Volume BDG`
+
+### Pré-validação (o que o app checa antes de processar)
+
+A página de extração executa uma checagem rápida para reduzir falhas durante o processamento:
+
+- Confere se os 2 arquivos existem.
+- Confere se as **abas obrigatórias** existem no Excel.
+- Valida **colunas mínimas** e detecção de meses:
+    - **REAIS / aba `Sapiens`** (lida com `header=1`): mínimo `Valor`, `QTD`, `Oficina`, `Período`, `Account`, `USI`.
+    - **REAIS / aba `Rateio`** e **BUDGET / aba `Rateio BDG`**:
+        - exige `Oficina`, `Veículo` (ou `Veiculo`) e colunas de meses (Janeiro..Dezembro).
+    - **REAIS / aba `Volume`** e **BUDGET / aba `Volume BDG`**:
+        - tenta ler com `header=50/0/1/2` (layout antigo e novo);
+        - exige `Oficina`, `Veículo` e colunas de meses.
+    - **BUDGET / aba `Voz de custo BDG`**: mínimo `Oficina`, `Account`.
+
+### Saídas e histórico (Parquet)
+
+- Saída REAIS: `dados/TC_Ext/{ANO}/...`
+- Saída BUDGET: `dados/TC_Ext/{ANO}/BUD/...`
+- **Histórico consolidado (multi-ano):** `dados/TC_Ext/historico_consolidado/`
+    - Regra: **concatena e regrava** (não substitui por ano).
+
 ### Notebooks
 
 | Aspecto | dados.ipynb (REAL) | dados_BUD.ipynb (BUDGET) |

@@ -28,6 +28,23 @@ else:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  MOEDA ATIVA (módulo-level, configurável)
+# ═══════════════════════════════════════════════════════════════
+_MOEDA_ATIVA: str = "EUR"
+_SIMBOLO_ATIVO: str = "€"
+
+
+def configurar_moeda_formatacao(moeda: str = "EUR", simbolo: str = "€"):
+    """Define a moeda usada por _fmt_k, _var_k e _fmt_cpu.
+
+    Chamar antes de qualquer pipeline de formatação.
+    """
+    global _MOEDA_ATIVA, _SIMBOLO_ATIVO
+    _MOEDA_ATIVA = moeda
+    _SIMBOLO_ATIVO = simbolo
+
+
+# ═══════════════════════════════════════════════════════════════
 #  HELPERS
 # ═══════════════════════════════════════════════════════════════
 
@@ -58,23 +75,25 @@ def _var_abs(atual: float, anterior: float) -> str:
     return f"Δ {sinal}{_fmt(diff)}"
 
 
-def _fmt_k(valor: float, decimais: int = 1) -> str:
-    """Formata valor em kBRL (÷1000). Ex: 448700.47 → '448,7 kBRL'."""
+def _fmt_k(valor: float, decimais: int = 1, moeda: str | None = None) -> str:
+    """Formata valor em k{moeda} (÷1000). Ex: 448700.47 → '448,7 kEUR'."""
+    m = moeda or _MOEDA_ATIVA
+    sufixo = f" k{m}"
     if pd.isna(valor) or valor is None:
-        return "0 kBRL"
+        return f"0{sufixo}"
     try:
         v = float(valor) / 1000
         s = f"{v:,.{decimais}f}"
-        return s.replace(",", "X").replace(".", ",").replace("X", ".") + " kBRL"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".") + sufixo
     except (ValueError, TypeError):
         return str(valor)
 
 
-def _var_k(atual: float, anterior: float) -> str:
-    """Variação absoluta em kBRL com Δ."""
+def _var_k(atual: float, anterior: float, moeda: str | None = None) -> str:
+    """Variação absoluta em k{moeda} com Δ."""
     diff = atual - anterior
     sinal = "+" if diff >= 0 else ""
-    return f"Δ {sinal}{_fmt_k(diff)}"
+    return f"Δ {sinal}{_fmt_k(diff, moeda=moeda)}"
 
 
 def _cpu(custo: float, volume: float) -> float:
@@ -84,14 +103,16 @@ def _cpu(custo: float, volume: float) -> float:
     return custo / volume
 
 
-def _fmt_cpu(valor: float) -> str:
-    """Formata valor como R$/veíc (sem divisão por 1000)."""
+def _fmt_cpu(valor: float, simbolo: str | None = None) -> str:
+    """Formata valor como {simbolo}/veíc (sem divisão por 1000)."""
+    s_moeda = simbolo or _SIMBOLO_ATIVO
+    sufixo = f" {s_moeda}/veíc"
     if pd.isna(valor) or valor is None:
-        return "0 R$/veíc"
+        return f"0{sufixo}"
     try:
         v = float(valor)
         s = f"{v:,.1f}"
-        return s.replace(",", "X").replace(".", ",").replace("X", ".") + " R$/veíc"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".") + sufixo
     except (ValueError, TypeError):
         return str(valor)
 
@@ -1497,7 +1518,7 @@ def formatar_dados_resumo_executivo(dados: dict, variacoes: dict) -> str:
         f"Volume Mês Anterior: {_fmt(vol_ant, 0)} un. (Δ {_fmt(vol_real - vol_ant, 0)} un., {_pct(vol_real, vol_ant)})",
         f"Volume Ano Anterior: {_fmt(vol_ano_ant, 0)} un. (Δ {_fmt(vol_real - vol_ano_ant, 0)} un., {_pct(vol_real, vol_ano_ant)})" if vol_ano_ant else "",
         "",
-        "** Custo FP — Visão Waterfall (kBRL + R$/veíc) **",
+        f"** Custo FP — Visão Waterfall (k{_MOEDA_ATIVA} + {_SIMBOLO_ATIVO}/veíc) **",
         f"Budget: {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud_t)})",
         f"Efeito Flex Volume (barra amarela): {s_ev}{_fmt_k(efeito_vol)} ({s_cev}{_fmt_cpu(cpu_ev)})",
         f"Flex Budget: {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex_t)})",
@@ -1534,7 +1555,7 @@ def formatar_dados_resumo_executivo(dados: dict, variacoes: dict) -> str:
             b = cpu_modelos_bud.get(modelo, 0)
             cpu_diffs.append((modelo, r, b, r - b))
         cpu_diffs.sort(key=lambda x: abs(x[3]), reverse=True)
-        lines.append("** Top 5 Modelos — CPU vs Budget (R$/veíc) **")
+        lines.append(f"** Top 5 Modelos — CPU vs Budget ({_SIMBOLO_ATIVO}/veíc) **")
         for modelo, r, b, d in cpu_diffs[:5]:
             s = "+" if d >= 0 else ""
             cor = "🔴" if d > 0 else ("🟢" if d < 0 else "⚪")

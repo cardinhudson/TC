@@ -596,8 +596,95 @@ def gerar_texto_conclusoes(
 
 
 # ═══════════════════════════════════════════════════════════════
-#  SEÇÃO 4 — OFICINA
+#  SEÇÃO 4 — OFICINAS (INTRODUÇÃO + INDIVIDUAL)
 # ═══════════════════════════════════════════════════════════════
+
+def gerar_texto_intro_oficinas(
+    oficinas_resumo: list[tuple[str, float, float]],
+    dados_graficos: dict | None = None,
+    mes_nome: str = "",
+    ano: int = 0,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
+) -> str:
+    """
+    Gera texto introdutório da seção 4 — Oficinas.
+
+    Inclui resumo das oficinas com maiores desvios vs Budget
+    e referência ao gráfico waterfall por oficina.
+
+    Args:
+        oficinas_resumo: Lista de (nome, fp_real, delta_vs_bud)
+        dados_graficos: Dict com dados de gráficos (wf_oficinas_labels/values)
+        mes_nome: Nome do mês
+        ano: Ano do relatório
+        moeda: Código da moeda
+        simbolo: Símbolo da moeda
+    """
+    partes = []
+
+    partes.append(
+        f"A seguir, é apresentada a análise detalhada de custos por oficina "
+        f"referente a {mes_nome}/{ano}."
+    )
+
+    # Gráfico waterfall por oficina será inserido pelo PDF antes deste texto
+    graf_global = dados_graficos.get("global", {}) if dados_graficos else {}
+    wf_labels = graf_global.get("wf_oficinas_labels", [])
+    wf_values = graf_global.get("wf_oficinas_values", [])
+
+    if len(wf_labels) > 4:
+        # Pegar categorias intermediárias (excluir BUD, Flex, Outros, Real)
+        # Identificar barras intermediárias
+        cats = list(zip(wf_labels[2:-1], wf_values[2:-1]))
+        cats.sort(key=lambda x: abs(x[1]), reverse=True)
+        top_cats = cats[:5]
+        items_wf = []
+        for lbl, val in top_cats:
+            lbl_clean = lbl.replace("\n", " ").strip()
+            items_wf.append(
+                f"{_cor_custo(val)} {lbl_clean} ({_sinal(val)}{_fmt_cpu(val, simbolo)})"
+            )
+        partes.append(
+            f"\nNo waterfall Budget vs Real por oficina (CPU em {simbolo}/veíc), "
+            f"os maiores impactos foram: {', '.join(items_wf)}."
+        )
+
+    # Resumo em kMOEDA (custo total)
+    if oficinas_resumo:
+        resumo_sorted = sorted(oficinas_resumo, key=lambda x: abs(x[2]), reverse=True)
+        items_ofc = []
+        for nome, fp_r, delta in resumo_sorted:
+            items_ofc.append(
+                f"{_cor_custo(delta)} **{nome}** ({_fmt_k(fp_r, moeda=moeda)}, "
+                f"Δ {_sinal(delta)}{_fmt_k(delta, moeda=moeda)})"
+            )
+        partes.append(
+            f"\nEm termos de custo total, as oficinas e seus desvios vs Budget são:\n"
+            + "\n".join(f"- {item}" for item in items_ofc)
+        )
+
+        # Identificar desfavoráveis e favoráveis
+        desfav = [n for n, _, d in resumo_sorted if d > 0]
+        fav = [n for n, _, d in resumo_sorted if d < 0]
+        if desfav:
+            partes.append(
+                f"\nAs oficinas com desempenho **desfavorável** (custo acima do Budget) foram: "
+                f"{', '.join(desfav)}."
+            )
+        if fav:
+            partes.append(
+                f"Já as oficinas com desempenho **favorável** (custo abaixo do Budget) foram: "
+                f"{', '.join(fav)}."
+            )
+
+    partes.append(
+        "\nAs sub-seções a seguir detalham cada oficina individualmente, "
+        "com drill-down por Type 05/06 e comparativos Budget, mensal e anual."
+    )
+
+    return "\n\n".join(partes)
+
 
 def gerar_texto_oficina(
     ofc_dict: dict[str, str],
@@ -736,6 +823,17 @@ def gerar_todas_secoes_local(
                 oficinas_resumo.append((ofc_nome, fp_real_ofc, fp_real_ofc - fp_bud_ofc))
             except Exception:
                 pass
+
+    # ── Introdução da Seção 4 — Oficinas (com waterfall por oficina) ──
+    if oficinas_resumo:
+        secoes["oficinas_intro"] = gerar_texto_intro_oficinas(
+            oficinas_resumo=oficinas_resumo,
+            dados_graficos=dados_graficos,
+            mes_nome=mes_nome,
+            ano=ano,
+            moeda=moeda,
+            simbolo=simbolo,
+        )
 
     # ── Resumo Executivo (gerado por último — resume tudo) ──
     secoes["resumo_executivo"] = gerar_texto_resumo_executivo(

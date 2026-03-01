@@ -286,8 +286,10 @@ tc_principal/
 └── pages/
     ├── home_tc.py                     # Página principal (6 tabs)
     ├── best_estimate_simulador_tc.py  # Simulador BE
-    ├── best_estimate_analise_tc.py    # Dashboard BE
     └── waterfall_tc.py                # Waterfall
+
+Obs.: a **análise** de Best Estimate / Forecast (Real + BE) é exibida no próprio `home_tc.py`
+consumindo `dados/TC_Principal/Forecast/forecast_completo.parquet`.
 ```
 
 ### Pipeline de Processamento (processamento_dados_veiculos.py)
@@ -325,9 +327,62 @@ tc_principal/
 
 ```
 Arquivos Excel (Entrada)
-    ├── processamento_dados_BUD.py → df_principal_BUD.parquet + rateio veículos
-    └── processamento_dados_veiculos.py → df_principal.parquet + df_tc_sapiens.parquet + rateio
+    ├── processamento_dados_veiculos_BUD.py (Budget)
+    │     → df_principal_BUD.parquet + parquets de volume/tempo + rateio por veículo (BUD)
+    └── processamento_dados_veiculos.py (Real)
+          → df_principal.parquet + df_tc_sapiens.parquet (detalhado) + rateio por veículo (Real)
 ```
+
+**Página Streamlit (orquestração):** `tc_principal/pages/extracao_dados_tc.py`
+- Budget: `processar_veiculos_budget`
+- Real: `processar_veiculos_real`
+
+### Arquivo de entrada (fonte única)
+
+- **Arquivo principal:** `Reporting veículos.xlsx`
+- **Local esperado:** `dados/TC_Principal/{ANO}/Reporting veículos.xlsx`
+- A página de extração permite **upload** do arquivo com proteção contra sobrescrita.
+
+### Abas obrigatórias — Budget (no Excel)
+
+- `massa primária - BDG`
+- `massa - REDIS`
+- `Volume e EST PdR - BDG`
+- `Volume BDG`
+- `Volume Actual`
+- `EST veículos - BDG`
+- `massa - D&A dedicado`
+
+### Abas obrigatórias — Real (no Excel)
+
+- `Sapiens`
+- `Volume e EST PdR - Actual`
+- `Volume Actual`
+- `EST veículos - Actual`
+
+### Pré-validação (recomendado)
+
+A própria página `extracao_dados_tc.py` executa uma pré-validação para reduzir falhas durante o processamento, por exemplo:
+
+- Confere se as abas obrigatórias existem.
+- Budget: checa colunas mínimas em `massa primária - BDG` (ex.: `Oficina`, `Account`) e `massa - REDIS` (ex.: `Oficina`).
+- Budget: tenta detectar meses na aba `Volume BDG` (testando múltiplos headers).
+- Real: em `Sapiens`, checa colunas mínimas (ex.: `Oficina`, `Account`, `Valor`).
+
+### Dependência importante (Budget → Real)
+
+Para o fluxo completo do **Real**, a extração emite aviso se não existir o parquet de D&A dedicado do Budget:
+- `dados/TC_Principal/{ANO}/BUD/df_dea_dedicado_BUD.parquet`
+
+Na prática: **rode o Budget antes do Real** quando estiver montando um ano novo.
+
+### Rateios manuais (PdR)
+
+Os rateios manuais QY/GS/SM são persistidos em `rateios_manuais.json` e são usados no cálculo da taxa PdR.
+
+**Principais saídas (por ano):**
+- Real: `dados/TC_Principal/{ANO}/df_principal.parquet`, `df_veiculos_custo_fp.parquet`, `df_veiculos_cpu.parquet`
+- Budget: `dados/TC_Principal/{ANO}/BUD/df_principal_BUD.parquet`, `df_veiculos_custo_fp_BUD.parquet`, `df_veiculos_cpu_BUD.parquet`
 
 **Busca de arquivos:**
 1. `dados/TC_Principal/{ANO}/Nome_do_Arquivo.xlsx` (prioridade)

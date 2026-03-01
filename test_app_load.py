@@ -1,5 +1,8 @@
-"""
-Script de teste rápido: Carregar dados como o app.py faz e verificar se há duplicatas
+"""test_app_load.py
+
+Smoke test rápido:
+- Se existir o histórico do TC Ext, carrega e valida colunas duplicadas/"Unnamed".
+- Se não existir (ambiente limpo/primeira execução), não falha.
 """
 import pandas as pd
 import os
@@ -9,7 +12,7 @@ import sys
 def limpar_colunas_duplicadas(df):
     """Remove colunas duplicadas (.1, .2, .3) e Unnamed:"""
     if df is None or df.empty:
-        return df
+        return df, []
     
     df = df.copy()
     colunas_para_manter = []
@@ -45,8 +48,18 @@ def limpar_colunas_duplicadas(df):
 print("🔄 Simulando carregamento como no app.py...")
 print("=" * 80)
 
-# Carregar dados
-caminho = os.path.join('dados', 'historico_consolidado', 'df_final_historico.parquet')
+# Carregar dados (mesmo padrão do app: TC_Ext/historico_consolidado)
+candidatos = [
+    os.path.join('dados', 'TC_Ext', 'historico_consolidado', 'df_final_historico.parquet'),
+    os.path.join('.', 'dados', 'TC_Ext', 'historico_consolidado', 'df_final_historico.parquet'),
+]
+
+caminho = next((p for p in candidatos if os.path.exists(p)), None)
+if not caminho:
+    print("\n⚠️ Histórico não encontrado. Nada a validar ainda.")
+    print("   Gere os parquets rodando a extração (TC Ext) e reexecute este teste.")
+    sys.exit(0)
+
 print(f"\n📂 Carregando: {caminho}")
 df = pd.read_parquet(caminho)
 print(f"   Colunas antes da limpeza: {len(df.columns)}")
