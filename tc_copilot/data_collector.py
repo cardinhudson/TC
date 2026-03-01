@@ -1048,24 +1048,30 @@ def formatar_dados_comparativo(
 
 
 def formatar_dados_anomalias(dados: dict, variacoes: dict) -> str:
-    """Formata dados consolidados para detecção de anomalias pela LLM."""
+    """Formata dados consolidados para detecção de anomalias pela LLM.
+
+    Usa exclusivamente Custo FP (já rateado/alocado) — nunca Despesa Primária.
+    """
     v = variacoes["volume"]
-    d = variacoes["despesa"]
     fp = variacoes["custo_fp"]
+
+    fp_real = fp["real"]
+    fp_bud = fp.get("budget", 0)
+    fp_flex = fp.get("flex", 0)
+    fp_ant = fp.get("mes_anterior", 0)
 
     lines = [
         f"Resumo consolidado do mês de {dados['mes_nome']}/{dados['ano']}:",
         f"",
         f"Volume total Real: {_fmt(v['real'], 0)} un.",
-        f"Despesa Primária Real: R$ {_fmt(d['real'])}",
-        f"Custo FP Real: R$ {_fmt(fp['real'])}",
-        f"Flex Budget: R$ {_fmt(d['flex'])}",
+        f"Custo FP Real: {_fmt_k(fp_real)}",
+        f"Custo FP Budget: {_fmt_k(fp_bud)}",
+        f"Flex Budget: {_fmt_k(fp_flex)}",
         f"",
-        f"Variações significativas:",
-        f"  Real vs Mês Anterior (Desp.): {_pct(d['real'], d['mes_anterior'])}",
-        f"  Real vs Flex: {_pct(d['real'], d['flex'])}",
-        f"  Real vs Budget: {_pct(d['real'], d['budget'])}",
-        f"  Real vs Ano Anterior: {_pct(d['real'], d['ano_anterior'])}",
+        f"Variações significativas (Custo FP):",
+        f"  Real vs Mês Anterior: {_pct(fp_real, fp_ant)}",
+        f"  Real vs Flex (Efeito Operacional/Performance): {_pct(fp_real, fp_flex)}",
+        f"  Real vs Budget: {_pct(fp_real, fp_bud)}",
         f"",
         f"Modelos com maiores variações (volume vs mês anterior):",
     ]

@@ -1155,14 +1155,36 @@ def _inserir_waterfall_streamlit(
             return
         ano_rel = graf.get("ano", ano)
 
+        # Helper para inserir par Type 05 + Type 06
+        def _inserir_type05_type06(prefixo: str, label_comp: str):
+            for sfx, dim_label, h in [
+                ("type05", "Type 05", 3.5),
+                ("type06", "Type 06", 5),
+            ]:
+                _lbls = graf.get(f"{prefixo}_{sfx}_labels", [])
+                _vals = graf.get(f"{prefixo}_{sfx}_values", [])
+                if _lbls and len(_lbls) >= 3:
+                    _png = gerar_waterfall_from_arrays(
+                        {"labels": _lbls, "values": _vals},
+                        titulo=f"{dim_label} — {label_comp} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                        transparent=True,
+                        y_label=cpu_label,
+                        height=h,
+                    )
+                    if _png:
+                        st.image(_png, use_container_width=True)
+
         # Waterfall Budget
         if tipo_waterfall in ("budget", "ambos"):
+            # Type 05 + Type 06
+            _inserir_type05_type06("wf_budget", "Waterfall Budget")
+            # Account
             wf_bud_labels = graf.get("wf_budget_labels", [])
             wf_bud_values = graf.get("wf_budget_values", [])
             if wf_bud_labels and len(wf_bud_labels) >= 3:
                 png = gerar_waterfall_from_arrays(
                     {"labels": wf_bud_labels, "values": wf_bud_values},
-                    titulo=f"Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    titulo=f"Account — Waterfall Budget — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                     transparent=True,
                     y_label=cpu_label,
                 )
@@ -1171,12 +1193,13 @@ def _inserir_waterfall_streamlit(
 
         # Waterfall Mensal
         if tipo_waterfall in ("mensal", "ambos"):
+            _inserir_type05_type06("wf_mensal", "Waterfall Mensal")
             wf_men_labels = graf.get("wf_mensal_labels", [])
             wf_men_values = graf.get("wf_mensal_values", [])
             if wf_men_labels and len(wf_men_labels) >= 3:
                 png = gerar_waterfall_from_arrays(
                     {"labels": wf_men_labels, "values": wf_men_values},
-                    titulo=f"Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                    titulo=f"Account — Waterfall Mensal — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
                     transparent=True,
                     y_label=cpu_label,
                 )
@@ -1185,13 +1208,14 @@ def _inserir_waterfall_streamlit(
 
         # Waterfall Ano Anterior (YoY)
         if tipo_waterfall in ("ano_anterior", "ambos"):
+            _inserir_type05_type06("wf_ano_ant", "Waterfall Ano Anterior")
             wf_aa_labels = graf.get("wf_ano_ant_labels", [])
             wf_aa_values = graf.get("wf_ano_ant_values", [])
             ano_ant_rel = graf.get("ano_anterior", ano_rel - 1)
             if wf_aa_labels and len(wf_aa_labels) >= 3:
                 png = gerar_waterfall_from_arrays(
                     {"labels": wf_aa_labels, "values": wf_aa_values},
-                    titulo=f"Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
+                    titulo=f"Account — Waterfall Ano Anterior — CPU ({cpu_label}) — {mes_nome}/{ano_ant_rel} vs {ano_rel}",
                     transparent=True,
                     y_label=cpu_label,
                 )
@@ -1205,11 +1229,31 @@ def _inserir_waterfall_streamlit(
             return
         ano_rel = graf.get("ano", ano)
 
+        # Helper para inserir par Type 05 + Type 06 (oficina)
+        def _inserir_type05_type06_ofc(prefixo: str, label_comp: str):
+            for sfx, dim_label, h in [
+                ("type05", "Type 05", 3.5),
+                ("type06", "Type 06", 5),
+            ]:
+                _lbls = graf.get(f"{prefixo}_{sfx}_labels", [])
+                _vals = graf.get(f"{prefixo}_{sfx}_values", [])
+                if _lbls and len(_lbls) >= 3:
+                    _png = gerar_waterfall_from_arrays(
+                        {"labels": _lbls, "values": _vals},
+                        titulo=f"{dim_label} — {label_comp} — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
+                        transparent=True,
+                        y_label=cpu_label,
+                        height=h,
+                    )
+                    if _png:
+                        st.image(_png, use_container_width=True)
+
         # Selecionar tipo de waterfall
         if tipo_waterfall in ("budget", "ambos"):
+            _inserir_type05_type06_ofc("wf_budget", "Waterfall Budget")
             wf_labels = graf.get("wf_budget_labels", [])
             wf_values = graf.get("wf_budget_values", [])
-            titulo_wf = f"Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
+            titulo_wf = f"Account — Waterfall Budget — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
             if wf_labels and len(wf_labels) >= 3:
                 png = gerar_waterfall_from_arrays(
                     {"labels": wf_labels, "values": wf_values},
@@ -1219,9 +1263,10 @@ def _inserir_waterfall_streamlit(
                     st.image(png, use_container_width=True)
 
         if tipo_waterfall in ("mensal", "ambos"):
+            _inserir_type05_type06_ofc("wf_mensal", "Waterfall Mensal")
             wf_labels = graf.get("wf_mensal_labels", [])
             wf_values = graf.get("wf_mensal_values", [])
-            titulo_wf = f"Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
+            titulo_wf = f"Account — Waterfall Mensal — {ofc_nome} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}"
             if wf_labels and len(wf_labels) >= 3:
                 png = gerar_waterfall_from_arrays(
                     {"labels": wf_labels, "values": wf_values},
@@ -1231,6 +1276,7 @@ def _inserir_waterfall_streamlit(
                     st.image(png, use_container_width=True)
 
         if tipo_waterfall in ("ano_anterior", "ambos"):
+            _inserir_type05_type06_ofc("wf_ano_ant", "Waterfall Ano Anterior")
             wf_labels = graf.get("wf_ano_ant_labels", [])
             wf_values = graf.get("wf_ano_ant_values", [])
             ano_ant_rel = graf.get("ano_anterior", ano_rel - 1)

@@ -1457,8 +1457,9 @@ def _inserir_waterfall_pair(
     cpu_label = f"{simbolo_moeda}/veíc"
     ano_rel = graf_global.get("ano", "")
 
-    for pref, dim_label in [
-        (prefixo_t05, "Type 05"), (prefixo_t06, "Type 06"),
+    for pref, dim_label, h in [
+        (prefixo_t05, "Type 05", 3.5),
+        (prefixo_t06, "Type 06", 5),
     ]:
         lbls = graf_global.get(f"{pref}_labels", [])
         vals = graf_global.get(f"{pref}_values", [])
@@ -1469,7 +1470,7 @@ def _inserir_waterfall_pair(
             titulo=f"{dim_label} — CPU ({cpu_label}) — {mes_nome}/{ano_rel}",
             y_label=cpu_label,
             width=14,
-            height=5,
+            height=h,
         )
         if not png:
             continue
