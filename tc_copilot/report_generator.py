@@ -179,8 +179,177 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             textColor=COR_CINZA,
             alignment=TA_CENTER,
         ),
+        # --- Estilos para bloco Equipe na capa ---
+        "equipe_titulo": ParagraphStyle(
+            "EquipeTitulo",
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            leading=16,
+            textColor=COR_PRIMARIA,
+            alignment=TA_CENTER,
+            spaceBefore=6,
+            spaceAfter=8,
+        ),
+        "equipe_nome": ParagraphStyle(
+            "EquipeNome",
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=12,
+            textColor=COR_PRIMARIA,
+            alignment=TA_CENTER,
+        ),
+        "equipe_papel": ParagraphStyle(
+            "EquipePapel",
+            fontName="Helvetica-Oblique",
+            fontSize=8,
+            leading=10,
+            textColor=COR_DESTAQUE,
+            alignment=TA_CENTER,
+        ),
+        "equipe_desc": ParagraphStyle(
+            "EquipeDesc",
+            fontName="Helvetica",
+            fontSize=7,
+            leading=9,
+            textColor=COR_CINZA,
+            alignment=TA_CENTER,
+        ),
     }
     return estilos
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BLOCO DE EQUIPE PARA CAPA DO PDF
+# ═══════════════════════════════════════════════════════════════
+
+_MEMBROS_EQUIPE = [
+    {"key": "hudson",    "nome": "Hudson Cardin",            "icone": "🔧"},
+    {"key": "lauro",     "nome": "Lauro Paiva Junior",       "icone": "📊"},
+    {"key": "frederico", "nome": "Frederico Cesar de Jesus", "icone": "🧭"},
+]
+
+
+def _carregar_dados_equipe_json() -> dict:
+    """Lê dados_equipe.json e retorna o dict completo."""
+    json_path = ROOT / "dados_equipe.json"
+    if not json_path.exists():
+        return {}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _foto_base64_para_image(base64_str: str | None, largura: float = 2.2 * cm) -> Image | None:
+    """Converte foto base64 do JSON para um objeto ReportLab Image."""
+    if not base64_str:
+        return None
+    try:
+        import base64
+        from PIL import Image as PILImage
+        raw = base64.b64decode(base64_str)
+        buf = _BytesIO(raw)
+
+        # Redimensionar para economizar memória e acelerar o PDF
+        pil_img = PILImage.open(buf)
+        max_px = 300  # Máximo 300px de largura — suficiente para 2.2cm no PDF
+        if pil_img.width > max_px:
+            ratio = max_px / pil_img.width
+            new_h = int(pil_img.height * ratio)
+            pil_img = pil_img.resize((max_px, new_h), PILImage.LANCZOS)
+
+        # Converter para RGB se necessário (ex: RGBA)
+        if pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+
+        out_buf = _BytesIO()
+        pil_img.save(out_buf, format="JPEG", quality=85)
+        out_buf.seek(0)
+
+        # Proporção 180×200 px → largura:altura = 0.9
+        img_h = largura / 0.9
+        return Image(out_buf, width=largura, height=img_h)
+    except Exception:
+        return None
+
+
+def _construir_bloco_equipe(estilos: dict) -> list:
+    """Constrói o bloco visual ‘👥 Equipe do SCI’ para inserir na capa do PDF.
+
+    Retorna lista de Flowables (Paragraph + Table) prontos para elements.extend().
+    """
+    dados_eq = _carregar_dados_equipe_json()
+    if not dados_eq:
+        return []
+
+    result: list = []
+    result.append(Spacer(1, 0.8 * cm))
+    result.append(Paragraph("👥 Equipe do SCI", estilos["equipe_titulo"]))
+    result.append(Spacer(1, 0.3 * cm))
+
+    # Montar uma coluna por membro
+    colunas_data: list[list] = []  # Cada item é uma lista de Flowables para a coluna
+
+    foto_w = 2.2 * cm
+    foto_h = foto_w / 0.9
+
+    for membro in _MEMBROS_EQUIPE:
+        k = membro["key"]
+        info = dados_eq.get(k, {})
+        papel = info.get("papel_projeto", "")
+        desc_papel = info.get("descricao_papel", "")
+        foto_b64 = info.get("foto")
+
+        col_items: list = []
+
+        # Foto ou placeholder
+        img = _foto_base64_para_image(foto_b64, foto_w)
+        if img:
+            col_items.append(img)
+        else:
+            col_items.append(Paragraph(
+                '👤',
+                ParagraphStyle("FotoPlaceholder", fontSize=28, alignment=TA_CENTER,
+                               spaceBefore=4, spaceAfter=4),
+            ))
+
+        col_items.append(Spacer(1, 0.15 * cm))
+        col_items.append(Paragraph(
+            f"{membro['icone']} {membro['nome']}",
+            estilos["equipe_nome"],
+        ))
+        if papel:
+            col_items.append(Paragraph(papel, estilos["equipe_papel"]))
+        if desc_papel:
+            col_items.append(Spacer(1, 0.1 * cm))
+            col_items.append(Paragraph(desc_papel, estilos["equipe_desc"]))
+
+        colunas_data.append(col_items)
+
+    # Construir Table com 3 colunas
+    n_cols = len(colunas_data)
+    col_width = 5.3 * cm
+    # Cada célula é uma lista de Flowables dentro de uma sub-tabela (KeepTogether)
+    row = []
+    for col_items in colunas_data:
+        row.append(col_items)
+
+    table = Table(
+        [row],
+        colWidths=[col_width] * n_cols,
+    )
+    table.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+
+    result.append(table)
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -299,15 +468,15 @@ def adicionar_mes_ao_relatorio(
 def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
     """Adiciona capa ao documento com logo SCI_faixa abaixo da data."""
 
-    elements.append(Spacer(1, 4 * cm))
+    elements.append(Spacer(1, 2 * cm))
 
     # ── Título e subtítulo ────────────────────────────────────
     titulo = "Relatório Anual de Custos" if idioma == "pt-BR" else "Annual Cost Report"
     subtitulo = "Stellantis Cost Intelligence — TC Copilot"
     elements.append(Paragraph(titulo, estilos["titulo_capa"]))
-    elements.append(Spacer(1, 0.8 * cm))
+    elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph(subtitulo, estilos["subtitulo_capa"]))
-    elements.append(Spacer(1, 1.5 * cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # ── Ano em destaque ───────────────────────────────────────
     elements.append(Paragraph(str(ano), ParagraphStyle(
@@ -317,7 +486,7 @@ def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
         textColor=COR_DESTAQUE,
         alignment=TA_CENTER,
     )))
-    elements.append(Spacer(1, 1.5 * cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # ── Data de geração ───────────────────────────────────────
     agora = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -325,7 +494,7 @@ def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
         f"Gerado em: {agora}" if idioma == "pt-BR" else f"Generated: {agora}",
         estilos["data_capa"],
     ))
-    elements.append(Spacer(1, 1.5 * cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # ── Logo SCI (faixa) abaixo da data ─────────────────────
     # SCI_faixa.png (1240×457) → 14 cm de largura, proporcional
@@ -334,6 +503,11 @@ def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
         img_w = 14 * cm
         img_h = img_w * (457 / 1240)
         elements.append(Image(str(logo_faixa), width=img_w, height=img_h))
+
+    # ── Bloco Equipe do SCI ─────────────────────────────
+    equipe_elements = _construir_bloco_equipe(estilos)
+    if equipe_elements:
+        elements.extend(equipe_elements)
 
     elements.append(PageBreak())
 
@@ -2364,23 +2538,23 @@ def gerar_pdf_mensal(
     elements: list = []
 
     # ── Mini-capa ──
-    elements.append(Spacer(1, 4 * cm))
+    elements.append(Spacer(1, 2 * cm))
     elements.append(Paragraph(
         "Stellantis Cost Intelligence",
         estilos.get("titulo_capa", estilos.get("titulo_capitulo")),
     ))
-    elements.append(Spacer(1, 0.8 * cm))
+    elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph(
         f"Relatório Mensal — {mes_nome} / {ano}",
         estilos.get("subtitulo_capa", estilos.get("titulo_capitulo")),
     ))
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.3 * cm))
     modo_label = "Automático" if modo == "local" else "Com IA"
     elements.append(Paragraph(
         f"Modo: {modo_label} | Moeda: {simbolo_moeda}",
         estilos.get("corpo", estilos.get("titulo_capitulo")),
     ))
-    elements.append(Spacer(1, 1.5 * cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # ── Logo SCI (faixa) ──
     logo_faixa = ROOT / "SCI_faixa.png"
@@ -2390,6 +2564,11 @@ def gerar_pdf_mensal(
         elements.append(Image(
             str(logo_faixa), width=img_w, height=img_h,
         ))
+
+    # ── Bloco Equipe do SCI ──
+    equipe_elements = _construir_bloco_equipe(estilos)
+    if equipe_elements:
+        elements.extend(equipe_elements)
 
     elements.append(PageBreak())
 

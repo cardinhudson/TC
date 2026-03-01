@@ -182,7 +182,7 @@ def gerar_texto_resumo_executivo(
         f"resultando em um delta de {_sinal(delta_bud)}{_fmt_k(delta_bud, moeda=moeda)} ({_pct(fp_real, fp_bud)}). "
         f"O efeito volume impactou {v_imp} em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}, "
         f"levando o Flex Budget a {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
-        f"O efeito operacional (preço e mix) {op_verbo} {_fmt_k(abs(efeito_op), moeda=moeda)}, "
+        f"O efeito operacional (Performance) (preço e mix) {op_verbo} {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance **{op_adj}** frente ao esperado."
     )
     paragrafos.append(p2)
@@ -251,7 +251,7 @@ def gerar_texto_resumo_executivo(
         )
     if abs(efeito_op) > 0 and fp_flex > 0 and abs(efeito_op) / fp_flex > 0.05:
         alertas.append(
-            f"⚠️ Efeito operacional de {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)} "
+            f"⚠️ Efeito operacional (Performance) de {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)} "
             f"({_pct(fp_real, fp_flex)} vs Flex) — investigar causas de preço/mix."
         )
     if variacoes.get("sem_ano_anterior"):
@@ -429,7 +429,7 @@ def gerar_texto_comparativos(
         f"{_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)}), impactando {imp_vol} "
         f"o custo em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}. "
         f"O Flex Budget resultante ficou em {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
-        f"O efeito operacional {imp_op} de {_fmt_k(abs(efeito_op), moeda=moeda)}, "
+        f"O efeito operacional (Performance) {imp_op} de {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance {perf_op} do que o esperado."
     )
     # Drill-down Budget Flex
@@ -518,7 +518,7 @@ def gerar_texto_conclusoes(
         direcao = "acima" if fp_real > fp_flex else "abaixo"
         alertas.append(
             f"- ⚠️ Custo FP Real ficou **{_pct(fp_real, fp_flex)}** {direcao} do Flex Budget — "
-            f"efeito operacional relevante."
+            f"efeito operacional (Performance) relevante."
         )
 
     # Custo FP vs Mês Anterior
@@ -550,12 +550,12 @@ def gerar_texto_conclusoes(
     efeito_op = fp_real - fp_flex
     if efeito_op < 0:
         partes.append(
-            f"- O efeito operacional foi **favorável** em {_fmt_k(abs(efeito_op), moeda=moeda)}, "
+            f"- O efeito operacional (Performance) foi **favorável** em {_fmt_k(abs(efeito_op), moeda=moeda)}, "
             f"sugerindo boa gestão de preço e mix no período."
         )
     elif efeito_op > 0:
         partes.append(
-            f"- O efeito operacional foi **desfavorável** em {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)}, "
+            f"- O efeito operacional (Performance) foi **desfavorável** em {_sinal(efeito_op)}{_fmt_k(efeito_op, moeda=moeda)}, "
             f"indicando necessidade de revisão de preços/mix de produção."
         )
 
@@ -574,7 +574,7 @@ def gerar_texto_conclusoes(
 
     if fp_flex > 0 and fp_real > fp_flex:
         recomendacoes.append(
-            "- Investigar drivers do efeito operacional desfavorável "
+            "- Investigar drivers do efeito operacional (Performance) desfavorável "
             "nos maiores Type 05/Type 06 do drill-down."
         )
 

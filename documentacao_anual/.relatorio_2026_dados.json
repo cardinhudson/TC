@@ -382,89 +382,90 @@
     "2": {
       "mes_numero": 2,
       "mes_nome": "Fevereiro",
-      "gerado_em": "2026-02-26T14:50:51.583062",
+      "gerado_em": "2026-03-01T18:16:47.294629",
       "secoes": {
-        "volume_completo": "### 1.1 Volume Total\nEm Fevereiro/2026, o volume total de produção foi de 3.661 unidades, alinhando-se com a projeção de 3.661 unidades e superando o Budget de 3.657 unidades em 4 unidades (+0,1%). Este leve aumento em relação ao Budget indica uma performance estável, que pode contribuir para a diluição de custos fixos, melhorando a eficiência operacional.\n\n### 1.2 Real vs Budget\nO delta total em relação ao Budget foi de Δ +4,00 unidades. Os modelos que mais impactaram essa variação foram:\n- 🟢 CC21 monoton: 1.526 un. (acima do budget em +3 un., +0,2%)\n- 🟢 CC21 biton: 170 un. (acima do budget em +1 un., +0,6%)\n- ⚪ CC22 biton: 374 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ CC22 monoton: 1.120 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ CC24 biton 5L: 82 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ CC24 biton 7L: 60 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ CC24 monoton 5L: 190 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ CC24 monoton 7L: 139 un. (abaixo do budget em 0 un., 0,0%)\n- ⚪ J516 biton: 0 un. (abaixo do budget em 0 un., N/A)\n- ⚪ J516 monoton: 0 un. (abaixo do budget em 0 un., N/A)\n\nO crescimento dos modelos CC21, que possuem custos de produção relativamente altos, pode resultar em uma pressão adicional sobre os custos, mas a leve superação do Budget sugere um controle eficaz.\n\n### 1.3 Real vs Mês Anterior\nComparando com o mês anterior, houve uma redução total de Δ -1.198 unidades (-24,7%). As principais variações foram:\n- 🔴 CC22 monoton: 1.120 un. (redução de -709 un., -38,8%)\n- 🟢 CC21 monoton: 1.526 un. (aumento de +300 un., +24,5%)\n- 🔴 CC24 biton 5L: 82 un. (redução de -240 un., -74,5%)\n- 🔴 CC24 monoton 7L: 139 un. (redução de -203 un., -59,4%)\n- 🔴 CC21 biton: 170 un. (redução de -175 un., -50,7%)\n- 🔴 CC24 monoton 5L: 190 un. (redução de -160 un., -45,7%)\n- 🔴 CC22 biton: 374 un. (redução de -17 un., -4,3%)\n- 🟢 CC24 biton 7L: 60 un. (aumento de +6 un., +11,1%)\n- ⚪ J516 biton: 0 un. (redução de 0 un., N/A)\n- ⚪ J516 monoton: 0 un. (redução de 0 un., N/A)\n\nA queda significativa em modelos como CC22 monoton e CC24 biton 5L, que têm custos de produção elevados, pode resultar em uma concentração de custos fixos, impactando negativamente a margem de lucro.\n\n### 1.4 Real vs Mesmo Mês de 2025\nNão há dados disponíveis para comparação com o mesmo mês do ano anterior, portanto, não é possível realizar uma análise YoY. ⚠️ Sem dados de volume do ano anterior para comparação por modelo.\n\nEm resumo, o volume de produção em Fevereiro/2026 apresentou uma leve superação em relação ao Budget, mas uma queda significativa em comparação ao mês anterior. A variação de volume impacta diretamente os custos, com a redução em modelos de alto custo podendo aumentar a pressão sobre a margem. A análise sugere a necessidade de monitoramento contínuo e ajustes nas estratégias de produção para mitigar os riscos associados a essas flutuações. 💡",
-        "comparativos": "### 2.1 Real vs Budget (Efeito Flex Volume)\n\nCusto FP Total: -1.362,0 kBRL (-372,0 R$/veíc) | Δ -14.037,5 kBRL (Δ -3.838,1 R$/veíc), -110.7% vs Budget de 12.675,5 kBRL (3.466,1 R$/veíc).\n\nO Efeito Flex Volume resultou em um aumento de custo de 7,8 kBRL devido ao volume real de 3.661 unidades, que superou o Budget de 3.657 unidades em +0.1%. Após o ajuste pelo volume, o Flex Budget ficou em 12.683,2 kBRL (3.464,4 R$/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou uma economia de 14.045,2 kBRL (Δ -3.836,5 R$/veíc), indicando uma performance melhor do que o esperado.\n\n**Labor**: -255,2 kBRL (-69,7 R$/veíc) | Δ -7.651,6 kBRL (Δ -2.090,0 R$/veíc), -103.5% | 🟢 ganho\n- 🟢 Direct Labor: -72,9 kBRL (-19,9 R$/veíc) | Δ -3.219,4 kBRL (Δ -879,4 R$/veíc)\n  - 🟢 Main/Principal: -3.219,4 kBRL (Δ -879,4 R$/veíc)\n- 🟢 WC & Trainee: -182,3 kBRL (-49,8 R$/veíc) | Δ -1.699,7 kBRL (Δ -464,3 R$/veíc)\n  - 🟢 WC & Trainee: -1.699,7 kBRL (Δ -464,3 R$/veíc)\n\n**D&A**: -358,1 kBRL (-97,8 R$/veíc) | Δ -2.844,1 kBRL (Δ -776,9 R$/veíc), -114.4% | 🟢 ganho\n- 🟢 Taxes, Insurance & Assets Amortization: -358,1 kBRL (-97,8 R$/veíc) | Δ -2.844,1 kBRL (Δ -776,9 R$/veíc)\n  - 🟢 Plant Depreciation: -2.683,4 kBRL (Δ -733,0 R$/veíc)\n\n**Burden**: -748,7 kBRL (-204,5 R$/veíc) | Δ -3.549,5 kBRL (Δ -969,6 R$/veíc), -126.7% | 🟢 ganho\n- 🟢 Energy: -239,9 kBRL (-65,5 R$/veíc) | Δ -1.557,1 kBRL (Δ -425,3 R$/veíc)\n  - 🟢 Electricity: -893,1 kBRL (Δ -243,9 R$/veíc)\n  - 🟢 Gas: -641,2 kBRL (Δ -175,1 R$/veíc)\n\n### 2.2 Real vs Mês Anterior\n\nCusto FP Total: -1.362,0 kBRL (-372,0 R$/veíc) | Δ -15.319,8 kBRL (Δ -3.244,6 R$/veíc), -109.8% vs Mês Anterior de 13.957,8 kBRL (2.872,6 R$/veíc).\n\nA comparação mês a mês revela uma redução significativa nos custos, com destaque para a eficiência operacional que contribuiu para a economia.\n\n**Labor**: -255,2 kBRL (-69,7 R$/veíc) | Δ -8.321,2 kBRL (Δ -2.272,9 R$/veíc), -103.2% | 🟢 redução\n- 🟢 Benefits: 0,0 kBRL (0,0 R$/veíc) | Δ -4.542,6 kBRL (Δ -1.240,8 R$/veíc)\n  - 🟢 Restaurant - BC: -2.018,9 kBRL (Δ -551,5 R$/veíc)\n\n**D&A**: -358,1 kBRL (-97,8 R$/veíc) | Δ -2.522,3 kBRL (Δ -689,0 R$/veíc), -116.5% | 🟢 redução\n- 🟢 Taxes, Insurance & Assets Amortization: -358,1 kBRL (-97,8 R$/veíc) | Δ -2.522,3 kBRL (Δ -689,0 R$/veíc)\n\n**Burden**: -748,7 kBRL (-204,5 R$/veíc) | Δ -4.476,3 kBRL (Δ -1.222,7 R$/veíc), -120.1% | 🟢 redução\n- 🟢 Expenses: -491,8 kBRL (-134,3 R$/veíc) | Δ -1.926,9 kBRL (Δ -526,3 R$/veíc)\n\n### 2.3 Real vs Ano Anterior\n\nCusto FP Total: -1.362,0 kBRL (-372,0 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n\nA comparação com o mesmo mês do ano anterior não possui dados de Budget, mas a redução no custo FP total é significativa, indicando uma tendência de melhoria na eficiência.\n\n**Labor**: -255,2 kBRL (-69,7 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n- 🟢 Benefits: 0,0 kBRL (0,0 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n\n**D&A**: -358,1 kBRL (-97,8 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n- 🟢 Taxes, Insurance & Assets Amortization: -358,1 kBRL (-97,8 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n\n**Burden**: -748,7 kBRL (-204,5 R$/veíc) | ⚠️ Budget não disponível para esta conta.\n- 🟢 Expenses: -491,8 kBRL (-134,3 R$/veíc) | ⚠️ Budget não disponível para esta conta.",
-        "conclusoes": "**PARTE 1 — Alertas e Anomalias:**\n\n- **Desvios Significativos:**\n  - Despesa Primária Real apresentou uma variação de -110.4% em relação ao Budget, indicando um gasto acima do previsto. ❌\n  - Em comparação com o Flex Budget, a despesa foi -110.7%, evidenciando um desvio preocupante. ❌\n  - Em relação ao mês anterior, a despesa caiu -109.4%, o que, apesar de parecer positivo, reflete uma redução drástica que pode indicar problemas de volume e eficiência. ❌\n\n- **Tendências Preocupantes:**\n  - O volume total de unidades produzidas foi de 3.661, representando uma queda de -24.7% em relação ao mês anterior. 📉\n  - Modelos como CC24 biton 5L e CC24 monoton 7L apresentaram quedas acentuadas de volume, -74.5% e -59.4%, respectivamente, o que pode indicar perda de demanda ou problemas na linha de produção. ⚠️\n\n**PARTE 2 — Aprendizados e Observações Finais:**\n\n- O mês de fevereiro revelou uma queda significativa na produção, o que impactou diretamente os custos, resultando em uma despesa primária que não apenas superou o budget, mas também apresentou uma redução drástica em relação ao mês anterior.\n- A análise dos modelos indica que a diversidade de cores e acabamentos pode estar afetando a produção, com modelos biton apresentando perdas expressivas. É essencial monitorar a aceitação do mercado para esses modelos.\n\n**PARTE 3 — Recomendações Estratégicas:**\n\n- **Redução de Custos:**\n  - Implementar uma revisão dos processos de produção para identificar ineficiências, especialmente nos modelos que apresentaram maiores quedas. 💡\n  - Avaliar a possibilidade de simplificação na linha de produtos, priorizando modelos com maior demanda e rentabilidade. 💡\n\n- **Investigação Adicional:**\n  - Realizar uma análise detalhada sobre as razões da queda no volume de produção, especialmente para os modelos CC24, a fim de identificar se a causa é de mercado ou operacional. 💡\n  - Monitorar a aceitação do mercado para os modelos com acabamentos biton, considerando ajustes na estratégia de marketing e produção. 💡\n\n- **Prioridade nas Recomendações:**\n  - A revisão dos processos de produção deve ser prioridade, dada a sua potencialidade de impacto na redução de custos e aumento de eficiência.\n  - A investigação sobre a aceitação de modelos deve ser realizada em paralelo, para garantir que as decisões de produção estejam alinhadas com as demandas do mercado.",
-        "oficina_AS": "Custo FP Total da oficina AS em Fevereiro/2026 foi de -227,9 kBRL (-62,3 R$/veíc), apresentando uma variação negativa de -2.814,2 kBRL (-108.8%) em relação ao Budget. Essa redução significativa reflete uma performance operacional superior ao esperado, destacando ganhos em eficiência.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 2.586,3 kBRL (707,2 R$/veíc), enquanto o Efeito Flex Volume impactou negativamente em +2,0 kBRL (-0,2 R$/veíc). O Flex Budget ajustado ficou em 2.588,2 kBRL (707,0 R$/veíc), e o Real foi -227,9 kBRL (-62,3 R$/veíc). O Efeito Operacional gerou uma economia expressiva de -2.816,2 kBRL (-769,2 R$/veíc), evidenciando uma gestão eficiente dos custos.\n\nComparando com o Mês Anterior, o Custo FP Total caiu em -3.020,5 kBRL (-637,0 R$/veíc), uma redução de -108.2%. O Burden, que apresentou uma economia de -51,6 kBRL (-14,1 R$/veíc), foi impactado principalmente pela redução em Energy, com -49,4 kBRL (-13,5 R$/veíc), destacando a eficiência na gestão de eletricidade. O D&A também contribuiu positivamente, com -176,3 kBRL (-48,2 R$/veíc), sendo o Plant Depreciation o principal fator, com -523,1 kBRL (-142,9 R$/veíc).\n\nNo comparativo com o Mesmo Mês de 2025, o Custo FP Total foi de -227,9 kBRL (-62,3 R$/veíc), mas não há referência disponível para comparação. ⚠️ Ref. não disponível. A análise indica que a oficina AS conseguiu uma performance notável em termos de eficiência de custos, com destaque para as economias em Burden e D&A, que foram cruciais para a redução dos custos totais. 💡 Recomenda-se manter o foco em estratégias que potencializem essa eficiência, especialmente em Energy e D&A.",
-        "oficina_BS": "Custo FP Total da oficina BS em Fevereiro/2026 foi de -2,8 kBRL (-0,8 R$/veíc), apresentando uma variação negativa em relação ao Budget de -2.930,8 kBRL (-801,4 R$/veíc), resultando em uma economia de -100.1%.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 2.928,0 kBRL (800,6 R$/veíc) e o Efeito Flex Volume impactou negativamente com +1,5 kBRL (-0,5 R$/veíc). O Efeito Operacional, por outro lado, gerou uma economia significativa de -2.932,3 kBRL (-801,0 R$/veíc), evidenciando uma performance operacional superior ao esperado. O Delta Total foi de -2.930,8 kBRL (-801,4 R$/veíc), refletindo uma eficiência operacional que compensou o impacto negativo do volume.\n\nNa comparação com o mês anterior, o Custo FP Total teve uma redução de -3.402,5 kBRL (-700,4 R$/veíc), o que representa uma melhoria significativa. A análise de D&A mostra uma economia de -0,6 kBRL (-0,2 R$/veíc), com a Plant Depreciation contribuindo para essa redução com -1.150,6 kBRL (Δ -314,3 R$/veíc). Em Burden, a redução de -2,2 kBRL (-0,6 R$/veíc) foi impulsionada principalmente pela economia em Energy, que teve uma redução de -0,3 kBRL (-0,1 R$/veíc) devido a uma diminuição nos custos de Electricity.\n\nEm relação ao mesmo mês do ano anterior, o Custo FP Total foi de -2,8 kBRL (-0,8 R$/veíc), sem base de comparação disponível (⚠️ Ref. não disponível). Essa consistência nos custos sugere uma estabilidade na operação da oficina, mas a falta de dados comparativos impede uma análise mais profunda. A performance positiva em D&A e Burden, especialmente em Plant Depreciation e Energy, deve ser mantida para garantir a continuidade das economias. 💡 Recomenda-se monitorar o impacto do Efeito Flex Volume em períodos futuros para otimizar a eficiência operacional.",
-        "oficina_GS": "Custo FP Total da oficina GS em Fevereiro/2026 foi de -677,1 kBRL (-184,9 R$/veíc), apresentando uma variação negativa em relação ao Budget de -1.870,9 kBRL (-511,4 R$/veíc), o que representa uma economia de -156,7%.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 1.193,8 kBRL (326,5 R$/veíc), com um Efeito Flex Volume de +0,6 kBRL (-0,2 R$/veíc). O Flex Budget ajustado ficou em 1.194,4 kBRL (326,3 R$/veíc), enquanto o Real foi de -677,1 kBRL (-184,9 R$/veíc). O Efeito Operacional gerou uma economia significativa de -1.871,5 kBRL (-511,2 R$/veíc), indicando uma performance superior à esperada, especialmente em Burden, onde a manutenção e os serviços contribuíram para essa redução.\n\nAo comparar com o mês anterior, o Custo FP Total teve uma redução de -2.115,2 kBRL (-480,9 R$/veíc), o que representa uma queda de -147,1%. A categoria Labor foi impactada positivamente, com uma economia de -80,6 kBRL (-22,0 R$/veíc), sendo o Indirect Labor o principal responsável pela redução, especialmente na C Class (Maintenance) que contribuiu com -374,6 kBRL. Burden também apresentou uma redução significativa de -593,7 kBRL (-162,2 R$/veíc), com a categoria Expenses, especialmente Third Part Services, sendo a mais impactante.\n\nEm relação ao mesmo mês do ano anterior, o Custo FP Total de -677,1 kBRL (-184,9 R$/veíc) não possui referência disponível para comparação, o que impossibilita uma análise mais aprofundada. ⚠️ Ref. não disponível. A performance geral da oficina GS em Fevereiro/2026 destaca uma gestão eficiente de custos, com ganhos significativos em D&A e Burden, refletindo um controle operacional eficaz. 💡 Recomenda-se manter o foco nas práticas que levaram a essas economias, especialmente em manutenção e serviços, para sustentar a eficiência nos próximos meses.",
-        "oficina_PL": "Custo FP Total da oficina PL em Fevereiro/2026 foi de -228,4 kBRL (-62,4 R$/veíc), apresentando uma variação negativa de -1.138,5 kBRL (-125.1%) em relação ao Budget. Essa performance reflete uma eficiência operacional superior, apesar do impacto negativo do Efeito Flex Volume.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 910,1 kBRL (248,9 R$/veíc), enquanto o Efeito Flex Volume gerou um aumento de 0,7 kBRL (-0,1 R$/veíc). O Efeito Operacional, por sua vez, resultou em uma economia significativa de 1.139,2 kBRL (-311,2 R$/veíc), demonstrando uma performance melhor do que o esperado. O ajuste pelo volume resultou em um Flex Budget de 910,8 kBRL (248,8 R$/veíc), evidenciando a eficiência no controle de custos.\n\nNo comparativo Real vs Mês Anterior, o custo total caiu em -1.128,5 kBRL (-247,6 R$/veíc), o que representa uma redução de -125.4%. O Labor foi o principal responsável por essa economia, com uma redução de -75,6 kBRL (-20,6 R$/veíc), destacando-se a sub-account WC & Trainee, que contribuiu com -49,0 kBRL (-13,4 R$/veíc). O Burden também teve um impacto positivo, com uma redução de -12,9 kBRL (-3,5 R$/veíc), sendo a Stock Obsolescence % Overstock a sub-account que mais contribuiu, com -118,1 kBRL (-32,3 R$/veíc).\n\nNo comparativo Real vs Mesmo Mês de 2025, o custo FP total foi de -228,4 kBRL (-62,4 R$/veíc), mas não foi possível calcular a variação, pois a referência para o mesmo mês de 2025 não está disponível (⚠️ Ref. não disponível). Essa ausência de dados históricos limita a análise de tendências e a identificação de melhorias contínuas. 💡 Recomenda-se a coleta de dados para períodos anteriores para uma análise mais robusta e fundamentada.",
-        "oficina_PS": "Custo FP Total da oficina PS em Fevereiro/2026 foi de -3,2 kBRL (-0,9 R$/veíc), apresentando uma variação de Δ -2.654,0 kBRL (-100.1%) em relação ao Budget. Essa redução significativa indica uma performance muito superior ao esperado, destacando a eficiência operacional.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 2.650,8 kBRL (724,9 R$/veíc), enquanto o Efeito Flex Volume resultou em um aumento de 2,1 kBRL (-0,2 R$/veíc). Após ajustes, o Flex Budget ficou em 2.652,8 kBRL (724,6 R$/veíc). O Efeito Operacional, que reflete a eficiência de preço e mix, gerou uma economia de 2.656,0 kBRL (-725,5 R$/veíc), evidenciando um desempenho operacional robusto. O impacto mais positivo veio de D&A, com uma economia de -0,9 kBRL (-0,2 R$/veíc), principalmente devido à Plant Depreciation, que contribuiu com Δ -386,6 kBRL (-105,6 R$/veíc).\n\nEm comparação com o mês anterior, o Custo FP Total também apresentou uma redução de Δ -2.960,2 kBRL (-609,4 R$/veíc), reforçando a tendência de eficiência. O Burden foi o principal responsável por essa economia, com uma redução de -2,3 kBRL (-0,6 R$/veíc), onde o Efeito mais significativo veio de Energy, com Δ -0,2 kBRL (-0,1 R$/veíc) e uma economia de -851,9 kBRL (-232,7 R$/veíc).\n\nPor fim, ao comparar com o mesmo mês do ano anterior, não foi possível calcular o delta, pois a referência não estava disponível (⚠️ Ref. não disponível). Essa ausência de dados limita a análise de tendências de longo prazo, mas a performance atual sugere um caminho positivo em termos de eficiência e controle de custos. 💡 É recomendável monitorar continuamente os efeitos de volume e eficiência operacional para sustentar esses resultados.",
-        "oficina_QY": "Custo FP Total da oficina QY em Fevereiro/2026 foi de -69,9 kBRL (-19,1 R$/veíc), apresentando uma variação negativa em relação ao Budget de Δ -1.256,8 kBRL (-343,6 R$/veíc), o que representa uma economia de -105,9%. \n\nNa comparação Real vs Budget (com Efeito Flex Volume), o Budget foi de 1.186,9 kBRL (324,5 R$/veíc), e após considerar o Efeito Flex Volume de +0,7 kBRL (-0,2 R$/veíc), o Flex Budget ajustado ficou em 1.187,6 kBRL (324,4 R$/veíc). O Efeito Operacional gerou uma economia significativa de -1.257,5 kBRL (-343,5 R$/veíc), indicando uma performance operacional muito superior ao esperado. A principal contribuição positiva veio de Labor, que apresentou uma economia de -64,7 kBRL (-17,7 R$/veíc), refletindo uma gestão eficiente de mão de obra.\n\nComparando com o mês anterior, o Custo FP Total caiu em -1.530,8 kBRL (-319,8 R$/veíc), o que representa uma redução de -104,8%. A análise detalha que tanto D&A quanto Burden tiveram desempenhos positivos, com reduções de -94,2 kBRL e -470,8 kBRL, respectivamente. O tipo de despesa que mais impactou positivamente foi o Labor, onde a economia foi impulsionada principalmente pela redução em Indirect Labor, que ficou em 0,0 kBRL (0,0 R$/veíc), resultando em uma economia de -458,3 kBRL.\n\nEm relação ao mesmo mês do ano anterior, o Custo FP Total também foi de -69,9 kBRL (-19,1 R$/veíc), mas não há referência disponível para comparação (⚠️ Ref. não disponível). Essa estabilidade no custo sugere que a oficina QY conseguiu manter sua eficiência em um cenário de custos controlados, embora a falta de dados históricos limite uma análise mais profunda sobre tendências de longo prazo. 💡 Recomenda-se monitorar continuamente as variações de Labor e Burden, pois são as áreas com maior potencial de impacto positivo nos custos.",
-        "oficina_SM": "Custo FP Total da oficina SM em Fevereiro/2026 foi de -152,7 kBRL (-41,7 R$/veíc), apresentando uma variação negativa em relação ao Budget de -1.372,3 kBRL (-375,2 R$/veíc), equivalente a -112,5%. Essa performance indica um desvio significativo, refletindo uma eficiência operacional superior ao esperado, apesar do impacto negativo do Efeito Flex Volume.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 1.219,6 kBRL (333,5 R$/veíc), e o Efeito Flex Volume gerou um aumento de 0,2 kBRL (-0,3 R$/veíc). O Efeito Operacional, por outro lado, resultou em uma economia de 1.372,6 kBRL (-374,9 R$/veíc), demonstrando uma performance operacional muito acima do previsto. Essa economia foi impulsionada principalmente pelo Labor, onde o Direct Labor teve um impacto positivo, gerando uma economia de 409,4 kBRL (Δ -111,8 R$/veíc).\n\nEm comparação com o mês anterior, o Custo FP Total teve uma redução de 1.162,1 kBRL (-249,4 R$/veíc), representando uma queda de -115,1%. O Labor também apresentou uma economia de 34,2 kBRL (-9,4 R$/veíc), com destaque para o Benefits, que não teve variação, mas o Direct Labor registrou uma perda de 324,9 kBRL (Δ +88,7 R$/veíc), indicando um aumento inesperado nas despesas com mão de obra. O Burden também teve uma redução significativa de 846,0 kBRL (-231,1 R$/veíc), com destaque para as despesas que contribuíram para essa economia.\n\nNo comparativo Real vs Mesmo Mês de 2025, o Custo FP Total foi de -152,7 kBRL (-41,7 R$/veíc), sem base de comparação disponível (⚠️ Ref. não disponível). Essa análise evidencia a necessidade de monitoramento contínuo das despesas e a busca por melhorias na eficiência operacional, especialmente nas contas de Direct Labor e Burden, que apresentaram variações significativas. 💡 Recomenda-se investigar as causas do aumento nas despesas de mão de obra e buscar oportunidades de otimização nas operações.",
-        "resumo_executivo": "Em Fevereiro de 2026, o volume de produção alcançou 3.661 unidades, superando o Budget de 3.657 unidades em 4 unidades (+0,1%), mas apresentando uma queda significativa de 1.198 unidades (-24,7%) em relação ao mês anterior, que foi de 4.859 unidades. Os modelos com maior impacto positivo foram o CC21 monoton e o CC21 biton, ambos com leves variações positivas.\n\nNo que diz respeito ao custo de produção (Custo FP — Visão Waterfall), o Budget foi de 12.675,5 kBRL (3.466,1 R$/veíc). O efeito do volume resultou em um acréscimo de 7,8 kBRL (-1,7 R$/veíc), levando o Flex Budget a 12.683,2 kBRL (3.464,4 R$/veíc). O efeito operacional, comparando o Real com o Flex, foi negativo em 14.045,2 kBRL (-3.836,5 R$/veíc), resultando em um custo real de -1.362,0 kBRL (-372,0 R$/veíc). O delta total entre o Real e o Budget foi de -14.037,5 kBRL (-3.838,1 R$/veíc), representando uma redução de -110,7%. Comparado ao mês anterior, houve uma queda de -15.319,8 kBRL (-3.244,6 R$/veíc), também indicando uma redução significativa.\n\nO custo por veículo (CPU) apresentou uma variação negativa, com um custo real de -1.362,0 kBRL (-372,0 R$/veíc), o que representa uma redução em relação ao Budget e ao mês anterior. Essa diminuição pode ser atribuída à diluição dos custos fixos pelo menor volume de produção e ao mix de produtos. Os modelos com maior variação negativa no CPU foram o CC24 biton 7L, CC24 biton 5L e CC21 biton, todos apresentando desvios significativos em relação ao Budget.\n\nAnalisando os impactos por Type 05, os maiores resultados positivos foram em Labor, com -255,2 kBRL (-69,7 R$/veíc), Burden, com -748,7 kBRL (-204,5 R$/veíc) e D&A, com -358,1 kBRL (-97,8 R$/veíc). Esses números refletem uma gestão eficiente dos custos diretos e indiretos, contribuindo para a economia geral.\n\nEm relação às oficinas, os maiores desvios foram observados em BS, com -2,8 kBRL (-0,8 R$/veíc), onde o principal driver foi Taxes, Insurance & Assets Amortization, com -1.122,5 kBRL (-306,6 R$/veíc). AS e PS também apresentaram desvios significativos, com -227,9 kBRL (-62,3 R$/veíc) e -3,2 kBRL (-0,9 R$/veíc), respectivamente, ambos impactados por custos relacionados a Taxes e Energy.\n\n⚠️ Alertas para o próximo mês incluem a necessidade de monitorar a continuidade da queda no volume de produção e os impactos potenciais nos custos operacionais, que podem afetar a rentabilidade se não forem geridos adequadamente."
+        "volume_completo": "### 1.1 Volume Total\nEm Fevereiro de 2026, o volume total de produção foi de 3.661 unidades, alinhando-se com a projeção de 3.661 unidades e superando o Budget de 3.657 unidades em 4 unidades (+0,1%). Este leve aumento no volume total pode contribuir para a diluição dos custos fixos, melhorando a eficiência produtiva.\n\n### 1.2 Real vs Budget\nA comparação entre o volume real e o budget resultou em um delta total de Δ +4,00 unidades. Os modelos que mais impactaram essa variação foram:\n- 🟢 CC21 monoton: 1.526 un. (acima do budget em +3 un., +0,2%)\n- 🟢 CC21 biton: 170 un. (acima do budget em +1 un., +0,6%)\nOs demais modelos, como CC22 biton e CC22 monoton, mantiveram-se estáveis em relação ao budget, não apresentando variações. A leve superação do budget, principalmente pelos modelos CC21, sugere uma resposta positiva do mercado, possivelmente impulsionada por campanhas promocionais ou melhorias na aceitação do produto.\n\n### 1.3 Real vs Mês Anterior\nEm comparação com o mês anterior, houve uma redução significativa de Δ -1.198 unidades (-24,7%). Os modelos que mais contribuíram para essa queda foram:\n- 🔴 CC22 monoton: 1.120 un. (redução de -709 un., -38,8%)\n- 🔴 CC24 biton 5L: 82 un. (redução de -240 un., -74,5%)\nA diminuição no volume pode ser atribuída a fatores sazonais ou a uma possível saturação do mercado para os modelos menos competitivos. A redução acentuada de CC22 monoton e CC24 biton 5L, que são modelos de maior custo, pode impactar negativamente a margem de contribuição, concentrando custos fixos em um volume menor.\n\n### 1.4 Real vs Mesmo Mês de 2025\nA comparação com o mesmo mês do ano anterior não é possível, uma vez que não há dados disponíveis para essa referência. ⚠️ Isso limita a análise de tendências de longo prazo e a avaliação do desempenho em relação ao ano anterior. Contudo, a comparação com o mês anterior e o budget fornece insights valiosos sobre a dinâmica de produção e a aceitação do mercado.\n\nEm resumo, o volume de produção em Fevereiro de 2026 apresenta uma leve superação em relação ao budget, mas uma queda significativa em comparação ao mês anterior. A análise dos modelos indica que a performance dos modelos CC21 é positiva, enquanto CC22 e CC24 enfrentam desafios. 💡 Recomenda-se monitorar as tendências de mercado e ajustar as estratégias de produção e marketing para maximizar a eficiência e a rentabilidade.",
+        "comparativos": "### 2.1 Real vs Budget (Efeito Flex Volume)\n\nCusto FP total: 2.509,3 kEUR (685,4 €/veíc) | Δ +554,8 kEUR (+151,0 €/veíc), +28.4% vs Budget de 1.954,4 kEUR (534,4 €/veíc).\n\nO Efeito Flex Volume resultou em um aumento de 1,2 kEUR, devido ao volume real de 3.661 unidades, que superou o Budget de 3.657 unidades em 0,1%. Após o ajuste pelo volume, o Flex Budget ficou em 1.955,6 kEUR (534,2 €/veíc). O Efeito Operacional, que mede a eficiência de preço e mix, gerou um aumento de 553,7 kEUR (Δ +151,2 €/veíc), indicando uma performance pior do que o esperado.\n\n**🔴 Labor**: 1.605,0 kEUR (438,4 €/veíc) | Δ +464,5 kEUR (Δ +126,9 €/veíc), +40.7% | perda\n- 🔴 Benefits: 572,0 kEUR (156,2 €/veíc) | Δ +572,0 kEUR (Δ +156,2 €/veíc)\n  - 🔴 Health and others - BC: +257,2 kEUR (Δ +70,2 €/veíc)\n  - 🔴 Transport - BC: +134,4 kEUR (Δ +36,7 €/veíc)\n- 🔴 Indirect Labor: 446,3 kEUR (121,9 €/veíc) | Δ +270,0 kEUR (Δ +73,7 €/veíc)\n  - 🔴 D Class (Quality): +125,2 kEUR (Δ +34,2 €/veíc)\n  - 🔴 C Class (Maintenance): +122,3 kEUR (Δ +33,4 €/veíc)\n\n**🔴 Burden**: 522,5 kEUR (142,7 €/veíc) | Δ +90,7 kEUR (Δ +24,8 €/veíc), +21.0% | perda\n- 🔴 Scrap Sales: 0,0 kEUR (0,0 €/veíc) | Δ +85,8 kEUR (Δ +23,4 €/veíc)\n- 🔴 Consumption Material: 123,1 kEUR (33,6 €/veíc) | Δ +53,0 kEUR (Δ +14,5 €/veíc)\n\n**🟢 D&A**: 381,8 kEUR (104,3 €/veíc) | Δ -1,5 kEUR (Δ -0,4 €/veíc), -0.4% | ganho\n- 🟢 Taxes, Insurance & Assets Amortization: 381,8 kEUR (104,3 €/veíc) | Δ -1,5 kEUR (Δ -0,4 €/veíc)\n\n### 2.2 Real vs Mês Anterior\n\nCusto FP total: 2.509,3 kEUR (685,4 €/veíc) | Δ +357,1 kEUR (+242,5 €/veíc), +16.6% vs Mês Anterior de 2.152,2 kEUR (442,9 €/veíc).\n\n**🔴 Labor**: 1.605,0 kEUR (438,4 €/veíc) | Δ +361,3 kEUR (Δ +98,7 €/veíc), +29.0% | aumento\n- 🔴 Direct Labor: 299,4 kEUR (81,8 €/veíc) | Δ +238,8 kEUR (Δ +65,2 €/veíc)\n  - 🔴 Main/Principal: +238,8 kEUR (Δ +65,2 €/veíc)\n- 🔴 Indirect Labor: 446,3 kEUR (121,9 €/veíc) | Δ +134,0 kEUR (Δ +36,6 €/veíc)\n  - 🔴 D Class (Quality): +88,2 kEUR (Δ +24,1 €/veíc)\n\n**🟢 Burden**: 522,5 kEUR (142,7 €/veíc) | Δ -52,3 kEUR (Δ -14,3 €/veíc), -9.1% | redução\n- 🟢 Expenses: -1,7 kEUR (-0,5 €/veíc) | Δ -223,0 kEUR (Δ -60,9 €/veíc)\n\n**🔴 D&A**: 381,8 kEUR (104,3 €/veíc) | Δ +48,1 kEUR (Δ +13,1 €/veíc), +14.4% | aumento\n- 🔴 Taxes, Insurance & Assets Amortization: 381,8 kEUR (104,3 €/veíc) | Δ +48,1 kEUR (Δ +13,1 €/veíc)\n\n### 2.3 Real vs Ano Anterior\n\nCusto FP total: 2.509,3 kEUR (685,4 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta).\n\n**🔴 Labor**: 1.605,0 kEUR (438,4 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta)\n- 🔴 Direct Labor: 299,4 kEUR (81,8 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta)\n- 🔴 Indirect Labor: 446,3 kEUR (121,9 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta)\n\n**🔴 Burden**: 522,5 kEUR (142,7 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta)\n\n**🟢 D&A**: 381,8 kEUR (104,3 €/veíc) | Δ não disponível (⚠️ Budget não disponível para esta conta)",
+        "conclusoes": "**Alertas e Anomalias:**\n- Despesa Primária Real apresentou um aumento de +11.9% em relação ao mês anterior, o que indica uma tendência de crescimento preocupante.\n- Comparando com o Flex Budget, a despesa foi 732.2% superior, sinalizando um desvio significativo e preocupante na gestão de custos.\n- O Custo FP Real teve um aumento de +28.3% em relação ao Flex Budget, o que requer atenção imediata para entender as causas desse aumento.\n- O volume total de unidades produzidas foi de 3.661, representando uma redução de -24.7% em relação ao mês anterior, com modelos como CC22 monoton e CC24 biton 5L apresentando quedas acentuadas de -38.8% e -74.5%, respectivamente. ⚠️\n\n**Aprendizados e Observações Finais:**\n- O aumento expressivo nas despesas em relação ao Budget e ao Flex Budget sugere que a equipe precisa revisar as práticas de controle de custos e identificar áreas de desperdício. \n- A queda no volume de produção em diversos modelos indica possíveis problemas na demanda ou na eficiência operacional, que devem ser investigados.\n- A ausência de comparação com o ano anterior limita a análise de tendências de longo prazo, destacando a necessidade de estabelecer referências mais robustas para futuras avaliações.\n\n**Recomendações Estratégicas:**\n- 💡 Implementar um programa de revisão de custos que inclua auditorias mensais das despesas primárias e do Custo FP, visando identificar e eliminar ineficiências.\n- 💡 Investigar as causas da queda no volume de produção, especialmente nos modelos com maiores variações, para ajustar a estratégia de produção e marketing.\n- 💡 Considerar a possibilidade de renegociar contratos com fornecedores para reduzir custos de insumos, especialmente em áreas onde os gastos estão acima do esperado.\n- Priorizar a análise de modelos com desempenho abaixo do esperado para entender se as quedas são temporárias ou se indicam uma mudança de mercado mais ampla. \n\nEssas ações visam não apenas a redução de custos, mas também a melhoria da eficiência operacional e a adequação da produção à demanda do mercado.",
+        "oficina_AS": "Custo FP Total da oficina AS em Fevereiro/2026 foi de 455,9 kEUR (124,5 €/veíc), apresentando um aumento de 57,2 kEUR (+14,3%) em relação ao Budget. Este aumento é atribuído principalmente ao Efeito Operacional, que impactou negativamente a eficiência de preço e mix.\n\n**Real vs Budget (com Efeito Flex Volume):**  \nBudget: 398,8 kEUR (109,0 €/veíc)  \n🔴 Efeito Flex Volume: +0,3 kEUR (-0,0 €/veíc)  \n🔴 Efeito Operacional: +56,9 kEUR (+15,5 €/veíc)  \n🔴 Delta Total: +57,2 kEUR (+15,5 €/veíc)  \nReal: 455,9 kEUR (124,5 €/veíc)  \n\nO Efeito Flex Volume teve um impacto marginal, enquanto o Efeito Operacional foi o principal responsável pelo aumento significativo nos custos, refletindo uma performance inferior à esperada. O Labor, com um custo de 361,3 kEUR (98,7 €/veíc), foi o maior contribuinte para essa variação, especialmente devido ao aumento em Benefits, que subiu para 158,7 kEUR (43,3 €/veíc), impactado por Health and others e Transport.\n\n**Real vs Mês Anterior:**  \nCusto FP Total: 455,9 kEUR (124,5 €/veíc) | Δ +25,4 kEUR (+35,9 €/veíc), +5,9%  \n🔴 Labor: 361,3 kEUR (98,7 €/veíc) | Δ +7,2 kEUR (+2,0 €/veíc), +2,0%  \n🔴 Burden: 41,2 kEUR (11,2 €/veíc) | Δ +18,7 kEUR (+5,1 €/veíc), +83,1%  \n🟢 D&A: 53,5 kEUR (14,6 €/veíc) | Δ -0,5 kEUR (-0,1 €/veíc), -0,9%  \n\nO aumento no Labor foi impulsionado principalmente pelo Direct Labor, que cresceu 54,9 kEUR (35,4 €/veíc), refletindo uma maior necessidade de mão de obra. O Burden também teve um aumento significativo, com 41,2 kEUR (11,2 €/veíc), sendo o Efeito de Material Losses, que subiu para 4,6 kEUR (1,3 €/veíc), um dos principais fatores. A única redução foi em D&A, que se manteve estável, indicando controle nos custos de depreciação.\n\n**Real vs Ano Anterior:**  \nCusto FP Total: 455,9 kEUR (124,5 €/veíc) | Δ não calculável (⚠️ Ref. não disponível)  \n\nNão há dados disponíveis para comparação com o mesmo mês do ano anterior. Contudo, a análise dos custos atuais indica uma pressão crescente sobre os custos operacionais, especialmente em Labor e Burden, que exigem atenção para evitar impactos negativos em margens futuras. 💡 Recomenda-se uma revisão das práticas de eficiência operacional e controle de custos para mitigar essas variações.",
+        "oficina_BS": "Custo FP Total da oficina BS em Fevereiro/2026 foi de 518,0 kEUR (141,5 €/veíc), apresentando um aumento de 🔴 +66,6 kEUR (+14,7%) em relação ao Budget. Essa variação é atribuída principalmente ao Efeito Operacional, que impactou negativamente o custo.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 451,5 kEUR (123,5 €/veíc), e após ajustes, o Flex Budget ficou em 451,7 kEUR (123,4 €/veíc). O Efeito Flex Volume teve um impacto negativo de 🔴 +0,2 kEUR (-0,1 €/veíc), enquanto o Efeito Operacional gerou um aumento de 🔴 +66,3 kEUR (+18,1 €/veíc). Isso indica que a eficiência de preço e mix não atendeu às expectativas, resultando em custos mais altos do que o planejado.\n\nNo comparativo Real vs Mês Anterior, o custo total de 518,0 kEUR (141,5 €/veíc) representa uma redução de 🟢 -6,2 kEUR (-1,2%) em relação ao mês anterior de 524,2 kEUR (107,9 €/veíc). O Labor, com 🔴 283,9 kEUR (77,6 €/veíc), teve um aumento de 🔴 +23,7 kEUR (+9,1%), principalmente devido ao aumento em Direct Labor (+35,1 kEUR), que reflete um maior custo com mão de obra principal. Em contrapartida, Benefits apresentaram uma redução de 🟢 -24,3 kEUR, destacando uma economia em despesas relacionadas.\n\nNo comparativo Real vs Mesmo Mês de 2025, o custo FP total foi de 518,0 kEUR (141,5 €/veíc), com variação não calculável devido à ausência de referência (⚠️ Ref. não disponível). Essa análise destaca a importância de monitorar os custos e buscar eficiência operacional para mitigar perdas e otimizar o desempenho financeiro da oficina. 💡 Sugere-se uma revisão das práticas de gestão de mão de obra e benefícios para identificar oportunidades de economia e melhorar a performance.",
+        "oficina_GS": "Custo FP Total da oficina GS em Fevereiro/2026 foi de 430,7 kEUR (117,7 €/veíc), apresentando um aumento de 🔴 +246,7 kEUR (+134,0%) em relação ao Budget. Este aumento é reflexo de uma performance operacional abaixo do esperado, conforme detalhado nas análises a seguir.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 184,1 kEUR (50,3 €/veíc), com um Efeito Flex Volume negativo de 🔴 +0,1 kEUR (-0,0 €/veíc). O Efeito Operacional resultou em um aumento de 🔴 +246,6 kEUR (+67,3 €/veíc), indicando uma performance insatisfatória. O Burden, com 285,9 kEUR (78,1 €/veíc), foi o principal responsável por essa variação, especialmente devido ao aumento em Consumption Material e Energy, que impactaram diretamente os custos operacionais.\n\nNa comparação com o mês anterior, o Custo FP Total aumentou 🔴 +209,0 kEUR (+94,2%), saindo de 221,7 kEUR (45,6 €/veíc). O Burden novamente se destacou, com um aumento de 🔴 +221,4 kEUR (+343,3%), impulsionado por Material Losses e Maintenance. O Labor, por outro lado, apresentou uma redução de 🟢 -19,8 kEUR (-13,8%), principalmente devido à diminuição em Benefits, que compensou parcialmente o aumento em Indirect Labor.\n\nEm relação ao mesmo mês do ano anterior, o Custo FP Total foi de 430,7 kEUR (117,7 €/veíc), com a referência de 0,0 kEUR ⚠️ não disponível para comparação. Essa falta de dados históricos impede uma análise mais aprofundada sobre a evolução dos custos. Contudo, a tendência de aumento nos custos observada em 2026 sugere a necessidade de revisão das práticas operacionais e de gestão de custos, especialmente nas áreas de Burden e Labor, para mitigar os impactos financeiros futuros. 💡",
+        "oficina_PL": "Custo FP Total da oficina PL em Fevereiro/2026 foi de 242,0 kEUR (66,1 €/veíc), apresentando um aumento de 101,7 kEUR (+72,5%) em relação ao Budget. Este aumento significativo é impulsionado principalmente pelo Efeito Operacional, que contribuiu com 101,6 kEUR (+72,4%).\n\nComparando o Real vs Budget (com Efeito Flex Volume), o Budget foi de 140,3 kEUR (38,4 €/veíc). O Efeito Flex Volume teve um impacto negativo de +0,1 kEUR, enquanto o Efeito Operacional gerou um aumento de 101,6 kEUR (+27,8 €/veíc). O Delta Total resultou em um aumento de 101,7 kEUR (+27,7 €/veíc), evidenciando uma performance operacional abaixo do esperado, especialmente em Labor, onde o aumento de 72,3 kEUR (+19,8 €/veíc) foi o principal responsável pela variação.\n\nNa comparação com o mês anterior, o custo total subiu 103,2 kEUR (+74,4%). O Labor, com um aumento de 84,6 kEUR (+23,1 €/veíc), foi o componente mais impactante, refletindo um aumento significativo em Indirect Labor, que subiu 38,3 kEUR (+10,5 €/veíc). O D&A também apresentou um aumento de 12,9 kEUR (+3,5 €/veíc), impulsionado pela Plant Depreciation, que subiu 10,5 kEUR (+2,9 €/veíc). O Burden teve um aumento de 5,8 kEUR (+1,6 €/veíc), com Material Losses contribuindo com 6,3 kEUR (+1,7 €/veíc), indicando um aumento nas perdas de estoque.\n\nEm relação ao ano anterior, o Custo FP Total foi de 242,0 kEUR (66,1 €/veíc), com um aumento de 242,0 kEUR (+66,1 €/veíc), mas sem referência disponível para comparação. ⚠️ Ref. não disponível. O aumento substancial nos custos reflete a necessidade de revisar as práticas operacionais e de controle de custos, especialmente em Labor e Burden, onde as perdas e os aumentos de despesas estão impactando significativamente a performance financeira. 💡 Recomenda-se uma análise detalhada das causas das perdas em Material Losses e Indirect Labor para implementar ações corretivas eficazes.",
+        "oficina_PS": "Custo FP Total da oficina PS em Fevereiro/2026 foi de 445,3 kEUR (121,6 €/veíc), apresentando um aumento de 36,5 kEUR (+8,9%) em relação ao Budget, que foi de 408,7 kEUR (111,8 €/veíc).\n\nNa comparação Real vs Budget (com Efeito Flex Volume), o Budget foi de 408,7 kEUR (111,8 €/veíc) e o Efeito Flex Volume teve um impacto negativo de +0,3 kEUR. O Efeito Operacional, que reflete a eficiência de preço e mix, resultou em um aumento de 36,2 kEUR (+9,9 €/veíc), indicando uma performance abaixo do esperado. O custo real totalizou 445,3 kEUR (121,6 €/veíc), evidenciando que, apesar do volume ligeiramente superior ao previsto, a eficiência operacional não foi suficiente para compensar os custos adicionais.\n\nComparando com o mês anterior, o Custo FP Total teve uma redução de 10,7 kEUR (-2,3%) em relação ao mês anterior de 455,9 kEUR (93,8 €/veíc). O Labor apresentou uma redução de 10,2 kEUR (-4,4%), sendo o Direct Labor o principal responsável, com uma economia de 5,6 kEUR (-1,5 €/veíc). O Burden também teve uma redução significativa de 20,7 kEUR (-11,2%), principalmente devido à diminuição no Consumption Material, que caiu 22,3 kEUR (-6,1 €/veíc). No entanto, o D&A aumentou em 20,3 kEUR (+50,4%), com a Plant Depreciation sendo o principal fator, o que pode indicar um aumento na utilização de ativos ou uma revisão na depreciação.\n\nEm relação ao mesmo mês do ano anterior, não há dados disponíveis para comparação (⚠️ Ref. não disponível). O Custo FP Total foi de 445,3 kEUR, sem base para comparação, o que limita a análise de tendências anuais. É crucial monitorar esses custos e buscar melhorias na eficiência operacional para evitar desvios futuros e garantir a competitividade da oficina. 💡",
+        "oficina_QY": "Custo FP Total da oficina QY em Fevereiro/2026 foi de 218,6 kEUR (59,7 €/veíc), apresentando um aumento de 35,6 kEUR (+19,5%) em relação ao Budget, que foi de 183,0 kEUR (50,0 €/veíc). Este aumento é atribuído principalmente ao Efeito Operacional, que impactou negativamente o custo, indicando uma performance abaixo do esperado.\n\nNo comparativo Real vs Budget (com Efeito Flex Volume), o Budget foi de 183,0 kEUR, com um Efeito Flex Volume de +0,1 kEUR e um Efeito Operacional de +35,5 kEUR. O custo real de 218,6 kEUR reflete uma variação total de +35,6 kEUR (+19,5%) em relação ao Budget. O Efeito Operacional foi o principal responsável por essa variação, sugerindo que a eficiência de preço e mix não atendeu às expectativas, o que pode ser atribuído a custos elevados em Labor e Burden.\n\nComparando com o mês anterior, o custo FP Total caiu 6,7 kEUR (-3,0%) em relação a 225,3 kEUR (46,4 €/veíc). O Labor aumentou 7,6 kEUR (+5,5%), sendo o Direct Labor o principal responsável por essa variação, com um aumento de 11,2 kEUR (+3,1 €/veíc). Por outro lado, o Burden apresentou uma redução significativa de 21,3 kEUR (-29,6%), com Material Losses contribuindo positivamente com uma redução de 8,8 kEUR, indicando uma melhoria na gestão de desperdícios.\n\nEm relação ao ano anterior, não há referência disponível para comparação, resultando em um alerta ⚠️. O custo FP Real total de 218,6 kEUR não pode ser comparado, pois a referência do mesmo mês de 2025 foi de 0,0 kEUR. Essa falta de dados históricos pode dificultar a análise de tendências e a identificação de padrões de custo ao longo do tempo. 💡 É recomendável estabelecer um acompanhamento mais rigoroso dos custos para permitir comparações futuras e uma melhor gestão financeira.",
+        "oficina_SM": "Custo FP Total da oficina SM em Fevereiro/2026 foi de 198,7 kEUR (54,3 €/veíc), apresentando um aumento de 10,6 kEUR (+5,6%) em relação ao Budget e um crescimento significativo de 43,0 kEUR (+27,6%) em comparação ao mês anterior.\n\n**Real vs Budget (com Efeito Flex Volume)**: O Budget foi de 188,1 kEUR (51,4 €/veíc), com o Efeito Flex Volume sem impacto significativo (+0,0 kEUR). O Efeito Operacional resultou em um aumento de 10,6 kEUR (+2,9 €/veíc), indicando uma performance inferior ao esperado. O Labor foi o principal responsável pela variação negativa, com um aumento de 200,1 kEUR (+54,7 €/veíc), sendo o Indirect Labor, especialmente a D Class (Quality), o maior contribuinte para essa perda.\n\n**Real vs Mês Anterior**: Comparando com o mês anterior, o custo total aumentou em 43,0 kEUR (+27,6%). O Labor teve um impacto expressivo, com um aumento de 268,3 kEUR (+73,3 €/veíc), sendo o Indirect Labor novamente o principal fator, com a D Class (Quality) apresentando um aumento de 112,3 kEUR. Essa elevação acentuada pode ser atribuída a uma combinação de aumento na demanda e ineficiências operacionais.\n\n**Real vs Ano Anterior**: Não há dados disponíveis para comparação com o mesmo mês do ano anterior (⚠️ Ref. não disponível). O custo total de 198,7 kEUR representa um novo patamar, sem referência anterior para avaliação de tendências.\n\nEm resumo, a oficina SM enfrenta desafios significativos em relação ao controle de custos, especialmente no Labor, onde as variações indicam a necessidade de uma análise aprofundada das operações e estratégias de eficiência. A D Class (Quality) e o Indirect Labor são áreas críticas que requerem atenção para evitar impactos financeiros adicionais. 💡 Recomendamos uma revisão das práticas de gestão de mão de obra e a implementação de medidas para melhorar a eficiência operacional.",
+        "resumo_executivo": "Em Fevereiro de 2026, o volume de produção real foi de 3.661 unidades, superando o budget de 3.657 unidades em 4 unidades (+0,1%), mas apresentando uma queda significativa de 1.198 unidades (-24,7%) em relação ao mês anterior, que registrou 4.859 unidades. Os modelos com maior impacto foram o CC21 monoton, com 1.526 unidades (Δ +3 un., +0,2%), e o CC21 biton, com 170 unidades (Δ +1 un., +0,6%).\n\nO custo de produção (Custo FP) apresentou um aumento significativo, partindo do budget de 1.954,4 kEUR (534,4 €/veíc) e passando pelo efeito volume, que resultou em um acréscimo de 1,2 kEUR (-0,3 €/veíc). O Flex Budget alcançou 1.955,6 kEUR (534,2 €/veíc), enquanto o efeito operacional, comparando o real com o flex, foi de +553,7 kEUR (+151,2 €/veíc), representando um aumento de 28,3%. O custo real totalizou 2.509,3 kEUR (685,4 €/veíc), resultando em um delta total de +554,8 kEUR (+151,0 €/veíc), o que equivale a um aumento de 28,4% em relação ao budget.\n\nO custo por veículo (CPU) também apresentou um aumento, com o valor real de 685,4 €/veíc, superando o budget de 534,2 €/veíc e o mês anterior em 242,5 €/veíc (+35,5%). Essa elevação é atribuída à diluição de custos fixos e à alteração no mix de produção. Os modelos que mais contribuíram para essa variação foram o CC24 biton 7L, com um aumento de 1.027,2 €/veíc (+26,2%), e o CC24 biton 5L, que subiu 1.018,3 €/veíc (+26,4%).\n\nNo que diz respeito ao impacto por Type 05, os maiores desvios foram observados em Labor, que totalizou 1.605,0 kEUR (438,4 €/veíc), com um aumento de 464,5 kEUR (+126,9 €/veíc); Burden, com 522,5 kEUR (142,7 €/veíc), apresentando um acréscimo de 90,7 kEUR (+24,8 €/veíc); e D&A, que teve uma redução de 1,5 kEUR (-0,4 €/veíc), totalizando 381,8 kEUR (104,3 €/veíc).\n\nAs oficinas com maiores desvios em relação ao budget foram GS, com 430,7 kEUR (117,7 €/veíc), apresentando um aumento de 246,7 kEUR (+67,4 € veíc), sendo o consumo de material o principal driver; PL, com 242,0 kEUR (66,1 €/veíc), com um desvio de 101,7 kEUR (+27,8 €/veíc), impulsionado por benefícios; e BS, que totalizou 518,0 kEUR (141,5 €/veíc), com um aumento de 66,6 kEUR (+18,2 €/veíc), também devido a benefícios.\n\n⚠️ Alertas para o próximo mês incluem a necessidade de monitorar os custos de Labor e Burden, que apresentaram desvios significativos, além de uma atenção especial ao mix de produção que pode impactar o custo por veículo.",
+        "oficinas_intro": "A seguir, é apresentada a análise detalhada de custos por oficina referente a Fevereiro/2026.\n\n\nNo waterfall Budget vs Real por oficina (CPU em €/veíc), os maiores impactos foram: 🔴 GS (+67,3 €/veíc), 🔴 PL (+27,8 €/veíc), 🔴 BS (+18,1 €/veíc), 🔴 AS (+15,5 €/veíc), 🔴 PS (+9,9 €/veíc).\n\n\nEm termos de custo total, as oficinas e seus desvios vs Budget são:\n- 🔴 **GS** (430,7 kEUR, Δ +246,7 kEUR)\n- 🔴 **PL** (242,0 kEUR, Δ +101,7 kEUR)\n- 🔴 **BS** (518,0 kEUR, Δ +66,6 kEUR)\n- 🔴 **AS** (455,9 kEUR, Δ +57,2 kEUR)\n- 🔴 **PS** (445,3 kEUR, Δ +36,5 kEUR)\n- 🔴 **QY** (218,6 kEUR, Δ +35,6 kEUR)\n- 🔴 **SM** (198,7 kEUR, Δ +10,6 kEUR)\n\n\nAs oficinas com desempenho **desfavorável** (custo acima do Budget) foram: GS, PL, BS, AS, PS, QY, SM.\n\n\nAs sub-seções a seguir detalham cada oficina individualmente, com drill-down por Type 05/06 e comparativos Budget, mensal e anual."
       },
       "dados_graficos": {
         "global": {
           "wf_budget_labels": [
             "BUD",
             "Flex Bud\n− BUD",
+            "Health and others - BC",
             "Main/Principal",
-            "Plant Depreciation",
-            "WC & Trainee",
-            "Transport - BC",
-            "Electricity",
-            "Other Manufacturing Income & Expenses",
-            "Gas",
-            "Scrap Sales",
-            "Service",
-            "Consumption Material",
             "D Class (Quality)",
+            "C Class (Maintenance)",
+            "Other Manufacturing Income & Expenses",
+            "Scrap Sales",
+            "Stock Obsolescence % Overstock",
+            "Supplier Failure Recovery",
+            "Consumption Material",
+            "WC & Trainee",
+            "Trips",
             "Outros",
             "Real"
           ],
           "wf_budget_values": [
-            3466.0818942258716,
-            -1.6615639992364777,
-            -879.3743796660735,
-            -732.9733099944675,
-            -464.2697447337943,
-            -433.95370459190775,
-            -243.94920198601136,
-            -238.18608997288,
-            -175.13950982047083,
-            152.083640395686,
-            -132.03422043982755,
-            -126.08921139713563,
-            -125.17447545511455,
-            -437.390011,
-            -372.0298880721908
+            534.435570769543,
+            -0.26247356236649466,
+            70.24676967810296,
+            -50.751868195100045,
+            34.20175270734851,
+            33.40201451836151,
+            -24.90935330642357,
+            23.449794217205458,
+            -21.910911078793543,
+            16.93733448228781,
+            16.2675962552686,
+            14.561600226790418,
+            13.045387579950901,
+            26.694404,
+            685.4076185428404
           ],
           "wf_mensal_labels": [
             "Janeiro",
             "Flex Vol",
-            "Plant Depreciation",
-            "Restaurant - BC",
+            "Main/Principal",
             "Third Part Services / Uma",
+            "Material",
             "WC & Trainee",
-            "Health and others - BC",
-            "Gas",
-            "C Class (Maintenance)",
-            "Other Manufacturing Income & Expenses",
-            "Consumption Material",
             "D Class (Quality)",
-            "Service",
+            "Restaurant - BC",
+            "Electricity",
+            "Gas",
+            "Transport - BC",
+            "Stock Obsolescence % Overstock",
+            "Handling",
             "Outros",
             "Fevereiro"
           ],
           "wf_mensal_values": [
-            2872.5645650829233,
-            367.15231246013536,
-            -679.5809430689854,
-            -415.4931049897197,
-            -374.39691301262854,
-            -351.5795363196448,
-            -336.7404887542863,
-            -291.4405353542749,
-            -229.70938588627538,
-            -184.4309250230728,
-            -162.53950326674277,
-            -143.68547301175667,
-            -125.50838416930735,
-            -316.641573,
-            -372.0298880721908
+            442.92106469553966,
+            56.61125779972792,
+            69.30731168924535,
+            -45.68581670734073,
+            34.62146419793585,
+            31.937316580833965,
+            31.34753983915915,
+            -29.454271116443373,
+            27.096502764810715,
+            -23.65272005335543,
+            20.78138110030819,
+            -20.07236647386499,
+            -18.971028125070283,
+            108.619982,
+            685.4076185428406
           ],
           "wf_ano_ant_labels": [],
           "wf_ano_ant_values": [],
@@ -489,526 +490,3742 @@
             "CC24 monoton 7L": 139.0
           },
           "ano": 2026,
-          "ano_anterior": 2025
+          "ano_anterior": 2025,
+          "wf_budget_type05_labels": [
+            "BUD",
+            "Flex Bud\n− BUD",
+            "Labor",
+            "Burden",
+            "D&A",
+            "Real"
+          ],
+          "wf_budget_type05_values": [
+            534.4355707695431,
+            -0.26247356236649466,
+            126.88846539340727,
+            24.76103756583983,
+            -0.4149816235832873,
+            685.4076185428404
+          ],
+          "wf_mensal_type05_labels": [
+            "Janeiro",
+            "Flex Vol",
+            "Labor",
+            "D&A",
+            "Burden",
+            "Fevereiro"
+          ],
+          "wf_mensal_type05_values": [
+            442.92106469553966,
+            56.61125779972792,
+            166.96416310795883,
+            13.13885386940774,
+            5.772279070206167,
+            685.4076185428406
+          ],
+          "wf_ano_ant_type05_labels": [],
+          "wf_ano_ant_type05_values": [],
+          "wf_budget_type06_labels": [
+            "BUD",
+            "Flex Bud\n− BUD",
+            "Benefits",
+            "Indirect Labor",
+            "Benefits - BC",
+            "Direct Labor",
+            "Scrap Sales",
+            "Expenses",
+            "WC & Trainee",
+            "Consumption Material",
+            "Trips",
+            "Stock Obsolescence % Overstock",
+            "Material Losses",
+            "Outros",
+            "Real"
+          ],
+          "wf_budget_type06_values": [
+            534.4355707695431,
+            -0.26247356236660835,
+            156.24367311434196,
+            73.74015566059151,
+            -61.166516480602574,
+            -50.751868195100045,
+            23.449794217205458,
+            -18.220649736547575,
+            14.561600226790418,
+            14.490125781401858,
+            13.045387579950901,
+            -10.007536946159913,
+            -8.844549765807788,
+            4.694906,
+            685.4076185428407
+          ],
+          "wf_mensal_type06_labels": [
+            "Janeiro",
+            "Flex Vol",
+            "Direct Labor",
+            "Expenses",
+            "Indirect Labor",
+            "Maintenance",
+            "WC & Trainee",
+            "Taxes, Insurance & Assets Amortization",
+            "Trips",
+            "Consumption Material",
+            "Benefits",
+            "Energy",
+            "Material Losses",
+            "Fevereiro"
+          ],
+          "wf_mensal_type06_values": [
+            442.92106469553966,
+            56.61125779972792,
+            69.30731168924535,
+            -60.91701556896452,
+            57.62741537871415,
+            40.80518429314141,
+            31.937316580833965,
+            13.13885386940774,
+            9.009564827956748,
+            8.869851034719694,
+            8.092119459165446,
+            6.348478541758212,
+            1.6562159415943682,
+            685.4076185428406
+          ],
+          "wf_ano_ant_type06_labels": [],
+          "wf_ano_ant_type06_values": [],
+          "wf_oficinas_labels": [
+            "BUD",
+            "Flex Bud\n− BUD",
+            "GS",
+            "PL",
+            "BS",
+            "AS",
+            "PS",
+            "QY",
+            "SM",
+            "Real"
+          ],
+          "wf_oficinas_values": [
+            534.435570769543,
+            -0.26247356236649466,
+            67.34916735911355,
+            27.75315062404725,
+            18.116396718399557,
+            15.535576930377033,
+            9.896685943090304,
+            9.695944843069583,
+            2.8875989175669616,
+            685.4076185428407
+          ],
+          "tabelas": [
+            {
+              "titulo": "Material — Top 10 Real",
+              "colunas": [
+                "Type 05",
+                "Type 06",
+                "Account",
+                "Centrocst",
+                "Texto breve",
+                "Fornecedor",
+                "Real"
+              ],
+              "linhas": [
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S2248",
+                  "PROV CPC27",
+                  "",
+                  -28154.442988204457
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S3036",
+                  "VENTILADOR AS 3 PAS MONOFASICO COM GRADE",
+                  "",
+                  17829.229820368513
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S3036",
+                  "reclass materiais",
+                  "",
+                  -16089.400971397732
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S2227",
+                  "PROV CPC27",
+                  "",
+                  -10869.0756302521
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S2227",
+                  "EIXO 700 ACU-100-1-001-KH5-P4 TUNKERS",
+                  "",
+                  8916.023436897694
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S3036",
+                  "CABO FLEX 120,00MM - PRETO - 1KV",
+                  "",
+                  7923.179400200446
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S2248",
+                  "ANTENA MAGNETICA DO AGV ASTI A30 ASEL061",
+                  "",
+                  6830.478760311464
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S3036",
+                  "TUBO METALON 40 X 40 X 3,0 STALX",
+                  "",
+                  5119.830390871945
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S3036",
+                  "RODIZIO FRAX 62 UFS NOVEX",
+                  "",
+                  4306.916968622311
+                ],
+                [
+                  "Burden",
+                  "Maintenance",
+                  "Material",
+                  "02S2264",
+                  "BUCHA PEEK M20X32 PEI 140520-002 POS D",
+                  "",
+                  4048.329350088659
+                ]
+              ]
+            },
+            {
+              "titulo": "Supplier Failure Recovery",
+              "colunas": [
+                "Type 05",
+                "Type 06",
+                "Account",
+                "Centrocst",
+                "Texto breve",
+                "Fornecedor",
+                "Real"
+              ],
+              "linhas": [
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2332",
+                  "Provisão PNDs jan",
+                  "",
+                  26702.798550612904
+                ],
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2332",
+                  "Provisão PNDs fev",
+                  "",
+                  -19591.55038162054
+                ],
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2408",
+                  "Provisão PNDs fev",
+                  "",
+                  -8385.475291033845
+                ],
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2332",
+                  "Pnd",
+                  "",
+                  -7058.533651992908
+                ],
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2408",
+                  "Provisão PNDs jan",
+                  "",
+                  5875.876956287102
+                ],
+                [
+                  "Burden",
+                  "Expenses",
+                  "Supplier Failure Recovery",
+                  "02S2332",
+                  "785_2025_3650/1_LOG_PIBR",
+                  "FIAMM LATIN AMERICA COMPONENTES AUT",
+                  -338.6014956441292
+                ]
+              ]
+            },
+            {
+              "titulo": "Health and others - BC",
+              "colunas": [
+                "Type 05",
+                "Type 06",
+                "Account",
+                "Centrocst",
+                "Texto breve",
+                "Fornecedor",
+                "Real"
+              ],
+              "linhas": [
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S3035",
+                  "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  49967.465885436744
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2263",
+                  "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  19986.986354174696
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2229",
+                  "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  18037.03646596253
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2819",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  16818.317785829928
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2810",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  14868.367897617763
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2229",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  10968.468121193431
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S2307",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  9993.493177087348
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S1908",
+                  "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  9506.005705034306
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S3035",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  8774.774496954746
+                ],
+                [
+                  "Labor",
+                  "Benefits",
+                  "Health and others - BC",
+                  "02S3036",
+                  "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                  "",
+                  8774.774496954746
+                ]
+              ]
+            },
+            {
+              "titulo": "D Class (Quality)",
+              "colunas": [
+                "Type 05",
+                "Type 06",
+                "Account",
+                "Centrocst",
+                "Texto breve",
+                "Fornecedor",
+                "Real"
+              ],
+              "linhas": [
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2017",
+                  "F81401007-6152 1 4100 SALARIOS - GESTIONAL",
+                  "",
+                  127477.04725927068
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2017",
+                  "F81401007-7014 1 4100 DESCONTO COM SALARIOS - GEST",
+                  "",
+                  -126369.79107239225
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2819",
+                  "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                  "",
+                  22737.7472823992
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2810",
+                  "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                  "",
+                  20963.71289800324
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2405",
+                  "F81401007-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                  "",
+                  -9625.012720684603
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2405",
+                  "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                  "",
+                  9588.745663402975
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2816",
+                  "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                  "",
+                  9408.332433890986
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2819",
+                  "F81401007-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                  "",
+                  8351.931231208078
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2810",
+                  "F81401007-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                  "",
+                  7837.966232364504
+                ],
+                [
+                  "Labor",
+                  "Indirect Labor",
+                  "D Class (Quality)",
+                  "02S2405",
+                  "F81401007-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                  "",
+                  7153.798473517847
+                ]
+              ]
+            }
+          ]
         },
         "oficinas": {
           "AS": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
+              "Health and others - BC",
               "Main/Principal",
-              "Plant Depreciation",
+              "C Class (Maintenance)",
+              "Material",
               "Transport - BC",
               "WC & Trainee",
-              "Material",
+              "Restaurant - BC",
               "Electricity",
-              "Consumption Material",
               "Service",
-              "ICT Direct Expenses",
+              "Consumption Material",
               "Scraps",
-              "Other Manufacturing Income & Expenses",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              707.209679298033,
-              -0.23837260642244473,
-              -343.39649605255823,
-              -142.87396745700005,
-              -120.16221458691733,
-              -89.90610853505393,
-              -25.07132368212183,
-              -21.658898703306804,
-              -15.430551136618904,
-              -3.7847092183228623,
-              -2.119191477738323,
-              -1.8740000000000003,
-              -1.4230319584812896,
-              -1.529674,
-              -62.25886001471208
+              109.04474277974452,
+              -0.03800319520320272,
+              18.173722310507518,
+              -17.52424633466974,
+              7.11384720534415,
+              -2.866175929922467,
+              2.7346408873077266,
+              -2.5408064541865283,
+              2.1803492978119268,
+              1.6797710441951275,
+              1.324463599254286,
+              0.9929836037632498,
+              0.9587030981282424,
+              3.308325,
+              124.5423165149181
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Plant Depreciation",
-              "Restaurant - BC",
               "Main/Principal",
-              "Health and others - BC",
-              "WC & Trainee",
-              "Transport - BC",
-              "C Class (Maintenance)",
+              "Restaurant - BC",
               "Other Manufacturing Income & Expenses",
+              "Transport - BC",
+              "Health and others - BC",
               "Material",
+              "C Class (Maintenance)",
+              "Service",
               "Electricity",
+              "Scraps",
               "Consumption Material",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              574.719091065268,
-              47.15193588404895,
-              -143.7144659928977,
-              -117.36712080675038,
-              -99.79133360773824,
-              -90.85485285038072,
-              -72.84792406446326,
-              -52.777839061535296,
-              -33.959800370446594,
-              32.94376399890743,
-              -25.241464080852218,
-              -24.492524188723504,
-              -16.877946079440214,
-              -39.14838,
-              -62.25886001471208
+              88.61600355643637,
+              7.270362483085165,
+              20.03726202163587,
+              -8.806896769907132,
+              5.2726803353123195,
+              4.872356346361341,
+              4.164801972772457,
+              -2.8924098978093538,
+              1.8775816328444828,
+              1.603640807279812,
+              1.2428540007263584,
+              0.9702892842868052,
+              0.769809609033266,
+              -0.456019,
+              124.54231651491736
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              109.04474277974452,
+              -0.03800319520318851,
+              13.354540779694162,
+              2.1810361506828837,
+              124.54231651491838
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              88.61600355643637,
+              7.270362483085165,
+              22.183410126669116,
+              6.6021369158233325,
+              -0.12959656709545975,
+              124.54231651491736
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Benefits - BC",
+              "Indirect Labor",
+              "WC & Trainee",
+              "Energy",
+              "Material Losses",
+              "Expenses",
+              "Benefits - WC",
+              "Consumption Material",
+              "Maintenance",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              109.04474277974452,
+              -0.03800319520318851,
+              43.339508168064526,
+              -17.52424633466974,
+              -17.38514056060225,
+              8.606662760882063,
+              -2.5408064541865283,
+              1.6797710441951275,
+              1.2691813441915534,
+              -1.2531695846927262,
+              -1.1414367997939372,
+              1.0468692799836736,
+              -0.4098536896904328,
+              -0.151762,
+              124.54231651491779
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "Expenses",
+              "Indirect Labor",
+              "Energy",
+              "Material Losses",
+              "Consumption Material",
+              "Benefits",
+              "Trips",
+              "Maintenance",
+              "Taxes, Insurance & Assets Amortization",
+              "WC & Trainee",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              88.61600355643637,
+              7.270362483085165,
+              20.03726202163587,
+              3.868377319177176,
+              2.4161187149077046,
+              1.2428540007263584,
+              0.9918152521911461,
+              0.8236952852536898,
+              -0.35936760501191145,
+              -0.1676944919739963,
+              -0.15691044955179212,
+              -0.12959656709545975,
+              0.08939699513745225,
+              124.54231651491736
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "AS — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "PROV CPC27",
+                    "",
+                    -28154.442988204457
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "ANTENA MAGNETICA DO AGV ASTI A30 ASEL061",
+                    "",
+                    6830.478760311464
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "PIROMETRO 42X PC AUTO HEDSON TECHNOLOGIE",
+                    "",
+                    2968.3617300131064
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "MOTOR ELS 6-1000P/8-800P 6153942495",
+                    "",
+                    2529.320792537198
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "BATERIA NAUTICA 12V TNF150D TUDO",
+                    "",
+                    2433.0599028602264
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "PLACA ELETRONICA ELS PISTOLA 6153997405",
+                    "",
+                    1996.0326883046796
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "RODA SIST MOLA CARRO EOM POM ACOPLE",
+                    "",
+                    1906.1676046565415
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "TUBO FLEX 3/4 COMP 2M 240V 200W ES04010",
+                    "",
+                    1836.160666101303
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Material",
+                    "02S2248",
+                    "MOTOR ELS 6-1000P/8-800P 6153942495",
+                    "",
+                    -1806.6579292267365
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2248",
+                    "PLACA ELETRONICA ELS ANG 18V 6153997135",
+                    "",
+                    1293.0105620229742
+                  ]
+                ]
+              },
+              {
+                "titulo": "AS — Health and others - BC",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3035",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    49967.465885436744
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3035",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    8774.774496954746
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2248",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    4143.643512450852
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3035",
+                    "0054850017-0537 1 4100 DESC PLANO DE SAUDE",
+                    "",
+                    -2524.5301056202297
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3035",
+                    "0054850017-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    2502.16637113561
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2239",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    974.9749441060827
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2239",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    974.9749441060827
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2248",
+                    "0057311009-3773 1 4100 PREVIDENCIA PRIVADA",
+                    "",
+                    465.44291110939787
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2239",
+                    "0057311009-3773 1 4100 PREVIDENCIA PRIVADA",
+                    "",
+                    442.24346619381697
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3035",
+                    "0054850019-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    439.40482615064377
+                  ]
+                ]
+              },
+              {
+                "titulo": "AS — C Class (Maintenance)",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    12344.200138771104
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -4161.592783902552
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    3098.5475291033845
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    2548.6038084958755
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2239",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    2410.91357643975
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    2055.8599953742964
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-7180 1 4100 ESTORNO PROVISAO FERIAS - GE",
+                    "",
+                    -2020.8557551460951
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6040 1 4100 FERIAS - GESTIONAL",
+                    "",
+                    2020.8557551460951
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2239",
+                    "F81401009-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -1473.1925063603421
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2248",
+                    "F81401009-6090 1 4100 PROVISAO 13  ACUM P/ CONTABI",
+                    "",
+                    1392.8980032379923
+                  ]
+                ]
+              }
+            ]
           },
           "BS": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
-              "Plant Depreciation",
               "Main/Principal",
-              "Transport - BC",
-              "WC & Trainee",
-              "Electricity",
-              "Consumption Material",
-              "Material",
+              "Health and others - BC",
+              "C Class (Maintenance)",
               "Handling",
-              "Service",
-              "Third Part Services / Uma",
-              "Scraps",
+              "D Class (Quality)",
+              "Material",
+              "Consumption Material",
+              "B Class (Handling)",
+              "Plant Depreciation",
+              "Restaurant - BC",
+              "Transport - BC",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              800.6433974201519,
-              -0.4635442396735243,
-              -306.61236296706676,
-              -229.41336857891085,
-              -80.19834836545508,
-              -68.46617845353684,
-              -39.18570755328901,
-              -25.555342944576132,
-              -24.303983453530897,
-              -10.925110185507723,
-              -7.728557874864357,
-              -3.3785467976503405,
-              -2.1050356192210504,
-              -3.078204,
-              -0.7708933129660721
+              123.45129865394371,
+              -0.07233450308214628,
+              -13.626922056238818,
+              12.145453968069589,
+              11.970461452776243,
+              -3.3674139421577225,
+              2.2831504591241307,
+              -2.0356381929708727,
+              1.7842453828897011,
+              1.715275546603647,
+              1.7151021948651746,
+              1.7087254604200233,
+              1.3680001905664563,
+              2.455956,
+              141.49536086926113
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Plant Depreciation",
-              "Restaurant - BC",
               "Main/Principal",
-              "C Class (Maintenance)",
+              "Restaurant - BC",
+              "Material",
               "Health and others - BC",
               "WC & Trainee",
-              "Consumption Material",
-              "Material",
-              "Electricity",
               "Transport - BC",
+              "Handling",
+              "C Class (Maintenance)",
               "Other Manufacturing Income & Expenses",
+              "Electricity",
+              "Scraps",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              699.6638350739747,
-              111.80214756588032,
-              -314.2805215129287,
-              -74.70323370503873,
-              -59.38169512473977,
-              -58.861853896823234,
-              -56.30599749941409,
-              -47.96980216310992,
-              -36.941318636867415,
-              -35.867249589815565,
-              -32.847705123763845,
-              -31.9068661750709,
-              -18.511368341249213,
-              -44.659264,
-              -0.7708933129660721
+              107.88124818039857,
+              17.238786148466644,
+              12.590281467648486,
+              -5.074918079673358,
+              -3.8185795446453277,
+              3.463625658854557,
+              3.3232857455093,
+              3.291582583519437,
+              -2.983538872145007,
+              2.8945453481084087,
+              -2.8447078095109513,
+              1.8738884278001455,
+              1.5635724314794543,
+              2.096289,
+              141.4953608692611
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              123.4512986539437,
+              -0.07233450308214628,
+              19.26158381250999,
+              -2.860289288975583,
+              1.7151021948651746,
+              141.49536086926113
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              107.88124818039857,
+              17.238786148466644,
+              21.580115064495793,
+              -5.73753646010111,
+              0.5327479360012433,
+              141.4953608692611
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Indirect Labor",
+              "Direct Labor",
+              "Benefits - BC",
+              "Expenses",
+              "Maintenance",
+              "Consumption Material",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Energy",
+              "Benefits - WC",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              123.45129865394371,
+              -0.0723345030821605,
+              29.121603418851006,
+              15.968887458504021,
+              -13.626922056238818,
+              -11.5781625642326,
+              -3.6332814864162755,
+              -2.7740147074988015,
+              1.7842453828897011,
+              1.7151021948651746,
+              1.349755261621901,
+              0.8966310953623733,
+              -0.7867695436063271,
+              -0.320678,
+              141.49536086926113
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "Expenses",
+              "Indirect Labor",
+              "Maintenance",
+              "WC & Trainee",
+              "Energy",
+              "Benefits",
+              "Material Losses",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Consumption Material",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              107.88124818039857,
+              17.238786148466644,
+              12.590281467648486,
+              -5.822362243714347,
+              4.07108441879128,
+              -3.804811099753121,
+              3.3232857455093,
+              1.8738884278001455,
+              1.5954634325467367,
+              1.5635724314794543,
+              0.5327479360012433,
+              0.4235355586731655,
+              0.028640465413595884,
+              141.4953608692611
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "BS — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "PROV CPC27",
+                    "",
+                    -10869.0756302521
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "EIXO 700 ACU-100-1-001-KH5-P4 TUNKERS",
+                    "",
+                    8916.023436897694
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "MOLA 25X51 AMARILLO G-25051",
+                    "",
+                    1953.052193354406
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "ROLETE PALETE ACU-200-0-005-V01 TUNKERS",
+                    "",
+                    1425.7112019119575
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "CORTINA LUZ C4C-SA13530A10000 SICK",
+                    "",
+                    835.0150335363503
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "CHAVETA DO BRACO DA PINCA 54071",
+                    "",
+                    773.4931770873486
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "MOLA FREIO ACU-200-0-019-V01 TUNKERS",
+                    "",
+                    763.5402050728547
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "PINO PRESSAO ACU-200-0-010-V01 TUNKERS",
+                    "",
+                    436.435124508519
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2219",
+                    "CORREIA 900-38-12 7478 SUP VS BELT",
+                    "",
+                    287.7434276462879
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2227",
+                    "RODA DENTADA ACU-200-0-001-V02 TUNKERS",
+                    "",
+                    273.3759925988744
+                  ]
+                ]
+              },
+              {
+                "titulo": "BS — Health and others - BC",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    18037.03646596253
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    10968.468121193431
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3039",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    8043.543288875183
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2218",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    3899.899776424331
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2220",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    2437.4373602652067
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850017-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    903.2210315318788
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850019-0537 1 4100 DESC PLANO DE SAUDE",
+                    "",
+                    -893.8817361807108
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850017-0537 1 4100 DESC PLANO DE SAUDE",
+                    "",
+                    -808.0518078791149
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2229",
+                    "0054850019-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    549.2560326883047
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3039",
+                    "0054850017-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    402.7877573047568
+                  ]
+                ]
+              },
+              {
+                "titulo": "BS — C Class (Maintenance)",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    24503.529411764706
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -18777.17369516614
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    14360.900470279854
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    6179.491172615834
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6284 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -5034.683524786061
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6040 1 4100 FERIAS - GESTIONAL",
+                    "",
+                    4148.882892606584
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-7180 1 4100 ESTORNO PROVISAO FERIAS - GE",
+                    "",
+                    -4148.882892606584
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    4111.719990748593
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6281 1 4100 PROV. BANCO DE HORAS INSS -",
+                    "",
+                    3817.107393416082
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2229",
+                    "F81401009-6090 1 4100 PROVISAO 13  ACUM P/ CONTABI",
+                    "",
+                    2797.7087348700948
+                  ]
+                ]
+              }
+            ]
           },
           "GS": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
-              "Service",
-              "C Class (Maintenance)",
+              "Consumption Material",
+              "Material",
+              "Trips",
               "Electricity",
               "Third Part Services / Uma",
-              "Transport - BC",
-              "Plant Depreciation",
-              "WC & Trainee",
-              "Consumption Material",
+              "Other Manufacturing Income & Expenses",
+              "C Class (Maintenance)",
+              "Health and others - BC",
               "Scrap Sales",
-              "Stock Obsolescence % Overstock",
-              "Material",
+              "Water",
+              "Gas",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              326.45458512629415,
-              -0.19564468551629943,
-              -116.4248388215703,
-              -102.32119113726041,
-              -61.962793946968596,
-              -57.528561740614236,
-              -38.02337282186323,
-              -37.42098058089727,
-              -36.77033982378106,
-              -22.681837759115783,
-              21.824339126928034,
-              -20.92751765238448,
-              -20.02074739493459,
-              -18.948092,
-              -184.94699401837147
+              50.336070484356505,
+              -0.030611317974923224,
+              12.877115845606843,
+              9.004773293342925,
+              8.380079755281374,
+              7.0410388665500925,
+              5.579512158543964,
+              4.946135366924717,
+              4.818353502952835,
+              3.933949603838588,
+              3.3650973906295634,
+              2.8436567610195924,
+              2.0393515048285145,
+              2.520103,
+              117.65462652549513
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Third Part Services / Uma",
               "Scrap Sales",
-              "Service",
-              "C Class (Maintenance)",
               "Main/Principal",
-              "Electricity",
-              "Restaurant - BC",
-              "D Class (Quality)",
-              "Health and others - BC",
-              "Material",
               "Consumption Material",
+              "Trips",
+              "Restaurant - BC",
+              "Material",
+              "D Class (Quality)",
+              "C Class (Maintenance)",
+              "Third Part Services / Uma",
+              "Other Manufacturing Income & Expenses",
+              "Electricity",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              295.974600591895,
-              57.813214305754286,
-              -124.24735789644433,
-              121.03765193822684,
-              -110.59983805970475,
-              -97.51535980611742,
-              82.059891017404,
-              -81.39402364874874,
-              -63.50581493476129,
-              -42.96244684835966,
-              -42.482651276866,
-              -31.875035290207126,
-              -31.39253761055367,
-              -115.857286,
-              -184.94699401837147
+              45.636358120714696,
+              8.914226244045075,
+              18.662809642776477,
+              12.652824148855757,
+              11.534012021470247,
+              7.694165005586696,
+              -7.575692657872289,
+              7.176959262771257,
+              -5.901299158574919,
+              5.559365195365601,
+              -4.707866787694588,
+              4.118466390847735,
+              4.044935296774415,
+              9.845364,
+              117.65462652549515
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              50.336070484356505,
+              -0.030611317974923224,
+              57.34901020883245,
+              9.986537446462748,
+              0.013619703818333662,
+              117.65462652549512
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              45.636358120714696,
+              8.914226244045075,
+              57.54098575915792,
+              3.5416430348354346,
+              2.0214133667420544,
+              117.65462652549515
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Consumption Material",
+              "Energy",
+              "Maintenance",
+              "Expenses",
+              "Benefits",
+              "Trips",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Scrap Sales",
+              "Material Losses",
+              "Stock Obsolescence % Overstock",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              50.33607048435651,
+              -0.03061131797493033,
+              12.877115845606843,
+              11.9240471323982,
+              10.780018942993923,
+              10.02286726228889,
+              9.715886494931615,
+              8.380079755281374,
+              5.541439025336924,
+              -5.455687428932996,
+              3.3650973906295634,
+              3.2631568950136938,
+              -3.2268163830675323,
+              0.161962,
+              117.65462652549513
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Material Losses",
+              "Direct Labor",
+              "Consumption Material",
+              "Benefits",
+              "Maintenance",
+              "Energy",
+              "Trips",
+              "Expenses",
+              "WC & Trainee",
+              "Taxes, Insurance & Assets Amortization",
+              "Indirect Labor",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              45.636358120714696,
+              8.914226244045075,
+              21.816086715390448,
+              12.652824148855757,
+              11.534012021470247,
+              -10.850615668245386,
+              9.850362458003257,
+              9.00838032783512,
+              7.694165005586696,
+              -2.3620207691278647,
+              2.081368517434368,
+              2.0214133667420544,
+              -0.3419339632093177,
+              117.65462652549515
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "GS — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "VENTILADOR AS 3 PAS MONOFASICO COM GRADE",
+                    "",
+                    17829.229820368513
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "reclass materiais",
+                    "",
+                    -16089.400971397732
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "CABO FLEX 120,00MM - PRETO - 1KV",
+                    "",
+                    7923.179400200446
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "TUBO METALON 40 X 40 X 3,0 STALX",
+                    "",
+                    5119.830390871945
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "RODIZIO FRAX 62 UFS NOVEX",
+                    "",
+                    4306.916968622311
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "CABO PP FLEXIVEL 3 X 2,5 MM",
+                    "",
+                    2988.204456094364
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "CHAPA LISA 2000 X 1000 X 1,2 MM",
+                    "",
+                    2670.455631794002
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "METALON 50X30X6000MM - PAR 3/16 GERDAU",
+                    "",
+                    2372.7900701565027
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "CHAPA LISA 3MM X 1200 X 3000MM",
+                    "",
+                    1777.482075398967
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3036",
+                    "REFLETOR DE LED 100 WATTS IP66",
+                    "",
+                    1723.2642047644745
+                  ]
+                ]
+              },
+              {
+                "titulo": "GS — Consumption Material",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "PLACA NYLON 2MX1MX25MM - INDACO",
+                    "",
+                    18537.007169840414
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "TINTA ESM.SINT.AMARELO SEGURANCA 3,6L",
+                    "",
+                    14646.978644668878
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "reclass materiais",
+                    "",
+                    -9038.50435587079
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "TINTA EPOXI CINZA INTERCOSTEIRO C CATA",
+                    "",
+                    5517.664019736335
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S2029",
+                    "SIKALASTIC 612 (BALDE 25,4 KG - 18L",
+                    "",
+                    3670.768637730321
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S2029",
+                    "PAPEL TOALHA MONTAGEM CX. C/06 RLS",
+                    "",
+                    2421.469431809421
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S2029",
+                    "BIOMATE MBC2881P SUEZ",
+                    "VEOLIA TECNOLOGIAS E SOLUCOES PARA",
+                    1853.9033227970085
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S2029",
+                    "KLEEN MCT105 LIMPEZA ACIDA MEMBRANA SUEZ",
+                    "VEOLIA TECNOLOGIAS E SOLUCOES PARA",
+                    1717.7457404980341
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "TINTA EPOXI CINZA RAL7035 C CATALIZADOR",
+                    "",
+                    1641.528024053658
+                  ],
+                  [
+                    "Burden",
+                    "Consumption Material",
+                    "Consumption Material",
+                    "02S3036",
+                    "RESPIRADOR VALVULADO PFF2 8822 3M",
+                    "",
+                    1163.6589314624932
+                  ]
+                ]
+              },
+              {
+                "titulo": "GS — Trips",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S2029",
+                    "PROV VIAGEM--37906824-LUIZ DA FONSECA JUNIOR-PAULO",
+                    "",
+                    2877.130521933544
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282718-37906839-BRANTE VITAL-JEFFERSO",
+                    "",
+                    2663.7714902474754
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282433-37906351-PEREIRA CANDIDO-ANDER",
+                    "",
+                    2618.3347467427343
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282476-37203368-DA SILVA PEREIRA-BRUN",
+                    "",
+                    2468.005550844191
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2281456-37203366-DE SOUZA-MAICOM",
+                    "",
+                    2450.6082800092518
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282375-37905987-SILVA DE FARIA-MARCO",
+                    "",
+                    2447.3286562331355
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282332-37203367-DE SOUZA CARREIRA-EVE",
+                    "",
+                    2445.339603731401
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282503-37907335-ROSA-RAFAEL",
+                    "",
+                    2439.5852285868477
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2282454-37905715-DE ANDRADE SILVA-JUNI",
+                    "",
+                    2439.4002004471513
+                  ],
+                  [
+                    "Burden",
+                    "Trips",
+                    "Trips",
+                    "02S3036",
+                    "PROV VIAGEM-2281641-37906210-DE PAULA LIMA-SERGIO",
+                    "",
+                    2324.6349548993912
+                  ]
+                ]
+              }
+            ]
           },
           "PL": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
-              "Plant Depreciation",
               "Supplier Failure Recovery",
-              "B Class (Handling)",
-              "WC & Trainee",
-              "Consumption Material",
+              "Health and others - BC",
+              "D Class (Quality)",
+              "Handling",
+              "Plant Depreciation",
               "Transport - BC",
-              "Stock Obsolescence % Overstock",
               "Electricity",
+              "B Class (Handling)",
+              "Restaurant - BC",
               "Third Part Services / Uma",
               "Headquarter",
-              "Water",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              248.86338930215896,
-              -0.08160781914153858,
-              -100.54062418741779,
-              87.54909932639038,
-              -84.94350443081507,
-              -65.11893941195252,
-              -38.21313404294571,
-              -33.933095057097546,
-              -32.2549313307754,
-              -15.707430480212636,
-              -8.806404038557782,
-              -7.861370917801326,
-              -4.3368060541970745,
-              -6.993104,
-              -62.37846313322604
+              38.372274967567485,
+              -0.013560964163119138,
+              13.421115956712931,
+              7.283628591682607,
+              4.359369021697826,
+              -4.272229073361413,
+              2.8769858199188185,
+              2.4952573224759824,
+              -2.42193053430154,
+              1.900243470817669,
+              1.544291107247092,
+              -1.3414209587984527,
+              -1.2121456969857876,
+              3.119986,
+              66.11186462745161
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Plant Depreciation",
               "Handling",
+              "B Class (Handling)",
               "Supplier Failure Recovery",
               "WC & Trainee",
-              "Restaurant - BC",
-              "B Class (Handling)",
-              "Stock Obsolescence % Overstock",
               "Main/Principal",
+              "Consumption Material",
               "Health and others - BC",
-              "D Class (Quality)",
+              "Plant Depreciation",
               "Transport - BC",
+              "D Class (Quality)",
+              "Restaurant - BC",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              185.24408609563727,
-              31.164761227411873,
-              -96.41005306365872,
-              -55.92156878244264,
-              55.117249485466054,
-              -35.50842506136033,
-              -33.92798461586579,
-              -28.25685986292704,
-              -27.090615949243173,
-              23.314417430071906,
-              -22.282372110808545,
-              -15.461682447982188,
-              -11.902747401758157,
-              -30.456668,
-              -62.378463133226056
+              28.56280720000575,
+              4.805298161654754,
+              -12.894782273953911,
+              10.640763795833166,
+              8.420445254234435,
+              4.752050767521624,
+              4.3949642464662775,
+              4.341297529946125,
+              3.8479070419472676,
+              3.5138790623456284,
+              3.2234710192458778,
+              1.9753304050942964,
+              -1.9133932807049039,
+              2.441826,
+              66.11186462745164
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              38.37227496756749,
+              -0.013560964163119138,
+              19.755106272472723,
+              5.1210585316557085,
+              2.8769858199188185,
+              66.11186462745162
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "D&A",
+              "Burden",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              28.56280720000575,
+              4.805298161654754,
+              27.239393242525278,
+              3.5138790623456284,
+              1.9904869609202258,
+              66.11186462745164
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Expenses",
+              "Indirect Labor",
+              "Material Losses",
+              "Stock Obsolescence % Overstock",
+              "Benefits - BC",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Benefits - WC",
+              "Maintenance",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              38.37227496756749,
+              -0.013560964163119138,
+              17.533597051359354,
+              8.957902246976959,
+              6.464938891322781,
+              5.896371564571238,
+              -4.97339161680293,
+              -4.337175213932995,
+              -3.7697878186824147,
+              2.8769858199188185,
+              -2.308555975496628,
+              -0.8939948181630853,
+              0.81638765566698,
+              1.489873,
+              66.11186462745162
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Indirect Labor",
+              "Benefits",
+              "WC & Trainee",
+              "Direct Labor",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "Expenses",
+              "Material Losses",
+              "Maintenance",
+              "Energy",
+              "Trips",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              28.56280720000575,
+              4.805298161654754,
+              12.707695244762455,
+              5.3846829837749155,
+              4.752050767521624,
+              4.3949642464662775,
+              3.5138790623456284,
+              2.2744495652967256,
+              -2.0425695800632173,
+              1.7192663376429866,
+              -0.059658646926042946,
+              0.0584500531379029,
+              0.040549231831878085,
+              66.11186462745164
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "PL — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3018",
+                    "CHAPA COMPENSADO NAVAL 1040X690X10 AMAN",
+                    "",
+                    976.413537892221
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2332",
+                    "PROV CPC27",
+                    "",
+                    -345.01888828926064
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2332",
+                    "FILTRO AR PRIMRIO DO TEREX D-6550518",
+                    "",
+                    183.36751214247167
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3018",
+                    "PINO ELASTICO 40 X 10 MM",
+                    "",
+                    165.09444144630328
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2332",
+                    "FILTRO AR SECUNDRIO DO TEREX E-6550519",
+                    "",
+                    161.651376146789
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3018",
+                    "CORRENTE SOLDADA ELO C 13X22 3MM ZINCADA",
+                    "",
+                    93.8339372446226
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2332",
+                    "Rec Fev 26 - Maintenance",
+                    "",
+                    -93.8339372446226
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2332",
+                    "FILTRO DA AGUA G6150597 DO TEREX WF2175",
+                    "",
+                    71.71228124277233
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "",
+                    "",
+                    "",
+                    -64.43620589494402
+                  ]
+                ]
+              },
+              {
+                "titulo": "PL — Supplier Failure Recovery",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2332",
+                    "Provisão PNDs jan",
+                    "",
+                    26702.798550612904
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2332",
+                    "Provisão PNDs fev",
+                    "",
+                    -19591.55038162054
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2332",
+                    "Pnd",
+                    "",
+                    -7058.533651992908
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2332",
+                    "785_2025_3650/1_LOG_PIBR",
+                    "FIAMM LATIN AMERICA COMPONENTES AUT",
+                    -338.6014956441292
+                  ]
+                ]
+              },
+              {
+                "titulo": "PL — Health and others - BC",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2307",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    9993.493177087348
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2331",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    5606.105928609976
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S3018",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    5362.362192583455
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2308",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    2193.6936242386864
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2335",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    1218.7186801326034
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2307",
+                    "0054850019-0537 1 4100 DESC PLANO DE SAUDE",
+                    "",
+                    -831.1880348469663
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2325",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    731.2312080795621
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2307",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    731.2312080795621
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2335",
+                    "0057311009-3773 1 4100 PREVIDENCIA PRIVADA",
+                    "",
+                    675.8784981882661
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2307",
+                    "0054850019-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    500.433274227122
+                  ]
+                ]
+              },
+              {
+                "titulo": "PL — D Class (Quality)",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    6351.23429188189
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -5416.3302752293575
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    4057.6131369979184
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    1670.386246241616
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S3018",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    1552.0992984349703
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S3018",
+                    "F81401007-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -1466.0504201680671
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6284 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -1451.026135224732
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2307",
+                    "F81401007-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    1326.537660935934
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S3018",
+                    "F81401007-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    1143.8547529103384
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2335",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    1116.1652918047953
+                  ]
+                ]
+              }
+            ]
           },
           "PS": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
               "Main/Principal",
-              "Gas",
-              "Plant Depreciation",
-              "Electricity",
-              "Transport - BC",
+              "Health and others - BC",
+              "C Class (Maintenance)",
               "WC & Trainee",
-              "Material",
-              "Consumption Material",
-              "Other Manufacturing Income & Expenses",
+              "D Class (Quality)",
+              "Scraps",
               "Handling",
-              "Service",
+              "Gas",
+              "Health and others - WC",
+              "Trips",
+              "Electricity",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              724.8553012104265,
-              -0.23177655002325537,
-              -194.7451380842073,
-              -129.78487119635673,
-              -105.6112448480676,
-              -102.90922230525035,
-              -69.20644821871655,
-              -67.02646525473624,
-              -27.491079071951916,
-              -14.869227831319021,
-              -5.089538599265325,
-              -3.179255466141598,
-              -2.844975399680092,
-              -2.736794,
-              -0.8707353076374449
+              111.76552327660576,
+              -0.03661427392469818,
+              -12.897822157316952,
+              8.724684112949124,
+              7.964835135029331,
+              1.9316610410330668,
+              1.6602602940592097,
+              1.4421457163206823,
+              -1.0577717540909137,
+              -0.6257412060140197,
+              0.5681537266616086,
+              0.41046369255510023,
+              0.3709035517859043,
+              1.404914,
+              121.62559494577138
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Gas",
-              "Main/Principal",
-              "Electricity",
               "Plant Depreciation",
               "Restaurant - BC",
-              "WC & Trainee",
-              "Health and others - BC",
+              "Electricity",
               "Consumption Material",
-              "C Class (Maintenance)",
-              "Material",
+              "Gas",
+              "WC & Trainee",
               "Transport - BC",
+              "Main/Principal",
+              "Health and others - BC",
+              "C Class (Maintenance)",
+              "Scraps",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              608.5590845859891,
-              44.325334645084695,
-              -100.07383063438446,
-              -91.136478878777,
-              -73.97784998896539,
-              -71.5085480225458,
-              -59.79172837143494,
-              -54.83179028043563,
-              -41.97984489118946,
-              -40.72231134600589,
-              -38.63480602321539,
-              -28.98702788790973,
-              -15.2799754378896,
-              -36.830963,
-              -0.8707353076374449
+              93.83379609682972,
+              6.834528508994623,
+              5.539943226907278,
+              -5.272476386888123,
+              4.831835217237291,
+              -4.273086651654118,
+              3.9554075970038287,
+              3.8119593949457347,
+              3.810945393340153,
+              3.0776090670189173,
+              2.2518069421543574,
+              2.0077298966952943,
+              1.3664216988778852,
+              -0.150825,
+              121.62559494577138
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              111.76552327660576,
+              -0.03661427392469818,
+              9.095353497764279,
+              0.5196880119615415,
+              0.28164443336448386,
+              121.62559494577137
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "D&A",
+              "Burden",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              93.83379609682972,
+              6.834528508994623,
+              10.158104432139254,
+              5.539943226907278,
+              5.259222680900507,
+              121.62559494577138
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Direct Labor",
+              "Indirect Labor",
+              "Benefits - BC",
+              "Expenses",
+              "WC & Trainee",
+              "Material Losses",
+              "Maintenance",
+              "Benefits - WC",
+              "Trips",
+              "Taxes, Insurance & Assets Amortization",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              111.76552327660575,
+              -0.03661427392469818,
+              20.749167279661176,
+              -12.897822157316952,
+              9.982421021103724,
+              -9.868623216628574,
+              -1.9918297658265696,
+              1.9316610410330668,
+              1.6382693551397438,
+              0.9650509034538519,
+              -0.8014504700881562,
+              0.41046369255510023,
+              0.28164443336448386,
+              -0.502266,
+              121.62559494577137
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Energy",
+              "Taxes, Insurance & Assets Amortization",
+              "Consumption Material",
+              "WC & Trainee",
+              "Direct Labor",
+              "Indirect Labor",
+              "Expenses",
+              "Material Losses",
+              "Benefits",
+              "Maintenance",
+              "Trips",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              93.83379609682972,
+              6.834528508994623,
+              8.787242814241125,
+              5.539943226907278,
+              -4.037594837091888,
+              3.8119593949457347,
+              3.0776090670189173,
+              2.5128220646262207,
+              -1.7978524773899187,
+              1.3664216988778852,
+              0.7557139055483795,
+              0.5305417897082139,
+              0.41046369255510023,
+              121.62559494577138
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "PS — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "BUCHA PEEK M20X32 PEI 140520-002 POS D",
+                    "",
+                    4048.329350088659
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2253",
+                    "PROV CPC27",
+                    "",
+                    -3672.677511371521
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "COUPELLE 65 EX HI-TE AL 910004615 SAMES",
+                    "",
+                    3391.704571736952
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2253",
+                    "LINHA DE VIDA RETRATIL 70007490769 3M",
+                    "",
+                    3322.858684758307
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "TUBO CORRUGADO PARRB-52G REIKU (METRO)",
+                    "",
+                    2776.1622080024667
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "KIT REP 238748 P/ REG 238890 GRACO",
+                    "",
+                    1683.0452547991672
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Material",
+                    "02S2264",
+                    "HASTE 16A462 BOMBA PNEUMTICA GRACO",
+                    "",
+                    -1260.811040012335
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "PROV CPC27",
+                    "",
+                    -993.3744506977102
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2253",
+                    "MANOM 0-6BAR 105MM 1/2NPT HORIZ C CERT",
+                    "",
+                    987.26698018657
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2264",
+                    "MODULO X80 - 64 SAIDAS 24VCC BMXDDO6402K",
+                    "",
+                    985.2640505743582
+                  ]
+                ]
+              },
+              {
+                "titulo": "PS — Health and others - BC",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2263",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    19986.986354174696
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2263",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    4387.387248477373
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2253",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    3168.668568344769
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2264",
+                    "0054850019-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    2924.9248323182483
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2263",
+                    "0054850017-0537 1 4100 DESC PLANO DE SAUDE",
+                    "",
+                    -1421.3229511988282
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2263",
+                    "0054850017-3645 1 4100 PROVISAO DE BENEFICIOS",
+                    "",
+                    1000.866548454244
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2264",
+                    "0057311009-3773 1 4100 PREVIDENCIA PRIVADA",
+                    "",
+                    649.7509829619921
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2253",
+                    "0057311009-3773 1 4100 PREVIDENCIA PRIVADA",
+                    "",
+                    521.537275460643
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2253",
+                    "0054850017-3677 1 4100 PROVISAO FEF DOTACOES",
+                    "",
+                    487.48747205304136
+                  ],
+                  [
+                    "Labor",
+                    "Benefits",
+                    "Health and others - BC",
+                    "02S2264",
+                    "0057311009-0548 1 4100 DESCONTO PREVIDENCIA PRIVAD",
+                    "",
+                    -287.3795389715519
+                  ]
+                ]
+              },
+              {
+                "titulo": "PS — C Class (Maintenance)",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    8681.989052501734
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2253",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    4897.492868707115
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -4285.355022743041
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6040 1 4100 FERIAS - GESTIONAL",
+                    "",
+                    3282.6258576825226
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-7180 1 4100 ESTORNO PROVISAO FERIAS - GE",
+                    "",
+                    -3282.6258576825226
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    2823.0159586770483
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    2593.3096908488164
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2263",
+                    "F81401009-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    1735.8723305836095
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2264",
+                    "F81401009-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    1541.8949965307222
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "C Class (Maintenance)",
+                    "02S2253",
+                    "F81401009-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -1464.5301056202295
+                  ]
+                ]
+              }
+            ]
           },
           "QY": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
               "D Class (Quality)",
-              "WC & Trainee",
-              "Transport - BC",
+              "Third Part Services / Uma",
+              "Main/Principal",
               "Other Manufacturing Income & Expenses",
-              "Plant Depreciation",
+              "Health and others - BC",
               "Supplier Failure Recovery",
-              "Consumption Material",
-              "Electricity",
-              "ICT Direct Expenses",
-              "Trips",
               "Scraps",
+              "Health and others - WC",
+              "Transport - BC",
+              "Trips",
+              "Electricity",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              324.54597638659243,
-              -0.15254674348506114,
-              -125.17447545511455,
-              -96.39093920186242,
-              -50.697081992842136,
-              -44.42685006218554,
-              -38.107121304245794,
-              27.250215089189204,
-              -4.501885419262659,
-              -2.525148996983958,
-              -2.242906733802516,
-              -2.0426761230856227,
-              -2.0289775476296645,
-              -2.600274,
-              -19.09469222905569
+              50.04178188059402,
+              -0.02494467076824236,
+              -11.579816081691128,
+              9.485737213539599,
+              7.3939130619181554,
+              -6.850181182975183,
+              5.107080739921348,
+              3.5162185255748772,
+              1.2417262882051574,
+              0.8904380248073407,
+              -0.838569130758632,
+              0.48042088609296907,
+              0.44489048014350463,
+              0.404086,
+              59.712782052895356
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Third Part Services / Uma",
-              "WC & Trainee",
-              "D Class (Quality)",
-              "Restaurant - BC",
-              "Plant Depreciation",
-              "Health and others - BC",
               "Main/Principal",
-              "Scraps",
+              "WC & Trainee",
+              "Restaurant - BC",
+              "D Class (Quality)",
+              "Third Part Services / Uma",
+              "Plant Depreciation",
               "Trips",
-              "Transport - BC",
+              "Scraps",
+              "Health and others - BC",
               "Restaurant - WC",
+              "Transport - BC",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              300.66688397204604,
-              45.66084626640725,
-              -76.20737425800965,
-              -73.49386137502906,
-              -36.34909743371056,
-              -31.170863939801585,
-              -25.73174386303042,
-              -25.422364426772237,
-              -21.186014972297652,
-              -19.367589255276044,
-              -17.51717007966841,
-              -13.964615525106023,
-              -11.236361344804804,
-              -13.775366,
-              -19.094692229055692
+              46.35986184134544,
+              7.040451201358003,
+              4.127238947000624,
+              3.3552659475642255,
+              -2.421213278418754,
+              2.1161792959056616,
+              -2.0500457130345584,
+              1.9221172670316173,
+              -1.9055931385131188,
+              -1.4317162694459695,
+              1.187203409449952,
+              -0.890219812028745,
+              0.8584364184077411,
+              1.444816,
+              59.712782052895356
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Burden",
+              "Labor",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              50.041781880594016,
+              -0.024944670768235255,
+              8.914672666021561,
+              0.7673157983388776,
+              0.013956378709147899,
+              59.71278205289536
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              46.35986184134544,
+              7.040451201358003,
+              8.53179798532846,
+              -4.141446242168167,
+              1.9221172670316173,
+              59.712782052895356
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Benefits",
+              "Indirect Labor",
+              "Direct Labor",
+              "Benefits - BC",
+              "Expenses",
+              "Material Losses",
+              "Benefits - WC",
+              "Trips",
+              "Energy",
+              "Scraps",
+              "WC & Trainee",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              50.041781880594016,
+              -0.024944670768235255,
+              12.94402146986814,
+              -11.579816081691128,
+              7.3939130619181554,
+              -6.514157478585838,
+              6.506807657739567,
+              1.5545745724746298,
+              -1.3014080250854088,
+              0.48042088609296907,
+              0.44489048014350463,
+              -0.31284828426947253,
+              -0.17523714808505098,
+              0.254784,
+              59.71278205289537
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Direct Labor",
+              "WC & Trainee",
+              "Indirect Labor",
+              "Taxes, Insurance & Assets Amortization",
+              "Trips",
+              "Material Losses",
+              "Benefits",
+              "Consumption Material",
+              "Expenses",
+              "Energy",
+              "Maintenance",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              46.35986184134544,
+              7.040451201358003,
+              4.127238947000624,
+              3.3552659475642255,
+              2.1161792959056616,
+              1.9221172670316173,
+              -1.9055931385131188,
+              -1.4317162694459695,
+              -1.0668862051420511,
+              -0.6709839989404984,
+              -0.5851753309899355,
+              0.2464167948218834,
+              0.20560570089948296,
+              59.712782052895356
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "QY — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2412",
+                    "PISTOLA PINTURA HVLP SGK-600-BV DEVILBIS",
+                    "",
+                    437.4558630791766
+                  ],
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S2407",
+                    "ARDUINO LEONARDO COMPATIVEL",
+                    "",
+                    0.0
+                  ]
+                ]
+              },
+              {
+                "titulo": "QY — Supplier Failure Recovery",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2408",
+                    "Provisão PNDs fev",
+                    "",
+                    -8385.475291033845
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Supplier Failure Recovery",
+                    "02S2408",
+                    "Provisão PNDs jan",
+                    "",
+                    5875.876956287102
+                  ]
+                ]
+              },
+              {
+                "titulo": "QY — Third Part Services / Uma",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2412",
+                    "PROV-800032481-TRIGO BRASIL -",
+                    "",
+                    12489.399429496569
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2409",
+                    "PROV-800032481-TRIGO BRASIL -",
+                    "",
+                    12335.20931308303
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2405",
+                    "PROV-800032481-TRIGO BRASIL -",
+                    "",
+                    4625.703492406136
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2408",
+                    "PROV-800032481-TRIGO BRASIL -",
+                    "",
+                    3854.7529103384472
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2407",
+                    "PROV-800032481-TRIGO BRASIL -",
+                    "",
+                    2158.6616297895303
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "",
+                    "",
+                    "",
+                    -630.4559723708487
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2407",
+                    "PROV-800049327-AMPRO LABORATOR",
+                    "AMPRO LABORATORIO E ENGENHARIA LTDA",
+                    29.2961221185722
+                  ],
+                  [
+                    "Burden",
+                    "Expenses",
+                    "Third Part Services / Uma",
+                    "02S2405",
+                    "0057100230-3977 1 4100 PROVISAO NEA TELETRABALHO",
+                    "",
+                    20.061676046565417
+                  ]
+                ]
+              },
+              {
+                "titulo": "QY — Main/Principal",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    15565.691157196821
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -13106.839873564104
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6280 1 4100 PROV. BANCO DE HORAS - GESTI",
+                    "",
+                    9142.682908025596
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    3854.737491326806
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6284 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -3515.3696708041016
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    3265.1299051730784
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6281 1 4100 PROV. BANCO DE HORAS INSS -",
+                    "",
+                    2430.649911340683
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6090 1 4100 PROVISAO 13  ACUM P/ CONTABI",
+                    "",
+                    1536.606275537738
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S3043",
+                    "F81101001-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    1488.9923675892376
+                  ],
+                  [
+                    "Labor",
+                    "Direct Labor",
+                    "Main/Principal",
+                    "02S2405",
+                    "F81101001-6097 1 4100 PROVISAO DE FERIAS ACUMULADA",
+                    "",
+                    1478.0232827075783
+                  ]
+                ]
+              }
+            ]
           },
           "SM": {
             "wf_budget_labels": [
               "BUD",
               "Flex Bud\n− BUD",
+              "D Class (Quality)",
               "Other Manufacturing Income & Expenses",
+              "Stock Obsolescence % Overstock",
               "Scrap Sales",
               "Main/Principal",
+              "Health and others - BC",
+              "WC & Trainee",
+              "Third Part Services / Uma",
+              "Gas",
               "Taxes & Insurances",
               "Transport - BC",
-              "WC & Trainee",
-              "Gas",
-              "Inventory Adjustments",
-              "Material",
-              "Handling",
-              "Consumption Material",
               "Outros",
               "Real"
             ],
             "wf_budget_values": [
-              333.5095654822147,
-              -0.2980713549745815,
-              -183.78998285574897,
-              130.25930126875795,
-              -111.83464756073211,
-              -43.88677339096415,
-              -41.73314354901595,
-              -40.59077405287132,
-              -38.35463294690768,
-              -11.72143188116024,
-              -10.799104557910498,
-              -10.36263477177641,
-              -4.837232263297413,
-              -7.269688,
-              -41.709250056221975
+              51.42387872673113,
+              -0.04640463725025512,
+              36.087037267237314,
+              -23.011687060561982,
+              -22.841507785600598,
+              20.084696826575893,
+              -14.8992567947876,
+              14.87825035113419,
+              14.40616604601129,
+              -12.597829284857351,
+              -6.687955286745872,
+              -5.316860473773024,
+              -5.132255094622962,
+              7.9188,
+              54.26507300704785
             ],
             "wf_mensal_labels": [
               "Janeiro",
               "Flex Vol",
-              "Material",
-              "Other Manufacturing Income & Expenses",
-              "Gas",
               "Third Part Services / Uma",
+              "Material",
+              "D Class (Quality)",
+              "Gas",
+              "Stock Obsolescence % Overstock",
+              "Other Manufacturing Income & Expenses",
               "Electricity",
+              "WC & Trainee",
               "Headquarter",
               "Main/Principal",
               "Health and others - BC",
-              "Transport - BC",
-              "WC & Trainee",
-              "Restaurant - BC",
               "Outros",
               "Fevereiro"
             ],
             "wf_mensal_values": [
-              207.7369836981122,
-              29.234072565548473,
-              222.06387372410828,
-              -189.00148721460187,
-              -187.38442875263684,
-              -171.94887622317643,
-              95.97322654990522,
-              89.86580132164664,
-              65.39064560992529,
-              -57.41240569885525,
-              42.180992598010384,
-              -39.82663190517374,
-              -35.026358616067085,
-              -113.554658,
-              -41.709250056221975
+              32.0309896998092,
+              4.507605052123729,
+              -39.07375313602413,
+              34.24005454076145,
+              32.0170077732034,
+              -29.666876851117028,
+              -24.91618613121453,
+              -23.815249524343166,
+              14.798122974312722,
+              14.523989212721268,
+              13.856418367380563,
+              12.427131790619475,
+              6.02582483284643,
+              7.309994,
+              54.26507300704781
             ],
             "wf_ano_ant_labels": [],
             "wf_ano_ant_values": [],
             "ano": 2026,
-            "ano_anterior": 2025
+            "ano_anterior": 2025,
+            "wf_budget_type05_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Real"
+            ],
+            "wf_budget_type05_values": [
+              51.42387872673113,
+              -0.046404637250248015,
+              54.668027786164444,
+              -46.46413871433823,
+              -5.316290154259244,
+              54.265073007047846
+            ],
+            "wf_mensal_type05_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Labor",
+              "Burden",
+              "D&A",
+              "Fevereiro"
+            ],
+            "wf_mensal_type05_values": [
+              32.0309896998092,
+              4.507605052123729,
+              73.72969922196555,
+              -55.741570544326,
+              -0.26165042252463266,
+              54.26507300704781
+            ],
+            "wf_ano_ant_type05_labels": [],
+            "wf_ano_ant_type05_values": [],
+            "wf_budget_type06_labels": [
+              "BUD",
+              "Flex Bud\n− BUD",
+              "Indirect Labor",
+              "Expenses",
+              "Benefits",
+              "Material Losses",
+              "Scrap Sales",
+              "Direct Labor",
+              "WC & Trainee",
+              "Energy",
+              "Benefits - BC",
+              "Taxes, Insurance & Assets Amortization",
+              "Stock Obsolescence % Overstock",
+              "Outros",
+              "Real"
+            ],
+            "wf_budget_type06_values": [
+              51.423878726731125,
+              -0.046404637250233804,
+              38.75562258513313,
+              -36.82994606661742,
+              22.839889231606126,
+              -22.307054349446897,
+              20.084696826575893,
+              -14.8992567947876,
+              14.40616604601129,
+              -6.687955286745872,
+              -6.027570017687324,
+              -5.316290154259244,
+              -1.8073289462894517,
+              0.676626,
+              54.26507300704786
+            ],
+            "wf_mensal_type06_labels": [
+              "Janeiro",
+              "Flex Vol",
+              "Expenses",
+              "Maintenance",
+              "Indirect Labor",
+              "Material Losses",
+              "Energy",
+              "WC & Trainee",
+              "Benefits",
+              "Direct Labor",
+              "Trips",
+              "Consumption Material",
+              "Taxes, Insurance & Assets Amortization",
+              "Fevereiro"
+            ],
+            "wf_mensal_type06_values": [
+              32.0309896998092,
+              4.507605052123729,
+              -52.17541248685638,
+              34.24005454076145,
+              34.14544960293016,
+              -24.369230224541568,
+              -14.868753876804314,
+              14.523989212721268,
+              12.633128615694693,
+              12.427131790619475,
+              2.5141389697970267,
+              -1.0823674666821805,
+              -0.26165042252463266,
+              54.26507300704781
+            ],
+            "wf_ano_ant_type06_labels": [],
+            "wf_ano_ant_type06_values": [],
+            "tabelas": [
+              {
+                "titulo": "SM — Material — Top 10 Real",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Burden",
+                    "Maintenance",
+                    "Material",
+                    "02S3030",
+                    "PINO MULTI CONTACT BP8-TJ/25 ARO ROBO",
+                    "",
+                    0.0
+                  ]
+                ]
+              },
+              {
+                "titulo": "SM — D Class (Quality)",
+                "colunas": [
+                  "Type 05",
+                  "Type 06",
+                  "Account",
+                  "Centrocst",
+                  "Texto breve",
+                  "Fornecedor",
+                  "Real"
+                ],
+                "linhas": [
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2017",
+                    "F81401007-6152 1 4100 SALARIOS - GESTIONAL",
+                    "",
+                    127477.04725927068
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2017",
+                    "F81401007-7014 1 4100 DESCONTO COM SALARIOS - GEST",
+                    "",
+                    -126369.79107239225
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2819",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    22737.7472823992
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2810",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    20963.71289800324
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2816",
+                    "F81401007-6151 1 4100 SALARIO MENSAL - GESTIONAL",
+                    "",
+                    9408.332433890986
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2819",
+                    "F81401007-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    8351.931231208078
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2810",
+                    "F81401007-6106 1 4100 PROVISAO PLR P/CONTAB - GEST",
+                    "",
+                    7837.966232364504
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2819",
+                    "F81401007-6283 1 4100 AJUSTE PROV. BANCO DE HORAS",
+                    "",
+                    -6348.622311309845
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2810",
+                    "F81401007-6053 1 4100 GPS - CONTRIB EMPRESA - GEST",
+                    "",
+                    6116.307146711895
+                  ],
+                  [
+                    "Labor",
+                    "Indirect Labor",
+                    "D Class (Quality)",
+                    "02S2810",
+                    "F81401007-6152 1 4100 SALARIOS - GESTIONAL",
+                    "",
+                    5493.641199599106
+                  ]
+                ]
+              }
+            ]
           }
         }
       }

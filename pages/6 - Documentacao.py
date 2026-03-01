@@ -332,7 +332,7 @@ modulo_doc = "📌 Ambos (TC Ext + Veículos)"
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
     [
-        "👥 Equipe do Projeto",
+        "👥 Equipe do SCI",
         "📐 Regras e Cálculo",
         "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
         "🏗️ Arquitetura e Estrutura",
@@ -352,8 +352,8 @@ st.markdown("---")
 # ==========================================
 # SEÇÃO 1: EQUIPE DO PROJETO
 # ==========================================
-if indice_selecionado == "👥 Equipe do Projeto":
-    st.header("👥 Equipe do Projeto")
+if indice_selecionado == "👥 Equipe do SCI":
+    st.header("👥 Equipe do SCI")
     
     st.markdown("""
     Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento

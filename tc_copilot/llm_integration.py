@@ -166,6 +166,7 @@ def responder_consulta_live(
     idioma: str = "pt-BR",
     api_key: str | None = None,
     model: str | None = None,
+    moeda: str = "EUR",
 ) -> str:
     """
     Responde uma pergunta usando dados ao vivo dos parquets (não PDF).
@@ -178,6 +179,7 @@ def responder_consulta_live(
         idioma: 'pt-BR' ou 'en'
         api_key: Chave OpenAI
         model: Modelo LLM
+        moeda: Moeda ativa (BRL, USD, EUR) para formatar o system prompt
 
     Returns:
         Resposta da LLM.
@@ -186,6 +188,14 @@ def responder_consulta_live(
         idioma, PROMPTS.get("consulta_live", PROMPTS["consulta_pdf"])["pt-BR"]
     )
     system = SYSTEM_PROMPTS.get(idioma, SYSTEM_PROMPTS["pt-BR"])
+
+    # Formatar system prompt com moeda dinâmica
+    system = system.format(moeda=moeda)
+
+    # Injetar dicionário semântico de colunas
+    from tc_copilot.prompts import DICIONARIO_COLUNAS
+    dicionario = DICIONARIO_COLUNAS.get(idioma, DICIONARIO_COLUNAS["pt-BR"])
+    system = system + "\n\n" + dicionario
 
     # Incluir documentação do sistema no system prompt (SOMENTE chatbot)
     try:
@@ -205,7 +215,7 @@ def responder_consulta_live(
     except Exception:
         pass  # Se falhar, segue sem documentação
 
-    prompt = template.format(contexto=contexto_dados, pergunta=pergunta)
+    prompt = template.format(contexto=contexto_dados, pergunta=pergunta, moeda=moeda)
 
     # Montar mensagens com histórico
     messages = [{"role": "system", "content": system}]

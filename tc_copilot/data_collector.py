@@ -1094,7 +1094,7 @@ def formatar_comparativo_budget_flex_unificado(
     Narrativa do waterfall:
       Budget → +Efeito Volume (barra amarela) → Flex → Real
       Efeito Volume = Flex - Budget
-      Efeito Operacional = Real - Flex
+      Efeito Operacional (Performance) = Real - Flex
 
     Drill-down detalhado usa Flex como referência (igual ao antigo Real vs Flex).
     """
@@ -1136,7 +1136,7 @@ def formatar_comparativo_budget_flex_unificado(
         "",
         f"- **Budget:** {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud)})",
         f"- **{c_vol} Efeito Flex Volume:** {s_vol}{_fmt_k(efeito_volume)} ({s_cpu_ev}{_fmt_cpu(cpu_ev)})",
-        f"- **{c_op} Efeito Operacional:** {s_op}{_fmt_k(efeito_operacional)} ({s_cpu_eo}{_fmt_cpu(cpu_eo)}) | {_pct(fp_real, fp_flex)} vs Flex",
+        f"- **{c_op} Efeito Operacional (Performance):** {s_op}{_fmt_k(efeito_operacional)} ({s_cpu_eo}{_fmt_cpu(cpu_eo)}) | {_pct(fp_real, fp_flex)} vs Flex",
         f"- **{c_tot} Delta Total:** {s_tot}{_fmt_k(delta_total)} ({s_cpu_dt}{_fmt_cpu(cpu_dt)}) | {_pct(fp_real, fp_bud)} vs Budget",
         f"- **Real:** {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
         "",
@@ -1154,7 +1154,7 @@ def formatar_comparativo_budget_flex_unificado(
         f"devido ao volume real de {_fmt(vol_real, 0)} un., que {_rel_vol} Budget de "
         f"{_fmt(vol_bud, 0)} un. em {_pct(vol_real, vol_bud)}. "
         f"Após o ajuste pelo volume, o Flex Budget ficou em {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}). "
-        f"O Efeito Operacional, que mede a eficiência de preço e mix, "
+        f"O Efeito Operacional (Performance), que mede a eficiência de preço e mix, "
         f"{_imp_op} de {_fmt_k(abs(efeito_operacional))} (Δ {s_cpu_eo}{_fmt_cpu(cpu_eo)}), "
         f"indicando uma performance {_perf_op} do que o esperado."
     )
@@ -1427,13 +1427,33 @@ def formatar_dados_oficina(
 
 
 def formatar_contexto_parquet(
-    ano: int, mes_numero: int,
+    ano: int, mes_numero: int, taxa_conversao: float = 1.0,
 ) -> str:
     """
     Gera contexto textual completo a partir dos parquets para uso no chatbot.
     Coleta dados do mês, calcula variações e formata um resumo rico.
+
+    Args:
+        ano: Ano dos dados.
+        mes_numero: Número do mês (1-12).
+        taxa_conversao: Fator de conversão monetária (1.0 = sem conversão).
+                        Ex: se dados em BRL e moeda destino EUR, passar 1/taxa_eur.
     """
     dados = coletar_dados_mes(ano, mes_numero)
+
+    # Aplicar conversão monetária nos DataFrames antes de formatar
+    if taxa_conversao != 1.0:
+        colunas_monetarias = [
+            "Custo FP", "Custo FA", "Despesa Primaria",
+            "Flex_Bud", "Flex_Bud_FA", "Flex_Bud_FP",
+        ]
+        for chave in ("df_real", "df_bud", "df_flex", "df_real_ant", "df_real_ano_ant"):
+            df = dados.get(chave)
+            if df is not None and not df.empty:
+                for col in colunas_monetarias:
+                    if col in df.columns:
+                        dados[chave][col] = df[col] * taxa_conversao
+
     variacoes = calcular_variacoes(dados)
 
     blocos = [
@@ -1522,7 +1542,7 @@ def formatar_dados_resumo_executivo(dados: dict, variacoes: dict) -> str:
         f"Budget: {_fmt_k(fp_bud)} ({_fmt_cpu(cpu_bud_t)})",
         f"Efeito Flex Volume (barra amarela): {s_ev}{_fmt_k(efeito_vol)} ({s_cev}{_fmt_cpu(cpu_ev)})",
         f"Flex Budget: {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex_t)})",
-        f"Efeito Operacional (Real vs Flex): {s_eo}{_fmt_k(efeito_op)} ({s_ceo}{_fmt_cpu(cpu_eo)}), {_pct(fp_real, fp_flex)}",
+        f"Efeito Operacional (Performance) (Real vs Flex): {s_eo}{_fmt_k(efeito_op)} ({s_ceo}{_fmt_cpu(cpu_eo)}), {_pct(fp_real, fp_flex)}",
         f"Real: {_fmt_k(fp_real)} ({_fmt_cpu(cpu_real_t)})",
         "",
         f"Delta Total (Real vs Budget): {s_dt}{_fmt_k(delta_bud)} ({s_cdt}{_fmt_cpu(cpu_dt)}), {_pct(fp_real, fp_bud)}",
