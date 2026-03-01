@@ -134,20 +134,48 @@ def _ler_volume_para_validacao(caminho: str, sheet_name: str):
     (indicando que o header correto foi encontrado).
     """
     pref_meses = {'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'}
+
+    def _avaliar_colunas(colunas):
+        cn = [_normalizar_col(c) for c in colunas]
+        pref = [c[:3] for c in cn if c]
+        qtd_meses = sum(1 for p in pref if p in pref_meses)
+        tem_dim = 'oficina' in cn or 'veiculo' in cn or 'veculo' in cn
+        return tem_dim, qtd_meses
+
     primeiro_ok = None  # fallback: primeiro que leu sem erro
+
+    # 1) Heurística: encontrar a melhor linha de header na própria planilha
+    try:
+        amostra = pd.read_excel(caminho, sheet_name=sheet_name, header=None, nrows=80)
+        melhor_h = None
+        melhor_score = (-1, -1)  # (tem_dim, qtd_meses)
+
+        for i in range(len(amostra.index)):
+            linha = amostra.iloc[i].tolist()
+            tem_dim, qtd_meses = _avaliar_colunas(linha)
+            score = (1 if tem_dim else 0, qtd_meses)
+            if score > melhor_score:
+                melhor_score = score
+                melhor_h = i
+
+        if melhor_h is not None and melhor_score > (0, 0):
+            df = pd.read_excel(caminho, sheet_name=sheet_name, header=melhor_h, nrows=5)
+            return df, f"header={melhor_h}"
+    except Exception:
+        pass
+
+    # 2) Fallback: tentativas conhecidas
     for h in [50, 1, 2, 0]:
         try:
             df = pd.read_excel(caminho, sheet_name=sheet_name, header=h, nrows=5)
-            cn = [_normalizar_col(c) for c in df.columns]
-            pref = [c[:3] for c in cn if c]
-            tem_meses = any(p in pref_meses for p in pref)
-            tem_dim = 'oficina' in cn or 'veiculo' in cn or 'veculo' in cn
-            if tem_meses or tem_dim:
+            tem_dim, qtd_meses = _avaliar_colunas(df.columns)
+            if tem_dim or qtd_meses > 0:
                 return df, f"header={h}"
             if primeiro_ok is None:
                 primeiro_ok = (df, f"header={h}")
         except Exception:
             continue
+
     if primeiro_ok is not None:
         return primeiro_ok
     return None, None
@@ -218,14 +246,26 @@ def _validar_pre_extracao_budget(ano: int):
                 # (só tem 'Veículo'). Aceitar qualquer uma das duas.
                 tem_oficina = 'oficina' in cn
                 tem_veiculo = 'veiculo' in cn or 'veculo' in cn
-                if not tem_oficina and not tem_veiculo:
+                # Em alguns layouts, a dimensão vem na 1ª coluna sem nome
+                # (ex.: "Unnamed: 0"), e no processamento essa coluna é tratada
+                # como 'Veículo'. Aceitar esse cenário na pré-validação.
+                dim_generica = [
+                    c for c in cn
+                    if c and c[:3] not in {'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+                                           'jul', 'ago', 'set', 'out', 'nov', 'dez'}
+                    and c not in {'ano', 'total'}
+                ]
+                tem_dim_implicita = bool(dim_generica)
+                if not tem_oficina and not tem_veiculo and not tem_dim_implicita:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume BDG': coluna 'Oficina' ou 'Veículo' não encontrada ({info})")
                 if not meses:
                     ok = False
                     msgs.append(f"❌ Aba 'Volume BDG': nenhum mês detectado ({info})")
                 else:
-                    dim_label = 'Oficina' if tem_oficina else ('Veículo' if tem_veiculo else '?')
+                    dim_label = 'Oficina' if tem_oficina else (
+                        'Veículo' if tem_veiculo else 'Dimensão (coluna sem nome)'
+                    )
                     msgs.append(f"✅ Aba 'Volume BDG': {len(set(meses))} meses detectados, dimensão '{dim_label}' OK ({info})")
         except Exception as e:
             ok = False
