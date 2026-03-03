@@ -70,9 +70,13 @@ def _agregar_sem_veiculo(df):
     Usado quando o usuário escolhe 'Todos (TC Total)'."""
     if df is None or df.empty or 'Veículo' not in df.columns:
         return df
+    # Colunas que são numéricas mas representam identificação/dimensão,
+    # não devem ser somadas (ex: Ano=2026 viraria 20260).
+    _force_id = {'Ano', 'Mes', 'Mês', 'Ano_num'}
     cols_id = [c for c in df.columns
-               if c != 'Veículo' and not pd.api.types.is_numeric_dtype(df[c])]
-    cols_num = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+               if c != 'Veículo' and (not pd.api.types.is_numeric_dtype(df[c]) or c in _force_id)]
+    cols_num = [c for c in df.columns
+                if pd.api.types.is_numeric_dtype(df[c]) and c not in _force_id]
     if not cols_num:
         return df.drop(columns=['Veículo'])
     return df.groupby(cols_id, as_index=False, dropna=False)[cols_num].sum()
@@ -927,6 +931,13 @@ else:
                             if usis_selecionadas and "Todos" not in usis_selecionadas and len(usis_selecionadas) > 0:
                                 if 'USI' in df_vol_filtrado.columns:
                                     df_vol_filtrado = df_vol_filtrado[df_vol_filtrado['USI'].isin(usis_selecionadas)]
+                        
+                        # ═══ CORREÇÃO: Aplicar escopo de veículo ao volume (mesma lógica do Home) ═══
+                        if escopo_veiculo_real != "Todos (TC Total)" and df_vol_filtrado is not None:
+                            if 'Veículo' in df_vol_filtrado.columns:
+                                df_vol_filtrado = df_vol_filtrado[
+                                    df_vol_filtrado['Veículo'] == escopo_veiculo_real
+                                ].copy()
                         
                         # Criar coluna Período_Ano no df_vol_filtrado se necessário (mesma lógica do df_filtrado_waterfall_tc)
                         if col_mes_waterfall_tc == 'Período_Ano':
@@ -1833,17 +1844,17 @@ else:
                             else:
                                 base_flex = cumulative_flex + valor_flex
                             
-                            # Adicionar overlay exatamente na mesma posição da barra do waterfall
+                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                             fig.add_trace(go.Bar(
                                 x=['Flex Mês 1 - Mês 1'],
                                 y=[abs(valor_flex)],
                                 base=[base_flex],
                                 marker_color=cor_amarela,
-                                marker_line=dict(width=0),
+                                marker_line=dict(width=2, color=cor_amarela),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,
+                                width=0.82,
                             ))
                         
                         # Adicionar overlay para "Outros" (laranja)
@@ -1864,17 +1875,17 @@ else:
                             else:
                                 base_outros = cumulative_outros + valor_outros
                             
-                            # Adicionar overlay exatamente na mesma posição da barra do waterfall
+                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                             fig.add_trace(go.Bar(
                                 x=['Outros'],
                                 y=[abs(valor_outros)],
                                 base=[base_outros],
                                 marker_color=cor_laranja,
-                                marker_line=dict(width=0),
+                                marker_line=dict(width=2, color=cor_laranja),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,
+                                width=0.82,
                             ))
                         
 
@@ -3353,6 +3364,13 @@ else:
                                         for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
                                             df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_avancado_{_col}_waterfall_tc')
                                         
+                                        # ═══ CORREÇÃO: Aplicar escopo de veículo ao volume real (mesma lógica do Home) ═══
+                                        if escopo_veiculo_budget != "Todos (TC Total)" and df_volume_real_filtrado is not None:
+                                            if 'Veículo' in df_volume_real_filtrado.columns:
+                                                df_volume_real_filtrado = df_volume_real_filtrado[
+                                                    df_volume_real_filtrado['Veículo'] == escopo_veiculo_budget
+                                                ].copy()
+                                        
                                         # Filtrar pelos períodos selecionados (mesma lógica do budget)
                                         if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
                                             if col_mes_budget == 'Período_Ano':
@@ -3794,16 +3812,17 @@ else:
                                             else:
                                                 base_flex = cumulative_flex + valor_flex
                                             
+                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                                             fig.add_trace(go.Bar(
                                                 x=['Flex Bud - BUD'],
                                                 y=[abs(valor_flex)],
                                                 base=[base_flex],
                                                 marker_color=cor_amarela,
-                                                marker_line=dict(width=0),
+                                                marker_line=dict(width=2, color=cor_amarela),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
-                                                width=0.8,
+                                                width=0.82,
                                             ))
                                         
                                         # Adicionar overlay para "Outros" (laranja)
@@ -3821,16 +3840,17 @@ else:
                                             else:
                                                 base_outros = cumulative_outros + valor_outros
                                             
+                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                                             fig.add_trace(go.Bar(
                                                 x=['Outros'],
                                                 y=[abs(valor_outros)],
                                                 base=[base_outros],
                                                 marker_color=cor_laranja,
-                                                marker_line=dict(width=0),
+                                                marker_line=dict(width=2, color=cor_laranja),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
-                                                width=0.8,
+                                                width=0.82,
                                             ))
                                         
                                         # Calcular range do eixo Y
@@ -4130,9 +4150,11 @@ else:
                                                 
                                                 if len(df_custo) > 0:
                                                     total_custo = df_custo['Custo FP'].sum()
+                                                    total_bud_custo = df_custo['BUD'].sum() if 'BUD' in df_custo.columns else 0
                                                     total_custo_formatado = f"{total_custo:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_custo:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_custo:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_custo:,.2f}")
                                                     
-                                                    if total_custo != 0 and pd.notna(total_custo):
+                                                    # Mostrar se há valor real OU budget (não ignorar categorias só com budget)
+                                                    if (abs(total_custo) > 0.0001 or abs(total_bud_custo) > 0.0001) and pd.notna(total_custo):
                                                         with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
                                                             # Nível 2: Type 05
                                                             if 'Type 05' in df_custo.columns:

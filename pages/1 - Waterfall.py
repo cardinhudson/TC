@@ -1774,17 +1774,17 @@ else:
                             else:
                                 base_flex = cumulative_flex + valor_flex
                             
-                            # Adicionar overlay exatamente na mesma posição da barra do waterfall
+                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                             fig.add_trace(go.Bar(
                                 x=['Flex Mês 1 - Mês 1'],
                                 y=[abs(valor_flex)],
                                 base=[base_flex],
                                 marker_color=cor_amarela,
-                                marker_line=dict(width=0),
+                                marker_line=dict(width=2, color=cor_amarela),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,
+                                width=0.82,
                             ))
                         
                         # Adicionar overlay para "Outros" (laranja)
@@ -1805,17 +1805,17 @@ else:
                             else:
                                 base_outros = cumulative_outros + valor_outros
                             
-                            # Adicionar overlay exatamente na mesma posição da barra do waterfall
+                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                             fig.add_trace(go.Bar(
                                 x=['Outros'],
                                 y=[abs(valor_outros)],
                                 base=[base_outros],
                                 marker_color=cor_laranja,
-                                marker_line=dict(width=0),
+                                marker_line=dict(width=2, color=cor_laranja),
                                 opacity=1.0,
                                 showlegend=False,
                                 textposition='none',
-                                width=0.8,
+                                width=0.82,
                             ))
                         
                         # Calcular range do eixo Y
@@ -3389,10 +3389,16 @@ else:
                                             df_vol_budget_agrupado = pd.DataFrame({'Volume': [0]})
                                         
                                         # Merge Real + Budget (mesma lógica do app.py)
+                                        # CORREÇÃO: usar apenas colunas presentes em AMBOS os DataFrames para evitar KeyError
                                         colunas_agrupamento_com_periodo = [col for col in colunas_agrupamento if col != 'Total']
+                                        colunas_merge = [col for col in colunas_agrupamento_com_periodo if col in df_budget_agrupado.columns]
+                                        if not colunas_merge:
+                                            # Fallback: se não há colunas em comum, usar merge sem chave (produto cartesiano limitado)
+                                            colunas_merge = ['Account', 'Custo']
+                                            colunas_merge = [c for c in colunas_merge if c in df_real_agrupado.columns and c in df_budget_agrupado.columns]
                                         df_tabela_flex = df_real_agrupado.merge(
                                             df_budget_agrupado,
-                                            on=colunas_agrupamento_com_periodo,
+                                            on=colunas_merge if colunas_merge else None,
                                             how='outer',
                                             suffixes=('', '_Budget')
                                         )
@@ -3695,16 +3701,17 @@ else:
                                             else:
                                                 base_flex = cumulative_flex + valor_flex
                                             
+                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                                             fig.add_trace(go.Bar(
                                                 x=['Flex Bud - BUD'],
                                                 y=[abs(valor_flex)],
                                                 base=[base_flex],
                                                 marker_color=cor_amarela,
-                                                marker_line=dict(width=0),
+                                                marker_line=dict(width=2, color=cor_amarela),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
-                                                width=0.8,
+                                                width=0.82,
                                             ))
                                         
                                         # Adicionar overlay para "Outros" (laranja)
@@ -3722,16 +3729,17 @@ else:
                                             else:
                                                 base_outros = cumulative_outros + valor_outros
                                             
+                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
                                             fig.add_trace(go.Bar(
                                                 x=['Outros'],
                                                 y=[abs(valor_outros)],
                                                 base=[base_outros],
                                                 marker_color=cor_laranja,
-                                                marker_line=dict(width=0),
+                                                marker_line=dict(width=2, color=cor_laranja),
                                                 opacity=1.0,
                                                 showlegend=False,
                                                 textposition='none',
-                                                width=0.8,
+                                                width=0.82,
                                             ))
                                         
                                         # Calcular range do eixo Y

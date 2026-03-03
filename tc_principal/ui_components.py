@@ -316,7 +316,7 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
         ]
 
         if f'{page_key}_moeda' not in st.session_state:
-            st.session_state[f'{page_key}_moeda'] = 'BRL'
+            st.session_state[f'{page_key}_moeda'] = 'EUR'
 
         # Função callback para sincronização imediata (evita 2 cliques)
         def atualizar_moeda():
@@ -416,6 +416,7 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
         # ── Tipo de visualização ──
         tipo = st.radio(
             "📊 Tipo", ["Custo Total", "CPU (Custo por Unidade)"],
+            index=1,  # Padrão: CPU (Custo por Unidade)
             horizontal=True, key=f'{page_key}_tipo',
         )
 
@@ -531,8 +532,21 @@ def render_sidebar_filters(df, page_key, filtros=None):
         if 'periodo' in filtros and 'Período' in df.columns:
             periodos_disp = [m for m in ORDEM_MESES if m in df['Período'].unique()]
             opcoes_per = ["Todos"] + periodos_disp
+
+            # Padrão: mês atual (se disponível nos dados)
+            _meses_num_para_nome = {
+                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
+            }
+            _mes_atual_nome = _meses_num_para_nome.get(datetime.now().month, '')
+            if _mes_atual_nome in periodos_disp:
+                _default_per = [_mes_atual_nome]
+            else:
+                _default_per = ["Todos"]
+
             sel_per = st.multiselect(
-                "Período", opcoes_per, default=["Todos"],
+                "Período", opcoes_per, default=_default_per,
                 key=f'{page_key}_per',
             )
             result['periodos'] = list(periodos_disp) if "Todos" in sel_per else [x for x in sel_per if x != "Todos"]

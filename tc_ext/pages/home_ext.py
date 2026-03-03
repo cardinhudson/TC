@@ -646,10 +646,10 @@ if is_main_page:
 
     # Inicializar estado se não existir
     if 'moeda_selecionada' not in st.session_state:
-        st.session_state.moeda_selecionada = "🇧🇷 R$"
+        st.session_state.moeda_selecionada = "�🇺 €"
     # Inicializar moeda_selecionada_radio também para evitar erro no callback
     if 'moeda_selecionada_radio' not in st.session_state:
-        st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
+        st.session_state.moeda_selecionada_radio = "🇪🇺 €"
 
     # URLs das bandeiras
     bandeira_brasil_url = "https://flagcdn.com/br.svg"
@@ -664,7 +664,7 @@ if is_main_page:
         opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
         
         # SEMPRE usar o valor mais atual do session_state para calcular o índice
-        moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+        moeda_atual_para_index = st.session_state.get('moeda_selecionada', '�🇺 €')
         index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
         
         # Função callback para garantir sincronização imediata
@@ -690,7 +690,7 @@ if is_main_page:
             st.session_state.moeda_selecionada = moeda_selecionada
 
     # Obter moeda atual do session_state (sempre atualizado)
-    moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    moeda_atual = st.session_state.get('moeda_selecionada', '�🇺 €')
     flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
     flag_selecionada_usd = moeda_atual == '🇺🇸 $'
     flag_selecionada_eur = moeda_atual == '🇪🇺 €'
@@ -1055,7 +1055,7 @@ if is_main_page:
         tipo_visualizacao = st.radio(
             "📊 **Tipo:**",
             ["Custo Total", "CPU (Custo por Unidade)"],
-            index=0,
+            index=1,  # Padrão: CPU (Custo por Unidade)
             horizontal=True,
             key="tipo_visualizacao_top"
         )
@@ -1074,7 +1074,7 @@ if is_main_page:
             fator_conversao = None
 
     # Obter a moeda selecionada do session state (já está atualizado acima)
-    moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
+    moeda_selecionada = st.session_state.get('moeda_selecionada', '�🇺 €')
 
     # Extrair código e símbolo da moeda
     if moeda_selecionada == "🇧🇷 R$":
@@ -1244,7 +1244,15 @@ if is_main_page:
 
     # Filtro 4: Período
     if 'filtro_periodo_tc_ext' not in st.session_state:
-        st.session_state.filtro_periodo_tc_ext = ["Todos"]
+        # Padrão: mês atual
+        from datetime import datetime as _dt_ext
+        _meses_ext = {
+            1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+            5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+            9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
+        }
+        _mes_atual_ext = _meses_ext.get(_dt_ext.now().month, '')
+        st.session_state.filtro_periodo_tc_ext = [_mes_atual_ext] if _mes_atual_ext else ["Todos"]
     
     if 'Período' in df_filtrado.columns:
         # 🔧 CORREÇÃO: não limitar a meses do realizado.
