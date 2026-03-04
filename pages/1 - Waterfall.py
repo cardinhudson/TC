@@ -577,8 +577,20 @@ else:
     if len(type06_valores) == 0:
         st.warning("⚠️ Nenhum valor de Type 06 encontrado nos dados filtrados.")
     else:
-        # Criar dois sub-tabs: Real e Budget
-        tab_real, tab_budget = st.tabs(["📊 Real", "💰 Budget"])
+        # ═══ PERSISTÊNCIA DE TAB: usar radio button em vez de st.tabs para manter estado ═══
+        if "active_tab_waterfall_ext" not in st.session_state:
+            st.session_state.active_tab_waterfall_ext = "📊 Real"
+        
+        active_tab_waterfall = st.radio(
+            "Selecionar análise:",
+            options=["📊 Real", "💰 Budget"],
+            index=0 if st.session_state.active_tab_waterfall_ext == "📊 Real" else 1,
+            key="active_tab_waterfall_ext",
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
         
         # Função para ordenar meses cronologicamente
         def sort_mes_unique_waterfall(values):
@@ -639,7 +651,7 @@ else:
         meses_selecionados = []
         
         # TAB REAL
-        with tab_real:
+        if active_tab_waterfall == "📊 Real":
             st.subheader("📊 Análise Real")
             
             # Modo de Comparação
@@ -2771,7 +2783,7 @@ else:
                     st.code(traceback.format_exc())
             
             # TAB BUDGET
-            with tab_budget:
+            if active_tab_waterfall == "💰 Budget":
                 st.subheader("💰 Análise Budget")
                 
                 # Carregar dados de budget e aplicar mesmos filtros
@@ -3023,63 +3035,57 @@ else:
                                     # IMPORTANTE: Filtrar top_cats_selecionadas_budget para garantir que todas existem em cats_all_budget
                                     top_cats_selecionadas_budget = [c for c in top_cats_selecionadas_budget if c in cats_all_budget]
                                     
-                                    # Verificar se o slider mudou comparando com o valor anterior
-                                    slider_key_budget_prev = f"max_cats_budget_waterfall_prev"
-                                    if slider_key_budget_prev not in st.session_state:
-                                        st.session_state[slider_key_budget_prev] = max_cats_budget
+                                    # ═══ Multiselect com KEY FIXA (correção do bug slider não funcionar) ═══
+                                    _multiselect_key_budget_fixed = "cats_budget_waterfall_multiselect"
+                                    _slider_prev_key_bud = "max_cats_budget_waterfall_prev"
                                     
-                                    slider_mudou_budget = st.session_state[slider_key_budget_prev] != max_cats_budget
-                                    st.session_state[slider_key_budget_prev] = max_cats_budget
+                                    if _slider_prev_key_bud not in st.session_state:
+                                        st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    # Se o slider mudou, forçar atualização do multiselect
-                                    # Usar uma chave única baseada no valor do slider para forçar recriação do widget
-                                    multiselect_key_budget = f"cats_budget_waterfall_{max_cats_budget}"
+                                    slider_mudou_budget = st.session_state[_slider_prev_key_bud] != max_cats_budget
+                                    st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    # Se o slider mudou, limpar qualquer estado anterior e usar apenas top_cats_selecionadas_budget
+                                    # Se o slider mudou, atualizar categorias (sem deletar keys)
                                     if slider_mudou_budget:
-                                        # Limpar todas as chaves relacionadas ao multiselect budget
-                                        keys_to_delete = [k for k in st.session_state.keys() if k.startswith("cats_budget_waterfall")]
-                                        for key in keys_to_delete:
-                                            del st.session_state[key]
-                                        # Forçar uso das categorias do slider
                                         cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                        st.session_state["cats_budget_waterfall_saved_current"] = cats_selecionadas_atual_budget
+                                    elif _multiselect_key_budget_fixed in st.session_state:
+                                        cats_selecionadas_atual_budget = st.session_state[_multiselect_key_budget_fixed]
+                                        cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
                                     else:
-                                        # Verificar se há uma seleção salva que corresponde ao slider atual
-                                        saved_key_budget = f"cats_budget_waterfall_saved_{max_cats_budget}"
-                                        if saved_key_budget in st.session_state:
-                                            cats_selecionadas_atual_budget = st.session_state[saved_key_budget]
-                                            # Verificar se ainda são válidas
-                                            cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
-                                            # Se não correspondem ao slider, usar top_cats_selecionadas_budget
-                                            if len(cats_selecionadas_atual_budget) != max_cats_budget or (max_cats_budget < total_cats_budget and not all(cat in top_cats_selecionadas_budget for cat in cats_selecionadas_atual_budget)):
-                                                cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                        else:
-                                            cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                        st.session_state["cats_budget_waterfall_saved_current"] = cats_selecionadas_atual_budget
                                     
-                                    # Controle: Categorias (uma ou mais)
-                                    # Usar chave única baseada no valor do slider para forçar atualização quando slider muda
+                                    # Garantir validade
+                                    cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                    if not cats_selecionadas_atual_budget:
+                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget[:min(max_cats_budget, len(top_cats_selecionadas_budget))]
+                                    
+                                    # Sanitizar session_state da chave fixa
+                                    if _multiselect_key_budget_fixed in st.session_state:
+                                        _bud_limpos = [v for v in st.session_state[_multiselect_key_budget_fixed] if v in cats_options_budget]
+                                        if not _bud_limpos:
+                                            _bud_limpos = cats_selecionadas_atual_budget
+                                        st.session_state[_multiselect_key_budget_fixed] = _bud_limpos
+                                        cats_selecionadas_atual_budget = _bud_limpos
+                                    
+                                    # Criar multiselect com key fixa
                                     cats_sel_raw_budget = st.multiselect(
                                         "Categorias (uma ou mais):",
                                         cats_options_budget,
                                         default=cats_selecionadas_atual_budget,
-                                        key=multiselect_key_budget
+                                        key=_multiselect_key_budget_fixed
                                     )
                                     
-                                    # Quando o usuário seleciona categorias manualmente, ajustar o slider e usar todas as selecionadas
+                                    # Determinar categorias finais
                                     if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0 and "Todos" not in cats_sel_raw_budget:
-                                        # Usar as categorias selecionadas pelo usuário
                                         cats_sel_budget = cats_sel_raw_budget
-                                        # Ajustar o slider para refletir o número de categorias selecionadas
-                                        num_cats_selecionadas_budget = len(cats_sel_budget)
-                                        if num_cats_selecionadas_budget != max_cats_budget:
-                                            # Atualizar o slider para refletir a seleção manual
-                                            st.session_state["max_cats_budget_waterfall"] = num_cats_selecionadas_budget
-                                            # Salvar a seleção
-                                            st.session_state[f"cats_budget_waterfall_saved_{num_cats_selecionadas_budget}"] = cats_sel_budget
+                                        st.session_state["cats_budget_waterfall_saved_current"] = cats_sel_budget
                                     else:
-                                        # Se vazio ou "Todos", usar exatamente o que o slider indica
                                         cats_sel_budget = top_cats_selecionadas_budget
-                                        st.session_state[f"cats_budget_waterfall_saved_{max_cats_budget}"] = cats_sel_budget
+                                        st.session_state["cats_budget_waterfall_saved_current"] = cats_sel_budget
                                     
                                     st.markdown("---")
                                     

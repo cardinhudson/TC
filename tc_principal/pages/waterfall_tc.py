@@ -592,8 +592,20 @@ else:
     if len(type06_valores) == 0:
         st.warning("⚠️ Nenhum valor de Type 06 encontrado nos dados filtrados.")
     else:
-        # Criar dois sub-tabs: Real e Budget
-        tab_real, tab_budget = st.tabs(["📊 Real", "💰 Budget"])
+        # ═══ PERSISTÊNCIA DE TAB: usar radio button em vez de st.tabs para manter estado ═══
+        if "active_tab_waterfall_tc" not in st.session_state:
+            st.session_state.active_tab_waterfall_tc = "📊 Real"
+        
+        active_tab_waterfall_tc = st.radio(
+            "Selecionar análise:",
+            options=["📊 Real", "💰 Budget"],
+            index=0 if st.session_state.active_tab_waterfall_tc == "📊 Real" else 1,
+            key="active_tab_waterfall_tc",
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
         
         # Função para ordenar meses cronologicamente
         def sort_mes_unique_waterfall_tc(values):
@@ -654,7 +666,7 @@ else:
         meses_selecionados = []
         
         # TAB REAL
-        with tab_real:
+        if active_tab_waterfall_tc == "📊 Real":
             st.subheader("📊 Análise Real")
 
             # ── Escopo de Veículo (Todos vs modelo específico) ──
@@ -2841,401 +2853,498 @@ else:
                     st.error(f"❌ Erro ao gerar gráfico waterfall: {str(e)}")
                     import traceback
                     st.code(traceback.format_exc())
-            
-            # TAB BUDGET
-            with tab_budget:
-                st.subheader("💰 Análise Budget")
+        
+        # TAB BUDGET
+        if active_tab_waterfall_tc == "💰 Budget":
+            st.subheader("💰 Análise Budget")
 
-                # ── Escopo de Veículo (Todos vs modelo específico) ──
-                _veic_opcoes_bud = []
-                if 'Veículo' in df_filtrado_waterfall_tc.columns:
-                    _veic_opcoes_bud = sorted(
-                        [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist()
-                         if v and str(v).strip() and v != 'Sem Veículo']
-                    )
-                escopo_veiculo_budget = st.radio(
-                    "🚗 Escopo de Veículo:",
-                    ["Todos (TC Total)"] + _veic_opcoes_bud,
-                    index=0, horizontal=True,
-                    key="escopo_veiculo_budget_wf",
-                    help="Todos = visão consolidada sem quebra por modelo. Selecione um modelo para análise específica.",
+            # ── Escopo de Veículo (Todos vs modelo específico) ──
+            _veic_opcoes_bud = []
+            if 'Veículo' in df_filtrado_waterfall_tc.columns:
+                _veic_opcoes_bud = sorted(
+                    [v for v in df_filtrado_waterfall_tc['Veículo'].dropna().unique().tolist()
+                     if v and str(v).strip() and v != 'Sem Veículo']
                 )
+            escopo_veiculo_budget = st.radio(
+                "🚗 Escopo de Veículo:",
+                ["Todos (TC Total)"] + _veic_opcoes_bud,
+                index=0, horizontal=True,
+                key="escopo_veiculo_budget_wf",
+                help="Todos = visão consolidada sem quebra por modelo. Selecione um modelo para análise específica.",
+            )
 
-                # Carregar dados de budget e aplicar mesmos filtros
-                try:
-                    # Carregar dados de budget
-                    df_budget = _load_tc_veiculos_budget(ano_selecionado)
-                    df_budget_vol = _load_tc_veiculos_budget_volume(ano_selecionado)
+            # Carregar dados de budget e aplicar mesmos filtros
+            try:
+                # Carregar dados de budget
+                df_budget = _load_tc_veiculos_budget(ano_selecionado)
+                df_budget_vol = _load_tc_veiculos_budget_volume(ano_selecionado)
                     
-                    if df_budget is None or df_budget.empty:
-                        st.warning("⚠️ Dados de budget não disponíveis.")
-                    elif df_budget_vol is None or df_budget_vol.empty:
-                        st.warning("⚠️ Dados de volume de budget não disponíveis.")
-                    else:
-                        # Preparar dados para análise (usar df_filtrado_waterfall_tc)
-                        df_analise_budget = df_filtrado_waterfall_tc.copy() if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0 else pd.DataFrame()
+                if df_budget is None or df_budget.empty:
+                    st.warning("⚠️ Dados de budget não disponíveis.")
+                elif df_budget_vol is None or df_budget_vol.empty:
+                    st.warning("⚠️ Dados de volume de budget não disponíveis.")
+                else:
+                    # Preparar dados para análise (usar df_filtrado_waterfall_tc)
+                    df_analise_budget = df_filtrado_waterfall_tc.copy() if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0 else pd.DataFrame()
 
-                        # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
-                        if 'Veículo' in df_analise_budget.columns:
-                            df_analise_budget = df_analise_budget[df_analise_budget['Veículo'] != 'Sem Veículo'].copy()
+                    # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
+                    if 'Veículo' in df_analise_budget.columns:
+                        df_analise_budget = df_analise_budget[df_analise_budget['Veículo'] != 'Sem Veículo'].copy()
 
-                        # Aplicar escopo de veículo selecionado
-                        # ═══ Bloco 4: quando "Todos", NÃO agregar imediatamente ═══
-                        _todos_mode_budget = False
-                        if escopo_veiculo_budget == "Todos (TC Total)":
-                            _todos_mode_budget = True
-                            # NÃO chamar _agregar_sem_veiculo() aqui
-                        elif 'Veículo' in df_analise_budget.columns:
-                            df_analise_budget = df_analise_budget[
-                                df_analise_budget['Veículo'] == escopo_veiculo_budget
-                            ].copy()
+                    # Aplicar escopo de veículo selecionado
+                    # ═══ Bloco 4: quando "Todos", NÃO agregar imediatamente ═══
+                    _todos_mode_budget = False
+                    if escopo_veiculo_budget == "Todos (TC Total)":
+                        _todos_mode_budget = True
+                        # NÃO chamar _agregar_sem_veiculo() aqui
+                    elif 'Veículo' in df_analise_budget.columns:
+                        df_analise_budget = df_analise_budget[
+                            df_analise_budget['Veículo'] == escopo_veiculo_budget
+                        ].copy()
 
-                        # 🔒 Budget Waterfall: sempre considerar Mês/Ano quando houver Ano.
-                        # Isso evita somar (ex.: Novembro/2025 + Novembro/2026) quando o usuário quer um mês específico de um ano.
-                        col_mes_budget = col_mes_waterfall_tc
-                        if not df_analise_budget.empty and 'Ano' in df_analise_budget.columns and 'Período' in df_analise_budget.columns:
-                            if 'Período_Ano' not in df_analise_budget.columns:
-                                df_analise_budget['Período_Ano'] = (
-                                    df_analise_budget['Período'].astype(str).str.strip() + ' ' +
-                                    df_analise_budget['Ano'].astype(str).str.strip()
-                                )
-                            col_mes_budget = 'Período_Ano'
-                        
-                        if df_analise_budget.empty:
-                            st.warning("⚠️ Nenhum dado real disponível para comparação.")
-                        else:
-                            # Modo de agregação
-                            modo_agregacao_budget = st.radio(
-                                "Agrupar por:",
-                                options=["Mês", "Semestre", "Quarter"],
-                                index=0,
-                                horizontal=True,
-                                key="modo_agregacao_budget"
+                    # 🔒 Budget Waterfall: sempre considerar Mês/Ano quando houver Ano.
+                    # Isso evita somar (ex.: Novembro/2025 + Novembro/2026) quando o usuário quer um mês específico de um ano.
+                    col_mes_budget = col_mes_waterfall_tc
+                    if not df_analise_budget.empty and 'Ano' in df_analise_budget.columns and 'Período' in df_analise_budget.columns:
+                        if 'Período_Ano' not in df_analise_budget.columns:
+                            df_analise_budget['Período_Ano'] = (
+                                df_analise_budget['Período'].astype(str).str.strip() + ' ' +
+                                df_analise_budget['Ano'].astype(str).str.strip()
                             )
+                        col_mes_budget = 'Período_Ano'
+                        
+                    if df_analise_budget.empty:
+                        st.warning("⚠️ Nenhum dado real disponível para comparação.")
+                    else:
+                        # Definir col_valor para a aba Budget (mesmo padrão da aba Real)
+                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                            col_valor = 'CPU' if 'CPU' in df_analise_budget.columns else 'Custo FP'
+                        else:
+                            col_valor = 'Custo FP' if 'Custo FP' in df_analise_budget.columns else 'Despesa Primaria'
+                        
+                        # Modo de agregação
+                        modo_agregacao_budget = st.radio(
+                            "Agrupar por:",
+                            options=["Mês", "Semestre", "Quarter"],
+                            index=0,
+                            horizontal=True,
+                            key="modo_agregacao_budget"
+                        )
                             
-                            # Obter períodos disponíveis
-                            if col_mes_budget == 'Período_Ano':
-                                periodos_disponiveis_budget = sort_mes_unique_waterfall_tc(df_analise_budget['Período_Ano'].dropna().unique().tolist())
-                            elif 'Período' in df_analise_budget.columns:
-                                periodos_disponiveis_budget = sort_mes_unique_waterfall_tc(df_analise_budget['Período'].dropna().unique().tolist())
-                            else:
-                                periodos_disponiveis_budget = []
+                        # Obter períodos disponíveis
+                        if col_mes_budget == 'Período_Ano':
+                            periodos_disponiveis_budget = sort_mes_unique_waterfall_tc(df_analise_budget['Período_Ano'].dropna().unique().tolist())
+                        elif 'Período' in df_analise_budget.columns:
+                            periodos_disponiveis_budget = sort_mes_unique_waterfall_tc(df_analise_budget['Período'].dropna().unique().tolist())
+                        else:
+                            periodos_disponiveis_budget = []
                             
-                            if not periodos_disponiveis_budget:
-                                st.warning("⚠️ Nenhum período encontrado nos dados.")
-                            else:
-                                if modo_agregacao_budget == "Mês":
-                                    periodos_selecionados_budget = st.multiselect(
-                                        "Selecione o(s) período(s):",
-                                        periodos_disponiveis_budget,
-                                        default=[periodos_disponiveis_budget[-1]] if len(periodos_disponiveis_budget) > 0 else [],
-                                        key="periodos_budget_waterfall_tc"
-                                    )
-                                elif modo_agregacao_budget == "Semestre":
-                                    if 'Ano' in df_analise_budget.columns:
-                                        anos_disponiveis_budget = sorted(df_analise_budget['Ano'].dropna().unique().tolist())
-                                        if len(anos_disponiveis_budget) > 0:
-                                            col_ano_sem, col_sem = st.columns(2)
-                                            with col_ano_sem:
-                                                ano_sem_budget = st.selectbox("Ano:", anos_disponiveis_budget, index=0, key="ano_sem_budget")
-                                            with col_sem:
-                                                semestre_budget = st.selectbox("Semestre:", [1, 2], index=0, key="semestre_budget")
+                        if not periodos_disponiveis_budget:
+                            st.warning("⚠️ Nenhum período encontrado nos dados.")
+                        else:
+                            if modo_agregacao_budget == "Mês":
+                                periodos_selecionados_budget = st.multiselect(
+                                    "Selecione o(s) período(s):",
+                                    periodos_disponiveis_budget,
+                                    default=[periodos_disponiveis_budget[-1]] if len(periodos_disponiveis_budget) > 0 else [],
+                                    key="periodos_budget_waterfall_tc"
+                                )
+                            elif modo_agregacao_budget == "Semestre":
+                                if 'Ano' in df_analise_budget.columns:
+                                    anos_disponiveis_budget = sorted(df_analise_budget['Ano'].dropna().unique().tolist())
+                                    if len(anos_disponiveis_budget) > 0:
+                                        col_ano_sem, col_sem = st.columns(2)
+                                        with col_ano_sem:
+                                            ano_sem_budget = st.selectbox("Ano:", anos_disponiveis_budget, index=0, key="ano_sem_budget")
+                                        with col_sem:
+                                            semestre_budget = st.selectbox("Semestre:", [1, 2], index=0, key="semestre_budget")
                                             
-                                            meses_semestre = {
-                                                1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
-                                                2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-                                            }
-                                            meses_sem = meses_semestre.get(semestre_budget, [])
-                                            periodos_selecionados_budget = df_analise_budget[
-                                                (df_analise_budget['Ano'].astype(str) == str(ano_sem_budget)) &
-                                                (df_analise_budget['Período'].isin(meses_sem))
-                                            ]['Período_Ano' if col_mes_waterfall_tc == 'Período_Ano' else 'Período'].dropna().unique().tolist()
-                                        else:
-                                            periodos_selecionados_budget = []
+                                        meses_semestre = {
+                                            1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                            2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                                        }
+                                        meses_sem = meses_semestre.get(semestre_budget, [])
+                                        periodos_selecionados_budget = df_analise_budget[
+                                            (df_analise_budget['Ano'].astype(str) == str(ano_sem_budget)) &
+                                            (df_analise_budget['Período'].isin(meses_sem))
+                                        ]['Período_Ano' if col_mes_waterfall_tc == 'Período_Ano' else 'Período'].dropna().unique().tolist()
                                     else:
-                                        st.warning("⚠️ Coluna 'Ano' não encontrada para agrupamento por semestre.")
                                         periodos_selecionados_budget = []
-                                elif modo_agregacao_budget == "Quarter":
-                                    if 'Ano' in df_analise_budget.columns:
-                                        anos_disponiveis_budget = sorted(df_analise_budget['Ano'].dropna().unique().tolist())
-                                        if len(anos_disponiveis_budget) > 0:
-                                            col_ano_q, col_q = st.columns(2)
-                                            with col_ano_q:
-                                                ano_q_budget = st.selectbox("Ano:", anos_disponiveis_budget, index=0, key="ano_q_budget")
-                                            with col_q:
-                                                quarter_budget = st.selectbox("Quarter:", [1, 2, 3, 4], index=0, key="quarter_budget")
-                                            
-                                            meses_trimestre = {
-                                                1: ['Janeiro', 'Fevereiro', 'Março'],
-                                                2: ['Abril', 'Maio', 'Junho'],
-                                                3: ['Julho', 'Agosto', 'Setembro'],
-                                                4: ['Outubro', 'Novembro', 'Dezembro']
-                                            }
-                                            meses_q = meses_trimestre.get(quarter_budget, [])
-                                            periodos_selecionados_budget = df_analise_budget[
-                                                (df_analise_budget['Ano'].astype(str) == str(ano_q_budget)) &
-                                                (df_analise_budget['Período'].isin(meses_q))
-                                            ]['Período_Ano' if col_mes_waterfall_tc == 'Período_Ano' else 'Período'].dropna().unique().tolist()
-                                        else:
-                                            periodos_selecionados_budget = []
-                                    else:
-                                        st.warning("⚠️ Coluna 'Ano' não encontrada para agrupamento por quarter.")
-                                        periodos_selecionados_budget = []
-                                
-                                if not periodos_selecionados_budget:
-                                    st.warning("⚠️ Nenhum período selecionado.")
-                                
-                                # Obter dimensões de categoria disponíveis
-                                dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
-                                
-                                if not dims_cat_budget:
-                                    st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
                                 else:
-                                    # Filtro de dimensão da categoria + Oficina lado a lado
-                                    col_dim_tc_bud, col_ofic_tc_bud = st.columns(2)
-                                    with col_dim_tc_bud:
-                                        chosen_dim_budget = st.selectbox(
-                                            "Dimensão da categoria:",
-                                            dims_cat_budget,
-                                            index=min(1, len(dims_cat_budget)-1) if len(dims_cat_budget) > 1 else 0,
-                                            key="dim_waterfall_tc_budget"
-                                        )
-                                    with col_ofic_tc_bud:
-                                        # Filtro de oficina inline
-                                        oficinas_inline_tc_bud = ["Todos"]
-                                        if 'Oficina' in df_analise_budget.columns:
-                                            oficinas_inline_tc_bud += sorted(df_analise_budget['Oficina'].dropna().astype(str).unique().tolist())
-                                        oficina_inline_sel_tc_bud = st.multiselect(
-                                            "Oficina:",
-                                            oficinas_inline_tc_bud,
-                                            default=["Todos"],
-                                            key="oficina_inline_waterfall_tc_budget"
-                                        )
-                                    
-                                    # Aplicar filtro de oficina inline
-                                    if 'Oficina' in df_analise_budget.columns and oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
-                                        df_analise_budget = df_analise_budget[df_analise_budget['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
-                                    
-                                    # ═══ Bloco 4: Lazy aggregation Budget ═══
-                                    if _todos_mode_budget and chosen_dim_budget != "Veículo":
-                                        df_analise_budget = _agregar_sem_veiculo(df_analise_budget)
-                                    
-                                    # Filtrar dados pelos períodos selecionados
-                                    if col_mes_budget == 'Período_Ano':
-                                        df_temp_budget = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                    elif 'Período' in df_analise_budget.columns:
-                                        df_temp_budget = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                    st.warning("⚠️ Coluna 'Ano' não encontrada para agrupamento por semestre.")
+                                    periodos_selecionados_budget = []
+                            elif modo_agregacao_budget == "Quarter":
+                                if 'Ano' in df_analise_budget.columns:
+                                    anos_disponiveis_budget = sorted(df_analise_budget['Ano'].dropna().unique().tolist())
+                                    if len(anos_disponiveis_budget) > 0:
+                                        col_ano_q, col_q = st.columns(2)
+                                        with col_ano_q:
+                                            ano_q_budget = st.selectbox("Ano:", anos_disponiveis_budget, index=0, key="ano_q_budget")
+                                        with col_q:
+                                            quarter_budget = st.selectbox("Quarter:", [1, 2, 3, 4], index=0, key="quarter_budget")
+                                            
+                                        meses_trimestre = {
+                                            1: ['Janeiro', 'Fevereiro', 'Março'],
+                                            2: ['Abril', 'Maio', 'Junho'],
+                                            3: ['Julho', 'Agosto', 'Setembro'],
+                                            4: ['Outubro', 'Novembro', 'Dezembro']
+                                        }
+                                        meses_q = meses_trimestre.get(quarter_budget, [])
+                                        periodos_selecionados_budget = df_analise_budget[
+                                            (df_analise_budget['Ano'].astype(str) == str(ano_q_budget)) &
+                                            (df_analise_budget['Período'].isin(meses_q))
+                                        ]['Período_Ano' if col_mes_waterfall_tc == 'Período_Ano' else 'Período'].dropna().unique().tolist()
                                     else:
-                                        df_temp_budget = df_analise_budget.copy()
+                                        periodos_selecionados_budget = []
+                                else:
+                                    st.warning("⚠️ Coluna 'Ano' não encontrada para agrupamento por quarter.")
+                                    periodos_selecionados_budget = []
+                                
+                            if not periodos_selecionados_budget:
+                                st.warning("⚠️ Nenhum período selecionado.")
+                                
+                            # Obter dimensões de categoria disponíveis
+                            dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
+                                
+                            if not dims_cat_budget:
+                                st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
+                            else:
+                                # Filtro de dimensão da categoria + Oficina lado a lado
+                                col_dim_tc_bud, col_ofic_tc_bud = st.columns(2)
+                                with col_dim_tc_bud:
+                                    chosen_dim_budget = st.selectbox(
+                                        "Dimensão da categoria:",
+                                        dims_cat_budget,
+                                        index=min(1, len(dims_cat_budget)-1) if len(dims_cat_budget) > 1 else 0,
+                                        key="dim_waterfall_tc_budget"
+                                    )
+                                with col_ofic_tc_bud:
+                                    # Filtro de oficina inline
+                                    oficinas_inline_tc_bud = ["Todos"]
+                                    if 'Oficina' in df_analise_budget.columns:
+                                        oficinas_inline_tc_bud += sorted(df_analise_budget['Oficina'].dropna().astype(str).unique().tolist())
+                                    oficina_inline_sel_tc_bud = st.multiselect(
+                                        "Oficina:",
+                                        oficinas_inline_tc_bud,
+                                        default=["Todos"],
+                                        key="oficina_inline_waterfall_tc_budget"
+                                    )
                                     
-                                    # Obter todas as categorias disponíveis
-                                    cats_all_budget = sorted([str(x).strip() for x in df_analise_budget[chosen_dim_budget].dropna().unique().tolist() if str(x).strip() != ""])
-                                    total_cats_budget = max(1, len(cats_all_budget))
+                                # Aplicar filtro de oficina inline
+                                if 'Oficina' in df_analise_budget.columns and oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
+                                    df_analise_budget = df_analise_budget[df_analise_budget['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
                                     
-                                    # Calcular categorias ordenadas por impacto absoluto ANTES do slider
-                                    # Isso permite ordenar corretamente por valor absoluto (maiores impactos, + ou -)
-                                    cats_ordenadas_por_impacto_budget = []
-                                    if not df_temp_budget.empty:
-                                        if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Custo FP' in df_temp_budget.columns:
-                                            if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
-                                                # Filtrar volume pelos períodos selecionados
-                                                if col_mes_waterfall_tc == 'Período_Ano':
-                                                    if 'Período_Ano' not in df_volume.columns:
-                                                        if 'Período' in df_volume.columns and 'Ano' in df_volume.columns:
-                                                            df_volume_temp = df_volume.copy()
-                                                            df_volume_temp['Período_Ano'] = df_volume_temp['Período'].astype(str) + ' ' + df_volume_temp['Ano'].astype(str)
-                                                        else:
-                                                            df_volume_temp = df_volume.copy()
+                                # ═══ Bloco 4: Lazy aggregation Budget ═══
+                                if _todos_mode_budget and chosen_dim_budget != "Veículo":
+                                    df_analise_budget = _agregar_sem_veiculo(df_analise_budget)
+                                    
+                                # Filtrar dados pelos períodos selecionados
+                                if col_mes_budget == 'Período_Ano':
+                                    df_temp_budget = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                elif 'Período' in df_analise_budget.columns:
+                                    df_temp_budget = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                else:
+                                    df_temp_budget = df_analise_budget.copy()
+                                    
+                                # Obter todas as categorias disponíveis
+                                cats_all_budget = sorted([str(x).strip() for x in df_analise_budget[chosen_dim_budget].dropna().unique().tolist() if str(x).strip() != ""])
+                                total_cats_budget = max(1, len(cats_all_budget))
+                                    
+                                # Calcular categorias ordenadas por impacto absoluto ANTES do slider
+                                # Isso permite ordenar corretamente por valor absoluto (maiores impactos, + ou -)
+                                cats_ordenadas_por_impacto_budget = []
+                                if not df_temp_budget.empty:
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Custo FP' in df_temp_budget.columns:
+                                        if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
+                                            # Filtrar volume pelos períodos selecionados
+                                            if col_mes_waterfall_tc == 'Período_Ano':
+                                                if 'Período_Ano' not in df_volume.columns:
+                                                    if 'Período' in df_volume.columns and 'Ano' in df_volume.columns:
+                                                        df_volume_temp = df_volume.copy()
+                                                        df_volume_temp['Período_Ano'] = df_volume_temp['Período'].astype(str) + ' ' + df_volume_temp['Ano'].astype(str)
                                                     else:
                                                         df_volume_temp = df_volume.copy()
-                                                    if 'Período_Ano' in df_volume_temp.columns:
-                                                        df_vol_temp = df_volume_temp[df_volume_temp['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                                    else:
-                                                        df_vol_temp = df_volume_temp.copy()
-                                                elif 'Período' in df_volume.columns:
-                                                    df_vol_temp = df_volume[df_volume['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                                 else:
-                                                    df_vol_temp = df_volume.copy()
-                                                
-                                                # Calcular CPU e ordenar por valor absoluto
-                                                if not df_vol_temp.empty and chosen_dim_budget in df_vol_temp.columns:
-                                                    vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget).agg({'Custo FP': 'sum'}).reset_index())
-                                                    vol_mf_budget = vol_mf_budget.merge(
-                                                        df_vol_temp.groupby(chosen_dim_budget)['Volume'].sum().reset_index(),
-                                                        on=chosen_dim_budget,
-                                                        how='left'
-                                                    )
-                                                    vol_mf_budget['Volume'] = vol_mf_budget['Volume'].fillna(0)
-                                                    vol_mf_budget['CPU'] = vol_mf_budget['Custo FP'] / vol_mf_budget['Volume'].replace(0, 1)
-                                                    vol_mf_budget['abs_CPU'] = vol_mf_budget['CPU'].abs()
-                                                    vol_mf_budget = vol_mf_budget.sort_values('abs_CPU', ascending=False)
-                                                    cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
+                                                    df_volume_temp = df_volume.copy()
+                                                if 'Período_Ano' in df_volume_temp.columns:
+                                                    df_vol_temp = df_volume_temp[df_volume_temp['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                                 else:
-                                                    # Se não tem volume filtrado, ordenar por Total absoluto
-                                                    vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)['Custo FP'].sum().reset_index()
-                                                    vol_mf_budget['abs_Total'] = vol_mf_budget['Custo FP'].abs()
-                                                    vol_mf_budget = vol_mf_budget.sort_values('abs_Total', ascending=False)
-                                                    cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
+                                                    df_vol_temp = df_volume_temp.copy()
+                                            elif 'Período' in df_volume.columns:
+                                                df_vol_temp = df_volume[df_volume['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
                                             else:
-                                                # Se não tem volume, ordenar por Total absoluto
+                                                df_vol_temp = df_volume.copy()
+                                                
+                                            # Calcular CPU e ordenar por valor absoluto
+                                            if not df_vol_temp.empty and chosen_dim_budget in df_vol_temp.columns:
+                                                vol_mf_budget = (df_temp_budget.groupby(chosen_dim_budget).agg({'Custo FP': 'sum'}).reset_index())
+                                                vol_mf_budget = vol_mf_budget.merge(
+                                                    df_vol_temp.groupby(chosen_dim_budget)['Volume'].sum().reset_index(),
+                                                    on=chosen_dim_budget,
+                                                    how='left'
+                                                )
+                                                vol_mf_budget['Volume'] = vol_mf_budget['Volume'].fillna(0)
+                                                vol_mf_budget['CPU'] = vol_mf_budget['Custo FP'] / vol_mf_budget['Volume'].replace(0, 1)
+                                                vol_mf_budget['abs_CPU'] = vol_mf_budget['CPU'].abs()
+                                                vol_mf_budget = vol_mf_budget.sort_values('abs_CPU', ascending=False)
+                                                cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
+                                            else:
+                                                # Se não tem volume filtrado, ordenar por Total absoluto
                                                 vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)['Custo FP'].sum().reset_index()
                                                 vol_mf_budget['abs_Total'] = vol_mf_budget['Custo FP'].abs()
                                                 vol_mf_budget = vol_mf_budget.sort_values('abs_Total', ascending=False)
                                                 cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                         else:
-                                            # Para Custo Total, ordenar por valor absoluto
-                                            if col_valor in df_temp_budget.columns:
-                                                vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)[col_valor].sum().reset_index()
-                                                vol_mf_budget['abs_valor'] = vol_mf_budget[col_valor].abs()
-                                                vol_mf_budget = vol_mf_budget.sort_values('abs_valor', ascending=False)
-                                                cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
-                                    
-                                    # Se não conseguiu ordenar, usar lista original
-                                    if not cats_ordenadas_por_impacto_budget:
-                                        cats_ordenadas_por_impacto_budget = cats_all_budget
-                                    
-                                    # ═══ Detecção de troca de dimensão (Bug 5d fix) ═══
-                                    _prev_dim_key_budget = "_prev_dim_budget_waterfall_tc"
-                                    _dim_changed_budget = (
-                                        _prev_dim_key_budget in st.session_state
-                                        and st.session_state[_prev_dim_key_budget] != chosen_dim_budget
-                                    )
-                                    st.session_state[_prev_dim_key_budget] = chosen_dim_budget
-                                    
-                                    # Se a dimensão mudou, limpar multiselect para evitar categorias fantasma
-                                    _multiselect_key_budget_fixed = "cats_budget_waterfall_tc_multiselect"
-                                    if _dim_changed_budget:
-                                        for _k in list(st.session_state.keys()):
-                                            if _k.startswith("cats_budget_waterfall_tc"):
-                                                del st.session_state[_k]
-                                    
-                                    # Controle: Quantidade de categorias a exibir (Top N)
-                                    if total_cats_budget <= 1:
-                                        max_cats_budget = total_cats_budget
-                                        st.info(f"ℹ️ Apenas {total_cats_budget} categoria disponível para esta dimensão.")
+                                            # Se não tem volume, ordenar por Total absoluto
+                                            vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)['Custo FP'].sum().reset_index()
+                                            vol_mf_budget['abs_Total'] = vol_mf_budget['Custo FP'].abs()
+                                            vol_mf_budget = vol_mf_budget.sort_values('abs_Total', ascending=False)
+                                            cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
                                     else:
-                                        # Padrão _desired: ler valor desejado ANTES de renderizar o slider (Bug 5a fix)
-                                        _slider_desired_key_bud = "max_cats_budget_waterfall_tc_desired"
-                                        if _slider_desired_key_bud in st.session_state:
-                                            default_value_budget = st.session_state[_slider_desired_key_bud]
-                                            del st.session_state[_slider_desired_key_bud]
-                                            default_value_budget = max(1, min(default_value_budget, total_cats_budget))
-                                        elif _dim_changed_budget:
-                                            default_value_budget = min(total_cats_budget, 20)
-                                        else:
-                                            default_value_budget = min(total_cats_budget, 20)
+                                        # Para Custo Total, ordenar por valor absoluto
+                                        if col_valor in df_temp_budget.columns:
+                                            vol_mf_budget = df_temp_budget.groupby(chosen_dim_budget)[col_valor].sum().reset_index()
+                                            vol_mf_budget['abs_valor'] = vol_mf_budget[col_valor].abs()
+                                            vol_mf_budget = vol_mf_budget.sort_values('abs_valor', ascending=False)
+                                            cats_ordenadas_por_impacto_budget = [str(c).strip() for c in list(vol_mf_budget[chosen_dim_budget])]
+                                    
+                                # Se não conseguiu ordenar, usar lista original
+                                if not cats_ordenadas_por_impacto_budget:
+                                    cats_ordenadas_por_impacto_budget = cats_all_budget
+                                    
+                                # ═══ Detecção de troca de dimensão (Bug 5d fix) ═══
+                                _prev_dim_key_budget = "_prev_dim_budget_waterfall_tc"
+                                _dim_changed_budget = (
+                                    _prev_dim_key_budget in st.session_state
+                                    and st.session_state[_prev_dim_key_budget] != chosen_dim_budget
+                                )
+                                st.session_state[_prev_dim_key_budget] = chosen_dim_budget
+                                    
+                                # Se a dimensão mudou, limpar multiselect para evitar categorias fantasma
+                                _multiselect_key_budget_fixed = "cats_budget_waterfall_tc_multiselect"
+                                if _dim_changed_budget:
+                                    for _k in list(st.session_state.keys()):
+                                        if _k.startswith("cats_budget_waterfall_tc"):
+                                            del st.session_state[_k]
+                                    
+                                # Controle: Quantidade de categorias a exibir (Top N)
+                                if total_cats_budget <= 1:
+                                    max_cats_budget = total_cats_budget
+                                    st.info(f"ℹ️ Apenas {total_cats_budget} categoria disponível para esta dimensão.")
+                                else:
+                                    # Padrão _desired: ler valor desejado ANTES de renderizar o slider (Bug 5a fix)
+                                    _slider_desired_key_bud = "max_cats_budget_waterfall_tc_desired"
+                                    if _slider_desired_key_bud in st.session_state:
+                                        default_value_budget = st.session_state[_slider_desired_key_bud]
+                                        del st.session_state[_slider_desired_key_bud]
+                                        default_value_budget = max(1, min(default_value_budget, total_cats_budget))
+                                    elif _dim_changed_budget:
+                                        default_value_budget = min(total_cats_budget, 20)
+                                    else:
+                                        default_value_budget = min(total_cats_budget, 20)
                                         
-                                        max_cats_budget = st.slider(
-                                            f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
-                                            min_value=1,
-                                            max_value=total_cats_budget,
-                                            value=default_value_budget,
-                                            key="max_cats_budget_waterfall_tc"
-                                        )
+                                    max_cats_budget = st.slider(
+                                        f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
+                                        min_value=1,
+                                        max_value=total_cats_budget,
+                                        value=default_value_budget,
+                                        key="max_cats_budget_waterfall_tc"
+                                    )
                                     
-                                    # Selecionar top N categorias
-                                    if max_cats_budget >= total_cats_budget:
-                                        top_cats_selecionadas_budget = cats_all_budget
-                                    else:
-                                        top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]
+                                # Selecionar top N categorias
+                                if max_cats_budget >= total_cats_budget:
+                                    top_cats_selecionadas_budget = cats_all_budget
+                                else:
+                                    top_cats_selecionadas_budget = cats_ordenadas_por_impacto_budget[:max_cats_budget]
                                     
-                                    cats_options_budget = ["Todos"] + cats_all_budget
-                                    top_cats_selecionadas_budget = [c for c in top_cats_selecionadas_budget if c in cats_all_budget]
+                                cats_options_budget = ["Todos"] + cats_all_budget
+                                top_cats_selecionadas_budget = [c for c in top_cats_selecionadas_budget if c in cats_all_budget]
                                     
-                                    # ═══ Multiselect com KEY FIXA (Bug 5b fix — padrão da aba Real) ═══
-                                    _slider_prev_key_bud = "max_cats_budget_waterfall_tc_prev"
-                                    if _slider_prev_key_bud not in st.session_state:
-                                        st.session_state[_slider_prev_key_bud] = max_cats_budget
-                                    
-                                    slider_mudou_budget = st.session_state[_slider_prev_key_bud] != max_cats_budget
+                                # ═══ Multiselect com KEY FIXA (Bug 5b fix — padrão da aba Real) ═══
+                                _slider_prev_key_bud = "max_cats_budget_waterfall_tc_prev"
+                                if _slider_prev_key_bud not in st.session_state:
                                     st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    if slider_mudou_budget or _dim_changed_budget:
-                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
-                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
-                                    elif _multiselect_key_budget_fixed in st.session_state:
-                                        cats_selecionadas_atual_budget = st.session_state[_multiselect_key_budget_fixed]
-                                        cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
-                                    else:
-                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget
-                                        st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
-                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
+                                slider_mudou_budget = st.session_state[_slider_prev_key_bud] != max_cats_budget
+                                st.session_state[_slider_prev_key_bud] = max_cats_budget
                                     
-                                    # Garantir validade
+                                if slider_mudou_budget or _dim_changed_budget:
+                                    cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                    st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                    st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
+                                elif _multiselect_key_budget_fixed in st.session_state:
+                                    cats_selecionadas_atual_budget = st.session_state[_multiselect_key_budget_fixed]
                                     cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
-                                    if not cats_selecionadas_atual_budget:
-                                        cats_selecionadas_atual_budget = top_cats_selecionadas_budget[:min(max_cats_budget, len(top_cats_selecionadas_budget))]
+                                else:
+                                    cats_selecionadas_atual_budget = top_cats_selecionadas_budget
+                                    st.session_state[_multiselect_key_budget_fixed] = cats_selecionadas_atual_budget
+                                    st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_selecionadas_atual_budget
                                     
-                                    # Sanitizar session_state da chave fixa
-                                    if _multiselect_key_budget_fixed in st.session_state:
-                                        _bud_limpos = [v for v in st.session_state[_multiselect_key_budget_fixed] if v in cats_options_budget]
-                                        if not _bud_limpos:
-                                            _bud_limpos = cats_selecionadas_atual_budget
-                                        st.session_state[_multiselect_key_budget_fixed] = _bud_limpos
-                                        cats_selecionadas_atual_budget = _bud_limpos
+                                # Garantir validade
+                                cats_selecionadas_atual_budget = [c for c in cats_selecionadas_atual_budget if c in cats_all_budget]
+                                if not cats_selecionadas_atual_budget:
+                                    cats_selecionadas_atual_budget = top_cats_selecionadas_budget[:min(max_cats_budget, len(top_cats_selecionadas_budget))]
                                     
-                                    # Criar multiselect com key fixa
-                                    cats_sel_raw_budget = st.multiselect(
-                                        "Categorias (uma ou mais):",
-                                        cats_options_budget,
-                                        default=cats_selecionadas_atual_budget,
-                                        key=_multiselect_key_budget_fixed
-                                    )
+                                # Sanitizar session_state da chave fixa
+                                if _multiselect_key_budget_fixed in st.session_state:
+                                    _bud_limpos = [v for v in st.session_state[_multiselect_key_budget_fixed] if v in cats_options_budget]
+                                    if not _bud_limpos:
+                                        _bud_limpos = cats_selecionadas_atual_budget
+                                    st.session_state[_multiselect_key_budget_fixed] = _bud_limpos
+                                    cats_selecionadas_atual_budget = _bud_limpos
                                     
-                                    # Processar seleção — NÃO atualizar o slider (Bug 5a fix)
-                                    if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0:
-                                        if "Todos" in cats_sel_raw_budget:
-                                            cats_sel_budget = cats_all_budget
+                                # Criar multiselect com key fixa
+                                cats_sel_raw_budget = st.multiselect(
+                                    "Categorias (uma ou mais):",
+                                    cats_options_budget,
+                                    default=cats_selecionadas_atual_budget,
+                                    key=_multiselect_key_budget_fixed
+                                )
+                                    
+                                # Processar seleção — NÃO atualizar o slider (Bug 5a fix)
+                                if cats_sel_raw_budget and len(cats_sel_raw_budget) > 0:
+                                    if "Todos" in cats_sel_raw_budget:
+                                        cats_sel_budget = cats_all_budget
+                                    else:
+                                        cats_sel_budget = cats_sel_raw_budget
+                                    st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
+                                else:
+                                    cats_sel_budget = top_cats_selecionadas_budget
+                                    st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
+                                    
+                                # Filtrar dados pelos períodos selecionados
+                                if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget.columns:
+                                    df_real_periodo = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                elif 'Período' in df_analise_budget.columns:
+                                    df_real_periodo = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                else:
+                                    df_real_periodo = df_analise_budget.copy()
+                                    
+                                # Aplicar fator de conversão e conversão de moeda ao budget (mesma lógica do app.py)
+                                df_budget_work = df_budget.copy()
+                                    
+                                # Aplicar fator de conversão
+                                if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total" and 'Custo FP' in df_budget_work.columns:
+                                    if fator_conversao == "K (milhares)":
+                                        df_budget_work['Custo FP'] = df_budget_work['Custo FP'] / 1000
+                                    elif fator_conversao == "M (Milhões)":
+                                        df_budget_work['Custo FP'] = df_budget_work['Custo FP'] / 1000000
+                                    
+                                # Aplicar conversão de moeda
+                                if moeda_codigo != "BRL" and 'Custo FP' in df_budget_work.columns:
+                                    df_budget_work = converter_coluna_moeda(df_budget_work, 'Custo FP', moeda_codigo, taxas_cambio)
+                                    
+                                # ═══ Aplicar escopo de veículo (radio Budget tab) ═══
+                                if escopo_veiculo_budget != "Todos (TC Total)":
+                                    if 'Veículo' in df_budget_work.columns:
+                                        df_budget_work = df_budget_work[df_budget_work['Veículo'] == escopo_veiculo_budget].copy()
+                                    if df_budget_vol is not None and 'Veículo' in df_budget_vol.columns:
+                                        df_budget_vol = df_budget_vol[df_budget_vol['Veículo'] == escopo_veiculo_budget].copy()
+
+                                # Aplicar TODOS os filtros que existem em df_filtrado_waterfall_tc
+                                df_budget_filtrado = df_budget_work.copy()
+                                df_budget_vol_filtrado = df_budget_vol.copy()
+
+                                # Garantir chave Mês/Ano nos dados de Budget e Volume Budget quando possível
+                                if col_mes_budget == 'Período_Ano':
+                                    for _df_name, _df in [('df_budget_filtrado', df_budget_filtrado), ('df_budget_vol_filtrado', df_budget_vol_filtrado)]:
+                                        if _df is not None and len(_df) > 0 and 'Período_Ano' not in _df.columns and 'Período' in _df.columns and 'Ano' in _df.columns:
+                                            _df['Período_Ano'] = _df['Período'].astype(str).str.strip() + ' ' + _df['Ano'].astype(str).str.strip()
+
+                                # ✅ Aplicar filtros do usuário (sidebar) ao Budget/Volume Budget sem intersectar com o Real.
+                                # Se o usuário está em "Todos", NÃO restringir pelo que existe no Real (isso causava 1477 vs 1515).
+                                def _aplicar_filtro_ms(_df, _col, _state_key):
+                                    if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                        return _df
+                                    sel = st.session_state.get(_state_key, ["Todos"])
+                                    if not sel or "Todos" in sel:
+                                        return _df
+                                    sel_str = [str(x) for x in sel]
+                                    return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                def _aplicar_filtro_sb(_df, _col, _state_key):
+                                    if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                        return _df
+                                    sel = st.session_state.get(_state_key, "Todos")
+                                    if sel is None or str(sel) == "Todos":
+                                        return _df
+                                    return _df[_df[_col].astype(str) == str(sel)].copy()
+
+                                def _aplicar_filtro_lista(_df, _col, _state_key):
+                                    if _df is None or len(_df) == 0 or _col not in _df.columns:
+                                        return _df
+                                    sel = st.session_state.get(_state_key, [])
+                                    if not sel:
+                                        return _df
+                                    sel_str = [str(x) for x in sel]
+                                    return _df[_df[_col].astype(str).isin(sel_str)].copy()
+
+                                for _df_ref, _is_vol in [("df_budget_filtrado", False), ("df_budget_vol_filtrado", True)]:
+                                    _df = df_budget_vol_filtrado if _is_vol else df_budget_filtrado
+
+                                    _df = _aplicar_filtro_ms(_df, 'Oficina', 'filtro_oficina_waterfall_tc')
+                                    _df = _aplicar_filtro_ms(_df, 'Veículo', 'filtro_veiculo_waterfall_tc')
+                                    _df = _aplicar_filtro_ms(_df, 'USI', 'filtro_usi_waterfall_tc')
+                                    _df = _aplicar_filtro_sb(_df, 'Centrocst', 'filtro_centro_cst_waterfall_tc')
+                                    _df = _aplicar_filtro_lista(_df, 'Nºconta', 'filtro_conta_contabil_waterfall_tc')
+
+                                    # Filtros principais (multiselect com "Todos")
+                                    for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
+                                        _df = _aplicar_filtro_ms(_df, _col, f'filtro_{_col}_waterfall_tc')
+
+                                    # Filtros avançados
+                                    for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
+                                        _df = _aplicar_filtro_ms(_df, _col, f'filtro_avancado_{_col}_waterfall_tc')
+
+                                    if _is_vol:
+                                        df_budget_vol_filtrado = _df
+                                    else:
+                                        df_budget_filtrado = _df
+                                    
+                                # Aplicar filtro inline de Oficina ao Budget (mesmo filtro usado no Real)
+                                if oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
+                                    if 'Oficina' in df_budget_filtrado.columns:
+                                        df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
+                                    if df_budget_vol_filtrado is not None and 'Oficina' in df_budget_vol_filtrado.columns:
+                                        df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
+                                    
+                                # Filtrar budget pelos períodos selecionados
+                                # IMPORTANTE: Sempre filtrar pelos períodos selecionados para garantir que o BUD seja calculado corretamente
+                                if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                    import re
+
+                                    def _periodos_tem_ano(periodos):
+                                        return any(re.search(r"\b20\d{2}\b", str(p)) for p in periodos)
+
+                                    periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                    sel_tem_ano = _periodos_tem_ano(periodos_selecionados_budget)
+
+                                    if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_budget_filtrado.columns:
+                                        df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período_Ano'].astype(str).isin(periodos_str)].copy()
+                                    elif 'Período' in df_budget_filtrado.columns:
+                                        # Preferir match por "Mês Ano" quando existir a seleção com ano e a coluna Ano estiver presente.
+                                        if sel_tem_ano and 'Ano' in df_budget_filtrado.columns:
+                                            df_tmp = df_budget_filtrado.copy()
+                                            df_tmp['_Período_Ano_tmp'] = (
+                                                df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
+                                            )
+                                            df_budget_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
                                         else:
-                                            cats_sel_budget = cats_sel_raw_budget
-                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
+                                            # Match direto por Período (ex.: "Novembro")
+                                            df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                     else:
-                                        cats_sel_budget = top_cats_selecionadas_budget
-                                        st.session_state["cats_budget_waterfall_tc_saved_current"] = cats_sel_budget
+                                        df_budget_periodo = pd.DataFrame()  # DataFrame vazio se não há coluna Período
+                                else:
+                                    df_budget_periodo = pd.DataFrame()  # DataFrame vazio se não há períodos selecionados
                                     
-                                    # Filtrar dados pelos períodos selecionados
-                                    if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget.columns:
-                                        df_real_periodo = df_analise_budget[df_analise_budget['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                    elif 'Período' in df_analise_budget.columns:
-                                        df_real_periodo = df_analise_budget[df_analise_budget['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                    else:
-                                        df_real_periodo = df_analise_budget.copy()
-                                    
-                                    # Aplicar fator de conversão e conversão de moeda ao budget (mesma lógica do app.py)
-                                    df_budget_work = df_budget.copy()
-                                    
-                                    # Aplicar fator de conversão
-                                    if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total" and 'Custo FP' in df_budget_work.columns:
-                                        if fator_conversao == "K (milhares)":
-                                            df_budget_work['Custo FP'] = df_budget_work['Custo FP'] / 1000
-                                        elif fator_conversao == "M (Milhões)":
-                                            df_budget_work['Custo FP'] = df_budget_work['Custo FP'] / 1000000
-                                    
-                                    # Aplicar conversão de moeda
-                                    if moeda_codigo != "BRL" and 'Custo FP' in df_budget_work.columns:
-                                        df_budget_work = converter_coluna_moeda(df_budget_work, 'Custo FP', moeda_codigo, taxas_cambio)
-                                    
-                                    # ═══ Aplicar escopo de veículo (radio Budget tab) ═══
-                                    if escopo_veiculo_budget != "Todos (TC Total)":
-                                        if 'Veículo' in df_budget_work.columns:
-                                            df_budget_work = df_budget_work[df_budget_work['Veículo'] == escopo_veiculo_budget].copy()
-                                        if df_budget_vol is not None and 'Veículo' in df_budget_vol.columns:
-                                            df_budget_vol = df_budget_vol[df_budget_vol['Veículo'] == escopo_veiculo_budget].copy()
-
-                                    # Aplicar TODOS os filtros que existem em df_filtrado_waterfall_tc
-                                    df_budget_filtrado = df_budget_work.copy()
-                                    df_budget_vol_filtrado = df_budget_vol.copy()
-
-                                    # Garantir chave Mês/Ano nos dados de Budget e Volume Budget quando possível
-                                    if col_mes_budget == 'Período_Ano':
-                                        for _df_name, _df in [('df_budget_filtrado', df_budget_filtrado), ('df_budget_vol_filtrado', df_budget_vol_filtrado)]:
-                                            if _df is not None and len(_df) > 0 and 'Período_Ano' not in _df.columns and 'Período' in _df.columns and 'Ano' in _df.columns:
-                                                _df['Período_Ano'] = _df['Período'].astype(str).str.strip() + ' ' + _df['Ano'].astype(str).str.strip()
-
-                                    # ✅ Aplicar filtros do usuário (sidebar) ao Budget/Volume Budget sem intersectar com o Real.
-                                    # Se o usuário está em "Todos", NÃO restringir pelo que existe no Real (isso causava 1477 vs 1515).
-                                    def _aplicar_filtro_ms(_df, _col, _state_key):
+                                # Preparar volume real filtrado pelos períodos selecionados
+                                df_volume_real_filtrado = None
+                                if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
+                                    df_volume_real_filtrado = df_volume.copy()
+                                        
+                                    # Aplicar filtros do usuário (sidebar) ao volume real (sem intersectar com o custo).
+                                    # Isso garante que Volume siga o mesmo recorte de filtros, não o "recorte do custo".
+                                    def _aplicar_filtro_ms_vol(_df, _col, _state_key):
                                         if _df is None or len(_df) == 0 or _col not in _df.columns:
                                             return _df
                                         sel = st.session_state.get(_state_key, ["Todos"])
@@ -3244,7 +3353,7 @@ else:
                                         sel_str = [str(x) for x in sel]
                                         return _df[_df[_col].astype(str).isin(sel_str)].copy()
 
-                                    def _aplicar_filtro_sb(_df, _col, _state_key):
+                                    def _aplicar_filtro_sb_vol(_df, _col, _state_key):
                                         if _df is None or len(_df) == 0 or _col not in _df.columns:
                                             return _df
                                         sel = st.session_state.get(_state_key, "Todos")
@@ -3252,7 +3361,7 @@ else:
                                             return _df
                                         return _df[_df[_col].astype(str) == str(sel)].copy()
 
-                                    def _aplicar_filtro_lista(_df, _col, _state_key):
+                                    def _aplicar_filtro_lista_vol(_df, _col, _state_key):
                                         if _df is None or len(_df) == 0 or _col not in _df.columns:
                                             return _df
                                         sel = st.session_state.get(_state_key, [])
@@ -3261,723 +3370,417 @@ else:
                                         sel_str = [str(x) for x in sel]
                                         return _df[_df[_col].astype(str).isin(sel_str)].copy()
 
-                                    for _df_ref, _is_vol in [("df_budget_filtrado", False), ("df_budget_vol_filtrado", True)]:
-                                        _df = df_budget_vol_filtrado if _is_vol else df_budget_filtrado
+                                    df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Oficina', 'filtro_oficina_waterfall_tc')
+                                    df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Veículo', 'filtro_veiculo_waterfall_tc')
+                                    df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'USI', 'filtro_usi_waterfall_tc')
+                                    df_volume_real_filtrado = _aplicar_filtro_sb_vol(df_volume_real_filtrado, 'Centrocst', 'filtro_centro_cst_waterfall_tc')
+                                    df_volume_real_filtrado = _aplicar_filtro_lista_vol(df_volume_real_filtrado, 'Nºconta', 'filtro_conta_contabil_waterfall_tc')
 
-                                        _df = _aplicar_filtro_ms(_df, 'Oficina', 'filtro_oficina_waterfall_tc')
-                                        _df = _aplicar_filtro_ms(_df, 'Veículo', 'filtro_veiculo_waterfall_tc')
-                                        _df = _aplicar_filtro_ms(_df, 'USI', 'filtro_usi_waterfall_tc')
-                                        _df = _aplicar_filtro_sb(_df, 'Centrocst', 'filtro_centro_cst_waterfall_tc')
-                                        _df = _aplicar_filtro_lista(_df, 'Nºconta', 'filtro_conta_contabil_waterfall_tc')
+                                    for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
+                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_{_col}_waterfall_tc')
 
-                                        # Filtros principais (multiselect com "Todos")
-                                        for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
-                                            _df = _aplicar_filtro_ms(_df, _col, f'filtro_{_col}_waterfall_tc')
-
-                                        # Filtros avançados
-                                        for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
-                                            _df = _aplicar_filtro_ms(_df, _col, f'filtro_avancado_{_col}_waterfall_tc')
-
-                                        if _is_vol:
-                                            df_budget_vol_filtrado = _df
-                                        else:
-                                            df_budget_filtrado = _df
-                                    
-                                    # Aplicar filtro inline de Oficina ao Budget (mesmo filtro usado no Real)
-                                    if oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
-                                        if 'Oficina' in df_budget_filtrado.columns:
-                                            df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
-                                        if df_budget_vol_filtrado is not None and 'Oficina' in df_budget_vol_filtrado.columns:
-                                            df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
-                                    
-                                    # Filtrar budget pelos períodos selecionados
-                                    # IMPORTANTE: Sempre filtrar pelos períodos selecionados para garantir que o BUD seja calculado corretamente
+                                    for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
+                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_avancado_{_col}_waterfall_tc')
+                                        
+                                    # ═══ CORREÇÃO: Aplicar escopo de veículo ao volume real (mesma lógica do Home) ═══
+                                    if escopo_veiculo_budget != "Todos (TC Total)" and df_volume_real_filtrado is not None:
+                                        if 'Veículo' in df_volume_real_filtrado.columns:
+                                            df_volume_real_filtrado = df_volume_real_filtrado[
+                                                df_volume_real_filtrado['Veículo'] == escopo_veiculo_budget
+                                            ].copy()
+                                        
+                                    # Filtrar pelos períodos selecionados (mesma lógica do budget)
                                     if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                        import re
-
-                                        def _periodos_tem_ano(periodos):
-                                            return any(re.search(r"\b20\d{2}\b", str(p)) for p in periodos)
-
-                                        periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                        sel_tem_ano = _periodos_tem_ano(periodos_selecionados_budget)
-
-                                        if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_budget_filtrado.columns:
-                                            df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período_Ano'].astype(str).isin(periodos_str)].copy()
-                                        elif 'Período' in df_budget_filtrado.columns:
-                                            # Preferir match por "Mês Ano" quando existir a seleção com ano e a coluna Ano estiver presente.
-                                            if sel_tem_ano and 'Ano' in df_budget_filtrado.columns:
-                                                df_tmp = df_budget_filtrado.copy()
+                                        if col_mes_budget == 'Período_Ano':
+                                            if 'Período_Ano' not in df_volume_real_filtrado.columns and 'Período' in df_volume_real_filtrado.columns and 'Ano' in df_volume_real_filtrado.columns:
+                                                df_volume_real_filtrado['Período_Ano'] = (
+                                                    df_volume_real_filtrado['Período'].astype(str).str.strip() + ' ' +
+                                                    df_volume_real_filtrado['Ano'].astype(str).str.strip()
+                                                )
+                                            if 'Período_Ano' in df_volume_real_filtrado.columns:
+                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                        elif 'Período_Ano' in df_volume_real_filtrado.columns and col_mes_budget == 'Período_Ano':
+                                            df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                        elif col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_volume_real_filtrado.columns:
+                                            df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                        elif 'Período' in df_volume_real_filtrado.columns:
+                                            periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                            # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
+                                            if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_volume_real_filtrado.columns:
+                                                df_tmp = df_volume_real_filtrado.copy()
                                                 df_tmp['_Período_Ano_tmp'] = (
                                                     df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
                                                 )
-                                                df_budget_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
+                                                df_volume_real_filtrado = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
                                             else:
-                                                # Match direto por Período (ex.: "Novembro")
-                                                df_budget_periodo = df_budget_filtrado[df_budget_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                        else:
-                                            df_budget_periodo = pd.DataFrame()  # DataFrame vazio se não há coluna Período
-                                    else:
-                                        df_budget_periodo = pd.DataFrame()  # DataFrame vazio se não há períodos selecionados
+                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                     
-                                    # Preparar volume real filtrado pelos períodos selecionados
-                                    df_volume_real_filtrado = None
-                                    if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
-                                        df_volume_real_filtrado = df_volume.copy()
+                                # Verificar se temos a coluna da dimensão selecionada
+                                if chosen_dim_budget not in df_real_periodo.columns:
+                                    st.warning(f"⚠️ Coluna '{chosen_dim_budget}' não encontrada nos dados.")
+                                elif 'Custo' not in df_real_periodo.columns:
+                                    st.warning("⚠️ Coluna 'Custo' não encontrada nos dados. A tabela requer classificação Fixo/Variável.")
+                                else:
+                                    # df_budget_periodo já foi criado acima, apenas usar
                                         
-                                        # Aplicar filtros do usuário (sidebar) ao volume real (sem intersectar com o custo).
-                                        # Isso garante que Volume siga o mesmo recorte de filtros, não o "recorte do custo".
-                                        def _aplicar_filtro_ms_vol(_df, _col, _state_key):
-                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
-                                                return _df
-                                            sel = st.session_state.get(_state_key, ["Todos"])
-                                            if not sel or "Todos" in sel:
-                                                return _df
-                                            sel_str = [str(x) for x in sel]
-                                            return _df[_df[_col].astype(str).isin(sel_str)].copy()
-
-                                        def _aplicar_filtro_sb_vol(_df, _col, _state_key):
-                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
-                                                return _df
-                                            sel = st.session_state.get(_state_key, "Todos")
-                                            if sel is None or str(sel) == "Todos":
-                                                return _df
-                                            return _df[_df[_col].astype(str) == str(sel)].copy()
-
-                                        def _aplicar_filtro_lista_vol(_df, _col, _state_key):
-                                            if _df is None or len(_df) == 0 or _col not in _df.columns:
-                                                return _df
-                                            sel = st.session_state.get(_state_key, [])
-                                            if not sel:
-                                                return _df
-                                            sel_str = [str(x) for x in sel]
-                                            return _df[_df[_col].astype(str).isin(sel_str)].copy()
-
-                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Oficina', 'filtro_oficina_waterfall_tc')
-                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'Veículo', 'filtro_veiculo_waterfall_tc')
-                                        df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, 'USI', 'filtro_usi_waterfall_tc')
-                                        df_volume_real_filtrado = _aplicar_filtro_sb_vol(df_volume_real_filtrado, 'Centrocst', 'filtro_centro_cst_waterfall_tc')
-                                        df_volume_real_filtrado = _aplicar_filtro_lista_vol(df_volume_real_filtrado, 'Nºconta', 'filtro_conta_contabil_waterfall_tc')
-
-                                        for _col in ['Type 05', 'Type 06', 'Account', 'Fornecedor', 'Fornec.', 'Tipo']:
-                                            df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_{_col}_waterfall_tc')
-
-                                        for _col in ['Usuário', 'Material', 'Dt.lçto.', 'Texto breve']:
-                                            df_volume_real_filtrado = _aplicar_filtro_ms_vol(df_volume_real_filtrado, _col, f'filtro_avancado_{_col}_waterfall_tc')
+                                    # Agrupar dados reais pela dimensão selecionada (sem Período, pois já está filtrado)
+                                    colunas_agrupamento = [chosen_dim_budget]
+                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_real_periodo.columns:
+                                        colunas_agrupamento.append('Custo')
+                                    for _extra_col in ['Type 05', 'Type 06']:
+                                        if _extra_col != chosen_dim_budget and _extra_col in df_real_periodo.columns:
+                                            colunas_agrupamento.insert(0, _extra_col)
                                         
-                                        # ═══ CORREÇÃO: Aplicar escopo de veículo ao volume real (mesma lógica do Home) ═══
-                                        if escopo_veiculo_budget != "Todos (TC Total)" and df_volume_real_filtrado is not None:
-                                            if 'Veículo' in df_volume_real_filtrado.columns:
-                                                df_volume_real_filtrado = df_volume_real_filtrado[
-                                                    df_volume_real_filtrado['Veículo'] == escopo_veiculo_budget
-                                                ].copy()
-                                        
-                                        # Filtrar pelos períodos selecionados (mesma lógica do budget)
-                                        if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                            if col_mes_budget == 'Período_Ano':
-                                                if 'Período_Ano' not in df_volume_real_filtrado.columns and 'Período' in df_volume_real_filtrado.columns and 'Ano' in df_volume_real_filtrado.columns:
-                                                    df_volume_real_filtrado['Período_Ano'] = (
-                                                        df_volume_real_filtrado['Período'].astype(str).str.strip() + ' ' +
-                                                        df_volume_real_filtrado['Ano'].astype(str).str.strip()
-                                                    )
-                                                if 'Período_Ano' in df_volume_real_filtrado.columns:
-                                                    df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                            elif 'Período_Ano' in df_volume_real_filtrado.columns and col_mes_budget == 'Período_Ano':
-                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                            elif col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_volume_real_filtrado.columns:
-                                                df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                            elif 'Período' in df_volume_real_filtrado.columns:
-                                                periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
-                                                if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_volume_real_filtrado.columns:
-                                                    df_tmp = df_volume_real_filtrado.copy()
-                                                    df_tmp['_Período_Ano_tmp'] = (
-                                                        df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
-                                                    )
-                                                    df_volume_real_filtrado = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
-                                                else:
-                                                    df_volume_real_filtrado = df_volume_real_filtrado[df_volume_real_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                    
-                                    # Verificar se temos a coluna da dimensão selecionada
-                                    if chosen_dim_budget not in df_real_periodo.columns:
-                                        st.warning(f"⚠️ Coluna '{chosen_dim_budget}' não encontrada nos dados.")
-                                    elif 'Custo' not in df_real_periodo.columns:
-                                        st.warning("⚠️ Coluna 'Custo' não encontrada nos dados. A tabela requer classificação Fixo/Variável.")
-                                    else:
-                                        # df_budget_periodo já foi criado acima, apenas usar
-                                        
-                                        # Agrupar dados reais pela dimensão selecionada (sem Período, pois já está filtrado)
-                                        colunas_agrupamento = [chosen_dim_budget]
-                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_real_periodo.columns:
-                                            colunas_agrupamento.append('Custo')
-                                        for _extra_col in ['Type 05', 'Type 06']:
-                                            if _extra_col != chosen_dim_budget and _extra_col in df_real_periodo.columns:
-                                                colunas_agrupamento.insert(0, _extra_col)
-                                        
-                                        # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall_tc
-                                        # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
+                                    # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall_tc
+                                    # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
 
+                                    # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
+                                    # O TC Ext calcula totais sem depender de Account/Type; aqui precisamos preservar essas linhas.
+                                    for _col in colunas_agrupamento:
+                                        if _col in df_real_periodo.columns:
+                                            _s = df_real_periodo[_col]
+                                            if pd.api.types.is_categorical_dtype(_s):
+                                                if "(Não informado)" not in _s.cat.categories:
+                                                    _s = _s.cat.add_categories(["(Não informado)"])
+                                                df_real_periodo[_col] = _s.fillna("(Não informado)")
+                                            else:
+                                                df_real_periodo[_col] = _s.fillna("(Não informado)")
+                                        
+                                    df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Custo FP'].sum().reset_index()
+                                        
+                                    # Agrupar dados de budget pela dimensão selecionada
+                                    colunas_agrupamento_budget = [chosen_dim_budget]
+                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_budget_periodo.columns:
+                                        colunas_agrupamento_budget.append('Custo')
+                                    for _extra_col in ['Type 05', 'Type 06']:
+                                        if _extra_col != chosen_dim_budget and _extra_col in df_budget_periodo.columns:
+                                            colunas_agrupamento_budget.insert(0, _extra_col)
+                                        
+                                    # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
+                                    # IMPORTANTE: Sempre usar df_budget_periodo que já foi filtrado pelos períodos selecionados
+                                    # IMPORTANTE: df_budget_periodo já vem de df_budget_work que tem a conversão de moeda aplicada (linha 2743)
+                                    # NÃO aplicar conversão novamente aqui para evitar duplicação
+                                    if df_budget_periodo is not None and len(df_budget_periodo) > 0:
                                         # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
-                                        # O TC Ext calcula totais sem depender de Account/Type; aqui precisamos preservar essas linhas.
-                                        for _col in colunas_agrupamento:
-                                            if _col in df_real_periodo.columns:
-                                                _s = df_real_periodo[_col]
+                                        for _col in colunas_agrupamento_budget:
+                                            if _col in df_budget_periodo.columns:
+                                                _s = df_budget_periodo[_col]
                                                 if pd.api.types.is_categorical_dtype(_s):
                                                     if "(Não informado)" not in _s.cat.categories:
                                                         _s = _s.cat.add_categories(["(Não informado)"])
-                                                    df_real_periodo[_col] = _s.fillna("(Não informado)")
+                                                    df_budget_periodo[_col] = _s.fillna("(Não informado)")
                                                 else:
-                                                    df_real_periodo[_col] = _s.fillna("(Não informado)")
-                                        
-                                        df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Custo FP'].sum().reset_index()
-                                        
-                                        # Agrupar dados de budget pela dimensão selecionada
-                                        colunas_agrupamento_budget = [chosen_dim_budget]
-                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_budget_periodo.columns:
-                                            colunas_agrupamento_budget.append('Custo')
-                                        for _extra_col in ['Type 05', 'Type 06']:
-                                            if _extra_col != chosen_dim_budget and _extra_col in df_budget_periodo.columns:
-                                                colunas_agrupamento_budget.insert(0, _extra_col)
-                                        
-                                        # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
-                                        # IMPORTANTE: Sempre usar df_budget_periodo que já foi filtrado pelos períodos selecionados
-                                        # IMPORTANTE: df_budget_periodo já vem de df_budget_work que tem a conversão de moeda aplicada (linha 2743)
-                                        # NÃO aplicar conversão novamente aqui para evitar duplicação
-                                        if df_budget_periodo is not None and len(df_budget_periodo) > 0:
-                                            # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
-                                            for _col in colunas_agrupamento_budget:
-                                                if _col in df_budget_periodo.columns:
-                                                    _s = df_budget_periodo[_col]
-                                                    if pd.api.types.is_categorical_dtype(_s):
-                                                        if "(Não informado)" not in _s.cat.categories:
-                                                            _s = _s.cat.add_categories(["(Não informado)"])
-                                                        df_budget_periodo[_col] = _s.fillna("(Não informado)")
-                                                    else:
-                                                        df_budget_periodo[_col] = _s.fillna("(Não informado)")
+                                                    df_budget_periodo[_col] = _s.fillna("(Não informado)")
 
-                                            df_budget_agrupado = df_budget_periodo.groupby(colunas_agrupamento_budget)['Custo FP'].sum().reset_index()
-                                            df_budget_agrupado = df_budget_agrupado.rename(columns={'Custo FP': 'CustoFP_Budget'})
-                                        else:
-                                            # Se não há dados para os períodos selecionados, criar DataFrame vazio
-                                            df_budget_agrupado = pd.DataFrame(columns=colunas_agrupamento_budget + ['CustoFP_Budget'])
+                                        df_budget_agrupado = df_budget_periodo.groupby(colunas_agrupamento_budget)['Custo FP'].sum().reset_index()
+                                        df_budget_agrupado = df_budget_agrupado.rename(columns={'Custo FP': 'CustoFP_Budget'})
+                                    else:
+                                        # Se não há dados para os períodos selecionados, criar DataFrame vazio
+                                        df_budget_agrupado = pd.DataFrame(columns=colunas_agrupamento_budget + ['CustoFP_Budget'])
                                         
-                                        # Agrupar volumes reais (somar todos os períodos selecionados)
-                                        df_vol_real_agrupado = pd.DataFrame()
-                                        if df_volume_real_filtrado is not None and not df_volume_real_filtrado.empty and 'Volume' in df_volume_real_filtrado.columns:
-                                            volume_total_real = df_volume_real_filtrado['Volume'].sum()
-                                            df_vol_real_agrupado = pd.DataFrame({'Volume': [volume_total_real]})
-                                        else:
-                                            df_vol_real_agrupado = pd.DataFrame({'Volume': [0]})
+                                    # Agrupar volumes reais (somar todos os períodos selecionados)
+                                    df_vol_real_agrupado = pd.DataFrame()
+                                    if df_volume_real_filtrado is not None and not df_volume_real_filtrado.empty and 'Volume' in df_volume_real_filtrado.columns:
+                                        volume_total_real = df_volume_real_filtrado['Volume'].sum()
+                                        df_vol_real_agrupado = pd.DataFrame({'Volume': [volume_total_real]})
+                                    else:
+                                        df_vol_real_agrupado = pd.DataFrame({'Volume': [0]})
                                         
-                                        # Agrupar volumes de budget (somar todos os períodos selecionados)
-                                        df_vol_budget_agrupado = pd.DataFrame()
-                                        if df_budget_vol_filtrado is not None and not df_budget_vol_filtrado.empty and 'Volume' in df_budget_vol_filtrado.columns:
-                                            # Filtrar budget volume pelos períodos selecionados (mesma lógica do budget)
-                                            if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                                if col_mes_budget == 'Período_Ano':
-                                                    if 'Período_Ano' not in df_budget_vol_filtrado.columns and 'Período' in df_budget_vol_filtrado.columns and 'Ano' in df_budget_vol_filtrado.columns:
-                                                        df_budget_vol_filtrado['Período_Ano'] = (
-                                                            df_budget_vol_filtrado['Período'].astype(str).str.strip() + ' ' +
-                                                            df_budget_vol_filtrado['Ano'].astype(str).str.strip()
-                                                        )
-                                                    if 'Período_Ano' in df_budget_vol_filtrado.columns:
-                                                        df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                                    else:
-                                                        df_budget_vol_periodo = pd.DataFrame()
-                                                elif col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
+                                    # Agrupar volumes de budget (somar todos os períodos selecionados)
+                                    df_vol_budget_agrupado = pd.DataFrame()
+                                    if df_budget_vol_filtrado is not None and not df_budget_vol_filtrado.empty and 'Volume' in df_budget_vol_filtrado.columns:
+                                        # Filtrar budget volume pelos períodos selecionados (mesma lógica do budget)
+                                        if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                            if col_mes_budget == 'Período_Ano':
+                                                if 'Período_Ano' not in df_budget_vol_filtrado.columns and 'Período' in df_budget_vol_filtrado.columns and 'Ano' in df_budget_vol_filtrado.columns:
+                                                    df_budget_vol_filtrado['Período_Ano'] = (
+                                                        df_budget_vol_filtrado['Período'].astype(str).str.strip() + ' ' +
+                                                        df_budget_vol_filtrado['Ano'].astype(str).str.strip()
+                                                    )
+                                                if 'Período_Ano' in df_budget_vol_filtrado.columns:
                                                     df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                                elif 'Período' in df_budget_vol_filtrado.columns:
-                                                    periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                    # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
-                                                    if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_budget_vol_filtrado.columns:
-                                                        df_tmp = df_budget_vol_filtrado.copy()
-                                                        df_tmp['_Período_Ano_tmp'] = (
-                                                            df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
-                                                        )
-                                                        df_budget_vol_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
-                                                    else:
-                                                        df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
                                                 else:
                                                     df_budget_vol_periodo = pd.DataFrame()
-                                                
-                                                if len(df_budget_vol_periodo) > 0:
-                                                    volume_total_budget = df_budget_vol_periodo['Volume'].sum()
-                                                    df_vol_budget_agrupado = pd.DataFrame({'Volume': [volume_total_budget]})
+                                            elif col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
+                                                df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                            elif 'Período' in df_budget_vol_filtrado.columns:
+                                                periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                                # Se houver coluna Ano e o seletor traz "Mês Ano", filtrar com chave composta.
+                                                if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in df_budget_vol_filtrado.columns:
+                                                    df_tmp = df_budget_vol_filtrado.copy()
+                                                    df_tmp['_Período_Ano_tmp'] = (
+                                                        df_tmp['Período'].astype(str).str.strip() + " " + df_tmp['Ano'].astype(str).str.strip()
+                                                    )
+                                                    df_budget_vol_periodo = df_tmp[df_tmp['_Período_Ano_tmp'].astype(str).isin(periodos_str)].drop(columns=['_Período_Ano_tmp']).copy()
                                                 else:
-                                                    df_vol_budget_agrupado = pd.DataFrame({'Volume': [0]})
+                                                    df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
+                                            else:
+                                                df_budget_vol_periodo = pd.DataFrame()
+                                                
+                                            if len(df_budget_vol_periodo) > 0:
+                                                volume_total_budget = df_budget_vol_periodo['Volume'].sum()
+                                                df_vol_budget_agrupado = pd.DataFrame({'Volume': [volume_total_budget]})
                                             else:
                                                 df_vol_budget_agrupado = pd.DataFrame({'Volume': [0]})
                                         else:
                                             df_vol_budget_agrupado = pd.DataFrame({'Volume': [0]})
+                                    else:
+                                        df_vol_budget_agrupado = pd.DataFrame({'Volume': [0]})
                                         
-                                        # Merge Real + Budget (mesma lógica do app.py)
-                                        colunas_agrupamento_com_periodo = [col for col in colunas_agrupamento if col != 'Custo FP']
-                                        df_tabela_flex = df_real_agrupado.merge(
-                                            df_budget_agrupado,
-                                            on=colunas_agrupamento_com_periodo,
-                                            how='outer',
-                                            suffixes=('', '_Budget')
-                                        )
+                                    # Merge Real + Budget (mesma lógica do app.py)
+                                    colunas_agrupamento_com_periodo = [col for col in colunas_agrupamento if col != 'Custo FP']
+                                    df_tabela_flex = df_real_agrupado.merge(
+                                        df_budget_agrupado,
+                                        on=colunas_agrupamento_com_periodo,
+                                        how='outer',
+                                        suffixes=('', '_Budget')
+                                    )
+                                    df_tabela_flex['Custo FP'] = df_tabela_flex['Custo FP'].fillna(0)
+                                    df_tabela_flex['CustoFP_Budget'] = df_tabela_flex['CustoFP_Budget'].fillna(0)
+                                    df_tabela_flex['Budget_Total_Custo'] = df_tabela_flex['CustoFP_Budget']
+                                    df_tabela_flex['Budget_Total'] = df_tabela_flex['Budget_Total_Custo']
+                                        
+                                    # Adicionar volumes (já estão agregados, não precisam merge por período)
+                                    volume_total_real = df_vol_real_agrupado['Volume'].sum() if len(df_vol_real_agrupado) > 0 and 'Volume' in df_vol_real_agrupado.columns else 0
+                                    volume_total_budget = df_vol_budget_agrupado['Volume'].sum() if len(df_vol_budget_agrupado) > 0 and 'Volume' in df_vol_budget_agrupado.columns else 0
+                                        
+                                    # IMPORTANTE: Volume_Budget deve ser sempre o volume de budget, nunca usar volume_real como fallback
+                                    # Se volume_budget for 0, usar 1 para evitar divisão por zero, mas não substituir por volume_real
+                                    df_tabela_flex['Volume_Real'] = volume_total_real
+                                    # IMPORTANTE: Volume_Budget deve ser sempre o volume de budget real, nunca usar volume_real como fallback
+                                    # Se volume_budget for 0, usar o mesmo valor do volume_real apenas para evitar divisão por zero,
+                                    # mas isso deve ser raro e indica que não há dados de budget
+                                    df_tabela_flex['Volume_Budget'] = volume_total_budget if volume_total_budget > 0 else (volume_total_real if volume_total_real > 0 else 1)
+                                        
+                                    # Calcular Flex Bud (mesma lógica do app.py)
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                        df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
+                                        df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
+
+                                        # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
+                                        custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
+                                        is_fixo = custo_norm == 'fixo'
+                                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
+                                        df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
+                                        df_tabela_flex['_Flex_Bud_CustoFP_Custo'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
+                                            
+                                        df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_CustoFP_Custo'] / df_tabela_flex['Volume_Real'].replace(0, 1)
+                                        df_tabela_flex['Flex BUD'] = df_tabela_flex['Flex BUD'].fillna(0)
+                                            
+                                        df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
+                                        df_tabela_flex['BUD'] = df_tabela_flex['BUD'].fillna(0)
+                                            
+                                        df_tabela_flex['Custo FP'] = df_tabela_flex['Custo FP'] / df_tabela_flex['Volume_Real'].replace(0, 1)
                                         df_tabela_flex['Custo FP'] = df_tabela_flex['Custo FP'].fillna(0)
-                                        df_tabela_flex['CustoFP_Budget'] = df_tabela_flex['CustoFP_Budget'].fillna(0)
-                                        df_tabela_flex['Budget_Total_Custo'] = df_tabela_flex['CustoFP_Budget']
-                                        df_tabela_flex['Budget_Total'] = df_tabela_flex['Budget_Total_Custo']
-                                        
-                                        # Adicionar volumes (já estão agregados, não precisam merge por período)
-                                        volume_total_real = df_vol_real_agrupado['Volume'].sum() if len(df_vol_real_agrupado) > 0 and 'Volume' in df_vol_real_agrupado.columns else 0
-                                        volume_total_budget = df_vol_budget_agrupado['Volume'].sum() if len(df_vol_budget_agrupado) > 0 and 'Volume' in df_vol_budget_agrupado.columns else 0
-                                        
-                                        # IMPORTANTE: Volume_Budget deve ser sempre o volume de budget, nunca usar volume_real como fallback
-                                        # Se volume_budget for 0, usar 1 para evitar divisão por zero, mas não substituir por volume_real
-                                        df_tabela_flex['Volume_Real'] = volume_total_real
-                                        # IMPORTANTE: Volume_Budget deve ser sempre o volume de budget real, nunca usar volume_real como fallback
-                                        # Se volume_budget for 0, usar o mesmo valor do volume_real apenas para evitar divisão por zero,
-                                        # mas isso deve ser raro e indica que não há dados de budget
-                                        df_tabela_flex['Volume_Budget'] = volume_total_budget if volume_total_budget > 0 else (volume_total_real if volume_total_real > 0 else 1)
-                                        
-                                        # Calcular Flex Bud (mesma lógica do app.py)
-                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                            df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
-                                            df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
+                                    else:
+                                        df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
+                                        df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
 
-                                            # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
-                                            custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
-                                            is_fixo = custo_norm == 'fixo'
-                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
-                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
-                                            df_tabela_flex['_Flex_Bud_CustoFP_Custo'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
-                                            
-                                            df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_CustoFP_Custo'] / df_tabela_flex['Volume_Real'].replace(0, 1)
-                                            df_tabela_flex['Flex BUD'] = df_tabela_flex['Flex BUD'].fillna(0)
-                                            
-                                            df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
-                                            df_tabela_flex['BUD'] = df_tabela_flex['BUD'].fillna(0)
-                                            
-                                            df_tabela_flex['Custo FP'] = df_tabela_flex['Custo FP'] / df_tabela_flex['Volume_Real'].replace(0, 1)
-                                            df_tabela_flex['Custo FP'] = df_tabela_flex['Custo FP'].fillna(0)
-                                        else:
-                                            df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['Volume_Real'] / df_tabela_flex['Volume_Budget'].replace(0, 1)
-                                            df_tabela_flex['_Proporcao_Volume'] = df_tabela_flex['_Proporcao_Volume'].fillna(1.0)
-
-                                            # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
-                                            custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
-                                            is_fixo = custo_norm == 'fixo'
-                                            df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
-                                            df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
-                                            df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
-                                            df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo']
+                                        # Regra de Flex (alinhada com TC Ext): tudo que NÃO é Fixo flexiona.
+                                        custo_norm = df_tabela_flex['Custo'].astype(str).str.strip().str.lower()
+                                        is_fixo = custo_norm == 'fixo'
+                                        df_tabela_flex['_Flex_Bud_Fixo'] = df_tabela_flex['Budget_Total_Custo'].where(is_fixo, 0)
+                                        df_tabela_flex['_Flex_Bud_Variavel'] = (df_tabela_flex['Budget_Total_Custo'] * df_tabela_flex['_Proporcao_Volume']).where(~is_fixo, 0)
+                                        df_tabela_flex['Flex BUD'] = df_tabela_flex['_Flex_Bud_Fixo'] + df_tabela_flex['_Flex_Bud_Variavel']
+                                        df_tabela_flex['BUD'] = df_tabela_flex['Budget_Total_Custo']
                                         
-                                        # Calcular diferenças
-                                        df_tabela_flex['Flex Bud - BUD'] = df_tabela_flex['Flex BUD'] - df_tabela_flex['BUD']
-                                        df_tabela_flex['Total - Flex Bud'] = df_tabela_flex['Custo FP'] - df_tabela_flex['Flex BUD']
-                                        df_tabela_flex['Total / Flex Bud'] = df_tabela_flex.apply(
-                                            lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
-                                            axis=1
-                                        )
+                                    # Calcular diferenças
+                                    df_tabela_flex['Flex Bud - BUD'] = df_tabela_flex['Flex BUD'] - df_tabela_flex['BUD']
+                                    df_tabela_flex['Total - Flex Bud'] = df_tabela_flex['Custo FP'] - df_tabela_flex['Flex BUD']
+                                    df_tabela_flex['Total / Flex Bud'] = df_tabela_flex.apply(
+                                        lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
+                                        axis=1
+                                    )
                                         
-                                        # Remover colunas auxiliares
-                                        colunas_remover = ['Budget_Total_Custo', '_Proporcao_Volume', '_Flex_Bud_Fixo', '_Flex_Bud_Variavel', 'CustoFP_Budget', 'Volume_Real', 'Volume_Budget']
-                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                            colunas_remover.append('_Flex_Bud_CustoFP_Custo')
-                                        df_tabela_flex = df_tabela_flex.drop(columns=[col for col in colunas_remover if col in df_tabela_flex.columns])
+                                    # Remover colunas auxiliares
+                                    colunas_remover = ['Budget_Total_Custo', '_Proporcao_Volume', '_Flex_Bud_Fixo', '_Flex_Bud_Variavel', 'CustoFP_Budget', 'Volume_Real', 'Volume_Budget']
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                        colunas_remover.append('_Flex_Bud_CustoFP_Custo')
+                                    df_tabela_flex = df_tabela_flex.drop(columns=[col for col in colunas_remover if col in df_tabela_flex.columns])
                                         
-                                        # Agrupar mantendo estrutura hierárquica pela dimensão selecionada
-                                        colunas_agrupamento_tabela = [chosen_dim_budget]
-                                        if 'Custo' != chosen_dim_budget and 'Custo' in df_tabela_flex.columns:
-                                            colunas_agrupamento_tabela.append('Custo')
-                                        for _extra_col in ['Type 05', 'Type 06']:
-                                            if _extra_col != chosen_dim_budget and _extra_col in df_tabela_flex.columns:
-                                                colunas_agrupamento_tabela.insert(0, _extra_col)
+                                    # Agrupar mantendo estrutura hierárquica pela dimensão selecionada
+                                    colunas_agrupamento_tabela = [chosen_dim_budget]
+                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_tabela_flex.columns:
+                                        colunas_agrupamento_tabela.append('Custo')
+                                    for _extra_col in ['Type 05', 'Type 06']:
+                                        if _extra_col != chosen_dim_budget and _extra_col in df_tabela_flex.columns:
+                                            colunas_agrupamento_tabela.insert(0, _extra_col)
                                         
-                                        # Não precisa agrupar por Período, pois já está filtrado
-                                        df_tabela_total_agrupado = df_tabela_flex.groupby(colunas_agrupamento_tabela).agg({
-                                            'BUD': 'sum',
-                                            'Flex Bud - BUD': 'sum',
-                                            'Flex BUD': 'sum',
-                                            'Total - Flex Bud': 'sum',
-                                            'Custo FP': 'sum'
-                                        }).reset_index()
+                                    # Não precisa agrupar por Período, pois já está filtrado
+                                    df_tabela_total_agrupado = df_tabela_flex.groupby(colunas_agrupamento_tabela).agg({
+                                        'BUD': 'sum',
+                                        'Flex Bud - BUD': 'sum',
+                                        'Flex BUD': 'sum',
+                                        'Total - Flex Bud': 'sum',
+                                        'Custo FP': 'sum'
+                                    }).reset_index()
                                         
-                                        # Recalcular Total / Flex Bud após agrupamento
-                                        df_tabela_total_agrupado['Total / Flex Bud'] = df_tabela_total_agrupado.apply(
-                                            lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
-                                            axis=1
-                                        )
+                                    # Recalcular Total / Flex Bud após agrupamento
+                                    df_tabela_total_agrupado['Total / Flex Bud'] = df_tabela_total_agrupado.apply(
+                                        lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
+                                        axis=1
+                                    )
                                         
-                                        # Filtrar linhas zeradas
-                                        colunas_numericas = [col for col in df_tabela_total_agrupado.columns 
-                                                            if pd.api.types.is_numeric_dtype(df_tabela_total_agrupado[col]) 
-                                                            and col not in [chosen_dim_budget, 'Account', 'Custo', 'Type 05', 'Type 06', 'Período']]
-                                        if colunas_numericas:
-                                            df_tabela_total_agrupado_temp = df_tabela_total_agrupado[colunas_numericas].fillna(0)
-                                            df_tabela_total_agrupado = df_tabela_total_agrupado[
-                                                df_tabela_total_agrupado_temp.abs().sum(axis=1) > 0.0001
-                                            ].copy()
+                                    # Filtrar linhas zeradas
+                                    colunas_numericas = [col for col in df_tabela_total_agrupado.columns 
+                                                        if pd.api.types.is_numeric_dtype(df_tabela_total_agrupado[col]) 
+                                                        and col not in [chosen_dim_budget, 'Account', 'Custo', 'Type 05', 'Type 06', 'Período']]
+                                    if colunas_numericas:
+                                        df_tabela_total_agrupado_temp = df_tabela_total_agrupado[colunas_numericas].fillna(0)
+                                        df_tabela_total_agrupado = df_tabela_total_agrupado[
+                                            df_tabela_total_agrupado_temp.abs().sum(axis=1) > 0.0001
+                                        ].copy()
                                         
-                                        # Calcular valores para gráfico waterfall
-                                        # Agrupar pela dimensão selecionada para o gráfico
-                                        df_grafico = df_tabela_total_agrupado.groupby(chosen_dim_budget).agg({
-                                            'BUD': 'sum',
-                                            'Flex Bud - BUD': 'sum',
-                                            'Flex BUD': 'sum',
-                                            'Total - Flex Bud': 'sum',
-                                            'Custo FP': 'sum'
-                                        }).reset_index()
+                                    # Calcular valores para gráfico waterfall
+                                    # Agrupar pela dimensão selecionada para o gráfico
+                                    df_grafico = df_tabela_total_agrupado.groupby(chosen_dim_budget).agg({
+                                        'BUD': 'sum',
+                                        'Flex Bud - BUD': 'sum',
+                                        'Flex BUD': 'sum',
+                                        'Total - Flex Bud': 'sum',
+                                        'Custo FP': 'sum'
+                                    }).reset_index()
                                         
-                                        # Preparar dados para gráfico waterfall
-                                        bud_total = float(pd.to_numeric(df_grafico.get('BUD', 0), errors='coerce').fillna(0).sum())
-                                        flex_bud_total = float(pd.to_numeric(df_grafico.get('Flex BUD', 0), errors='coerce').fillna(0).sum())
-                                        total_real = float(pd.to_numeric(df_grafico['Custo FP'], errors='coerce').fillna(0).sum()) if 'Custo FP' in df_grafico.columns else 0.0
-                                        flex_bud_menos_bud = float((flex_bud_total - bud_total) if pd.notna(flex_bud_total) and pd.notna(bud_total) else 0.0)
-                                        total_menos_flex_bud = float((total_real - flex_bud_total) if pd.notna(total_real) and pd.notna(flex_bud_total) else 0.0)
+                                    # Preparar dados para gráfico waterfall
+                                    bud_total = float(pd.to_numeric(df_grafico.get('BUD', 0), errors='coerce').fillna(0).sum())
+                                    flex_bud_total = float(pd.to_numeric(df_grafico.get('Flex BUD', 0), errors='coerce').fillna(0).sum())
+                                    total_real = float(pd.to_numeric(df_grafico['Custo FP'], errors='coerce').fillna(0).sum()) if 'Custo FP' in df_grafico.columns else 0.0
+                                    flex_bud_menos_bud = float((flex_bud_total - bud_total) if pd.notna(flex_bud_total) and pd.notna(bud_total) else 0.0)
+                                    total_menos_flex_bud = float((total_real - flex_bud_total) if pd.notna(total_real) and pd.notna(flex_bud_total) else 0.0)
                                         
-                                        # ═══ Calcular variações APENAS pelas categorias selecionadas (Bug 5c fix) ═══
-                                        # Indexar df_grafico pela dimensão para lookup rápido
-                                        _grafico_idx = df_grafico.set_index(chosen_dim_budget)['Total - Flex Bud'].to_dict()
+                                    # ═══ Calcular variações APENAS pelas categorias selecionadas (Bug 5c fix) ═══
+                                    # Indexar df_grafico pela dimensão para lookup rápido
+                                    _grafico_idx = df_grafico.set_index(chosen_dim_budget)['Total - Flex Bud'].to_dict()
                                         
-                                        labels_cats = []
-                                        values_cats = []
-                                        for cat in cats_sel_budget:
-                                            delta = float(_grafico_idx.get(cat, 0.0))
-                                            if abs(delta) > 1e-9:
-                                                labels_cats.append(str(cat))
-                                                values_cats.append(delta)
+                                    labels_cats = []
+                                    values_cats = []
+                                    for cat in cats_sel_budget:
+                                        delta = float(_grafico_idx.get(cat, 0.0))
+                                        if abs(delta) > 1e-9:
+                                            labels_cats.append(str(cat))
+                                            values_cats.append(delta)
                                         
-                                        # Ordenar por valor absoluto
-                                        if labels_cats:
-                                            sorted_idx = sorted(range(len(values_cats)), key=lambda i: abs(values_cats[i]), reverse=True)
-                                            labels_cats = [labels_cats[i] for i in sorted_idx]
-                                            values_cats = [values_cats[i] for i in sorted_idx]
+                                    # Ordenar por valor absoluto
+                                    if labels_cats:
+                                        sorted_idx = sorted(range(len(values_cats)), key=lambda i: abs(values_cats[i]), reverse=True)
+                                        labels_cats = [labels_cats[i] for i in sorted_idx]
+                                        values_cats = [values_cats[i] for i in sorted_idx]
                                         
-                                        # Calcular remainder (categorias não selecionadas vão para "Outros")
-                                        remainder = round(total_real - (bud_total + flex_bud_menos_bud + sum(values_cats)), 2)
+                                    # Calcular remainder (categorias não selecionadas vão para "Outros")
+                                    remainder = round(total_real - (bud_total + flex_bud_menos_bud + sum(values_cats)), 2)
                                         
-                                        # Montar estrutura do waterfall
-                                        labels_waterfall_tc = ["BUD"]
-                                        values_waterfall_tc = [bud_total]
-                                        measures_waterfall_tc = ["absolute"]
+                                    # Montar estrutura do waterfall
+                                    labels_waterfall_tc = ["BUD"]
+                                    values_waterfall_tc = [bud_total]
+                                    measures_waterfall_tc = ["absolute"]
                                         
-                                        # Adicionar Flex Bud - BUD (sempre incluir a etapa; é a barra amarela)
-                                        labels_waterfall_tc.append("Flex Bud - BUD")
-                                        values_waterfall_tc.append(flex_bud_menos_bud)
+                                    # Adicionar Flex Bud - BUD (sempre incluir a etapa; é a barra amarela)
+                                    labels_waterfall_tc.append("Flex Bud - BUD")
+                                    values_waterfall_tc.append(flex_bud_menos_bud)
+                                    measures_waterfall_tc.append("relative")
+                                        
+                                    # Adicionar categorias
+                                    labels_waterfall_tc.extend(labels_cats)
+                                    values_waterfall_tc.extend(values_cats)
+                                    measures_waterfall_tc.extend(["relative"] * len(labels_cats))
+                                        
+                                    # Adicionar "Outros" se remainder for significativo
+                                    if abs(remainder) >= 0.01:
+                                        labels_waterfall_tc.append("Outros")
+                                        values_waterfall_tc.append(remainder)
                                         measures_waterfall_tc.append("relative")
                                         
-                                        # Adicionar categorias
-                                        labels_waterfall_tc.extend(labels_cats)
-                                        values_waterfall_tc.extend(values_cats)
-                                        measures_waterfall_tc.extend(["relative"] * len(labels_cats))
+                                    # Adicionar barra final
+                                    labels_waterfall_tc.append("Total")
+                                    values_waterfall_tc.append(total_real)
+                                    measures_waterfall_tc.append("total")
                                         
-                                        # Adicionar "Outros" se remainder for significativo
-                                        if abs(remainder) >= 0.01:
-                                            labels_waterfall_tc.append("Outros")
-                                            values_waterfall_tc.append(remainder)
-                                            measures_waterfall_tc.append("relative")
+                                    # Criar gráfico waterfall
+                                    theme_base = st.get_option("theme.base") or "light"
+                                    if theme_base == "dark":
+                                        text_color = "#FAFAFA"
+                                    else:
+                                        text_color = "#000000"
+                                    grid_color = "rgba(255,255,255,0.12)" if theme_base == "dark" else "rgba(0,0,0,0.12)"
                                         
-                                        # Adicionar barra final
-                                        labels_waterfall_tc.append("Total")
-                                        values_waterfall_tc.append(total_real)
-                                        measures_waterfall_tc.append("total")
+                                    cor_vermelha = "#ff5733"
+                                    cor_verde = "#1e8449"
+                                    cor_azul = "#1e6ba8"
+                                    cor_laranja = "#ff9800"
+                                    cor_amarela = "#ffd700"
                                         
-                                        # Criar gráfico waterfall
-                                        theme_base = st.get_option("theme.base") or "light"
-                                        if theme_base == "dark":
-                                            text_color = "#FAFAFA"
+                                    # Criar anotações
+                                    annotations_custom = []
+                                    cumulative = 0
+                                        
+                                    for measure, value, label in zip(measures_waterfall_tc, values_waterfall_tc, labels_waterfall_tc):
+                                        if value >= 0:
+                                            text_fmt = f"+{value:,.1f}"
                                         else:
-                                            text_color = "#000000"
-                                        grid_color = "rgba(255,255,255,0.12)" if theme_base == "dark" else "rgba(0,0,0,0.12)"
-                                        
-                                        cor_vermelha = "#ff5733"
-                                        cor_verde = "#1e8449"
-                                        cor_azul = "#1e6ba8"
-                                        cor_laranja = "#ff9800"
-                                        cor_amarela = "#ffd700"
-                                        
-                                        # Criar anotações
-                                        annotations_custom = []
-                                        cumulative = 0
-                                        
-                                        for measure, value, label in zip(measures_waterfall_tc, values_waterfall_tc, labels_waterfall_tc):
+                                            text_fmt = f"{value:,.1f}"
+                                            
+                                        if measure == "absolute":
+                                            y_pos = value
+                                            cumulative = value
+                                            text_fmt_abs = f"{abs(value):,.1f}"
+                                            annotations_custom.append(dict(
+                                                x=label, y=y_pos, text=text_fmt_abs,
+                                                showarrow=False, font=dict(color=cor_azul, size=8), yshift=15,
+                                                xref="x", yref="y"
+                                            ))
+                                        elif measure == "relative":
                                             if value >= 0:
-                                                text_fmt = f"+{value:,.1f}"
+                                                cor_texto = cor_vermelha
+                                                y_pos = cumulative + value
+                                                yshift_val = 15
                                             else:
-                                                text_fmt = f"{value:,.1f}"
-                                            
-                                            if measure == "absolute":
-                                                y_pos = value
-                                                cumulative = value
-                                                text_fmt_abs = f"{abs(value):,.1f}"
-                                                annotations_custom.append(dict(
-                                                    x=label, y=y_pos, text=text_fmt_abs,
-                                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=15,
-                                                    xref="x", yref="y"
-                                                ))
-                                            elif measure == "relative":
-                                                if value >= 0:
-                                                    cor_texto = cor_vermelha
-                                                    y_pos = cumulative + value
-                                                    yshift_val = 15
-                                                else:
-                                                    cor_texto = cor_verde
-                                                    y_pos = cumulative + value
-                                                    yshift_val = -15
+                                                cor_texto = cor_verde
+                                                y_pos = cumulative + value
+                                                yshift_val = -15
                                                 
-                                                if label == "Flex Bud - BUD":
-                                                    cor_texto = cor_amarela
-                                                elif label == "Outros":
-                                                    cor_texto = cor_laranja
+                                            if label == "Flex Bud - BUD":
+                                                cor_texto = cor_amarela
+                                            elif label == "Outros":
+                                                cor_texto = cor_laranja
                                                 
-                                                annotations_custom.append(dict(
-                                                    x=label, y=y_pos, text=text_fmt,
-                                                    showarrow=False, font=dict(color=cor_texto, size=8), yshift=yshift_val,
-                                                    xref="x", yref="y", yanchor="middle"
-                                                ))
-                                                cumulative += value
-                                            elif measure == "total":
-                                                y_pos = value
-                                                text_fmt_total = f"{abs(value):,.1f}"
-                                                annotations_custom.append(dict(
-                                                    x=label, y=y_pos, text=text_fmt_total,
-                                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=20,
-                                                    xref="x", yref="y", yanchor="bottom"
-                                                ))
-                                        
-                                        # Preparar informações detalhadas para o tooltip
-                                        hovertexts_budget = []
-                                        for i, (label, value, measure) in enumerate(zip(labels_waterfall_tc, values_waterfall_tc, measures_waterfall_tc)):
-                                            # Calcular valor acumulado até este ponto
-                                            if measure == "absolute":
-                                                acumulado = value
-                                                tipo_medida = "Valor Inicial (BUD)"
-                                            elif measure == "total":
-                                                acumulado = value
-                                                tipo_medida = "Valor Final (Total)"
-                                            else:
-                                                # Calcular acumulado para medidas relativas
-                                                acumulado = bud_total
-                                                for j in range(1, i):
-                                                    if measures_waterfall_tc[j] == "relative":
-                                                        acumulado += values_waterfall_tc[j]
-                                                acumulado += value
-                                                tipo_medida = "Variação"
-                                            
-                                            # Formatar valor
-                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                valor_formatado = f"{value:,.2f}"
-                                                acumulado_formatado = f"{acumulado:,.2f}"
-                                            else:
-                                                sufixo = ""
-                                                if fator_conversao:
-                                                    if fator_conversao == "K (milhares)":
-                                                        sufixo = " K"
-                                                    elif fator_conversao == "M (Milhões)":
-                                                        sufixo = " M"
-                                                valor_formatado = f"{value:,.2f}{sufixo}"
-                                                acumulado_formatado = f"{acumulado:,.2f}{sufixo}"
-                                            
-                                            # Criar texto do tooltip detalhado
-                                            hover_text = (
-                                                f"<b>{label}</b><br>"
-                                                f"Tipo: {tipo_medida}<br>"
-                                                f"Valor: {moeda_simbolo} {valor_formatado}<br>"
-                                                f"Acumulado: {moeda_simbolo} {acumulado_formatado}<br>"
-                                                f"Análise: Real x Budget<br>"
-                                                f"Modo: {tipo_visualizacao}"
-                                            )
-                                            hovertexts_budget.append(hover_text)
-                                        
-                                        # Criar figura do waterfall
-                                        fig = go.Figure(go.Waterfall(
-                                            name="",  # Remover nome para evitar "undefined"
-                                            orientation="v",
-                                            measure=measures_waterfall_tc,
-                                            x=labels_waterfall_tc,
-                                            y=values_waterfall_tc,
-                                            textposition="none",
-                                            hovertext=hovertexts_budget,
-                                            hovertemplate="%{hovertext}<extra></extra>",
-                                            connector={"line": {"color": "rgba(0, 0, 0, 0)"}},
-                                            increasing={"marker": {"color": cor_vermelha, "line": {"width": 0}}},
-                                            decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
-                                            totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
-                                        ))
-                                        # Forçar largura do waterfall para alinhar com overlays go.Bar
-                                        fig.update_traces(width=0.8, selector=dict(type="waterfall"))
-                                        
-                                        # Adicionar overlay para "Flex Bud - BUD" (amarelo)
-                                        if "Flex Bud - BUD" in labels_waterfall_tc:
-                                            idx_flex = labels_waterfall_tc.index("Flex Bud - BUD")
-                                            valor_flex = values_waterfall_tc[idx_flex]
-                                            cumulative_flex = bud_total
-                                            if valor_flex >= 0:
-                                                base_flex = cumulative_flex
-                                            else:
-                                                base_flex = cumulative_flex + valor_flex
-                                            
-                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
-                                            fig.add_trace(go.Bar(
-                                                x=['Flex Bud - BUD'],
-                                                y=[abs(valor_flex)],
-                                                base=[base_flex],
-                                                marker_color=cor_amarela,
-                                                marker_line=dict(width=2, color=cor_amarela),
-                                                opacity=1.0,
-                                                showlegend=False,
-                                                textposition='none',
-                                                width=0.82,
+                                            annotations_custom.append(dict(
+                                                x=label, y=y_pos, text=text_fmt,
+                                                showarrow=False, font=dict(color=cor_texto, size=8), yshift=yshift_val,
+                                                xref="x", yref="y", yanchor="middle"
+                                            ))
+                                            cumulative += value
+                                        elif measure == "total":
+                                            y_pos = value
+                                            text_fmt_total = f"{abs(value):,.1f}"
+                                            annotations_custom.append(dict(
+                                                x=label, y=y_pos, text=text_fmt_total,
+                                                showarrow=False, font=dict(color=cor_azul, size=8), yshift=20,
+                                                xref="x", yref="y", yanchor="bottom"
                                             ))
                                         
-                                        # Adicionar overlay para "Outros" (laranja)
-                                        if "Outros" in labels_waterfall_tc:
-                                            idx_outros = labels_waterfall_tc.index("Outros")
-                                            valor_outros = values_waterfall_tc[idx_outros]
-                                            cumulative_outros = bud_total
-                                            if "Flex Bud - BUD" in labels_waterfall_tc:
-                                                cumulative_outros += values_waterfall_tc[labels_waterfall_tc.index("Flex Bud - BUD")]
-                                            for i in range(2, idx_outros):
-                                                cumulative_outros += values_waterfall_tc[i]
-                                            
-                                            if valor_outros >= 0:
-                                                base_outros = cumulative_outros
-                                            else:
-                                                base_outros = cumulative_outros + valor_outros
-                                            
-                                            # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
-                                            fig.add_trace(go.Bar(
-                                                x=['Outros'],
-                                                y=[abs(valor_outros)],
-                                                base=[base_outros],
-                                                marker_color=cor_laranja,
-                                                marker_line=dict(width=2, color=cor_laranja),
-                                                opacity=1.0,
-                                                showlegend=False,
-                                                textposition='none',
-                                                width=0.82,
-                                            ))
-                                        
-                                        # Calcular range do eixo Y
-                                        if values_waterfall_tc:
-                                            cumulative = 0
-                                            all_y_positions = []
-                                            
-                                            for measure, value in zip(measures_waterfall_tc, values_waterfall_tc):
-                                                if measure == "absolute":
-                                                    cumulative = value
-                                                    all_y_positions.append(value)
-                                                elif measure == "relative":
-                                                    cumulative += value
-                                                    all_y_positions.append(cumulative)
-                                                elif measure == "total":
-                                                    all_y_positions.append(value)
-                                            
-                                            if all_y_positions:
-                                                min_bar_pos = min(all_y_positions)
-                                                max_bar_pos = max(all_y_positions)
-                                                min_ann_pos = min_bar_pos
-                                                max_ann_pos = max_bar_pos
-                                                
-                                                for ann in annotations_custom:
-                                                    y_ann = ann['y']
-                                                    yshift = ann.get('yshift', 0)
-                                                    if yshift > 0:
-                                                        ann_top = y_ann + abs(y_ann) * 0.08
-                                                        if ann_top > max_ann_pos:
-                                                            max_ann_pos = ann_top
-                                                    elif yshift < 0:
-                                                        ann_bottom = y_ann - abs(y_ann) * 0.08
-                                                        if ann_bottom < min_ann_pos:
-                                                            min_ann_pos = ann_bottom
-                                                
-                                                range_span = max_ann_pos - min_ann_pos
-                                                if range_span > 0:
-                                                    y_min = min_ann_pos - range_span * 0.10
-                                                    y_max = max_ann_pos + range_span * 0.10
-                                                else:
-                                                    y_min = min_ann_pos * 0.90 if min_ann_pos > 0 else min_ann_pos * 1.10
-                                                    y_max = max_ann_pos * 1.10 if max_ann_pos > 0 else max_ann_pos * 0.90
-                                                
-                                                if min_bar_pos >= 0 and y_min < 0:
-                                                    y_min = 0
-                                            else:
-                                                y_min = 0
-                                                y_max = 1
+                                    # Preparar informações detalhadas para o tooltip
+                                    hovertexts_budget = []
+                                    for i, (label, value, measure) in enumerate(zip(labels_waterfall_tc, values_waterfall_tc, measures_waterfall_tc)):
+                                        # Calcular valor acumulado até este ponto
+                                        if measure == "absolute":
+                                            acumulado = value
+                                            tipo_medida = "Valor Inicial (BUD)"
+                                        elif measure == "total":
+                                            acumulado = value
+                                            tipo_medida = "Valor Final (Total)"
                                         else:
-                                            y_min = 0
-                                            y_max = 1
-                                        
-                                        # Atualizar layout (sem título no gráfico)
-                                        fig.update_layout(
-                                            barmode='overlay',
-                                            title="",  # Remover título do gráfico completamente
-                                            xaxis_title="Categoria",
-                                            yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
-                                            height=560,
-                                            showlegend=False,
-                                            plot_bgcolor="rgba(0,0,0,0)",
-                                            paper_bgcolor="rgba(0,0,0,0)",
-                                            margin=dict(l=80, r=40, t=50, b=40),
-                                            font=dict(color=text_color, size=10),
-                                            hovermode='closest',
-                                            hoverlabel=dict(
-                                                bgcolor="rgba(255, 255, 255, 0.95)",
-                                                bordercolor="#1e6ba8",
-                                                font=dict(
-                                                    size=12,
-                                                    family="Arial",
-                                                    color="#000000"
-                                                ),
-                                                align="left"
-                                            ),
-                                            xaxis=dict(
-                                                showgrid=False,
-                                                zeroline=False,
-                                                showline=True,
-                                                linecolor=grid_color,
-                                                linewidth=1,
-                                                tickmode='linear',
-                                                ticklen=5,
-                                                tickcolor=grid_color,
-                                                tickwidth=1,
-                                                ticks="outside",
-                                                title=dict(font=dict(size=10)),
-                                                tickfont=dict(size=9)
-                                            ),
-                                            yaxis=dict(
-                                                showgrid=False,
-                                                zeroline=False,
-                                                showline=True,
-                                                linecolor=grid_color,
-                                                linewidth=1,
-                                                range=[y_min, y_max],
-                                                title=dict(font=dict(size=10)),
-                                                tickfont=dict(size=9)
-                                            )
-                                        )
-                                        
-                                        # Adicionar anotações
-                                        fig.update_layout(annotations=annotations_custom)
-                                        
-                                        # Exibir título acima do gráfico
-                                        st.markdown("### 🌊 Waterfall Analysis — TC Veículos")
-                                        
-                                        # Exibir gráfico
-                                        plotly_chart_safe(fig, use_container_width=True)
-                                        
-                                        # Exibir resumo (mesmo formato da tab Real)
-                                        st.markdown("---")
-                                        col1, col2, col3, col4 = st.columns(4)
-                                        
-                                        # Calcular valores para o resumo
-                                        valor_inicial_budget = bud_total  # BUD (valor inicial)
-                                        valor_final_budget = total_real  # Total (valor final)
-                                        variacao_total_budget = total_real - bud_total  # Total - BUD
-                                        
-                                        # Calcular percentual de variação
-                                        percentual_change_budget = (variacao_total_budget / bud_total * 100) if bud_total != 0 else 0
-                                        
-                                        # Formatar valores conforme tipo de visualização
+                                            # Calcular acumulado para medidas relativas
+                                            acumulado = bud_total
+                                            for j in range(1, i):
+                                                if measures_waterfall_tc[j] == "relative":
+                                                    acumulado += values_waterfall_tc[j]
+                                            acumulado += value
+                                            tipo_medida = "Variação"
+                                            
+                                        # Formatar valor
                                         if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                            valor_inicial_formatado = f"{valor_inicial_budget:,.2f}"
-                                            valor_final_formatado = f"{valor_final_budget:,.2f}"
-                                            variacao_formatado = f"{variacao_total_budget:,.2f}"
+                                            valor_formatado = f"{value:,.2f}"
+                                            acumulado_formatado = f"{acumulado:,.2f}"
                                         else:
                                             sufixo = ""
                                             if fator_conversao:
@@ -3985,471 +3788,686 @@ else:
                                                     sufixo = " K"
                                                 elif fator_conversao == "M (Milhões)":
                                                     sufixo = " M"
-                                            valor_inicial_formatado = f"{valor_inicial_budget:,.2f}{sufixo}"
-                                            valor_final_formatado = f"{valor_final_budget:,.2f}{sufixo}"
-                                            variacao_formatado = f"{variacao_total_budget:,.2f}{sufixo}"
-                                        
-                                        # Formatar período selecionado para exibição
-                                        if periodos_selecionados_budget:
-                                            if len(periodos_selecionados_budget) == 1:
-                                                periodo_display = str(periodos_selecionados_budget[0])
-                                            else:
-                                                periodo_display = f"{len(periodos_selecionados_budget)} períodos"
-                                        else:
-                                            periodo_display = "N/A"
-                                        
-                                        with col1:
-                                            st.metric("BUD", periodo_display, valor_inicial_formatado)
-                                        with col2:
-                                            st.metric("Total", periodo_display, valor_final_formatado)
-                                        with col3:
-                                            st.metric("Variação Total", variacao_formatado, f"{percentual_change_budget:.1f}%")
-                                        with col4:
-                                            st.metric("Categorias", len(labels_cats), "")
-                                        
-                                        st.markdown("---")
-                                        
-                                        # Selecionador de visualização
-                                        modo_tabela = st.radio(
-                                            "📊 **Visualização:**",
-                                            ["Fixo/Variável", "Total"],
-                                            index=0,
-                                            horizontal=True,
-                                            key="modo_tabela_budget"
+                                            valor_formatado = f"{value:,.2f}{sufixo}"
+                                            acumulado_formatado = f"{acumulado:,.2f}{sufixo}"
+                                            
+                                        # Criar texto do tooltip detalhado
+                                        hover_text = (
+                                            f"<b>{label}</b><br>"
+                                            f"Tipo: {tipo_medida}<br>"
+                                            f"Valor: {moeda_simbolo} {valor_formatado}<br>"
+                                            f"Acumulado: {moeda_simbolo} {acumulado_formatado}<br>"
+                                            f"Análise: Real x Budget<br>"
+                                            f"Modo: {tipo_visualizacao}"
                                         )
+                                        hovertexts_budget.append(hover_text)
                                         
-                                        # Calcular resumo geral
-                                        linha_resumo_geral = {
-                                            'BUD': df_tabela_total_agrupado['BUD'].sum(),
-                                            'Flex Bud - BUD': df_tabela_total_agrupado['Flex Bud - BUD'].sum(),
-                                            'Flex BUD': df_tabela_total_agrupado['Flex BUD'].sum(),
-                                            'Total - Flex Bud': df_tabela_total_agrupado['Total - Flex Bud'].sum(),
-                                            'Custo FP': df_tabela_total_agrupado['Custo FP'].sum(),
-                                            'Total / Flex Bud': df_tabela_total_agrupado['Custo FP'].sum() / df_tabela_total_agrupado['Flex BUD'].sum() if df_tabela_total_agrupado['Flex BUD'].sum() != 0 else 0
-                                        }
+                                    # Criar figura do waterfall
+                                    fig = go.Figure(go.Waterfall(
+                                        name="",  # Remover nome para evitar "undefined"
+                                        orientation="v",
+                                        measure=measures_waterfall_tc,
+                                        x=labels_waterfall_tc,
+                                        y=values_waterfall_tc,
+                                        textposition="none",
+                                        hovertext=hovertexts_budget,
+                                        hovertemplate="%{hovertext}<extra></extra>",
+                                        connector={"line": {"color": "rgba(0, 0, 0, 0)"}},
+                                        increasing={"marker": {"color": cor_vermelha, "line": {"width": 0}}},
+                                        decreasing={"marker": {"color": cor_verde, "line": {"width": 0}}},
+                                        totals={"marker": {"color": cor_azul, "line": {"width": 0}}}
+                                    ))
+                                    # Forçar largura do waterfall para alinhar com overlays go.Bar
+                                    fig.update_traces(width=0.8, selector=dict(type="waterfall"))
                                         
-                                        # Formatar resumo
-                                        linha_resumo_geral_formatado = {}
-                                        for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
-                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}"
-                                            else:
-                                                sufixo = ""
-                                                if fator_conversao:
-                                                    if fator_conversao == "K (milhares)":
-                                                        sufixo = " K"
-                                                    elif fator_conversao == "M (Milhões)":
-                                                        sufixo = " M"
-                                                linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}{sufixo}"
-                                        
-                                        linha_resumo_geral_formatado['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_geral['Total / Flex Bud'])
-                                        
-                                        st.markdown("### 📊 Resumo Geral")
-                                        ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
-                                        num_colunas = min(len(ordem_colunas), 6)
-                                        if num_colunas > 0:
-                                            cols = st.columns(num_colunas, gap="small")
-                                            for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
-                                                if col_nome in linha_resumo_geral_formatado:
-                                                    with cols[idx]:
-                                                        valor_formatado = linha_resumo_geral_formatado.get(col_nome, '-')
-                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
-                                        
-                                        # Exibir volumes (Real e Budget) logo abaixo do Resumo Geral (igual à tab Real)
-                                        # Recalcular volumes a partir dos dados filtrados para garantir que estejam corretos
-                                        st.markdown("<br>", unsafe_allow_html=True)
-                                        
-                                        # Recalcular volume real dos dados filtrados
-                                        volume_real_calculado = 0
-                                        if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
-                                            # Aplicar mesmos filtros do df_filtrado_waterfall_tc
-                                            df_vol_real_para_calculo = df_volume.copy()
-                                            if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0:
-                                                colunas_filtro_vol = ['Veículo', 'Oficina', 'USI', 'Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Fornecedor', 'Fornec.', 'Tipo']
-                                                for col_filtro in colunas_filtro_vol:
-                                                    if col_filtro in df_filtrado_waterfall_tc.columns and col_filtro in df_vol_real_para_calculo.columns:
-                                                        valores_filtrados = df_filtrado_waterfall_tc[col_filtro].dropna().unique()
-                                                        if len(valores_filtrados) > 0:
-                                                            df_vol_real_para_calculo = df_vol_real_para_calculo[df_vol_real_para_calculo[col_filtro].isin(valores_filtrados)].copy()
-                                            
-                                            # Filtrar pelos períodos selecionados (mesma lógica do budget)
-                                            if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                                if col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_vol_real_para_calculo.columns:
-                                                    df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                                elif 'Período' in df_vol_real_para_calculo.columns:
-                                                    periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                    df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período'].astype(str).isin(periodos_str)].copy()
-                                                    
-                                                    # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
-                                                    if len(df_vol_real_periodo) == 0:
-                                                        meses_periodos = []
-                                                        for p in periodos_selecionados_budget:
-                                                            p_str = str(p)
-                                                            if ' ' in p_str:
-                                                                mes = p_str.split(' ')[0]
-                                                                meses_periodos.append(mes)
-                                                        if meses_periodos:
-                                                            df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período'].astype(str).isin(meses_periodos)].copy()
-                                                else:
-                                                    df_vol_real_periodo = pd.DataFrame()
-                                                
-                                                if len(df_vol_real_periodo) > 0:
-                                                    volume_real_calculado = df_vol_real_periodo['Volume'].sum()
-                                            else:
-                                                # Se não há períodos selecionados, usar todos os dados filtrados
-                                                volume_real_calculado = df_vol_real_para_calculo['Volume'].sum()
-                                        
-                                        # Recalcular volume budget dos dados filtrados
-                                        volume_budget_calculado = 0
-                                        if df_budget_vol_filtrado is not None and not df_budget_vol_filtrado.empty and 'Volume' in df_budget_vol_filtrado.columns:
-                                            # Filtrar budget volume pelos períodos selecionados
-                                            if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
-                                                if col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
-                                                    df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
-                                                elif 'Período' in df_budget_vol_filtrado.columns:
-                                                    periodos_str = [str(p) for p in periodos_selecionados_budget]
-                                                    df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
-                                                    
-                                                    # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
-                                                    if len(df_budget_vol_periodo) == 0:
-                                                        meses_periodos = []
-                                                        for p in periodos_selecionados_budget:
-                                                            p_str = str(p)
-                                                            if ' ' in p_str:
-                                                                mes = p_str.split(' ')[0]
-                                                                meses_periodos.append(mes)
-                                                        if meses_periodos:
-                                                            df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(meses_periodos)].copy()
-                                                else:
-                                                    df_budget_vol_periodo = pd.DataFrame()
-                                                
-                                                if len(df_budget_vol_periodo) > 0:
-                                                    volume_budget_calculado = df_budget_vol_periodo['Volume'].sum()
-                                        
-                                        try:
-                                            volume_real_val = float(volume_real_calculado) if pd.notna(volume_real_calculado) else 0.0
-                                            volume_budget_val = float(volume_budget_calculado) if pd.notna(volume_budget_calculado) else 0.0
-                                        except (ValueError, TypeError):
-                                            volume_real_val = 0.0
-                                            volume_budget_val = 0.0
-                                        
-                                        volume_real_formatado = f"{volume_real_val:,.0f}"
-                                        volume_budget_formatado = f"{volume_budget_val:,.0f}"
-                                        
-                                        col_vol_budget, col_vol_real = st.columns(2, gap="small")
-                                        with col_vol_budget:
-                                            st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Budget ({periodo_display}):</strong> {volume_budget_formatado}</div>", unsafe_allow_html=True)
-                                        with col_vol_real:
-                                            st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Real ({periodo_display}):</strong> {volume_real_formatado}</div>", unsafe_allow_html=True)
-                                        st.markdown("<br>", unsafe_allow_html=True)
-                                        
-                                        # Criar estrutura hierárquica com expanders
-                                        if modo_tabela == "Fixo/Variável":
-                                            for custo in ['Fixo', 'Variável']:
-                                                df_custo = df_tabela_total_agrupado[df_tabela_total_agrupado['Custo'] == custo].copy()
-                                                
-                                                if len(df_custo) > 0:
-                                                    total_custo = df_custo['Custo FP'].sum()
-                                                    total_bud_custo = df_custo['BUD'].sum() if 'BUD' in df_custo.columns else 0
-                                                    total_custo_formatado = f"{total_custo:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_custo:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_custo:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_custo:,.2f}")
-                                                    
-                                                    # Mostrar se há valor real OU budget (não ignorar categorias só com budget)
-                                                    if (abs(total_custo) > 0.0001 or abs(total_bud_custo) > 0.0001) and pd.notna(total_custo):
-                                                        with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
-                                                            # Nível 2: Type 05
-                                                            if 'Type 05' in df_custo.columns:
-                                                                for type05 in sorted(df_custo['Type 05'].dropna().unique()):
-                                                                    df_type05 = df_custo[df_custo['Type 05'] == type05].copy()
-                                                                    
-                                                                    if len(df_type05) > 0:
-                                                                        total_type05 = df_type05['Custo FP'].sum()
-                                                                        total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
-                                                                        
-                                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                                            # Nível 3: Type 06
-                                                                            if 'Type 06' in df_type05.columns:
-                                                                                    for type06 in sorted(df_type05['Type 06'].dropna().unique()):
-                                                                                        df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
-                                                                                        
-                                                                                        if len(df_type06) > 0:
-                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
-                                                                                            colunas_numericas_check = [col for col in df_type06.columns 
-                                                                                                                      if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                      and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                            if colunas_numericas_check:
-                                                                                                df_type06_check = df_type06[colunas_numericas_check].fillna(0)
-                                                                                                tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
-                                                                                                if not tem_valores_nao_zerados:
-                                                                                                    continue  # Pular Type 06 completamente zerado
-                                                                                            else:
-                                                                                                if 'Custo FP' in df_type06.columns:
-                                                                                                    if df_type06['Custo FP'].fillna(0).abs().sum() <= 0.0001:
-                                                                                                        continue  # Pular Type 06 completamente zerado
-                                                                                            
-                                                                                            # Verificar se a coluna 'Total' existe antes de acessá-la
-                                                                                            if 'Custo FP' in df_type06.columns:
-                                                                                                total_type06 = df_type06['Custo FP'].sum()
-                                                                                            else:
-                                                                                                total_type06 = 0.0
-                                                                                            total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
-                                                                                            
-                                                                                            # Nível 4: Account (se existir)
-                                                                                            if 'Account' in df_type06.columns:
-                                                                                                    colunas_numericas = [col for col in df_type06.columns 
-                                                                                                                        if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                        and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                                    if colunas_numericas:
-                                                                                                        df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                                        df_type06_filtrado = df_type06[
-                                                                                                            df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                                        ].copy()
-                                                                                                    else:
-                                                                                                        df_type06_filtrado = df_type06.copy()
-                                                                                                    
-                                                                                                    if len(df_type06_filtrado) > 0:
-                                                                                                        # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                        # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                        st.markdown("---")  # Separador visual
-                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                        with st.container():
-                                                                                                            # Criar tabela
-                                                                                                            colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
-                                                                                                            colunas_numericas = [col for col in df_type06_filtrado.columns 
-                                                                                                                                if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Custo', 'Período']]
-                                                                                                            colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                                            colunas_display = colunas_id + colunas_ordenadas
-                                                                                                            df_display = df_type06_filtrado[colunas_display].copy()
-                                                                                                            
-                                                                                                            # Formatar valores
-                                                                                                            for col in df_display.columns:
-                                                                                                                if col not in colunas_id:
-                                                                                                                    if col == 'Total / Flex Bud':
-                                                                                                                        df_display[col] = df_display[col].apply(
-                                                                                                                            lambda x: formatar_ratio_com_barra(x) if pd.notna(x) and isinstance(x, (int, float)) else formatar_ratio_com_barra(0)
-                                                                                                                        )
-                                                                                                                    elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                                                                        else:
-                                                                                                                            sufixo = ""
-                                                                                                                            if fator_conversao:
-                                                                                                                                if fator_conversao == "K (milhares)":
-                                                                                                                                    sufixo = " K"
-                                                                                                                                elif fator_conversao == "M (Milhões)":
-                                                                                                                                    sufixo = " M"
-                                                                                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                                                            
-                                                                                                            # Calcular resumo
-                                                                                                            linha_resumo_type06 = {}
-                                                                                                            linha_resumo_formatado_type06 = {}
-                                                                                                            
-                                                                                                            linha_resumo_type06['BUD'] = df_type06_filtrado['BUD'].sum()
-                                                                                                            linha_resumo_type06['Flex Bud - BUD'] = df_type06_filtrado['Flex Bud - BUD'].sum()
-                                                                                                            linha_resumo_type06['Flex BUD'] = df_type06_filtrado['Flex BUD'].sum()
-                                                                                                            linha_resumo_type06['Total - Flex Bud'] = df_type06_filtrado['Total - Flex Bud'].sum()
-                                                                                                            linha_resumo_type06['Custo FP'] = df_type06_filtrado['Custo FP'].sum()
-                                                                                                            linha_resumo_type06['Total / Flex Bud'] = df_type06_filtrado['Custo FP'].sum() / df_type06_filtrado['Flex BUD'].sum() if df_type06_filtrado['Flex BUD'].sum() != 0 else 0
-                                                                                                            
-                                                                                                            # Formatar valores
-                                                                                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
-                                                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                    linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
-                                                                                                                else:
-                                                                                                                    sufixo = ""
-                                                                                                                    if fator_conversao:
-                                                                                                                        if fator_conversao == "K (milhares)":
-                                                                                                                            sufixo = " K"
-                                                                                                                        elif fator_conversao == "M (Milhões)":
-                                                                                                                            sufixo = " M"
-                                                                                                                    linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
-                                                                                                            
-                                                                                                            linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
-                                                                                                            
-                                                                                                            # Exibir resumo e tabela
-                                                                                                            ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
-                                                                                                            num_colunas = min(len(ordem_colunas), 6)
-                                                                                                            if num_colunas > 0:
-                                                                                                                cols = st.columns(num_colunas, gap="small")
-                                                                                                                for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
-                                                                                                                    if col_nome in linha_resumo_formatado_type06:
-                                                                                                                        with cols[idx]:
-                                                                                                                            valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                                            st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
-                                                                                                            
-                                                                                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
-                                                                                                            st.markdown(html_table, unsafe_allow_html=True)
+                                    # Adicionar overlay para "Flex Bud - BUD" (amarelo)
+                                    if "Flex Bud - BUD" in labels_waterfall_tc:
+                                        idx_flex = labels_waterfall_tc.index("Flex Bud - BUD")
+                                        valor_flex = values_waterfall_tc[idx_flex]
+                                        cumulative_flex = bud_total
+                                        if valor_flex >= 0:
+                                            base_flex = cumulative_flex
                                         else:
-                                            # Modo Total: estrutura hierárquica sem separação Fixo/Variável
-                                            # Agrupar por Type 05, Type 06, Account (somando Fixo + Variável)
-                                            colunas_agrupamento_total = []
-                                            if 'Type 05' in df_tabela_total_agrupado.columns:
-                                                colunas_agrupamento_total.append('Type 05')
-                                            if 'Type 06' in df_tabela_total_agrupado.columns:
-                                                colunas_agrupamento_total.append('Type 06')
-                                            if chosen_dim_budget in df_tabela_total_agrupado.columns and chosen_dim_budget not in colunas_agrupamento_total:
-                                                colunas_agrupamento_total.append(chosen_dim_budget)
+                                            base_flex = cumulative_flex + valor_flex
                                             
-                                            if len(colunas_agrupamento_total) > 0:
-                                                df_total_agrupado = df_tabela_total_agrupado.groupby(colunas_agrupamento_total).agg({
-                                                    'BUD': 'sum',
-                                                    'Flex Bud - BUD': 'sum',
-                                                    'Flex BUD': 'sum',
-                                                    'Total - Flex Bud': 'sum',
-                                                    'Custo FP': 'sum'
-                                                }).reset_index()
+                                        # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
+                                        fig.add_trace(go.Bar(
+                                            x=['Flex Bud - BUD'],
+                                            y=[abs(valor_flex)],
+                                            base=[base_flex],
+                                            marker_color=cor_amarela,
+                                            marker_line=dict(width=2, color=cor_amarela),
+                                            opacity=1.0,
+                                            showlegend=False,
+                                            textposition='none',
+                                            width=0.82,
+                                        ))
+                                        
+                                    # Adicionar overlay para "Outros" (laranja)
+                                    if "Outros" in labels_waterfall_tc:
+                                        idx_outros = labels_waterfall_tc.index("Outros")
+                                        valor_outros = values_waterfall_tc[idx_outros]
+                                        cumulative_outros = bud_total
+                                        if "Flex Bud - BUD" in labels_waterfall_tc:
+                                            cumulative_outros += values_waterfall_tc[labels_waterfall_tc.index("Flex Bud - BUD")]
+                                        for i in range(2, idx_outros):
+                                            cumulative_outros += values_waterfall_tc[i]
+                                            
+                                        if valor_outros >= 0:
+                                            base_outros = cumulative_outros
+                                        else:
+                                            base_outros = cumulative_outros + valor_outros
+                                            
+                                        # Overlay com borda na mesma cor para cobrir completamente a barra do waterfall
+                                        fig.add_trace(go.Bar(
+                                            x=['Outros'],
+                                            y=[abs(valor_outros)],
+                                            base=[base_outros],
+                                            marker_color=cor_laranja,
+                                            marker_line=dict(width=2, color=cor_laranja),
+                                            opacity=1.0,
+                                            showlegend=False,
+                                            textposition='none',
+                                            width=0.82,
+                                        ))
+                                        
+                                    # Calcular range do eixo Y
+                                    if values_waterfall_tc:
+                                        cumulative = 0
+                                        all_y_positions = []
+                                            
+                                        for measure, value in zip(measures_waterfall_tc, values_waterfall_tc):
+                                            if measure == "absolute":
+                                                cumulative = value
+                                                all_y_positions.append(value)
+                                            elif measure == "relative":
+                                                cumulative += value
+                                                all_y_positions.append(cumulative)
+                                            elif measure == "total":
+                                                all_y_positions.append(value)
+                                            
+                                        if all_y_positions:
+                                            min_bar_pos = min(all_y_positions)
+                                            max_bar_pos = max(all_y_positions)
+                                            min_ann_pos = min_bar_pos
+                                            max_ann_pos = max_bar_pos
                                                 
-                                                # Recalcular Total / Flex Bud após agrupamento
-                                                df_total_agrupado['Total / Flex Bud'] = df_total_agrupado.apply(
-                                                    lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
-                                                    axis=1
-                                                )
+                                            for ann in annotations_custom:
+                                                y_ann = ann['y']
+                                                yshift = ann.get('yshift', 0)
+                                                if yshift > 0:
+                                                    ann_top = y_ann + abs(y_ann) * 0.08
+                                                    if ann_top > max_ann_pos:
+                                                        max_ann_pos = ann_top
+                                                elif yshift < 0:
+                                                    ann_bottom = y_ann - abs(y_ann) * 0.08
+                                                    if ann_bottom < min_ann_pos:
+                                                        min_ann_pos = ann_bottom
+                                                
+                                            range_span = max_ann_pos - min_ann_pos
+                                            if range_span > 0:
+                                                y_min = min_ann_pos - range_span * 0.10
+                                                y_max = max_ann_pos + range_span * 0.10
                                             else:
-                                                df_total_agrupado = df_tabela_total_agrupado.copy()
+                                                y_min = min_ann_pos * 0.90 if min_ann_pos > 0 else min_ann_pos * 1.10
+                                                y_max = max_ann_pos * 1.10 if max_ann_pos > 0 else max_ann_pos * 0.90
+                                                
+                                            if min_bar_pos >= 0 and y_min < 0:
+                                                y_min = 0
+                                        else:
+                                            y_min = 0
+                                            y_max = 1
+                                    else:
+                                        y_min = 0
+                                        y_max = 1
+                                        
+                                    # Atualizar layout (sem título no gráfico)
+                                    fig.update_layout(
+                                        barmode='overlay',
+                                        title="",  # Remover título do gráfico completamente
+                                        xaxis_title="Categoria",
+                                        yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
+                                        height=560,
+                                        showlegend=False,
+                                        plot_bgcolor="rgba(0,0,0,0)",
+                                        paper_bgcolor="rgba(0,0,0,0)",
+                                        margin=dict(l=80, r=40, t=50, b=40),
+                                        font=dict(color=text_color, size=10),
+                                        hovermode='closest',
+                                        hoverlabel=dict(
+                                            bgcolor="rgba(255, 255, 255, 0.95)",
+                                            bordercolor="#1e6ba8",
+                                            font=dict(
+                                                size=12,
+                                                family="Arial",
+                                                color="#000000"
+                                            ),
+                                            align="left"
+                                        ),
+                                        xaxis=dict(
+                                            showgrid=False,
+                                            zeroline=False,
+                                            showline=True,
+                                            linecolor=grid_color,
+                                            linewidth=1,
+                                            tickmode='linear',
+                                            ticklen=5,
+                                            tickcolor=grid_color,
+                                            tickwidth=1,
+                                            ticks="outside",
+                                            title=dict(font=dict(size=10)),
+                                            tickfont=dict(size=9)
+                                        ),
+                                        yaxis=dict(
+                                            showgrid=False,
+                                            zeroline=False,
+                                            showline=True,
+                                            linecolor=grid_color,
+                                            linewidth=1,
+                                            range=[y_min, y_max],
+                                            title=dict(font=dict(size=10)),
+                                            tickfont=dict(size=9)
+                                        )
+                                    )
+                                        
+                                    # Adicionar anotações
+                                    fig.update_layout(annotations=annotations_custom)
+                                        
+                                    # Exibir título acima do gráfico
+                                    st.markdown("### 🌊 Waterfall Analysis — TC Veículos")
+                                        
+                                    # Exibir gráfico
+                                    plotly_chart_safe(fig, use_container_width=True)
+                                        
+                                    # Exibir resumo (mesmo formato da tab Real)
+                                    st.markdown("---")
+                                    col1, col2, col3, col4 = st.columns(4)
+                                        
+                                    # Calcular valores para o resumo
+                                    valor_inicial_budget = bud_total  # BUD (valor inicial)
+                                    valor_final_budget = total_real  # Total (valor final)
+                                    variacao_total_budget = total_real - bud_total  # Total - BUD
+                                        
+                                    # Calcular percentual de variação
+                                    percentual_change_budget = (variacao_total_budget / bud_total * 100) if bud_total != 0 else 0
+                                        
+                                    # Formatar valores conforme tipo de visualização
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                        valor_inicial_formatado = f"{valor_inicial_budget:,.2f}"
+                                        valor_final_formatado = f"{valor_final_budget:,.2f}"
+                                        variacao_formatado = f"{variacao_total_budget:,.2f}"
+                                    else:
+                                        sufixo = ""
+                                        if fator_conversao:
+                                            if fator_conversao == "K (milhares)":
+                                                sufixo = " K"
+                                            elif fator_conversao == "M (Milhões)":
+                                                sufixo = " M"
+                                        valor_inicial_formatado = f"{valor_inicial_budget:,.2f}{sufixo}"
+                                        valor_final_formatado = f"{valor_final_budget:,.2f}{sufixo}"
+                                        variacao_formatado = f"{variacao_total_budget:,.2f}{sufixo}"
+                                        
+                                    # Formatar período selecionado para exibição
+                                    if periodos_selecionados_budget:
+                                        if len(periodos_selecionados_budget) == 1:
+                                            periodo_display = str(periodos_selecionados_budget[0])
+                                        else:
+                                            periodo_display = f"{len(periodos_selecionados_budget)} períodos"
+                                    else:
+                                        periodo_display = "N/A"
+                                        
+                                    with col1:
+                                        st.metric("BUD", periodo_display, valor_inicial_formatado)
+                                    with col2:
+                                        st.metric("Total", periodo_display, valor_final_formatado)
+                                    with col3:
+                                        st.metric("Variação Total", variacao_formatado, f"{percentual_change_budget:.1f}%")
+                                    with col4:
+                                        st.metric("Categorias", len(labels_cats), "")
+                                        
+                                    st.markdown("---")
+                                        
+                                    # Selecionador de visualização
+                                    modo_tabela = st.radio(
+                                        "📊 **Visualização:**",
+                                        ["Fixo/Variável", "Total"],
+                                        index=0,
+                                        horizontal=True,
+                                        key="modo_tabela_budget"
+                                    )
+                                        
+                                    # Calcular resumo geral
+                                    linha_resumo_geral = {
+                                        'BUD': df_tabela_total_agrupado['BUD'].sum(),
+                                        'Flex Bud - BUD': df_tabela_total_agrupado['Flex Bud - BUD'].sum(),
+                                        'Flex BUD': df_tabela_total_agrupado['Flex BUD'].sum(),
+                                        'Total - Flex Bud': df_tabela_total_agrupado['Total - Flex Bud'].sum(),
+                                        'Custo FP': df_tabela_total_agrupado['Custo FP'].sum(),
+                                        'Total / Flex Bud': df_tabela_total_agrupado['Custo FP'].sum() / df_tabela_total_agrupado['Flex BUD'].sum() if df_tabela_total_agrupado['Flex BUD'].sum() != 0 else 0
+                                    }
+                                        
+                                    # Formatar resumo
+                                    linha_resumo_geral_formatado = {}
+                                    for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
+                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                            linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}"
+                                        else:
+                                            sufixo = ""
+                                            if fator_conversao:
+                                                if fator_conversao == "K (milhares)":
+                                                    sufixo = " K"
+                                                elif fator_conversao == "M (Milhões)":
+                                                    sufixo = " M"
+                                            linha_resumo_geral_formatado[col] = f"{linha_resumo_geral[col]:,.2f}{sufixo}"
+                                        
+                                    linha_resumo_geral_formatado['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_geral['Total / Flex Bud'])
+                                        
+                                    st.markdown("### 📊 Resumo Geral")
+                                    ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
+                                    num_colunas = min(len(ordem_colunas), 6)
+                                    if num_colunas > 0:
+                                        cols = st.columns(num_colunas, gap="small")
+                                        for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
+                                            if col_nome in linha_resumo_geral_formatado:
+                                                with cols[idx]:
+                                                    valor_formatado = linha_resumo_geral_formatado.get(col_nome, '-')
+                                                    st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                        
+                                    # Exibir volumes (Real e Budget) logo abaixo do Resumo Geral (igual à tab Real)
+                                    # Recalcular volumes a partir dos dados filtrados para garantir que estejam corretos
+                                    st.markdown("<br>", unsafe_allow_html=True)
+                                        
+                                    # Recalcular volume real dos dados filtrados
+                                    volume_real_calculado = 0
+                                    if df_volume is not None and not df_volume.empty and 'Volume' in df_volume.columns:
+                                        # Aplicar mesmos filtros do df_filtrado_waterfall_tc
+                                        df_vol_real_para_calculo = df_volume.copy()
+                                        if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0:
+                                            colunas_filtro_vol = ['Veículo', 'Oficina', 'USI', 'Centrocst', 'Nºconta', 'Type 05', 'Type 06', 'Fornecedor', 'Fornec.', 'Tipo']
+                                            for col_filtro in colunas_filtro_vol:
+                                                if col_filtro in df_filtrado_waterfall_tc.columns and col_filtro in df_vol_real_para_calculo.columns:
+                                                    valores_filtrados = df_filtrado_waterfall_tc[col_filtro].dropna().unique()
+                                                    if len(valores_filtrados) > 0:
+                                                        df_vol_real_para_calculo = df_vol_real_para_calculo[df_vol_real_para_calculo[col_filtro].isin(valores_filtrados)].copy()
                                             
-                                            # Filtrar linhas zeradas
-                                            colunas_numericas = [col for col in df_total_agrupado.columns 
-                                                                if pd.api.types.is_numeric_dtype(df_total_agrupado[col]) 
-                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
-                                            if colunas_numericas:
-                                                df_total_agrupado_temp = df_total_agrupado[colunas_numericas].fillna(0)
-                                                df_total_agrupado = df_total_agrupado[
-                                                    df_total_agrupado_temp.abs().sum(axis=1) > 0.0001
-                                                ].copy()
-                                            
-                                            # Estrutura hierárquica com expanders (sem Custo)
-                                            if 'Type 05' in df_total_agrupado.columns:
-                                                for type05 in sorted(df_total_agrupado['Type 05'].dropna().unique()):
-                                                    df_type05 = df_total_agrupado[df_total_agrupado['Type 05'] == type05].copy()
+                                        # Filtrar pelos períodos selecionados (mesma lógica do budget)
+                                        if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                            if col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_vol_real_para_calculo.columns:
+                                                df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                            elif 'Período' in df_vol_real_para_calculo.columns:
+                                                periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                                df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período'].astype(str).isin(periodos_str)].copy()
                                                     
-                                                    if len(df_type05) > 0:
-                                                        total_type05 = df_type05['Custo FP'].sum()
-                                                        total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
-                                                        
-                                                        # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
-                                                            # Nível 2: Type 06
-                                                            if 'Type 06' in df_type05.columns:
-                                                                    for type06 in sorted(df_type05['Type 06'].dropna().unique()):
-                                                                        df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
-                                                                        
-                                                                        if len(df_type06) > 0:
-                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
-                                                                            colunas_numericas_check = [col for col in df_type06.columns 
-                                                                                                      if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                      and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                            if colunas_numericas_check:
-                                                                                df_type06_check = df_type06[colunas_numericas_check].fillna(0)
-                                                                                tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
-                                                                                if not tem_valores_nao_zerados:
-                                                                                    continue  # Pular Type 06 completamente zerado
-                                                                            else:
-                                                                                if 'Custo FP' in df_type06.columns:
-                                                                                    if df_type06['Custo FP'].fillna(0).abs().sum() <= 0.0001:
-                                                                                        continue  # Pular Type 06 completamente zerado
-                                                                            
-                                                                            # Verificar se a coluna 'Total' existe antes de acessá-la
-                                                                            if 'Custo FP' in df_type06.columns:
-                                                                                total_type06 = df_type06['Custo FP'].sum()
-                                                                            else:
-                                                                                total_type06 = 0.0
-                                                                            total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
-                                                                            
-                                                                            # Nível 3: Account (se existir)
-                                                                            if 'Account' in df_type06.columns:
-                                                                                # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
-                                                                                colunas_numericas = [col for col in df_type06.columns 
-                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                if colunas_numericas:
-                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                    df_type06_filtrado = df_type06[
-                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                    ].copy()
-                                                                                else:
-                                                                                    df_type06_filtrado = df_type06.copy()
-                                                                                
-                                                                                # Só exibir se houver dados após filtrar
-                                                                                if len(df_type06_filtrado) > 0:
-                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                    st.markdown("---")  # Separador visual
-                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                    with st.container():
-                                                                                            # Criar tabela
-                                                                                            colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
-                                                                                            colunas_numericas = [col for col in df_type06_filtrado.columns 
-                                                                                                                if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Período']]
-                                                                                            colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                            colunas_display = colunas_id + colunas_ordenadas
-                                                                                            df_display = df_type06_filtrado[colunas_display].copy()
-                                                                                            
-                                                                                            # Formatar valores
-                                                                                            for col in df_display.columns:
-                                                                                                if col not in colunas_id:
-                                                                                                    if col == 'Total / Flex Bud':
-                                                                                                        df_display[col] = df_display[col].apply(
-                                                                                                            lambda x: formatar_ratio_com_barra(x) if pd.notna(x) and isinstance(x, (int, float)) else formatar_ratio_com_barra(0)
-                                                                                                        )
-                                                                                                    elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                                        if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                                                        else:
-                                                                                                            sufixo = ""
-                                                                                                            if fator_conversao:
-                                                                                                                if fator_conversao == "K (milhares)":
-                                                                                                                    sufixo = " K"
-                                                                                                                elif fator_conversao == "M (Milhões)":
-                                                                                                                    sufixo = " M"
-                                                                                                            df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                                            
-                                                                                            # Calcular resumo
-                                                                                            linha_resumo_type06 = {}
-                                                                                            linha_resumo_formatado_type06 = {}
-                                                                                            
-                                                                                            linha_resumo_type06['BUD'] = df_type06_filtrado['BUD'].sum()
-                                                                                            linha_resumo_type06['Flex Bud - BUD'] = df_type06_filtrado['Flex Bud - BUD'].sum()
-                                                                                            linha_resumo_type06['Flex BUD'] = df_type06_filtrado['Flex BUD'].sum()
-                                                                                            linha_resumo_type06['Total - Flex Bud'] = df_type06_filtrado['Total - Flex Bud'].sum()
-                                                                                            linha_resumo_type06['Custo FP'] = df_type06_filtrado['Custo FP'].sum()
-                                                                                            linha_resumo_type06['Total / Flex Bud'] = df_type06_filtrado['Custo FP'].sum() / df_type06_filtrado['Flex BUD'].sum() if df_type06_filtrado['Flex BUD'].sum() != 0 else 0
-                                                                                            
-                                                                                            # Formatar valores
-                                                                                            for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
-                                                                                                if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                    linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
-                                                                                                else:
-                                                                                                    sufixo = ""
-                                                                                                    if fator_conversao:
-                                                                                                        if fator_conversao == "K (milhares)":
-                                                                                                            sufixo = " K"
-                                                                                                        elif fator_conversao == "M (Milhões)":
-                                                                                                            sufixo = " M"
-                                                                                                    linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
-                                                                                            
-                                                                                            linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
-                                                                                            
-                                                                                            # Exibir resumo e tabela
-                                                                                            ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
-                                                                                            num_colunas = min(len(ordem_colunas), 6)
-                                                                                            if num_colunas > 0:
-                                                                                                cols = st.columns(num_colunas, gap="small")
-                                                                                                for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
-                                                                                                    if col_nome in linha_resumo_formatado_type06:
-                                                                                                        with cols[idx]:
-                                                                                                            valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                            st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
-                                                                                            
-                                                                                            html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
-                                                                                            st.markdown(html_table, unsafe_allow_html=True)
+                                                # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
+                                                if len(df_vol_real_periodo) == 0:
+                                                    meses_periodos = []
+                                                    for p in periodos_selecionados_budget:
+                                                        p_str = str(p)
+                                                        if ' ' in p_str:
+                                                            mes = p_str.split(' ')[0]
+                                                            meses_periodos.append(mes)
+                                                    if meses_periodos:
+                                                        df_vol_real_periodo = df_vol_real_para_calculo[df_vol_real_para_calculo['Período'].astype(str).isin(meses_periodos)].copy()
                                             else:
-                                                # Sem Type 05: não exibir nada (não deve acontecer)
-                                                st.info("ℹ️ Dados sem estrutura hierárquica (Type 05).")
+                                                df_vol_real_periodo = pd.DataFrame()
+                                                
+                                            if len(df_vol_real_periodo) > 0:
+                                                volume_real_calculado = df_vol_real_periodo['Volume'].sum()
+                                        else:
+                                            # Se não há períodos selecionados, usar todos os dados filtrados
+                                            volume_real_calculado = df_vol_real_para_calculo['Volume'].sum()
+                                        
+                                    # Recalcular volume budget dos dados filtrados
+                                    volume_budget_calculado = 0
+                                    if df_budget_vol_filtrado is not None and not df_budget_vol_filtrado.empty and 'Volume' in df_budget_vol_filtrado.columns:
+                                        # Filtrar budget volume pelos períodos selecionados
+                                        if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                            if col_mes_waterfall_tc == 'Período_Ano' and 'Período_Ano' in df_budget_vol_filtrado.columns:
+                                                df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])].copy()
+                                            elif 'Período' in df_budget_vol_filtrado.columns:
+                                                periodos_str = [str(p) for p in periodos_selecionados_budget]
+                                                df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(periodos_str)].copy()
+                                                    
+                                                # Se não encontrou nada, tentar fazer match apenas com o mês (sem o ano)
+                                                if len(df_budget_vol_periodo) == 0:
+                                                    meses_periodos = []
+                                                    for p in periodos_selecionados_budget:
+                                                        p_str = str(p)
+                                                        if ' ' in p_str:
+                                                            mes = p_str.split(' ')[0]
+                                                            meses_periodos.append(mes)
+                                                    if meses_periodos:
+                                                        df_budget_vol_periodo = df_budget_vol_filtrado[df_budget_vol_filtrado['Período'].astype(str).isin(meses_periodos)].copy()
+                                            else:
+                                                df_budget_vol_periodo = pd.DataFrame()
+                                                
+                                            if len(df_budget_vol_periodo) > 0:
+                                                volume_budget_calculado = df_budget_vol_periodo['Volume'].sum()
+                                        
+                                    try:
+                                        volume_real_val = float(volume_real_calculado) if pd.notna(volume_real_calculado) else 0.0
+                                        volume_budget_val = float(volume_budget_calculado) if pd.notna(volume_budget_calculado) else 0.0
+                                    except (ValueError, TypeError):
+                                        volume_real_val = 0.0
+                                        volume_budget_val = 0.0
+                                        
+                                    volume_real_formatado = f"{volume_real_val:,.0f}"
+                                    volume_budget_formatado = f"{volume_budget_val:,.0f}"
+                                        
+                                    col_vol_budget, col_vol_real = st.columns(2, gap="small")
+                                    with col_vol_budget:
+                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Budget ({periodo_display}):</strong> {volume_budget_formatado}</div>", unsafe_allow_html=True)
+                                    with col_vol_real:
+                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Real ({periodo_display}):</strong> {volume_real_formatado}</div>", unsafe_allow_html=True)
+                                    st.markdown("<br>", unsafe_allow_html=True)
+                                        
+                                    # Criar estrutura hierárquica com expanders
+                                    if modo_tabela == "Fixo/Variável":
+                                        for custo in ['Fixo', 'Variável']:
+                                            df_custo = df_tabela_total_agrupado[df_tabela_total_agrupado['Custo'] == custo].copy()
+                                                
+                                            if len(df_custo) > 0:
+                                                total_custo = df_custo['Custo FP'].sum()
+                                                total_bud_custo = df_custo['BUD'].sum() if 'BUD' in df_custo.columns else 0
+                                                total_custo_formatado = f"{total_custo:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_custo:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_custo:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_custo:,.2f}")
+                                                    
+                                                # Mostrar se há valor real OU budget (não ignorar categorias só com budget)
+                                                if (abs(total_custo) > 0.0001 or abs(total_bud_custo) > 0.0001) and pd.notna(total_custo):
+                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                                        # Nível 2: Type 05
+                                                        if 'Type 05' in df_custo.columns:
+                                                            for type05 in sorted(df_custo['Type 05'].dropna().unique()):
+                                                                df_type05 = df_custo[df_custo['Type 05'] == type05].copy()
+                                                                    
+                                                                if len(df_type05) > 0:
+                                                                    total_type05 = df_type05['Custo FP'].sum()
+                                                                    total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
+                                                                        
+                                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                        # Nível 3: Type 06
+                                                                        if 'Type 06' in df_type05.columns:
+                                                                                for type06 in sorted(df_type05['Type 06'].dropna().unique()):
+                                                                                    df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                                                        
+                                                                                    if len(df_type06) > 0:
+                                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                                        colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                        if colunas_numericas_check:
+                                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                                            if not tem_valores_nao_zerados:
+                                                                                                continue  # Pular Type 06 completamente zerado
+                                                                                        else:
+                                                                                            if 'Custo FP' in df_type06.columns:
+                                                                                                if df_type06['Custo FP'].fillna(0).abs().sum() <= 0.0001:
+                                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                                            
+                                                                                        # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                                        if 'Custo FP' in df_type06.columns:
+                                                                                            total_type06 = df_type06['Custo FP'].sum()
+                                                                                        else:
+                                                                                            total_type06 = 0.0
+                                                                                        total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
+                                                                                            
+                                                                                        # Nível 4: Account (se existir)
+                                                                                        if 'Account' in df_type06.columns:
+                                                                                                colunas_numericas = [col for col in df_type06.columns 
+                                                                                                                    if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                                    and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                                                if colunas_numericas:
+                                                                                                    df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                                    df_type06_filtrado = df_type06[
+                                                                                                        df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                                    ].copy()
+                                                                                                else:
+                                                                                                    df_type06_filtrado = df_type06.copy()
+                                                                                                    
+                                                                                                if len(df_type06_filtrado) > 0:
+                                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                                    st.markdown("---")  # Separador visual
+                                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                                    with st.container():
+                                                                                                        # Criar tabela
+                                                                                                        colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
+                                                                                                        colunas_numericas = [col for col in df_type06_filtrado.columns 
+                                                                                                                            if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Custo', 'Período']]
+                                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                                                        colunas_display = colunas_id + colunas_ordenadas
+                                                                                                        df_display = df_type06_filtrado[colunas_display].copy()
+                                                                                                            
+                                                                                                        # Formatar valores
+                                                                                                        for col in df_display.columns:
+                                                                                                            if col not in colunas_id:
+                                                                                                                if col == 'Total / Flex Bud':
+                                                                                                                    df_display[col] = df_display[col].apply(
+                                                                                                                        lambda x: formatar_ratio_com_barra(x) if pd.notna(x) and isinstance(x, (int, float)) else formatar_ratio_com_barra(0)
+                                                                                                                    )
+                                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
+                                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                                                    else:
+                                                                                                                        sufixo = ""
+                                                                                                                        if fator_conversao:
+                                                                                                                            if fator_conversao == "K (milhares)":
+                                                                                                                                sufixo = " K"
+                                                                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                                                                sufixo = " M"
+                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                                                            
+                                                                                                        # Calcular resumo
+                                                                                                        linha_resumo_type06 = {}
+                                                                                                        linha_resumo_formatado_type06 = {}
+                                                                                                            
+                                                                                                        linha_resumo_type06['BUD'] = df_type06_filtrado['BUD'].sum()
+                                                                                                        linha_resumo_type06['Flex Bud - BUD'] = df_type06_filtrado['Flex Bud - BUD'].sum()
+                                                                                                        linha_resumo_type06['Flex BUD'] = df_type06_filtrado['Flex BUD'].sum()
+                                                                                                        linha_resumo_type06['Total - Flex Bud'] = df_type06_filtrado['Total - Flex Bud'].sum()
+                                                                                                        linha_resumo_type06['Custo FP'] = df_type06_filtrado['Custo FP'].sum()
+                                                                                                        linha_resumo_type06['Total / Flex Bud'] = df_type06_filtrado['Custo FP'].sum() / df_type06_filtrado['Flex BUD'].sum() if df_type06_filtrado['Flex BUD'].sum() != 0 else 0
+                                                                                                            
+                                                                                                        # Formatar valores
+                                                                                                        for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
+                                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
+                                                                                                            else:
+                                                                                                                sufixo = ""
+                                                                                                                if fator_conversao:
+                                                                                                                    if fator_conversao == "K (milhares)":
+                                                                                                                        sufixo = " K"
+                                                                                                                    elif fator_conversao == "M (Milhões)":
+                                                                                                                        sufixo = " M"
+                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
+                                                                                                            
+                                                                                                        linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
+                                                                                                            
+                                                                                                        # Exibir resumo e tabela
+                                                                                                        ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
+                                                                                                        num_colunas = min(len(ordem_colunas), 6)
+                                                                                                        if num_colunas > 0:
+                                                                                                            cols = st.columns(num_colunas, gap="small")
+                                                                                                            for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
+                                                                                                                if col_nome in linha_resumo_formatado_type06:
+                                                                                                                    with cols[idx]:
+                                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
+                                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                                            
+                                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
+                                                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                    else:
+                                        # Modo Total: estrutura hierárquica sem separação Fixo/Variável
+                                        # Agrupar por Type 05, Type 06, Account (somando Fixo + Variável)
+                                        colunas_agrupamento_total = []
+                                        if 'Type 05' in df_tabela_total_agrupado.columns:
+                                            colunas_agrupamento_total.append('Type 05')
+                                        if 'Type 06' in df_tabela_total_agrupado.columns:
+                                            colunas_agrupamento_total.append('Type 06')
+                                        if chosen_dim_budget in df_tabela_total_agrupado.columns and chosen_dim_budget not in colunas_agrupamento_total:
+                                            colunas_agrupamento_total.append(chosen_dim_budget)
+                                            
+                                        if len(colunas_agrupamento_total) > 0:
+                                            df_total_agrupado = df_tabela_total_agrupado.groupby(colunas_agrupamento_total).agg({
+                                                'BUD': 'sum',
+                                                'Flex Bud - BUD': 'sum',
+                                                'Flex BUD': 'sum',
+                                                'Total - Flex Bud': 'sum',
+                                                'Custo FP': 'sum'
+                                            }).reset_index()
+                                                
+                                            # Recalcular Total / Flex Bud após agrupamento
+                                            df_total_agrupado['Total / Flex Bud'] = df_total_agrupado.apply(
+                                                lambda row: row['Custo FP'] / row['Flex BUD'] if row['Flex BUD'] != 0 and pd.notnull(row['Flex BUD']) else 0,
+                                                axis=1
+                                            )
+                                        else:
+                                            df_total_agrupado = df_tabela_total_agrupado.copy()
+                                            
+                                        # Filtrar linhas zeradas
+                                        colunas_numericas = [col for col in df_total_agrupado.columns 
+                                                            if pd.api.types.is_numeric_dtype(df_total_agrupado[col]) 
+                                                            and col not in ['Type 05', 'Type 06', 'Account', 'Período']]
+                                        if colunas_numericas:
+                                            df_total_agrupado_temp = df_total_agrupado[colunas_numericas].fillna(0)
+                                            df_total_agrupado = df_total_agrupado[
+                                                df_total_agrupado_temp.abs().sum(axis=1) > 0.0001
+                                            ].copy()
+                                            
+                                        # Estrutura hierárquica com expanders (sem Custo)
+                                        if 'Type 05' in df_total_agrupado.columns:
+                                            for type05 in sorted(df_total_agrupado['Type 05'].dropna().unique()):
+                                                df_type05 = df_total_agrupado[df_total_agrupado['Type 05'] == type05].copy()
+                                                    
+                                                if len(df_type05) > 0:
+                                                    total_type05 = df_type05['Custo FP'].sum()
+                                                    total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
+                                                        
+                                                    # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                        # Nível 2: Type 06
+                                                        if 'Type 06' in df_type05.columns:
+                                                                for type06 in sorted(df_type05['Type 06'].dropna().unique()):
+                                                                    df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                                        
+                                                                    if len(df_type06) > 0:
+                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
+                                                                        colunas_numericas_check = [col for col in df_type06.columns 
+                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                        if colunas_numericas_check:
+                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
+                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
+                                                                            if not tem_valores_nao_zerados:
+                                                                                continue  # Pular Type 06 completamente zerado
+                                                                        else:
+                                                                            if 'Custo FP' in df_type06.columns:
+                                                                                if df_type06['Custo FP'].fillna(0).abs().sum() <= 0.0001:
+                                                                                    continue  # Pular Type 06 completamente zerado
+                                                                            
+                                                                        # Verificar se a coluna 'Total' existe antes de acessá-la
+                                                                        if 'Custo FP' in df_type06.columns:
+                                                                            total_type06 = df_type06['Custo FP'].sum()
+                                                                        else:
+                                                                            total_type06 = 0.0
+                                                                        total_type06_formatado = f"{total_type06:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type06:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type06:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type06:,.2f}")
+                                                                            
+                                                                        # Nível 3: Account (se existir)
+                                                                        if 'Account' in df_type06.columns:
+                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
+                                                                            colunas_numericas = [col for col in df_type06.columns 
+                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
+                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+                                                                            if colunas_numericas:
+                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
+                                                                                df_type06_filtrado = df_type06[
+                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
+                                                                                ].copy()
+                                                                            else:
+                                                                                df_type06_filtrado = df_type06.copy()
+                                                                                
+                                                                            # Só exibir se houver dados após filtrar
+                                                                            if len(df_type06_filtrado) > 0:
+                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
+                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
+                                                                                st.markdown("---")  # Separador visual
+                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
+                                                                                with st.container():
+                                                                                        # Criar tabela
+                                                                                        colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
+                                                                                        colunas_numericas = [col for col in df_type06_filtrado.columns 
+                                                                                                            if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Período']]
+                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
+                                                                                        colunas_display = colunas_id + colunas_ordenadas
+                                                                                        df_display = df_type06_filtrado[colunas_display].copy()
+                                                                                            
+                                                                                        # Formatar valores
+                                                                                        for col in df_display.columns:
+                                                                                            if col not in colunas_id:
+                                                                                                if col == 'Total / Flex Bud':
+                                                                                                    df_display[col] = df_display[col].apply(
+                                                                                                        lambda x: formatar_ratio_com_barra(x) if pd.notna(x) and isinstance(x, (int, float)) else formatar_ratio_com_barra(0)
+                                                                                                    )
+                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
+                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                                                                                                    else:
+                                                                                                        sufixo = ""
+                                                                                                        if fator_conversao:
+                                                                                                            if fator_conversao == "K (milhares)":
+                                                                                                                sufixo = " K"
+                                                                                                            elif fator_conversao == "M (Milhões)":
+                                                                                                                sufixo = " M"
+                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
+                                                                                            
+                                                                                        # Calcular resumo
+                                                                                        linha_resumo_type06 = {}
+                                                                                        linha_resumo_formatado_type06 = {}
+                                                                                            
+                                                                                        linha_resumo_type06['BUD'] = df_type06_filtrado['BUD'].sum()
+                                                                                        linha_resumo_type06['Flex Bud - BUD'] = df_type06_filtrado['Flex Bud - BUD'].sum()
+                                                                                        linha_resumo_type06['Flex BUD'] = df_type06_filtrado['Flex BUD'].sum()
+                                                                                        linha_resumo_type06['Total - Flex Bud'] = df_type06_filtrado['Total - Flex Bud'].sum()
+                                                                                        linha_resumo_type06['Custo FP'] = df_type06_filtrado['Custo FP'].sum()
+                                                                                        linha_resumo_type06['Total / Flex Bud'] = df_type06_filtrado['Custo FP'].sum() / df_type06_filtrado['Flex BUD'].sum() if df_type06_filtrado['Flex BUD'].sum() != 0 else 0
+                                                                                            
+                                                                                        # Formatar valores
+                                                                                        for col in ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP']:
+                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
+                                                                                            else:
+                                                                                                sufixo = ""
+                                                                                                if fator_conversao:
+                                                                                                    if fator_conversao == "K (milhares)":
+                                                                                                        sufixo = " K"
+                                                                                                    elif fator_conversao == "M (Milhões)":
+                                                                                                        sufixo = " M"
+                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
+                                                                                            
+                                                                                        linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
+                                                                                            
+                                                                                        # Exibir resumo e tabela
+                                                                                        ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
+                                                                                        num_colunas = min(len(ordem_colunas), 6)
+                                                                                        if num_colunas > 0:
+                                                                                            cols = st.columns(num_colunas, gap="small")
+                                                                                            for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
+                                                                                                if col_nome in linha_resumo_formatado_type06:
+                                                                                                    with cols[idx]:
+                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
+                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                            
+                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
+                                                                                        st.markdown(html_table, unsafe_allow_html=True)
+                                        else:
+                                            # Sem Type 05: não exibir nada (não deve acontecer)
+                                            st.info("ℹ️ Dados sem estrutura hierárquica (Type 05).")
                             
-                except Exception as e:
-                    st.error(f"❌ Erro ao gerar tabela Budget: {str(e)}")
-                    import traceback
-                    st.code(traceback.format_exc())
+            except Exception as e:
+                st.error(f"❌ Erro ao gerar tabela Budget: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
 
 # Função para obter mês atual em português
 # Rodapé
