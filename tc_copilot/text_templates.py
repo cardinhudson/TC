@@ -208,24 +208,59 @@ def gerar_texto_resumo_executivo(
         )
         paragrafos.append(p3)
 
-    # ── 4. Type 05 ──
+    # ── 4. Type 05 (Foco nas Principais Perdas) ──
     graf_global = dados_graficos.get("global", {}) if dados_graficos else {}
     wf_labels = graf_global.get("wf_budget_labels", [])
     wf_values = graf_global.get("wf_budget_values", [])
     if len(wf_labels) > 4:
         # Pegar as categorias intermediárias (excluir BUD, Flex, Real e Outros)
         cats = list(zip(wf_labels[2:-1], wf_values[2:-1]))
-        cats.sort(key=lambda x: abs(x[1]), reverse=True)
-        top_cats = cats[:3]
-        items_t05 = []
-        for lbl, val in top_cats:
-            lbl_clean = lbl.replace("\n", " ").strip()
-            items_t05.append(f"{_cor_custo(val)} {lbl_clean} ({_sinal(val)}{_fmt_cpu(val, simbolo)})")
-        p4 = (
-            f"As categorias de custo com maior impacto no waterfall Budget (CPU) foram: "
-            f"{', '.join(items_t05)}."
-        )
-        paragrafos.append(p4)
+        
+        # Separar perdas (val > 0 = desfavorável) e ganhos (val < 0 = favorável)
+        perdas = [(lbl, val) for lbl, val in cats if val > 0]
+        ganhos = [(lbl, val) for lbl, val in cats if val < 0]
+        
+        # Ordenar perdas por valor (maior perda primeiro)
+        perdas.sort(key=lambda x: x[1], reverse=True)
+        top_perdas = perdas[:7]
+        
+        if top_perdas:
+            # Criar detalhamento das principais perdas
+            linhas_perdas = []
+            for lbl, val in top_perdas:
+                lbl_clean = lbl.replace("\n", " ").strip()
+                linhas_perdas.append(
+                    f"- 🔴 **{lbl_clean}**: +{_fmt_cpu(val, simbolo)} de aumento vs Budget — "
+                    f"categoria apresentou custo superior ao previsto, impactando negativamente o resultado."
+                )
+            
+            p4 = (
+                f"**Principais perdas no waterfall Budget (CPU):**\n\n"
+                f"{chr(10).join(linhas_perdas)}"
+            )
+            paragrafos.append(p4)
+            
+            # Mencionar ganhos (resumido) se houver
+            if ganhos:
+                ganhos.sort(key=lambda x: x[1])  # Menor (mais negativo) primeiro
+                top_ganhos = ganhos[:3]
+                items_ganhos = []
+                for lbl, val in top_ganhos:
+                    lbl_clean = lbl.replace("\n", " ").strip()
+                    items_ganhos.append(f"🟢 {lbl_clean} ({_sinal(val)}{_fmt_cpu(val, simbolo)})")
+                p4_ganhos = f"Por outro lado, as categorias com ganhos foram: {', '.join(items_ganhos)}."
+                paragrafos.append(p4_ganhos)
+        else:
+            # Se não houver perdas, mostrar ganhos
+            if ganhos:
+                ganhos.sort(key=lambda x: x[1])
+                top_ganhos = ganhos[:3]
+                items_ganhos = []
+                for lbl, val in top_ganhos:
+                    lbl_clean = lbl.replace("\n", " ").strip()
+                    items_ganhos.append(f"🟢 {lbl_clean} ({_sinal(val)}{_fmt_cpu(val, simbolo)})")
+                p4 = f"As categorias com ganhos no waterfall Budget (CPU) foram: {', '.join(items_ganhos)}."
+                paragrafos.append(p4)
 
     # ── 5. Oficinas ──
     if oficinas_resumo:

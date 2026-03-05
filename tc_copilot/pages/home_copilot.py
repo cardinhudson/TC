@@ -1385,14 +1385,14 @@ def _render_configuracao():
             taxas_entrada["USD"] = st.number_input(
                 "🇺🇸 1 USD = R$",
                 value=taxas_entrada.get("USD", 5.0),
-                min_value=0.01, step=0.01, format="%.2f",
+                min_value=0.001, step=0.001, format="%.3f",
                 key="copilot_taxa_usd",
             )
         with col_t2:
             taxas_entrada["EUR"] = st.number_input(
                 "🇪🇺 1 EUR = R$",
                 value=taxas_entrada.get("EUR", 5.5),
-                min_value=0.01, step=0.01, format="%.2f",
+                min_value=0.001, step=0.001, format="%.3f",
                 key="copilot_taxa_eur",
             )
         try:

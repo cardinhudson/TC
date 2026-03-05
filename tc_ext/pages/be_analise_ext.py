@@ -954,11 +954,11 @@ if is_main_page:
         st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
         taxa_usd_para_brl = st.number_input(
             "Taxa USD para BRL",
-            min_value=0.01,
+            min_value=0.001,
             max_value=100.0,
             value=float(taxa_usd_para_brl_padrao),
-            step=0.01,
-            format="%.2f",
+            step=0.001,
+            format="%.3f",
             help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros. Exemplo: se 1 USD = 5.00 BRL, digite 5.00",
             key="taxa_usd_para_brl_input",
             label_visibility="collapsed"
@@ -969,11 +969,11 @@ if is_main_page:
         st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
         taxa_eur_para_brl = st.number_input(
             "Taxa EUR para BRL",
-            min_value=0.01,
+            min_value=0.001,
             max_value=100.0,
             value=float(taxa_eur_para_brl_padrao),
-            step=0.01,
-            format="%.2f",
+            step=0.001,
+            format="%.3f",
             help="Digite quanto vale 1 Euro em Reais Brasileiros. Exemplo: se 1 EUR = 5.50 BRL, digite 5.50",
             key="taxa_eur_para_brl_input",
             label_visibility="collapsed"

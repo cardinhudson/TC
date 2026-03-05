@@ -382,7 +382,7 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
                 taxas_entrada['USD'] = st.number_input(
                     "Taxa USD para BRL",
                     value=taxas_entrada.get('USD', 5.0),
-                    min_value=0.01, step=0.01, format="%.2f",
+                    min_value=0.001, step=0.001, format="%.3f",
                     key=f'{page_key}_taxa_usd',
                     label_visibility='collapsed',
                 )
@@ -394,7 +394,7 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
                 taxas_entrada['EUR'] = st.number_input(
                     "Taxa EUR para BRL",
                     value=taxas_entrada.get('EUR', 5.5),
-                    min_value=0.01, step=0.01, format="%.2f",
+                    min_value=0.001, step=0.001, format="%.3f",
                     key=f'{page_key}_taxa_eur',
                     label_visibility='collapsed',
                 )
