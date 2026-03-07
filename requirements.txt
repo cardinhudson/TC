@@ -52,6 +52,12 @@ streamlit-aggrid==1.2.1
 # ==========================================
 # TC COPILOT — Relatório Anual com IA
 # ==========================================
+APScheduler==3.10.4
+# Agendamento de tarefas (envio diário de alertas)
+
+msal>=1.28.0
+# Microsoft Authentication Library — OAuth 2.0 para Graph API (envio de e-mail)
+
 openai>=1.0.0
 # SDK oficial da OpenAI para integração com GPT
 

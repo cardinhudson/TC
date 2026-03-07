@@ -18,6 +18,7 @@ cache/
 .env
 .streamlit/secrets.toml
 openai_key.txt
+alertas/.token_cache.json
 
 # TC Copilot — relatórios gerados (versionados para compartilhar entre PCs)
 # documentacao_anual/ — NÃO ignorar, queremos manter os relatórios no Git

@@ -166,6 +166,18 @@ PAGES = {
             url_path="tc-copilot",
         ),
     ],
+    "Central de Alertas": [
+        st.Page(
+            "alertas/alert_ui.py",
+            title="Monitoramento",
+            url_path="alertas",
+        ),
+        st.Page(
+            "alertas/alert_config_ui.py",
+            title="Configuração de Alertas",
+            url_path="alertas-config",
+        ),
+    ],
 }
 
 pg = st.navigation(PAGES, expanded=False)

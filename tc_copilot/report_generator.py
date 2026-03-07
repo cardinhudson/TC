@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re as _re
+import time as _time
 from datetime import datetime
 from io import BytesIO as _BytesIO
 from pathlib import Path
@@ -213,6 +214,16 @@ def _criar_estilos() -> dict[str, ParagraphStyle]:
             leading=9,
             textColor=COR_CINZA,
             alignment=TA_CENTER,
+        ),
+        "rodape_capa": ParagraphStyle(
+            "RodapeCapa",
+            fontName="Helvetica-Oblique",
+            fontSize=10,
+            leading=14,
+            textColor=COR_CINZA,
+            alignment=TA_CENTER,
+            spaceBefore=4,
+            spaceAfter=2,
         ),
     }
     return estilos
@@ -465,7 +476,14 @@ def adicionar_mes_ao_relatorio(
 #  CONSTRUÇÃO DO PDF
 # ═══════════════════════════════════════════════════════════════
 
-def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
+def _construir_capa(
+    elements: list,
+    estilos: dict,
+    ano: int,
+    idioma: str,
+    modo: str | None = None,
+    tempo_geracao: float | None = None,
+):
     """Adiciona capa ao documento com logo SCI_faixa abaixo da data."""
 
     elements.append(Spacer(1, 2 * cm))
@@ -508,6 +526,29 @@ def _construir_capa(elements: list, estilos: dict, ano: int, idioma: str):
     equipe_elements = _construir_bloco_equipe(estilos)
     if equipe_elements:
         elements.extend(equipe_elements)
+
+    # ── Rodapé da capa: gerado por IA / Automático + tempo ────
+    elements.append(Spacer(1, 0.8 * cm))
+    if modo == "ia":
+        texto_rodape = "Relatório gerado por Inteligência Artificial — SCI TC Copilot"
+    elif modo == "local":
+        texto_rodape = "Relatório gerado automaticamente — SCI TC Copilot"
+    else:
+        texto_rodape = "Stellantis Cost Intelligence — TC Copilot"
+    elements.append(Paragraph(texto_rodape, estilos["rodape_capa"]))
+
+    if tempo_geracao is not None and tempo_geracao > 0:
+        minutos = int(tempo_geracao // 60)
+        segundos = int(tempo_geracao % 60)
+        if minutos > 0:
+            tempo_str = f"{minutos} min {segundos} seg"
+        else:
+            tempo_str = f"{segundos} seg"
+        lbl = "Geração concluída em" if idioma == "pt-BR" else "Generated in"
+        elements.append(Paragraph(
+            f"{lbl} {tempo_str}",
+            estilos["rodape_capa"],
+        ))
 
     elements.append(PageBreak())
 
@@ -1657,7 +1698,7 @@ def _inserir_grafico_oficina(
             _inserir_grafico(elements, png, largura_max=17 * cm)
 
 
-def gerar_pdf(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "€") -> str:
+def gerar_pdf(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "€", modo: str = "ia", tempo_geracao: float | None = None) -> str:
     """
     Gera (ou regenera) o PDF completo do relatório anual.
 
@@ -1687,7 +1728,7 @@ def gerar_pdf(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "€") -> st
     elements: list = []
 
     # ── Capa ──
-    _construir_capa(elements, estilos, ano, idioma)
+    _construir_capa(elements, estilos, ano, idioma, modo=modo, tempo_geracao=tempo_geracao)
 
     # ── Sumário ──
     _construir_sumario(elements, estilos, dados_relatorio, idioma)
@@ -1921,6 +1962,8 @@ def gerar_relatorio_mes(
     Returns:
         Caminho do PDF gerado
     """
+    _t0 = _time.time()
+
     from tc_copilot.data_collector import (
         _filtrar_por_oficina,
         calcular_variacoes,
@@ -2359,17 +2402,19 @@ def gerar_relatorio_mes(
     # 6. Salvar no JSON intermediário (inclui dados de gráficos)
     adicionar_mes_ao_relatorio(ano, mes_numero, secoes_geradas, dados_graficos)
 
+    _elapsed = _time.time() - _t0
+
     # 7. PDF mensal individual + registro no banco
     try:
         from tc_copilot.relatorios_db import registrar_pdf
-        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="ia", idioma=idioma, simbolo_moeda=simbolo)
+        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="ia", idioma=idioma, simbolo_moeda=simbolo, tempo_geracao=_elapsed)
         if pdf_mensal:
             registrar_pdf(ano, mes_numero, modo="ia", moeda=moeda, caminho=pdf_mensal)
     except Exception as e:
         logger.warning("Falha ao gerar PDF mensal (IA) mês %s: %s", mes_numero, e)
 
     # 8. Gerar PDF completo (cumulativo)
-    pdf_anual = gerar_pdf(ano, idioma, simbolo_moeda=simbolo)
+    pdf_anual = gerar_pdf(ano, idioma, simbolo_moeda=simbolo, modo="ia", tempo_geracao=_elapsed)
 
     # 9. Registrar PDF anual no banco
     try:
@@ -2441,7 +2486,7 @@ def adicionar_mes_ao_relatorio_local(
     return dados
 
 
-def gerar_pdf_local(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "R$") -> str:
+def gerar_pdf_local(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "R$", tempo_geracao: float | None = None) -> str:
     """
     Gera PDF do relatório LOCAL (sem API).
     Mesma estrutura do gerar_pdf() mas usa JSON e caminho separados.
@@ -2466,7 +2511,7 @@ def gerar_pdf_local(ano: int, idioma: str = "pt-BR", simbolo_moeda: str = "R$") 
     elements: list = []
 
     # Capa, sumário e capítulos — reutiliza as mesmas funções
-    _construir_capa(elements, estilos, ano, idioma)
+    _construir_capa(elements, estilos, ano, idioma, modo="local", tempo_geracao=tempo_geracao)
     _construir_sumario(elements, estilos, dados_relatorio, idioma)
 
     meses_ordenados = sorted(
@@ -2508,6 +2553,7 @@ def gerar_pdf_mensal(
     modo: str = "local",
     idioma: str = "pt-BR",
     simbolo_moeda: str = "€",
+    tempo_geracao: float | None = None,
 ) -> str | None:
     """Gera PDF individual de um único mês.
 
@@ -2588,6 +2634,27 @@ def gerar_pdf_mensal(
     if equipe_elements:
         elements.extend(equipe_elements)
 
+    # ── Rodapé da mini-capa: gerado por IA / Automático + tempo ──
+    elements.append(Spacer(1, 0.8 * cm))
+    if modo == "ia":
+        texto_rodape = "Relatório gerado por Inteligência Artificial — SCI TC Copilot"
+    else:
+        texto_rodape = "Relatório gerado automaticamente — SCI TC Copilot"
+    elements.append(Paragraph(texto_rodape, estilos["rodape_capa"]))
+
+    if tempo_geracao is not None and tempo_geracao > 0:
+        minutos = int(tempo_geracao // 60)
+        segundos = int(tempo_geracao % 60)
+        if minutos > 0:
+            tempo_str = f"{minutos} min {segundos} seg"
+        else:
+            tempo_str = f"{segundos} seg"
+        lbl = "Geração concluída em" if idioma == "pt-BR" else "Generated in"
+        elements.append(Paragraph(
+            f"{lbl} {tempo_str}",
+            estilos["rodape_capa"],
+        ))
+
     elements.append(PageBreak())
 
     # ── Sumário do mês ──
@@ -2634,6 +2701,8 @@ def gerar_relatorio_mes_local(
     Returns:
         Caminho do PDF gerado.
     """
+    _t0 = _time.time()
+
     from tc_copilot.data_collector import (
         _filtrar_por_oficina,
         calcular_variacoes,
@@ -2989,17 +3058,19 @@ def gerar_relatorio_mes_local(
     # 5. Salvar no JSON local
     adicionar_mes_ao_relatorio_local(ano, mes_numero, secoes_geradas, dados_graficos)
 
+    _elapsed = _time.time() - _t0
+
     # 6. PDF mensal individual + registro no banco
     try:
         from tc_copilot.relatorios_db import registrar_pdf
-        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="local", idioma=idioma, simbolo_moeda=simbolo)
+        pdf_mensal = gerar_pdf_mensal(ano, mes_numero, modo="local", idioma=idioma, simbolo_moeda=simbolo, tempo_geracao=_elapsed)
         if pdf_mensal:
             registrar_pdf(ano, mes_numero, modo="local", moeda=moeda, caminho=pdf_mensal)
     except Exception as e:
         logger.warning("Falha ao gerar PDF mensal (local) mês %s: %s", mes_numero, e)
 
     # 7. Gerar PDF local (cumulativo)
-    pdf_anual = gerar_pdf_local(ano, idioma, simbolo_moeda=simbolo)
+    pdf_anual = gerar_pdf_local(ano, idioma, simbolo_moeda=simbolo, tempo_geracao=_elapsed)
 
     # 8. Registrar PDF anual no banco
     try:

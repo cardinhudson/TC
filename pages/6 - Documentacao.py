@@ -341,6 +341,7 @@ indice_selecionado = st.sidebar.radio(
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
+        "🔔 Sistema de Alertas",
         "📦 Guia de Build (EXE)",
         "🚀 Próximos Passos",
     ],
@@ -6777,6 +6778,114 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         st.error(f"❌ Erro no chatbot: {str(e)}")
         import traceback
         st.code(traceback.format_exc())
+
+# ==========================================
+# SEÇÃO 8: SISTEMA DE ALERTAS
+# ==========================================
+elif indice_selecionado == "🔔 Sistema de Alertas":
+    st.header("🔔 Sistema de Alertas")
+
+    st.markdown(
+        """
+        <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border-radius: 10px; margin-bottom: 1.25rem; color: white;">
+            <h2 style="color: white; margin: 0;">🔔 Central de Alertas (TC Veículos)</h2>
+            <p style="color: #fff; opacity: 0.92; margin: 0.5rem 0 0 0;">
+                Monitoramento automático de desvios relevantes no TC Veículos — com ranking consolidado e notificações.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+### ✅ Objetivo
+Detectar rapidamente **anomalias / perdas** no custo do TC Veículos, priorizando o que mais impacta o resultado.
+
+O sistema gera um **ranking hierárquico**:
+**Type 05 → Type 06 → Account → Oficinas** (com texto breve quando disponível).
+
+### 📍 Onde fica no app
+No menu lateral do SCI existem duas páginas:
+- **Central de Alertas → Monitoramento** (`alertas/alert_ui.py`)
+- **Central de Alertas → Configuração de Alertas** (`alertas/alert_config_ui.py`)
+
+### 🔎 O que o alerta compara
+O motor suporta dois modos:
+1. **Budget Flex × Real** *(principal)*
+2. **Mês × Mês Anterior** *(secundário)*
+
+> Observação: no modo **Budget Flex × Real**, o “esperado” vem do cálculo de Flex BUD detalhado (reuso da base do TC Veículos).
+        """
+    )
+
+    with st.expander("🧠 Como o motor funciona (visão geral)", expanded=False):
+        st.markdown(
+            """
+**Fonte de dados (TC Veículos):** parquets consolidados em `dados/TC_Principal/historico_consolidado/`.
+
+**Etapas (alto nível):**
+1. Carrega Real, Volume Real, Budget e Volume Budget
+2. Calcula Flex BUD detalhado com dimensões (Oficina / Type 05 / Type 06 / Account)
+3. Aplica filtros da regra (Oficina, Type 05, Type 06, Account)
+4. Calcula **Real vs Esperado** e ranqueia os **Top N Type 06** com maior perda
+5. Consolida em um **card único** (drill-down hierárquico)
+
+**Severidade (padrão):** classificada por desvio percentual absoluto:
+- **Crítico:** ≥ 15%
+- **Moderado:** ≥ 5%
+- **Informativo:** < 5%
+            """
+        )
+
+    with st.expander("⚙️ Configuração de regras", expanded=False):
+        st.markdown(
+            """
+Em **Configuração de Alertas**, é possível criar regras com:
+- **Ano** e **modo de comparação**
+- **Top N** (quantos Type 06 destacar)
+- **Moeda** (BRL / EUR / USD)
+- Filtros opcionais em cascata: **Type 05**, **Type 06**, **Account**
+- Filtro opcional de **Oficinas** (vazio = todas)
+
+Cada regra pode ser **ativada/desativada** e removida.
+            """
+        )
+
+    with st.expander("📨 Notificações (E-mail / Teams)", expanded=False):
+        st.markdown(
+            """
+O sistema pode enviar o ranking consolidado para:
+- **E-mail (SMTP)** — padrão configurado para Office365
+- **Microsoft Teams (Webhook)**
+
+Também existe a opção de manter apenas o uso **interno no app** (sem envio).
+
+Na aba **🧪 Testar Envio**, dá para validar rapidamente se o SMTP/Webhook estão corretos.
+            """
+        )
+
+    with st.expander("⏰ Agendamento diário automático", expanded=False):
+        st.markdown(
+            """
+É possível habilitar o envio diário automático em um horário fixo.
+
+**Importante:** o agendamento roda dentro do processo do app (APScheduler). Ou seja:
+- o SCI precisa estar **em execução** para o job disparar;
+- em ambientes onde o app é encerrado (PC desligado / sessão finalizada), o job não executa.
+            """
+        )
+
+    with st.expander("🗂️ Persistência e auditoria", expanded=False):
+        st.markdown(
+            """
+As configurações e o histórico ficam salvos em JSON no pacote `alertas/`:
+- `alertas/alert_rules.json` — regras + canais de notificação + agenda
+- `alertas/alert_log.json` — histórico de execuções (quando e o que foi enviado)
+
+O histórico pode ser consultado na aba **📜 Histórico** da página de configuração.
+            """
+        )
 
 # ==========================================
 # ==========================================

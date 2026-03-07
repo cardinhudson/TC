@@ -23,6 +23,38 @@ except ImportError as e:
     st.error(f"❌ Erro ao importar módulos de processamento: {e}")
     st.stop()
 
+# Importar módulo de alertas (opcional — não bloqueia a página se não existir)
+_ALERTAS_DISPONIVEL = False
+try:
+    from alertas.alert_engine import run_daily_check
+    _ALERTAS_DISPONIVEL = True
+except ImportError:
+    pass
+
+
+def _executar_alertas_pos_extracao():
+    """Executa verificação de alertas após extração de dados e exibe resultado."""
+    if not _ALERTAS_DISPONIVEL:
+        return
+    try:
+        with st.spinner("🔔 Verificando alertas do SCI..."):
+            alertas = run_daily_check()
+        if alertas:
+            n = len(alertas)
+            enviados = sum(
+                1 for a in alertas
+                if a.get("notificacoes_enviadas", {}).get("email")
+                or a.get("notificacoes_enviadas", {}).get("teams")
+            )
+            st.info(
+                f"🔔 **Central de Alertas:** {n} alerta(s) processado(s), "
+                f"{enviados} notificação(ões) enviada(s)."
+            )
+        else:
+            st.success("🔔 Central de Alertas: nenhum desvio identificado.")
+    except Exception as e:
+        st.warning(f"⚠️ Alertas não puderam ser verificados: {e}")
+
 # Função para obter data e hora de atualização dos dados
 def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
@@ -725,6 +757,7 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
                     st.json(resultado)
+                    _executar_alertas_pos_extracao()
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")
@@ -754,6 +787,7 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
                     st.json(resultado)
+                    _executar_alertas_pos_extracao()
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")

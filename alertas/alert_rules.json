@@ -1,0 +1,49 @@
+{
+  "config": {
+    "email": {
+      "provider": "graph",
+      "client_id": "",
+      "tenant_id": "d852d5cd-724c-4128-8812-ffa5db3f8507",
+      "sender": "sci.alertas@outlook.com",
+      "recipients": [
+        "frederico.dejesus@stellantis.com",
+        "lauro.paivajunior@stellantis.com"
+      ]
+    },
+    "teams_webhook_url": "https://shiftup.webhook.office.com/webhookb2/0f60d1f1-2445-42ce-8b41-dc2931fbee18@d852d5cd-724c-4128-8812-ffa5db3f8507/IncomingWebhook/01f31fc9504344159abe5483bd3578d8/b094f976-145e-4d02-97cb-3a06a8f37159/V2HJhmtIVajgK8DRjtqTmqVZledtDwC5HPhxyYVZMyl7o1",
+    "notifications_enabled": {
+      "internal": true,
+      "email": true,
+      "teams": true
+    },
+    "ultima_execucao": "2026-03-07T09:23:25",
+    "schedule": {
+      "enabled": false,
+      "hour": 8
+    }
+  },
+  "rules": [
+    {
+      "id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+      "nome": "teste3",
+      "ativo": true,
+      "criado_em": "2026-03-05T16:35:29",
+      "ano": 2026,
+      "oficinas": [],
+      "modo_comparacao": "flex_bud_x_real",
+      "top_n": 10,
+      "moeda": "BRL",
+      "filtro_type_05": [
+        "Burden"
+      ],
+      "filtro_type_06": [
+        "Energy",
+        "Trips",
+        "Maintenance",
+        "Material Losses",
+        "Consumption Material"
+      ],
+      "filtro_account": []
+    }
+  ]
+}

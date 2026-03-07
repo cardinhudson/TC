@@ -1465,6 +1465,12 @@ else:
 periodos_restantes = []
 meses_restantes = []
 
+# CORREÇÃO: Sempre incluir ano nos períodos quando a coluna Ano existir nos dados,
+# mesmo que haja apenas 1 ano único. Isso evita conflitos quando o forecast
+# avança para o próximo ano (ex: previsão até Janeiro do próximo ano
+# conflitaria com o Janeiro histórico do ano corrente sem distinção de ano).
+_incluir_ano_periodos = tem_anos or ('Ano' in df_total.columns if df_total is not None else False)
+
 for i in range(num_meses_prever):
     indice_mes = indice_ultimo_mes + 1 + i
     ano_futuro = ultimo_ano_dados
@@ -1478,7 +1484,7 @@ for i in range(num_meses_prever):
     meses_restantes.append(mes_nome)
     
     # Criar período com ano se necessário
-    if tem_anos:
+    if _incluir_ano_periodos:
         periodo_futuro = f"{mes_nome} {ano_futuro}"
     else:
         periodo_futuro = mes_nome
@@ -4964,34 +4970,44 @@ if aplicar_config_forecast:
             # O arquivo forecast_historico.parquet NÃO deve conter os meses que estão sendo previstos
             linhas_antes_filtro_historico = len(df_historico_linhas)
             
-            # Extrair apenas o nome do mês dos períodos de forecast
+            # Extrair nome do mês e ano dos períodos de forecast (para filtro e debug)
             meses_forecast = []
-            anos_forecast = []
+            pares_forecast = []  # lista de tuplas (mês, ano) para matching par-a-par
             periodos_forecast_formatados = []
             for periodo in periodos_restantes:
                 periodo_str = str(periodo).strip()
                 if ' ' in periodo_str:
-                    mes_nome = periodo_str.split(' ', 1)[0].strip().capitalize()
                     partes = periodo_str.split(' ', 1)
-                    if len(partes) > 1 and partes[1].isdigit():
+                    mes_nome = partes[0].strip().capitalize()
+                    if partes[1].strip().isdigit():
                         ano_val = int(partes[1])
-                        anos_forecast.append(ano_val)
+                        pares_forecast.append((mes_nome, ano_val))
                         periodos_forecast_formatados.append(f"{mes_nome} {ano_val}")
+                    else:
+                        pares_forecast.append((mes_nome, None))
+                        periodos_forecast_formatados.append(mes_nome)
                 else:
                     mes_nome = periodo_str.strip().capitalize()
+                    pares_forecast.append((mes_nome, None))
                     periodos_forecast_formatados.append(mes_nome)
                 meses_forecast.append(mes_nome)
             
-            # Filtrar linhas históricas: remover períodos que correspondem aos meses de forecast
+            # Filtrar linhas históricas: remover apenas os períodos que serão previstos
             if 'Período' in df_historico_linhas.columns:
-                # Se há coluna Ano e anos de forecast, filtrar por mês E ano (mais preciso)
-                if 'Ano' in df_historico_linhas.columns and anos_forecast:
-                    # 🔧 CORREÇÃO: Filtrar períodos que correspondem EXATAMENTE aos meses e anos de forecast
-                    mask_remover = (df_historico_linhas['Período'].isin(meses_forecast)) & \
-                                  (df_historico_linhas['Ano'].isin(anos_forecast))
+                # CORREÇÃO: Usar matching par-a-par (Período, Ano) para evitar remover
+                # meses históricos quando o forecast avança para o ano seguinte.
+                # Ex: forecast para "Janeiro 2027" NÃO deve remover "Janeiro 2026" do histórico.
+                _tem_anos_pares = any(a is not None for _, a in pares_forecast)
+                if _tem_anos_pares and 'Ano' in df_historico_linhas.columns:
+                    _pares_set = set(pares_forecast)
+                    _per_hist = df_historico_linhas['Período'].astype(str).str.strip().str.capitalize()
+                    _ano_hist = pd.to_numeric(df_historico_linhas['Ano'], errors='coerce')
+                    mask_remover = pd.Series(
+                        [(p, int(a) if pd.notna(a) else None) in _pares_set for p, a in zip(_per_hist, _ano_hist)],
+                        index=df_historico_linhas.index,
+                    )
                     df_historico_linhas = df_historico_linhas[~mask_remover].copy()
                     
-                    # Confirmação: mostrar quantas linhas foram removidas
                     linhas_removidas = linhas_antes_filtro_historico - len(df_historico_linhas)
                     if linhas_removidas > 0:
                         adicionar_mensagem("success", f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos períodos que serão previstos: {', '.join(periodos_forecast_formatados)}")
@@ -4999,11 +5015,10 @@ if aplicar_config_forecast:
                     else:
                         adicionar_mensagem("info", f"ℹ️ Nenhuma linha histórica removida (períodos de forecast não encontrados no histórico)")
                 else:
-                    # Se não há coluna Ano ou não há anos de forecast, filtrar apenas por mês
+                    # Se não há info de ano, filtrar apenas por nome do mês
                     mask_remover = df_historico_linhas['Período'].isin(meses_forecast)
                     df_historico_linhas = df_historico_linhas[~mask_remover].copy()
                     
-                    # Confirmação: mostrar quantas linhas foram removidas
                     linhas_removidas = linhas_antes_filtro_historico - len(df_historico_linhas)
                     if linhas_removidas > 0:
                         adicionar_mensagem("success", f"✅ CONFIRMADO: Removidas {linhas_removidas:,} linhas históricas dos meses que serão previstos: {', '.join(meses_forecast)}")
