@@ -289,6 +289,20 @@ def render_sidebar_global(page_key, incluir_todos=False, descobrir_anos_fn=None)
     Retorna dict: {ano, moeda, simbolo, taxas, tipo, fator}
     """
     with st.sidebar:
+        st.markdown(
+            """
+            <style>
+            section[data-testid="stSidebar"] hr {
+                display: none !important;
+                margin: 0 !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div {
+                margin-bottom: 0.25rem;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
         st.header("⚙️ Configurações")
 
         # ── Ano ──

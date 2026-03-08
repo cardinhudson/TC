@@ -893,7 +893,8 @@ class TestTeamsCardConsolidado:
         assert any(icon in text for icon in ("🔴", "🟠", "🟡", "🟢"))
         # Deve conter legenda (espaços viram &nbsp; no HTML Teams)
         assert "Desvio" in text and "Total" in text
-        assert "maior" in text and "desvio" in text
+        assert "desvio" in text and "total" in text
+        assert "maior" not in text
         assert "█" in text
 
 
@@ -925,6 +926,44 @@ class TestTabelaValidacaoSort:
         )
         if len(df) > 1:
             assert df.iloc[0]["Real - Flex BUD P"] >= df.iloc[-1]["Real - Flex BUD P"]
+
+    def test_preserva_type05_do_flex_sem_dependencia_do_real(self):
+        data = _make_data()
+        data["real"] = data["real"][data["real"]["Account"] != "Wages"].copy()
+
+        df = gerar_tabela_validacao(
+            data, oficina=None, periodo="Junho",
+            proporcao=0.5, moeda="BRL",
+        )
+
+        wages = df[df["Account"] == "Wages"]
+        assert not wages.empty
+        assert wages.iloc[0]["Type 05"] == "Labor"
+
+    def test_preenche_type05_vazio_no_flex_com_base_no_real(self):
+        data = _make_data()
+        data["flex_detalhado"] = data["flex_detalhado"].copy()
+        mask = data["flex_detalhado"]["Account"] == "Scrap Sales"
+        data["flex_detalhado"].loc[mask, "Type 05"] = None
+
+        df = gerar_tabela_validacao(
+            data, oficina="OF1", periodo="Junho",
+            proporcao=0.5, moeda="BRL",
+        )
+
+        scrap_sales = df[df["Account"] == "Scrap Sales"]
+        assert not scrap_sales.empty
+        assert set(scrap_sales["Type 05"]) == {"Burden"}
+
+    def test_nao_retorna_type05_vazio(self):
+        data = _make_rich_data()
+        df = gerar_tabela_validacao(
+            data, oficina=None, periodo="Junho",
+            proporcao=0.5, moeda="BRL",
+        )
+
+        assert not df.empty
+        assert df["Type 05"].fillna("").str.strip().ne("").all()
 
 
 # =========================================================================
@@ -1038,7 +1077,11 @@ class TestBuildRankingText:
         )
         text = _build_ranking_text(ranking)
         assert "sal" in text
-        assert "maior" in text and "desvio" in text
+        assert "representa" in text and "desvio total" in text
+
+    def test_barra_reflete_percentual_do_total(self):
+        from alertas.notifications_teams import _bar_text
+        assert _bar_text(124000.0, 184000.0) == "[███████░░░] representa 67% do desvio total"
 
 
 # =========================================================================

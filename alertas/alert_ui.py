@@ -40,12 +40,23 @@ from alertas.utils_dates import (
 
 _CSS = """
 <style>
+.block-container {
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.5rem !important;
+}
+hr {
+    display: none !important;
+    margin: 0 !important;
+}
+[data-testid="stVerticalBlock"] > div {
+    margin-bottom: 0.35rem;
+}
 /* --- Card consolidado --- */
 .alc-card {
     border: 1px solid #ddd;
     border-radius: 12px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
     background: #fafafa;
 }
 @media (prefers-color-scheme: dark) {
@@ -58,7 +69,7 @@ _CSS = """
 
 .alc-header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 14px; padding-bottom: 10px;
+    margin-bottom: 10px; padding-bottom: 8px;
     border-bottom: 2px solid #e0e0e0;
 }
 .alc-title { font-size: 1.25em; font-weight: 800; }
@@ -79,7 +90,7 @@ _CSS = """
 /* Nível: Type 05 */
 .alc-t05 {
     font-size: 1.05em; font-weight: 800;
-    margin: 16px 0 6px 0; padding: 4px 0;
+    margin: 10px 0 4px 0; padding: 2px 0;
 }
 
 /* Nível: Type 06 */
@@ -127,7 +138,7 @@ _CSS = """
 
 /* Rodapé */
 .alc-footer {
-    margin-top: 14px; padding-top: 10px;
+    margin-top: 10px; padding-top: 8px;
     border-top: 2px solid #e0e0e0;
 }
 .alc-meta { font-size: 0.82em; color: #888; font-weight: 600; }
@@ -177,7 +188,6 @@ def render_monitoring_page() -> None:
 
     # --- Carregar dados e calcular ---
     with col_btn:
-        st.write("")  # spacer
         btn_col1, btn_col2 = st.columns(2)
         with btn_col1:
             run_btn = st.button("▶ Verificar agora", type="primary")
@@ -281,11 +291,9 @@ def render_monitoring_page() -> None:
             _render_card_consolidado(ranking, modo_label, prop)
 
     # --- Tabela de validação (sempre visível) ---
-    st.divider()
     _render_tabela_validacao(ano_sel, periodo_sel, hoje)
 
     # --- Mensagens internas (histórico recente) ---
-    st.divider()
     _render_mensagens_recentes()
 
 
@@ -316,11 +324,11 @@ def _sev_class(pct: float) -> str:
     return "informativo"
 
 
-def _bar_html(desvio: float, max_desvio: float, sev_cls: str) -> str:
-    """Barra de intensidade proporcional."""
-    if max_desvio <= 0:
+def _bar_html(desvio: float, total_desvio_abs: float, sev_cls: str) -> str:
+    """Barra de intensidade proporcional ao desvio absoluto total exibido."""
+    if total_desvio_abs <= 0:
         return ""
-    pct = min(100.0, abs(desvio) / max_desvio * 100)
+    pct = min(100.0, abs(desvio) / total_desvio_abs * 100)
     return (
         f'<div class="alc-bar-wrap">'
         f'<div class="alc-bar alc-bar-{sev_cls}" style="width:{pct:.0f}%"></div>'
@@ -328,11 +336,11 @@ def _bar_html(desvio: float, max_desvio: float, sev_cls: str) -> str:
     )
 
 
-def _bar_pct(desvio: float, max_desvio: float) -> float:
-    """Percentual da barra em relacao ao maior desvio absoluto do card."""
-    if max_desvio <= 0:
+def _bar_pct(desvio: float, total_desvio_abs: float) -> float:
+    """Percentual da barra em relacao ao desvio absoluto total exibido."""
+    if total_desvio_abs <= 0:
         return 0.0
-    return min(100.0, abs(desvio) / max_desvio * 100)
+    return min(100.0, abs(desvio) / total_desvio_abs * 100)
 
 
 def _fmt_k_sign(valor: float, moeda: str) -> str:
@@ -362,8 +370,8 @@ def _render_card_consolidado(
     total_desvio = ranking.get("total_desvio", 0)
     itens = ranking.get("itens", [])
 
-    # Máximo desvio para barras proporcionais
-    max_desvio = max((it["desvio"] for it in itens), default=1)
+    # Base das barras: participacao de cada Type 06 no desvio absoluto total exibido.
+    total_desvio_abs = sum(abs(it.get("desvio", 0)) for it in itens)
 
     # --- Agrupar itens por Type 05 ---
     by_t05: dict[str, list[dict]] = {}
@@ -411,14 +419,14 @@ def _render_card_consolidado(
             )
 
             # Barra + delta
-            fill_pct = _bar_pct(it["desvio"], max_desvio)
+            fill_pct = _bar_pct(it["desvio"], total_desvio_abs)
             lines.append(
                 f'<div class="alc-t06-vals">'
-                f'{_bar_html(it["desvio"], max_desvio, sev_cls)}'
+                f'{_bar_html(it["desvio"], total_desvio_abs, sev_cls)}'
                 f'<span style="margin-left:20px;">'
                 f'{_esc(fmt_delta_k(it["desvio"], moeda))} · '
                 f'{abs(it["desvio_pct"]):.1f}% · '
-                f'barra {fill_pct:.0f}% do maior desvio</span>'
+                f'representa {fill_pct:.0f}% do desvio total</span>'
                 f'</div>'
             )
 
@@ -487,7 +495,7 @@ def _render_card_consolidado(
     )
     lines.append(
         '<div class="alc-bar-note">'
-        'Barra = desvio absoluto de cada Type 06 em relacao ao maior desvio absoluto exibido neste card.'
+        'Barra = participacao do desvio absoluto de cada Type 06 sobre o desvio absoluto total exibido neste card.'
         '</div>'
     )
     lines.append('</div>')

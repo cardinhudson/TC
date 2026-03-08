@@ -167,10 +167,22 @@ st.markdown(f"""
 # CSS
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 0.8rem !important;
+            padding-bottom: 0.4rem !important;
+        }
+        hr {
+            display: none !important;
+            margin: 0 !important;
+        }
         h1 {
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            margin-bottom: 0.2rem !important;
+        }
+        h2, h3 {
+            margin-bottom: 0.2rem !important;
         }
     </style>
 """, unsafe_allow_html=True)

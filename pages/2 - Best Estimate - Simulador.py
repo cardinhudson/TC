@@ -124,6 +124,14 @@ st.markdown(f"""
 # CSS para customização
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 0.8rem !important;
+            padding-bottom: 0.4rem !important;
+        }
+        hr {
+            display: none !important;
+            margin: 0 !important;
+        }
         /* Reduzir títulos em 20% e evitar quebra de linha */
         h1 {
             /* Reduzido de 3rem para 2.4rem (20%) */
@@ -131,14 +139,17 @@ st.markdown("""
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            margin-bottom: 0.2rem !important;
         }
         h2 {
             /* Reduzido de 2rem para 1.6rem (20%) */
             font-size: 1.6rem !important;
+            margin-bottom: 0.2rem !important;
         }
         h3 {
             /* Reduzido de 1.6rem para 1.28rem (20%) */
             font-size: 1.28rem !important;
+            margin-bottom: 0.2rem !important;
         }
         /* Estilos para botões: reduzir fonte e aproximar */
         .stButton > button {

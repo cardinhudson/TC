@@ -65,6 +65,25 @@ _FREQUENCY_LABELS = {
     "monthly": "Mensal",
 }
 
+_CSS = """
+<style>
+.block-container {
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.5rem !important;
+}
+hr {
+    display: none !important;
+    margin: 0 !important;
+}
+[data-testid="stVerticalBlock"] > div {
+    margin-bottom: 0.3rem;
+}
+div[data-testid="stExpander"] {
+    margin-bottom: 0.5rem;
+}
+</style>
+"""
+
 
 def _defaults_regra_ui(rules_data: dict, ano_padrao: int) -> dict:
     legacy_schedule = rules_data.get("config", {}).get("schedule", {})
@@ -147,6 +166,7 @@ def _resumo_agendamento(rule: dict) -> str:
     return f"Diario as {horario}"
 
 def render_config_page() -> None:
+    st.markdown(_CSS, unsafe_allow_html=True)
     st.header("⚙️ Configuração de Alertas")
 
     rules_data = load_alert_rules()
@@ -181,7 +201,6 @@ def _render_regras(rules_data: dict, rules: list[dict]) -> None:
         for i, rule in enumerate(rules):
             _render_rule_card(rules_data, rules, rule, i, anos)
 
-    st.divider()
     editando = bool(st.session_state.get(_RULE_FIELD_KEYS["id"]))
     st.subheader("✏️ Editar Regra" if editando else "➕ Nova Regra")
     _render_form_nova_regra(rules_data, anos)
@@ -511,7 +530,6 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
             "Use a Central de Alertas para disparo manual quando necessário."
         )
 
-        st.divider()
         st.markdown("**E-mail (Microsoft Graph API)**")
         client_id = st.text_input(
             "Application (Client) ID",
@@ -533,7 +551,6 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
             value="\n".join(email_cfg.get("recipients", [])),
         )
 
-        st.divider()
         st.markdown("**Teams (Webhook)**")
         webhook = st.text_input(
             "URL Webhook", value=config.get("teams_webhook_url", ""),
@@ -560,10 +577,8 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
             st.success("Configuração salva!")
 
     # --- Botões de autenticação e teste (fora do form) ---
-    st.divider()
     _render_graph_auth_button(config)
 
-    st.divider()
     st.subheader("🧪 Testar Envio")
     c1, c2 = st.columns(2)
     with c1:

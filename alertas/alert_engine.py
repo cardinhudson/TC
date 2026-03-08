@@ -1030,6 +1030,40 @@ def gerar_tabela_validacao(
     if df_real is None or df_real.empty or df_flex is None or df_flex.empty:
         return pd.DataFrame()
 
+    def _build_type05_map(*dfs: pd.DataFrame) -> dict[tuple[str, str], str]:
+        mapping: dict[tuple[str, str], str] = {}
+        for df in dfs:
+            if df is None or df.empty or "Type 05" not in df.columns:
+                continue
+
+            base = df[["Type 06", "Account", "Type 05"]].copy()
+            base = base.dropna(subset=["Type 06", "Account"])
+            base["Type 05"] = base["Type 05"].where(base["Type 05"].notna(), "")
+            base["Type 05"] = base["Type 05"].astype(str).str.strip()
+            base = base[base["Type 05"] != ""]
+            if base.empty:
+                continue
+
+            for (type_06, account), grp in base.groupby(["Type 06", "Account"], dropna=False):
+                mapping[(type_06, account)] = grp["Type 05"].mode().iloc[0]
+        return mapping
+
+    def _fill_missing_type05(df: pd.DataFrame, mapping: dict[tuple[str, str], str]) -> pd.DataFrame:
+        out = df.copy()
+        if "Type 05" not in out.columns:
+            out["Type 05"] = ""
+        else:
+            out["Type 05"] = out["Type 05"].where(out["Type 05"].notna(), "")
+            out["Type 05"] = out["Type 05"].astype(str).str.strip()
+
+        missing_mask = out["Type 05"] == ""
+        if missing_mask.any():
+            out.loc[missing_mask, "Type 05"] = out.loc[missing_mask, ["Type 06", "Account"]].apply(
+                lambda row: mapping.get((row["Type 06"], row["Account"]), ""),
+                axis=1,
+            )
+        return out
+
     ofi_list = [oficina] if oficina else []
 
     # --- Filtrar Real ---
@@ -1042,6 +1076,10 @@ def gerar_tabela_validacao(
     if f.empty:
         return pd.DataFrame()
 
+    type05_map = _build_type05_map(r, f)
+    r = _fill_missing_type05(r, type05_map)
+    f = _fill_missing_type05(f, type05_map)
+
     # Agregar Real por (Type 05, Type 06, Account)
     if "Type 05" not in r.columns:
         return pd.DataFrame()
@@ -1052,21 +1090,10 @@ def gerar_tabela_validacao(
         .rename(columns={_COL_CUSTO: "Real"})
     )
 
-    # Agregar Flex por (Type 05, Type 06, Account) — Flex_Bud já existe no detalhado
-    # Precisamos do Type 05: vem do df_real (mapa)
-    t05_map = {}
-    if "Type 05" in r.columns:
-        for (t6, acc), grp in r.groupby(["Type 06", "Account"]):
-            vals = grp["Type 05"].dropna()
-            t05_map[(t6, acc)] = vals.mode().iloc[0] if not vals.empty else ""
-
     flex_agg = (
-        f.groupby(["Type 06", "Account"], as_index=False)["Flex_Bud"]
+        f.groupby(["Type 05", "Type 06", "Account"], as_index=False, dropna=False)["Flex_Bud"]
         .sum()
         .rename(columns={"Flex_Bud": "Flex BUD"})
-    )
-    flex_agg["Type 05"] = flex_agg.apply(
-        lambda row: t05_map.get((row["Type 06"], row["Account"]), ""), axis=1,
     )
 
     # Merge
@@ -1077,6 +1104,8 @@ def gerar_tabela_validacao(
     )
     merged["Real"] = merged["Real"].fillna(0.0)
     merged["Flex BUD"] = merged["Flex BUD"].fillna(0.0)
+    merged = _fill_missing_type05(merged, type05_map)
+    merged["Type 05"] = merged["Type 05"].replace("", "Sem Type 05")
 
     # Flex BUD P = Flex BUD × proporção
     merged["Flex BUD P"] = merged["Flex BUD"] * proporcao

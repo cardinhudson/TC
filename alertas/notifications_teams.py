@@ -47,17 +47,17 @@ def _fmt_cpu_sign(valor: float, simbolo: str) -> str:
     return f"Δ {sinal}{s} {simbolo}/veíc"
 
 
-def _bar_text(desvio: float, max_desvio: float, width: int = 10) -> str:
-    """Barra textual proporcional ao maior desvio absoluto do card."""
-    if max_desvio <= 0:
-        return "[░░░░░░░░░░] 0% do maior desvio"
+def _bar_text(desvio: float, total_desvio_abs: float, width: int = 10) -> str:
+    """Barra textual proporcional ao desvio absoluto total do card."""
+    if total_desvio_abs <= 0:
+        return "[░░░░░░░░░░] representa 0% do desvio total"
 
-    ratio = min(1.0, abs(desvio) / max_desvio)
+    ratio = min(1.0, abs(desvio) / total_desvio_abs)
     filled = int(round(ratio * width))
     if abs(desvio) > 0 and filled == 0:
         filled = 1
     empty = max(0, width - filled)
-    return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.0f}% do maior desvio"
+    return f"[{'█' * filled}{'░' * empty}] representa {ratio * 100:.0f}% do desvio total"
 
 
 def _tree_html(text: str) -> str:
@@ -71,7 +71,7 @@ def _build_ranking_text(ranking: dict) -> str:
     moeda = ranking.get("moeda", "BRL")
     simbolo = ranking.get("simbolo", "R$")
     itens = ranking.get("itens", [])
-    max_desvio = max((abs(it.get("desvio", 0)) for it in itens), default=0.0)
+    total_desvio_abs = sum(abs(it.get("desvio", 0)) for it in itens)
 
     # Agrupar por Type 05
     by_t05: dict[str, list[dict]] = {}
@@ -101,7 +101,7 @@ def _build_ranking_text(ranking: dict) -> str:
             tree_cont = "│  " if not is_last_t6 else "   "
 
             lines.append(
-                f"{_tree_html(tree_cont)} {_bar_text(it['desvio'], max_desvio)} · "
+                f"{_tree_html(tree_cont)} {_bar_text(it['desvio'], total_desvio_abs)} · "
                 f"{fmt_delta_k(it['desvio'], moeda)} · "
                 f"{abs(it['desvio_pct']):.1f}%"
             )
@@ -224,7 +224,7 @@ def build_teams_card_consolidated(
         f"🟡{_sp}1-5%{_sp}·{_sp}"
         f"🟢{_sp}&lt;1%<br>"
         f"Barra{_sp}={_sp}desvio{_sp}absoluto{_sp}de{_sp}cada{_sp}Type{_sp}06{_sp}"
-        f"em{_sp}relacao{_sp}ao{_sp}maior{_sp}desvio{_sp}do{_sp}card"
+        f"como{_sp}percentual{_sp}do{_sp}desvio{_sp}absoluto{_sp}total{_sp}do{_sp}card"
     )
 
     sections = [
