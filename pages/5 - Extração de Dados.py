@@ -733,6 +733,8 @@ with tab2:
     log_container = st.container()
     
     # Executar processamentos
+    executar_alertas_ao_final = False
+
     if executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"):
         with log_container:
             st.subheader("📊 Processando Dados REAIS...")
@@ -757,7 +759,7 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
                     st.json(resultado)
-                    _executar_alertas_pos_extracao()
+                    executar_alertas_ao_final = True
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")
@@ -787,11 +789,14 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
                     st.json(resultado)
-                    _executar_alertas_pos_extracao()
+                    executar_alertas_ao_final = True
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")
                 st.exception(e)
+
+    if executar_alertas_ao_final:
+        _executar_alertas_pos_extracao()
 
 # TAB 3: Status e Logs
 with tab3:

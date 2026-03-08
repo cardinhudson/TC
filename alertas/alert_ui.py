@@ -13,7 +13,6 @@ import streamlit as st
 from alertas.alert_engine import (
     accounts_disponiveis,
     calcular_ranking_consolidado,
-    evaluate_all_rules,
     fmt_delta_cpu,
     fmt_delta_k,
     fmt_k,
@@ -147,12 +146,6 @@ def render_monitoring_page() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
     st.header("🔔 Central de Alertas")
 
-    # Iniciar scheduler se configurado (1x por sessão)
-    if "scheduler_started" not in st.session_state:
-        from alertas.scheduler import restart_scheduler, is_running
-        restart_scheduler()
-        st.session_state["scheduler_started"] = True
-
     rules_data = load_alert_rules()
     rules = rules_data.get("rules", [])
 
@@ -163,7 +156,7 @@ def render_monitoring_page() -> None:
     # --- Seletores: Ano + Período ---
     hoje = date.today()
     anos_regras = sorted({r.get("ano", hoje.year) for r in rules}, reverse=True)
-    col_ano, col_per, col_btn = st.columns([1, 2, 1])
+    col_ano, col_per, col_btn = st.columns([1, 2, 2])
 
     with col_ano:
         ano_sel = st.selectbox("Ano", anos_regras, key="al_mon_ano")
@@ -183,7 +176,29 @@ def render_monitoring_page() -> None:
     # --- Carregar dados e calcular ---
     with col_btn:
         st.write("")  # spacer
-        run_btn = st.button("▶ Verificar agora", type="primary")
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            run_btn = st.button("▶ Verificar agora", type="primary")
+        with btn_col2:
+            run_all_btn = st.button("🔔 Disparar alertas ativos")
+
+    if run_all_btn:
+        with st.spinner("Disparando todos os alertas ativos..."):
+            from alertas.alert_engine import run_daily_check
+            logs = run_daily_check(periodo=periodo_sel, data_ref=hoje)
+
+        if logs:
+            enviados = sum(
+                1 for item in logs
+                if item.get("notificacoes_enviadas", {}).get("email")
+                or item.get("notificacoes_enviadas", {}).get("teams")
+            )
+            st.success(
+                f"{len(logs)} alerta(s) ativo(s) processado(s); "
+                f"{enviados} notificação(ões) enviada(s)."
+            )
+        else:
+            st.info("Nenhum alerta ativo gerou desvio para o período selecionado.")
 
     if run_btn:
         with st.spinner("Calculando..."):

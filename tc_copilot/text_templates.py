@@ -112,6 +112,39 @@ def _verbo_vol(delta: float) -> tuple[str, str]:
     return ("igualou", "neutro")
 
 
+def _texto_efeito_volume(
+    efeito_vol: float,
+    vol_real: float,
+    vol_bud: float,
+    fp_bud: float,
+    fp_flex: float,
+    cpu_bud: float,
+    cpu_flex: float,
+    moeda: str = "BRL",
+    simbolo: str = "R$",
+) -> str:
+    """Descreve o efeito volume priorizando o conceito de diluicao/concentracao no custo unitario."""
+    rel_vol = "superou" if vol_real > vol_bud else ("ficou abaixo do" if vol_real < vol_bud else "igualou o")
+
+    if vol_real > vol_bud:
+        return (
+            f"O ajuste de volume foi favoravel, pois o maior volume diluiu os custos fixos e limitou o impacto total "
+            f"no Flex Budget a {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}. "
+            f"Com isso, o Flex Budget ficou em {_fmt_k(fp_flex, moeda=moeda)} e o custo por veiculo caiu para "
+            f"{_fmt_cpu(cpu_flex, simbolo)}, abaixo do Budget de {_fmt_cpu(cpu_bud, simbolo)}."
+        )
+    if vol_real < vol_bud:
+        return (
+            f"O ajuste de volume foi desfavoravel, pois o menor volume concentrou os custos fixos e ampliou o impacto "
+            f"no custo unitario. Com isso, o Flex Budget ficou em {_fmt_k(fp_flex, moeda=moeda)} e o custo por veiculo subiu para "
+            f"{_fmt_cpu(cpu_flex, simbolo)}, acima do Budget de {_fmt_cpu(cpu_bud, simbolo)}."
+        )
+    return (
+        f"O volume real {rel_vol} Budget de {_fmt(vol_bud, 0)} un., mantendo o Flex Budget em {_fmt_k(fp_flex, moeda=moeda)} "
+        f"e o custo por veiculo em {_fmt_cpu(cpu_flex, simbolo)}, alinhados ao Budget."
+    )
+
+
 # ═══════════════════════════════════════════════════════════════
 #  SEÇÃO 0 — RESUMO EXECUTIVO
 # ═══════════════════════════════════════════════════════════════
@@ -174,14 +207,12 @@ def gerar_texto_resumo_executivo(
     paragrafos.append(p1)
 
     # ── 2. Custo FP / Waterfall ──
-    v_imp = "negativamente" if efeito_vol > 0 else "positivamente"
     op_verbo, op_adj = _verbo_custo(efeito_op)
     p2 = (
         f"O Custo FP Real totalizou **{_fmt_k(fp_real, moeda=moeda)}** ({_fmt_cpu(cpu_real, simbolo)}), "
         f"contra um Budget de {_fmt_k(fp_bud, moeda=moeda)} ({_fmt_cpu(cpu_bud, simbolo)}), "
         f"resultando em um delta de {_sinal(delta_bud)}{_fmt_k(delta_bud, moeda=moeda)} ({_pct(fp_real, fp_bud)}). "
-        f"O efeito volume impactou {v_imp} em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}, "
-        f"levando o Flex Budget a {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
+        f"{_texto_efeito_volume(efeito_vol, vol_real, vol_bud, fp_bud, fp_flex, cpu_bud, cpu_flex, moeda, simbolo)} "
         f"O efeito operacional (Performance) (preço e mix) {op_verbo} {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance **{op_adj}** frente ao esperado."
     )
@@ -450,7 +481,6 @@ def gerar_texto_comparativos(
     bloco_21: list[str] = []
     bloco_21.append("### 2.1 Real vs Budget (Efeito Flex Volume)")
     rel_vol = "superou" if vol_real > vol_bud else "ficou abaixo do"
-    imp_vol = "negativamente" if efeito_vol > 0 else "positivamente"
     imp_op = "gerou economia" if efeito_op < 0 else "gerou aumento"
     perf_op = "melhor" if efeito_op < 0 else "pior"
 
@@ -461,9 +491,8 @@ def gerar_texto_comparativos(
     )
     bloco_21.append(
         f"\nO volume real de {_fmt(vol_real, 0)} un. {rel_vol} Budget de "
-        f"{_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)}), impactando {imp_vol} "
-        f"o custo em {_sinal(efeito_vol)}{_fmt_k(efeito_vol, moeda=moeda)}. "
-        f"O Flex Budget resultante ficou em {_fmt_k(fp_flex, moeda=moeda)} ({_fmt_cpu(cpu_flex, simbolo)}). "
+        f"{_fmt(vol_bud, 0)} un. ({_pct(vol_real, vol_bud)}). "
+        f"{_texto_efeito_volume(efeito_vol, vol_real, vol_bud, fp_bud, fp_flex, cpu_bud, cpu_flex, moeda, simbolo)} "
         f"O efeito operacional (Performance) {imp_op} de {_fmt_k(abs(efeito_op), moeda=moeda)}, "
         f"indicando performance {perf_op} do que o esperado."
     )

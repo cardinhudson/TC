@@ -13,6 +13,7 @@ Três abas:
 from __future__ import annotations
 
 import os
+import time as _time
 import streamlit as st
 
 from tc_copilot.config import (
@@ -357,6 +358,7 @@ def _render_relatorio_local():
         _moeda = st.session_state.get("copilot_moeda", "EUR")
         _taxas = st.session_state.get("copilot_taxas", {})
 
+        _t0_btn = _time.time()
         progress = st.progress(0, text="Iniciando geração...")
         total = len(meses_para_gerar)
         pdf_path = None
@@ -374,6 +376,7 @@ def _render_relatorio_local():
                     idioma=idioma,
                     moeda=_moeda,
                     taxas=_taxas,
+                    tempo_inicio=_t0_btn,
                 )
             except Exception as e:
                 st.error(f"Erro ao gerar {nome_mes}: {e}")
@@ -501,6 +504,7 @@ def _render_relatorio_ia():
         progress = st.progress(0, text="Iniciando geração...")
         total = len(meses_para_gerar)
         pdf_path = None
+        _t0_btn = _time.time()
 
         for idx, mes_num in enumerate(meses_para_gerar):
             nome_mes = obter_nome_mes(mes_num, "pt-BR")
@@ -520,6 +524,7 @@ def _render_relatorio_ia():
                     idioma=idioma,
                     moeda=_moeda_ia,
                     taxas=_taxas_ia,
+                    tempo_inicio=_t0_btn,
                 )
             except Exception as e:
                 st.error(f"Erro ao gerar {nome_mes}: {e}")
@@ -596,6 +601,7 @@ def _render_regenerar_mensais_faltantes():
         key="btn_regen_mensais",
     ):
         from tc_copilot.report_generator import gerar_pdf_mensal
+        _t0_regen = _time.time()
         progress = st.progress(0, text="Gerando...")
         ok = 0
         for i, (ano, mes, modo) in enumerate(faltantes):
@@ -604,7 +610,7 @@ def _render_regenerar_mensais_faltantes():
                 text=f"Gerando {modo} {mes:02d}/{ano}...",
             )
             try:
-                r = gerar_pdf_mensal(ano, mes, modo=modo)
+                r = gerar_pdf_mensal(ano, mes, modo=modo, tempo_inicio=_t0_regen)
                 if r:
                     ok += 1
             except Exception:
@@ -938,6 +944,11 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
 
                     st.markdown("---")
 
+                _renderizar_tabelas_streamlit(
+                    info_mes,
+                    titulo_bloco="📊 3.1 Anexos — Tabelas Principais Despesas",
+                )
+
             # ── EXPANDER separado para análise por oficina ──
             oficina_keys = sorted([k for k in secoes if k.startswith("oficina_")])
             if oficina_keys:
@@ -1009,18 +1020,89 @@ def _render_resultado_relatorio(ano: int, idioma: str, modo: str = "ia"):
                                     st.markdown(f"**{label_analise}**")
                                     st.markdown(texto_analise.replace("$", "\\$"))
 
+                                _renderizar_tabelas_streamlit(
+                                    info_mes,
+                                    ofc_nome=ofc_nome,
+                                    titulo_bloco="📊 4.1 Anexos — Tabelas Principais Despesas",
+                                )
+
                             except Exception:
                                 # Fallback: texto salvo pelo report generator
                                 texto = secoes.get(ofc_key, "")
                                 if texto:
                                     st.markdown(texto.replace("$", "\\$"))
+                                _renderizar_tabelas_streamlit(
+                                    info_mes,
+                                    ofc_nome=ofc_nome,
+                                    titulo_bloco="📊 4.1 Anexos — Tabelas Principais Despesas",
+                                )
                         else:
                             # Fallback: texto monolítico salvo
                             texto = secoes.get(ofc_key, "")
                             if texto:
                                 st.markdown(texto.replace("$", "\\$"))
+                            _renderizar_tabelas_streamlit(
+                                info_mes,
+                                ofc_nome=ofc_nome,
+                                titulo_bloco="📊 4.1 Anexos — Tabelas Principais Despesas",
+                            )
 
                         st.divider()
+
+
+def _renderizar_tabelas_streamlit(
+    info_mes: dict,
+    ofc_nome: str | None = None,
+    titulo_bloco: str | None = None,
+) -> None:
+    """Renderiza tabelas já calculadas no JSON do relatório."""
+    import pandas as pd
+
+    dados_graf = info_mes.get("dados_graficos", {})
+    if ofc_nome is None:
+        secao = dados_graf.get("global", {})
+    else:
+        secao = dados_graf.get("oficinas", {}).get(ofc_nome, {})
+
+    tabelas = secao.get("tabelas", [])
+    if not tabelas:
+        return
+
+    if titulo_bloco:
+        st.markdown(f"**{titulo_bloco}**")
+
+    for idx, tabela in enumerate(tabelas):
+        titulo = tabela.get("titulo", f"Tabela {idx + 1}")
+        colunas = tabela.get("colunas", [])
+        linhas = tabela.get("linhas", [])
+        if not colunas or not linhas:
+            continue
+
+        df_tab = pd.DataFrame(linhas, columns=colunas)
+        for col in df_tab.columns:
+            convertido = pd.to_numeric(df_tab[col], errors="coerce")
+            if convertido.notna().all():
+                df_tab[col] = convertido
+
+        st.markdown(f"*{titulo}*")
+
+        formatters = {
+            col: lambda val: f"{val:,.2f}"
+            for col in df_tab.select_dtypes(include=["number"]).columns
+        }
+        if formatters:
+            st.dataframe(
+                df_tab.style.format(formatters),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.dataframe(
+                df_tab,
+                use_container_width=True,
+                hide_index=True,
+            )
+        st.markdown("")
 
 
 # ═══════════════════════════════════════════════════════════════

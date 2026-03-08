@@ -22,6 +22,7 @@ alertas/.token_cache.json
 
 # TC Copilot — relatórios gerados (versionados para compartilhar entre PCs)
 # documentacao_anual/ — NÃO ignorar, queremos manter os relatórios no Git
+documentacao_anual/.chart_cache/
 
 # IDEs
 .vscode/*

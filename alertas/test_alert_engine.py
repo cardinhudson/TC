@@ -25,6 +25,8 @@ from alertas.alert_engine import (
     gerar_tabela_validacao,
     load_alert_log,
     load_alert_rules,
+    normalizar_filtros_dependentes,
+    normalizar_regra_alerta,
     save_alert_log,
     save_alert_rules,
 )
@@ -459,6 +461,19 @@ class TestPersistencia:
         loaded = load_alert_rules(path)
         assert loaded["rules"][0]["id"] == "r1"
 
+    def test_load_rules_normaliza_schedule_legado(self, tmp_path):
+        path = str(tmp_path / "rules.json")
+        payload = {
+            "config": {"schedule": {"enabled": True, "hour": 9}},
+            "rules": [{"id": "r1", "ano": 2025}],
+        }
+        save_alert_rules(payload, path)
+        loaded = load_alert_rules(path)
+        schedule = loaded["rules"][0]["schedule"]
+        assert schedule["enabled"] is True
+        assert schedule["hour"] == 9
+        assert schedule["frequency"] == "daily"
+
     def test_save_and_load_log(self, tmp_path):
         path = str(tmp_path / "log.json")
         save_alert_log([{"id": "a1"}], path)
@@ -476,6 +491,65 @@ class TestConstantes:
     def test_modos_definidos(self):
         assert "flex_bud_x_real" in MODOS_COMPARACAO
         assert "mes_x_mes_anterior" in MODOS_COMPARACAO
+
+
+class TestNormalizacaoRegras:
+    def test_normaliza_filtros_dependentes(self, monkeypatch):
+        monkeypatch.setattr(
+            "alertas.alert_engine.type06_disponiveis",
+            lambda ano, type05_list=None: ["T6A"] if type05_list == ["T5A"] else [],
+        )
+        monkeypatch.setattr(
+            "alertas.alert_engine.accounts_disponiveis",
+            lambda ano, type06_list=None: ["ACC1"] if type06_list == ["T6A"] else [],
+        )
+
+        filtros = normalizar_filtros_dependentes(
+            2025,
+            ["T5A"],
+            ["T6A", "T6B"],
+            ["ACC1", "ACC9"],
+        )
+        assert filtros == {
+            "filtro_type_05": ["T5A"],
+            "filtro_type_06": ["T6A"],
+            "filtro_account": ["ACC1"],
+        }
+
+    def test_normaliza_regra_com_schedule_mensal(self, monkeypatch):
+        monkeypatch.setattr(
+            "alertas.alert_engine.type06_disponiveis",
+            lambda ano, type05_list=None: ["T6A"],
+        )
+        monkeypatch.setattr(
+            "alertas.alert_engine.accounts_disponiveis",
+            lambda ano, type06_list=None: ["ACC1"],
+        )
+
+        regra = normalizar_regra_alerta({
+            "id": "r1",
+            "ano": 2025,
+            "filtro_type_05": ["T5A"],
+            "filtro_type_06": ["T6A"],
+            "filtro_account": ["ACC1"],
+            "schedule": {
+                "enabled": True,
+                "frequency": "monthly",
+                "hour": 7,
+                "minute": 30,
+                "days_of_month": [15, 3, 15],
+            },
+        }, {"schedule": {"enabled": False, "hour": 8}})
+
+        assert regra["schedule"] == {
+            "enabled": True,
+            "frequency": "monthly",
+            "hour": 7,
+            "minute": 30,
+            "start_day_of_month": 1,
+            "days_of_week": [],
+            "days_of_month": [3, 15],
+        }
 
 
 # =========================================================================
@@ -1126,3 +1200,83 @@ class TestScheduler:
         restart_scheduler()
         # Pode estar parado se config não tem schedule.enabled
         stop_scheduler()  # cleanup
+
+    def test_build_rule_trigger_kwargs(self):
+        from alertas.scheduler import _build_rule_trigger_kwargs
+
+        semanal = _build_rule_trigger_kwargs({
+            "enabled": True,
+            "frequency": "weekly",
+            "hour": 10,
+            "minute": 15,
+            "days_of_week": ["Segunda", "Sexta"],
+        })
+        assert semanal == {
+            "hour": 10,
+            "minute": 15,
+            "day_of_week": "mon,fri",
+        }
+
+        mensal = _build_rule_trigger_kwargs({
+            "enabled": True,
+            "frequency": "monthly",
+            "hour": 8,
+            "minute": 0,
+            "days_of_month": [5, 20],
+        })
+        assert mensal == {
+            "hour": 8,
+            "minute": 0,
+            "day": "5,20",
+        }
+
+    def test_schedule_matches_date_daily_start_day(self):
+        from alertas.scheduler import _schedule_matches_date
+
+        schedule = {
+            "enabled": True,
+            "frequency": "daily",
+            "start_day_of_month": 10,
+        }
+        assert not _schedule_matches_date(schedule, date(2025, 6, 9))
+        assert _schedule_matches_date(schedule, date(2025, 6, 10))
+
+    def test_iter_rule_job_specs_filtra_regras(self):
+        from alertas.scheduler import _iter_rule_job_specs
+
+        jobs = _iter_rule_job_specs({
+            "config": {"schedule": {"enabled": True}},
+            "rules": [
+                {
+                    "id": "r1",
+                    "ativo": True,
+                    "schedule": {
+                        "enabled": True,
+                        "frequency": "weekly",
+                        "hour": 9,
+                        "minute": 30,
+                        "days_of_week": ["Quarta"],
+                    },
+                },
+                {
+                    "id": "r2",
+                    "ativo": False,
+                    "schedule": {"enabled": True, "frequency": "daily"},
+                },
+                {
+                    "id": "r3",
+                    "ativo": True,
+                    "schedule": {"enabled": False, "frequency": "daily"},
+                },
+            ],
+        })
+
+        assert jobs == [{
+            "id": "rule_alert_check_r1",
+            "rule_id": "r1",
+            "trigger_kwargs": {
+                "hour": 9,
+                "minute": 30,
+                "day_of_week": "wed",
+            },
+        }]

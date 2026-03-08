@@ -1583,7 +1583,13 @@ def render():
                 if df_veic_be_raw is not None and not df_veic_be_raw.empty:
                     try:
                         _df_vbe_val = normalizar_periodo(df_veic_be_raw.copy())
-                        _df_vbe_val = aplicar_filtros(_df_vbe_val, {k: v for k, v in filtros_sel.items() if k != 'Veículo'})
+                        # Validacao cruzada precisa comparar o mesmo universo do
+                        # forecast total. Nao aplicar filtros de tela aqui, senao
+                        # o total anual passa a ser comparado com um recorte local.
+                        if 'Ano' in _df_vbe_val.columns:
+                            _df_vbe_val = _df_vbe_val[
+                                _df_vbe_val['Ano'] == int(ano)
+                            ].copy()
                         if _df_vbe_val is not None and 'Custo FP Veiculo' in _df_vbe_val.columns:
                             _df_vbe_val['Custo FP'] = _df_vbe_val['Custo FP Veiculo']
                         _cols_vbe = [c for c in COLUNAS_MONETARIAS if c in _df_vbe_val.columns]
@@ -1773,7 +1779,13 @@ def render():
                 # TABELA 2: Validações CRUZADAS (Total vs Por Veículo)
                 # ══════════════════════════════════════════════
                 if len(resultados_cruzados) > 0:
-                    st.markdown("#### 🔗 Validação Cruzada (Total vs Por Veículo)")
+                    st.markdown(
+                        "#### 🔗 Validação Cruzada: Total Anual Consolidado vs Σ Veículos"
+                    )
+                    st.caption(
+                        "Compara o universo anual consolidado, sem filtros de tela, "
+                        "com a soma agregada por veículo."
+                    )
                     
                     html2 = f"""
                     <table class="validacao-table">

@@ -1149,17 +1149,16 @@ def formatar_comparativo_budget_flex_unificado(
     ]
 
     # Parágrafo explicativo do waterfall
-    _imp_vol = "negativamente" if efeito_volume > 0 else "positivamente"
-    _res_vol = "aumento" if efeito_volume > 0 else "redução"
-    _rel_vol = "superou" if vol_real > vol_bud else "ficou abaixo do"
+    _rel_vol = "superou" if vol_real > vol_bud else ("ficou abaixo do" if vol_real < vol_bud else "igualou o")
     _imp_op = "gerou uma economia" if efeito_operacional < 0 else "gerou um aumento"
     _perf_op = "melhor" if efeito_operacional < 0 else "pior"
     lines.append(
-        f"O Efeito Flex Volume impactou {_imp_vol} o custo, resultando em "
-        f"{'um ' + _res_vol if efeito_volume != 0 else 'variação nula'} de {_fmt_k(abs(efeito_volume))} "
-        f"devido ao volume real de {_fmt(vol_real, 0)} un., que {_rel_vol} Budget de "
-        f"{_fmt(vol_bud, 0)} un. em {_pct(vol_real, vol_bud)}. "
-        f"Após o ajuste pelo volume, o Flex Budget ficou em {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}). "
+        f"O Efeito Flex Volume foi {'favoravel' if vol_real > vol_bud else ('desfavoravel' if vol_real < vol_bud else 'neutro')} no custo unitario, "
+        f"pois o volume real de {_fmt(vol_real, 0)} un. {_rel_vol} Budget de {_fmt(vol_bud, 0)} un. em {_pct(vol_real, vol_bud)} "
+        f"e {'diluiu' if vol_real > vol_bud else ('concentrou' if vol_real < vol_bud else 'manteve')} os custos fixos. "
+        f"Assim, o impacto total no Flex Budget foi de {s_vol if efeito_volume > 0 else ''}{_fmt_k(abs(efeito_volume)) if efeito_volume != 0 else _fmt_k(efeito_volume)} "
+        f"e o Flex ficou em {_fmt_k(fp_flex)} ({_fmt_cpu(cpu_flex)}), com custo por veiculo "
+        f"{'abaixo' if cpu_flex < cpu_bud else ('acima' if cpu_flex > cpu_bud else 'alinhado')} do Budget de {_fmt_cpu(cpu_bud)}. "
         f"O Efeito Operacional (Performance), que mede a eficiência de preço e mix, "
         f"{_imp_op} de {_fmt_k(abs(efeito_operacional))} (Δ {s_cpu_eo}{_fmt_cpu(cpu_eo)}), "
         f"indicando uma performance {_perf_op} do que o esperado."

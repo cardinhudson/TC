@@ -274,5 +274,18 @@
       "email": false,
       "teams": true
     }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-07T11:30:05",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-07T11:30:05",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 849188.04,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
   }
 ]

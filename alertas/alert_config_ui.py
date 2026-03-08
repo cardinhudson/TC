@@ -15,6 +15,8 @@ from alertas.alert_engine import (
     MODOS_COMPARACAO,
     accounts_disponiveis,
     load_alert_rules,
+    normalizar_filtros_dependentes,
+    normalizar_regra_alerta,
     oficinas_disponiveis,
     save_alert_rules,
     type05_disponiveis,
@@ -26,6 +28,123 @@ from tc_core.data.paths import listar_anos_disponiveis
 # =========================================================================
 #  Página principal
 # =========================================================================
+
+_RULE_FIELD_KEYS = {
+    "id": "cfg_rule_edit_id",
+    "nome": "cfg_rule_nome",
+    "ano": "cfg_rule_ano",
+    "oficinas": "cfg_rule_oficinas",
+    "modo": "cfg_rule_modo",
+    "top_n": "cfg_rule_top_n",
+    "moeda": "cfg_rule_moeda",
+    "type05": "cfg_rule_type05",
+    "type06": "cfg_rule_type06",
+    "account": "cfg_rule_account",
+    "sched_enabled": "cfg_rule_sched_enabled",
+    "sched_freq": "cfg_rule_sched_freq",
+    "sched_hour": "cfg_rule_sched_hour",
+    "sched_minute": "cfg_rule_sched_minute",
+    "sched_start_day": "cfg_rule_sched_start_day",
+    "sched_weekdays": "cfg_rule_sched_weekdays",
+    "sched_monthdays": "cfg_rule_sched_monthdays",
+}
+
+_WEEKDAY_OPTIONS = [
+    "Segunda",
+    "Terca",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sabado",
+    "Domingo",
+]
+
+_FREQUENCY_LABELS = {
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensal",
+}
+
+
+def _defaults_regra_ui(rules_data: dict, ano_padrao: int) -> dict:
+    legacy_schedule = rules_data.get("config", {}).get("schedule", {})
+    return {
+        "id": None,
+        "nome": "",
+        "ano": ano_padrao,
+        "oficinas": [],
+        "modo": list(MODOS_COMPARACAO.keys())[0],
+        "top_n": 10,
+        "moeda": "BRL",
+        "type05": [],
+        "type06": [],
+        "account": [],
+        "sched_enabled": bool(legacy_schedule.get("enabled", False)),
+        "sched_freq": "daily",
+        "sched_hour": int(legacy_schedule.get("hour", 8)),
+        "sched_minute": 0,
+        "sched_start_day": 1,
+        "sched_weekdays": [],
+        "sched_monthdays": [],
+    }
+
+
+def _popular_estado_regra(rules_data: dict, anos: list[int], rule: dict | None = None) -> None:
+    ano_padrao = anos[0] if anos else 2026
+    values = _defaults_regra_ui(rules_data, ano_padrao)
+    if rule:
+        rule = normalizar_regra_alerta(rule, rules_data.get("config", {}))
+        schedule = rule.get("schedule", {})
+        values.update({
+            "id": rule.get("id"),
+            "nome": rule.get("nome", ""),
+            "ano": int(rule.get("ano", ano_padrao)),
+            "oficinas": list(rule.get("oficinas", [])),
+            "modo": rule.get("modo_comparacao", values["modo"]),
+            "top_n": int(rule.get("top_n", 10)),
+            "moeda": rule.get("moeda", "BRL"),
+            "type05": list(rule.get("filtro_type_05", [])),
+            "type06": list(rule.get("filtro_type_06", [])),
+            "account": list(rule.get("filtro_account", [])),
+            "sched_enabled": bool(schedule.get("enabled", False)),
+            "sched_freq": schedule.get("frequency", "daily"),
+            "sched_hour": int(schedule.get("hour", values["sched_hour"])),
+            "sched_minute": int(schedule.get("minute", 0)),
+            "sched_start_day": int(schedule.get("start_day_of_month", 1)),
+            "sched_weekdays": list(schedule.get("days_of_week", [])),
+            "sched_monthdays": list(schedule.get("days_of_month", [])),
+        })
+
+    for field, key in _RULE_FIELD_KEYS.items():
+        st.session_state[key] = values[field]
+
+
+def _garantir_estado_regra(rules_data: dict, anos: list[int]) -> None:
+    if _RULE_FIELD_KEYS["nome"] not in st.session_state:
+        _popular_estado_regra(rules_data, anos)
+
+
+def _limpar_estado_regra(rules_data: dict, anos: list[int]) -> None:
+    _popular_estado_regra(rules_data, anos)
+
+
+def _resumo_agendamento(rule: dict) -> str:
+    schedule = rule.get("schedule", {})
+    if not schedule.get("enabled", False):
+        return "Manual"
+
+    horario = f"{int(schedule.get('hour', 8)):02d}:{int(schedule.get('minute', 0)):02d}"
+    freq = schedule.get("frequency", "daily")
+    if freq == "weekly":
+        dias = ", ".join(schedule.get("days_of_week", [])) or "sem dias"
+        return f"Semanal ({dias}) as {horario}"
+    if freq == "monthly":
+        dias = ", ".join(str(v) for v in schedule.get("days_of_month", [])) or "sem dias"
+        return f"Mensal (dias {dias}) as {horario}"
+    inicio = int(schedule.get("start_day_of_month", 1))
+    if inicio > 1:
+        return f"Diario a partir do dia {inicio} as {horario}"
+    return f"Diario as {horario}"
 
 def render_config_page() -> None:
     st.header("⚙️ Configuração de Alertas")
@@ -53,33 +172,40 @@ def render_config_page() -> None:
 # =========================================================================
 
 def _render_regras(rules_data: dict, rules: list[dict]) -> None:
+    anos = listar_anos_disponiveis() or [2026]
+    _garantir_estado_regra(rules_data, anos)
+
     if not rules:
         st.info("Nenhuma regra cadastrada.")
     else:
         for i, rule in enumerate(rules):
-            _render_rule_card(rules_data, rules, rule, i)
+            _render_rule_card(rules_data, rules, rule, i, anos)
 
     st.divider()
-    st.subheader("➕ Nova Regra")
-    _render_form_nova_regra(rules_data)
+    editando = bool(st.session_state.get(_RULE_FIELD_KEYS["id"]))
+    st.subheader("✏️ Editar Regra" if editando else "➕ Nova Regra")
+    _render_form_nova_regra(rules_data, anos)
 
 
 def _render_rule_card(
-    rules_data: dict, rules: list[dict], rule: dict, idx: int,
+    rules_data: dict, rules: list[dict], rule: dict, idx: int, anos: list[int],
 ) -> None:
+    rule = normalizar_regra_alerta(rule, rules_data.get("config", {}))
+    rules[idx] = rule
     sev_emoji = "🟢" if rule.get("ativo") else "⚪"
     modo_label = MODOS_COMPARACAO.get(
         rule.get("modo_comparacao", ""), rule.get("modo_comparacao", ""),
     )
 
     with st.expander(f"{sev_emoji} {rule.get('nome', 'Regra')} — {modo_label}"):
-        c1, c2 = st.columns([3, 1])
+        c1, c2 = st.columns([3, 1.2])
         with c1:
             st.markdown(f"**Ano:** {rule.get('ano', '—')}")
             ofi = rule.get("oficinas", [])
             st.markdown(f"**Oficinas:** {', '.join(ofi) if ofi else 'Todas'}")
             st.markdown(f"**Top N:** {rule.get('top_n', 10)}")
             st.markdown(f"**Moeda:** {rule.get('moeda', 'BRL')}")
+            st.markdown(f"**Agendamento:** {_resumo_agendamento(rule)}")
 
             f05 = rule.get("filtro_type_05", [])
             f06 = rule.get("filtro_type_06", [])
@@ -101,9 +227,16 @@ def _render_rule_card(
                 save_alert_rules(rules_data)
                 st.rerun()
 
+            if st.button("✏️ Editar", key=f"cfg_edit_{idx}"):
+                _popular_estado_regra(rules_data, anos, rules[idx])
+                st.rerun()
+
             if st.button("🗑️ Excluir", key=f"cfg_del_{idx}"):
+                edit_id = st.session_state.get(_RULE_FIELD_KEYS["id"])
                 rules.pop(idx)
                 save_alert_rules(rules_data)
+                if edit_id == rule.get("id"):
+                    _limpar_estado_regra(rules_data, anos)
                 st.success("Regra excluída.")
                 st.rerun()
 
@@ -112,74 +245,167 @@ def _render_rule_card(
 #  Form Nova Regra (com filtros cascata)
 # =========================================================================
 
-def _render_form_nova_regra(rules_data: dict) -> None:
-    anos = listar_anos_disponiveis() or [2026]
+def _render_form_nova_regra(rules_data: dict, anos: list[int]) -> None:
+    edit_id = st.session_state.get(_RULE_FIELD_KEYS["id"])
+    ano_key = _RULE_FIELD_KEYS["ano"]
+    type05_key = _RULE_FIELD_KEYS["type05"]
+    type06_key = _RULE_FIELD_KEYS["type06"]
+    account_key = _RULE_FIELD_KEYS["account"]
 
-    with st.form("cfg_form_nova_regra", clear_on_submit=True):
-        nome = st.text_input(
-            "Nome da regra",
-            placeholder="Ex.: Top 5 perdas Estamparia",
+    nome = st.text_input(
+        "Nome da regra",
+        key=_RULE_FIELD_KEYS["nome"],
+        placeholder="Ex.: Top 5 perdas Estamparia",
+    )
+
+    fc1, fc2 = st.columns(2)
+    with fc1:
+        st.selectbox("Ano", anos, key=ano_key)
+        oficinas_list = oficinas_disponiveis(st.session_state[ano_key])
+        oficinas_validas = [v for v in st.session_state[_RULE_FIELD_KEYS["oficinas"]] if v in oficinas_list]
+        if oficinas_validas != st.session_state[_RULE_FIELD_KEYS["oficinas"]]:
+            st.session_state[_RULE_FIELD_KEYS["oficinas"]] = oficinas_validas
+        st.multiselect(
+            "Oficina(s)",
+            oficinas_list,
+            key=_RULE_FIELD_KEYS["oficinas"],
+            help="Deixe vazio para processar TODAS as oficinas",
+        )
+    with fc2:
+        st.selectbox(
+            "Modo de comparação",
+            list(MODOS_COMPARACAO.keys()),
+            key=_RULE_FIELD_KEYS["modo"],
+            format_func=lambda k: MODOS_COMPARACAO[k],
+        )
+        st.number_input("Top N (piores Type 06)", 1, 50, key=_RULE_FIELD_KEYS["top_n"])
+
+    st.selectbox("Moeda", ["BRL", "EUR", "USD"], key=_RULE_FIELD_KEYS["moeda"])
+
+    ano_sel = int(st.session_state[ano_key])
+    filtros = normalizar_filtros_dependentes(
+        ano_sel,
+        st.session_state[type05_key],
+        st.session_state[type06_key],
+        st.session_state[account_key],
+    )
+    st.session_state[type05_key] = filtros["filtro_type_05"]
+    st.session_state[type06_key] = filtros["filtro_type_06"]
+    st.session_state[account_key] = filtros["filtro_account"]
+
+    st.markdown("**Filtros dimensionais** *(deixe vazio = todos)*")
+    fd1, fd2, fd3 = st.columns(3)
+    with fd1:
+        st.multiselect("Type 05", type05_disponiveis(ano_sel), key=type05_key)
+    with fd2:
+        st.multiselect(
+            "Type 06",
+            type06_disponiveis(ano_sel, st.session_state[type05_key] or None),
+            key=type06_key,
+        )
+    with fd3:
+        st.multiselect(
+            "Account",
+            accounts_disponiveis(
+                ano_sel,
+                st.session_state[type06_key] or None,
+            ),
+            key=account_key,
         )
 
-        fc1, fc2 = st.columns(2)
-        with fc1:
-            ano_sel = st.selectbox("Ano", anos, key="cfg_nr_ano")
-            oficinas_list = oficinas_disponiveis(ano_sel)
-            f_oficina = st.multiselect(
-                "Oficina(s)",
-                oficinas_list,
-                help="Deixe vazio para processar TODAS as oficinas",
+    st.markdown("**Agendamento por regra**")
+    ag1, ag2, ag3 = st.columns(3)
+    with ag1:
+        st.checkbox("Ativar envio automatico", key=_RULE_FIELD_KEYS["sched_enabled"])
+        st.selectbox(
+            "Periodicidade",
+            list(_FREQUENCY_LABELS.keys()),
+            key=_RULE_FIELD_KEYS["sched_freq"],
+            format_func=lambda k: _FREQUENCY_LABELS[k],
+        )
+    with ag2:
+        st.selectbox("Hora", list(range(24)), key=_RULE_FIELD_KEYS["sched_hour"], format_func=lambda v: f"{v:02d}")
+        st.selectbox("Minuto", [0, 15, 30, 45], key=_RULE_FIELD_KEYS["sched_minute"], format_func=lambda v: f"{v:02d}")
+    with ag3:
+        if st.session_state[_RULE_FIELD_KEYS["sched_freq"]] == "daily":
+            st.number_input(
+                "Comecar no dia do mes",
+                min_value=1,
+                max_value=31,
+                key=_RULE_FIELD_KEYS["sched_start_day"],
+                help="Antes deste dia a regra nao envia notificacoes automaticas.",
             )
-        with fc2:
-            modo = st.selectbox(
-                "Modo de comparação",
-                list(MODOS_COMPARACAO.keys()),
-                format_func=lambda k: MODOS_COMPARACAO[k],
+        elif st.session_state[_RULE_FIELD_KEYS["sched_freq"]] == "weekly":
+            st.multiselect(
+                "Dias da semana",
+                _WEEKDAY_OPTIONS,
+                key=_RULE_FIELD_KEYS["sched_weekdays"],
             )
-            top_n = st.number_input("Top N (piores Type 06)", 1, 50, 10)
+        else:
+            st.multiselect(
+                "Dias do mes",
+                list(range(1, 32)),
+                key=_RULE_FIELD_KEYS["sched_monthdays"],
+            )
 
-        # --- Moeda ---
-        moeda = st.selectbox("Moeda", ["BRL", "EUR", "USD"], index=0)
+    bc1, bc2 = st.columns([1, 1])
+    salvar_label = "💾 Atualizar Regra" if edit_id else "💾 Salvar Regra"
+    with bc1:
+        salvar = st.button(salvar_label, type="primary")
+    with bc2:
+        cancelar = st.button("Cancelar edicao" if edit_id else "Limpar")
 
-        # --- Filtros dimensionais (cascata) ---
-        st.markdown("**Filtros dimensionais** *(deixe vazio = todos)*")
-        fd1, fd2, fd3 = st.columns(3)
+    if cancelar:
+        _limpar_estado_regra(rules_data, anos)
+        st.rerun()
 
-        with fd1:
-            t05_opts = type05_disponiveis(ano_sel)
-            f_type05 = st.multiselect("Type 05", t05_opts)
+    if salvar:
+        if not nome.strip():
+            st.error("Informe o nome da regra.")
+            return
 
-        with fd2:
-            t06_opts = type06_disponiveis(ano_sel, f_type05 or None)
-            f_type06 = st.multiselect("Type 06", t06_opts)
+        schedule = {
+            "enabled": bool(st.session_state[_RULE_FIELD_KEYS["sched_enabled"]]),
+            "frequency": st.session_state[_RULE_FIELD_KEYS["sched_freq"]],
+            "hour": int(st.session_state[_RULE_FIELD_KEYS["sched_hour"]]),
+            "minute": int(st.session_state[_RULE_FIELD_KEYS["sched_minute"]]),
+            "start_day_of_month": int(st.session_state[_RULE_FIELD_KEYS["sched_start_day"]]),
+            "days_of_week": list(st.session_state[_RULE_FIELD_KEYS["sched_weekdays"]]),
+            "days_of_month": [int(v) for v in st.session_state[_RULE_FIELD_KEYS["sched_monthdays"]]],
+        }
 
-        with fd3:
-            acc_opts = accounts_disponiveis(ano_sel, f_type06 or None)
-            f_account = st.multiselect("Account", acc_opts)
+        regra = normalizar_regra_alerta({
+            "id": edit_id or str(uuid.uuid4()),
+            "nome": nome.strip(),
+            "ativo": True,
+            "criado_em": datetime.now().isoformat(timespec="seconds"),
+            "ano": ano_sel,
+            "oficinas": list(st.session_state[_RULE_FIELD_KEYS["oficinas"]]),
+            "modo_comparacao": st.session_state[_RULE_FIELD_KEYS["modo"]],
+            "top_n": int(st.session_state[_RULE_FIELD_KEYS["top_n"]]),
+            "moeda": st.session_state[_RULE_FIELD_KEYS["moeda"]],
+            "filtro_type_05": list(st.session_state[type05_key]),
+            "filtro_type_06": list(st.session_state[type06_key]),
+            "filtro_account": list(st.session_state[account_key]),
+            "schedule": schedule,
+        }, rules_data.get("config", {}))
 
-        submitted = st.form_submit_button("💾 Salvar Regra")
-        if submitted:
-            if not nome.strip():
-                st.error("Informe o nome da regra.")
-            else:
-                nova_regra = {
-                    "id": str(uuid.uuid4()),
-                    "nome": nome.strip(),
-                    "ativo": True,
-                    "criado_em": datetime.now().isoformat(timespec="seconds"),
-                    "ano": ano_sel,
-                    "oficinas": f_oficina,
-                    "modo_comparacao": modo,
-                    "top_n": int(top_n),
-                    "moeda": moeda,
-                    "filtro_type_05": f_type05,
-                    "filtro_type_06": f_type06,
-                    "filtro_account": f_account,
-                }
-                rules_data["rules"].append(nova_regra)
-                save_alert_rules(rules_data)
-                st.success(f"Regra **{nome}** criada!")
-                st.rerun()
+        if edit_id:
+            for idx, existing in enumerate(rules_data["rules"]):
+                if existing.get("id") == edit_id:
+                    regra["ativo"] = existing.get("ativo", True)
+                    regra["criado_em"] = existing.get("criado_em", regra["criado_em"])
+                    rules_data["rules"][idx] = regra
+                    break
+            mensagem = f"Regra **{regra['nome']}** atualizada!"
+        else:
+            rules_data["rules"].append(regra)
+            mensagem = f"Regra **{regra['nome']}** criada!"
+
+        save_alert_rules(rules_data)
+        _limpar_estado_regra(rules_data, anos)
+        st.success(mensagem)
+        st.rerun()
 
 
 # =========================================================================
@@ -280,6 +506,11 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
         n_email = st.checkbox("E-mail", value=notif.get("email", False))
         n_teams = st.checkbox("Teams", value=notif.get("teams", False))
 
+        st.info(
+            "Os alertas automáticos são disparados ao final do processamento de dados. "
+            "Use a Central de Alertas para disparo manual quando necessário."
+        )
+
         st.divider()
         st.markdown("**E-mail (Microsoft Graph API)**")
         client_id = st.text_input(
@@ -308,19 +539,6 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
             "URL Webhook", value=config.get("teams_webhook_url", ""),
         )
 
-        st.divider()
-        st.markdown("**⏰ Agendamento Automático Diário**")
-        sched_cfg = config.get("schedule", {})
-        sched_enabled = st.checkbox(
-            "Ativar envio diário automático",
-            value=sched_cfg.get("enabled", False),
-        )
-        sched_hour = st.selectbox(
-            "Horário de envio",
-            options=[f"{h:02d}:00" for h in range(6, 22)],
-            index=max(0, min(15, sched_cfg.get("hour", 8) - 6)),
-        )
-
         if st.form_submit_button("💾 Salvar Notificações"):
             config["notifications_enabled"] = {
                 "internal": n_int,
@@ -337,19 +555,9 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
                 ],
             }
             config["teams_webhook_url"] = webhook
-            config["schedule"] = {
-                "enabled": sched_enabled,
-                "hour": int(sched_hour.split(":")[0]),
-            }
             rules_data["config"] = config
             save_alert_rules(rules_data)
             st.success("Configuração salva!")
-
-            # Reiniciar scheduler se necessário
-            from alertas.scheduler import restart_scheduler
-            restart_scheduler()
-            if sched_enabled:
-                st.info(f"⏰ Agendamento ativo — envio diário às {sched_hour}.")
 
     # --- Botões de autenticação e teste (fora do form) ---
     st.divider()

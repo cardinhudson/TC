@@ -87,17 +87,139 @@ def _default_config() -> dict:
             "teams": False,
         },
         "ultima_execucao": None,
+        "schedule": {
+            "enabled": False,
+        },
     }
+
+
+def _default_rule_schedule(
+    hour: int = 8,
+    minute: int = 0,
+    enabled: bool = False,
+) -> dict:
+    return {
+        "enabled": enabled,
+        "frequency": "daily",
+        "hour": hour,
+        "minute": minute,
+        "start_day_of_month": 1,
+        "days_of_week": [],
+        "days_of_month": [],
+    }
+
+
+def normalizar_filtros_dependentes(
+    ano: int,
+    filtro_type_05: list[str] | None = None,
+    filtro_type_06: list[str] | None = None,
+    filtro_account: list[str] | None = None,
+) -> dict[str, list[str]]:
+    """Mantem apenas combinacoes validas entre Type 05, Type 06 e Account."""
+    f05 = filtro_type_05 or []
+    t06_validos = type06_disponiveis(ano, f05 or None)
+    f06 = [item for item in (filtro_type_06 or []) if item in t06_validos]
+    acc_validos = accounts_disponiveis(ano, f06 or None)
+    facc = [item for item in (filtro_account or []) if item in acc_validos]
+    return {
+        "filtro_type_05": f05,
+        "filtro_type_06": f06,
+        "filtro_account": facc,
+    }
+
+
+def normalizar_schedule_regra(
+    schedule: dict | None,
+    *,
+    legacy_hour: int = 8,
+    legacy_enabled: bool = False,
+) -> dict:
+    base = _default_rule_schedule(
+        hour=legacy_hour,
+        enabled=legacy_enabled,
+    )
+    if schedule:
+        base.update(schedule)
+
+    base["enabled"] = bool(base.get("enabled", False))
+    base["frequency"] = str(base.get("frequency", "daily"))
+    if base["frequency"] not in {"daily", "weekly", "monthly"}:
+        base["frequency"] = "daily"
+
+    base["hour"] = int(base.get("hour", legacy_hour))
+    base["minute"] = int(base.get("minute", 0))
+    base["start_day_of_month"] = max(1, min(31, int(base.get("start_day_of_month", 1))))
+    base["days_of_week"] = [str(v) for v in base.get("days_of_week", [])]
+    base["days_of_month"] = sorted({
+        max(1, min(31, int(v))) for v in base.get("days_of_month", [])
+    })
+
+    return base
+
+
+def normalizar_regra_alerta(rule: dict, config: dict | None = None) -> dict:
+    """Aplica schema atual a uma regra legada sem perder compatibilidade."""
+    normalized = dict(rule)
+    cfg = config or {}
+    legacy_sched = cfg.get("schedule", {})
+
+    normalized.setdefault("id", str(uuid.uuid4()))
+    normalized.setdefault("ativo", True)
+    normalized.setdefault("nome", "")
+    normalized.setdefault("criado_em", timestamp_agora_iso())
+    normalized.setdefault("oficinas", [])
+    normalized.setdefault("modo_comparacao", "flex_bud_x_real")
+    normalized.setdefault("top_n", 10)
+    normalized.setdefault("moeda", "BRL")
+
+    filtros = normalizar_filtros_dependentes(
+        int(normalized.get("ano", date.today().year)),
+        normalized.get("filtro_type_05") or [],
+        normalized.get("filtro_type_06") or [],
+        normalized.get("filtro_account") or [],
+    )
+    normalized.update(filtros)
+
+    normalized["schedule"] = normalizar_schedule_regra(
+        normalized.get("schedule"),
+        legacy_hour=int(legacy_sched.get("hour", 8)),
+        legacy_enabled=bool(legacy_sched.get("enabled", False)),
+    )
+    return normalized
+
+
+def _normalizar_rules_data(data: dict) -> dict:
+    config = _default_config()
+    config.update(data.get("config", {}))
+    config["notifications_enabled"] = {
+        **_default_config()["notifications_enabled"],
+        **config.get("notifications_enabled", {}),
+    }
+    config["email"] = {
+        **_default_config()["email"],
+        **config.get("email", {}),
+    }
+    config["schedule"] = {
+        **_default_config()["schedule"],
+        **config.get("schedule", {}),
+    }
+
+    rules = [
+        normalizar_regra_alerta(rule, config)
+        for rule in data.get("rules", [])
+    ]
+    return {"config": config, "rules": rules}
 
 
 def load_alert_rules(path: str = _DEFAULT_RULES) -> dict:
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    return {"config": _default_config(), "rules": []}
+            return _normalizar_rules_data(json.load(fh))
+    return _normalizar_rules_data({"config": _default_config(), "rules": []})
 
 
 def save_alert_rules(data: dict, path: str = _DEFAULT_RULES) -> None:
+    data = _normalizar_rules_data(data)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=2)
 
@@ -1102,90 +1224,21 @@ def run_daily_check(
         logger.info("Nenhuma regra configurada.")
         return []
 
-    prop = proporcao_mes(data_ref)
     all_alerts: list[dict] = []
+    cache_dados: dict[int, dict] = {}
 
-    anos = {r.get("ano", data_ref.year) for r in rules if r.get("ativo", True)}
-
-    for ano in anos:
-        data = load_all_data(ano)
-        regras_ano = [
-            r for r in rules
-            if r.get("ano", data_ref.year) == ano and r.get("ativo", True)
-        ]
-        if not regras_ano:
+    for regra in rules:
+        if not regra.get("ativo", True):
             continue
-
-        regra = regras_ano[0]
-        modo = regra.get("modo_comparacao", "flex_bud_x_real")
-        top_n = regra.get("top_n", 10)
-        moeda = regra.get("moeda", "BRL")
-
-        ranking = calcular_ranking_consolidado(
-            data=data,
+        alerta_log = _executar_regra_notificacao(
+            regra=regra,
+            config=config,
             periodo=periodo,
-            modo=modo,
-            proporcao=prop,
-            top_n=top_n,
-            filtro_type_05=regra.get("filtro_type_05") or None,
-            filtro_type_06=regra.get("filtro_type_06") or None,
-            filtro_account=regra.get("filtro_account") or None,
-            moeda=moeda,
+            data_ref=data_ref,
+            cache_dados=cache_dados,
         )
-
-        if not ranking:
-            logger.info("Sem desvios para ano=%s periodo=%s", ano, periodo)
-            continue
-
-        # Gerar tabela de validação
-        tabela_df = gerar_tabela_validacao(
-            data=data,
-            oficina=None,
-            periodo=periodo,
-            proporcao=prop,
-            moeda=moeda,
-            filtro_type_05=regra.get("filtro_type_05") or None,
-            filtro_type_06=regra.get("filtro_type_06") or None,
-            filtro_account=regra.get("filtro_account") or None,
-        )
-
-        # Registrar no log
-        alerta_log = {
-            "id": f"daily_{ano}_{periodo}_{timestamp_agora_iso()}",
-            "rule_id": regra.get("id", ""),
-            "timestamp": timestamp_agora_iso(),
-            "periodo": periodo,
-            "ano": ano,
-            "severidade": ranking.get("severidade", "informativo"),
-            "total_desvio": ranking.get("total_desvio", 0),
-            "notificacoes_enviadas": {"email": False, "teams": False},
-        }
-        all_alerts.append(alerta_log)
-
-        # Notificações
-        notif = config.get("notifications_enabled", {})
-
-        if notif.get("email"):
-            from alertas.notifications_email import send_alert_email_consolidated
-            try:
-                send_alert_email_consolidated(
-                    ranking, config.get("email", {}), modo, prop, tabela_df,
-                )
-                alerta_log["notificacoes_enviadas"]["email"] = True
-            except Exception:
-                logger.exception("Falha e-mail consolidado ano=%s", ano)
-
-        if notif.get("teams"):
-            webhook = config.get("teams_webhook_url", "")
-            if webhook:
-                from alertas.notifications_teams import send_alert_teams_consolidated
-                try:
-                    send_alert_teams_consolidated(
-                        ranking, webhook, modo, tabela_df,
-                    )
-                    alerta_log["notificacoes_enviadas"]["teams"] = True
-                except Exception:
-                    logger.exception("Falha Teams consolidado ano=%s", ano)
+        if alerta_log:
+            all_alerts.append(alerta_log)
 
     if all_alerts:
         log = load_alert_log()
@@ -1196,3 +1249,126 @@ def run_daily_check(
     save_alert_rules(rules_data)
 
     return all_alerts
+
+
+def _executar_regra_notificacao(
+    regra: dict,
+    config: dict,
+    periodo: str,
+    data_ref: date,
+    cache_dados: dict[int, dict] | None = None,
+) -> dict | None:
+    """Executa uma regra consolidada e envia notificacoes, se houver desvio."""
+    ano = int(regra.get("ano", data_ref.year))
+    cache_dados = cache_dados if cache_dados is not None else {}
+    if ano not in cache_dados:
+        cache_dados[ano] = load_all_data(ano)
+
+    data = cache_dados[ano]
+    prop = proporcao_mes(data_ref)
+    modo = regra.get("modo_comparacao", "flex_bud_x_real")
+    moeda = regra.get("moeda", "BRL")
+
+    ranking = calcular_ranking_consolidado(
+        data=data,
+        periodo=periodo,
+        modo=modo,
+        proporcao=prop,
+        top_n=regra.get("top_n", 10),
+        filtro_type_05=regra.get("filtro_type_05") or None,
+        filtro_type_06=regra.get("filtro_type_06") or None,
+        filtro_account=regra.get("filtro_account") or None,
+        moeda=moeda,
+    )
+    if not ranking:
+        logger.info(
+            "Sem desvios para regra=%s ano=%s periodo=%s",
+            regra.get("nome", regra.get("id", "")),
+            ano,
+            periodo,
+        )
+        return None
+
+    tabela_df = gerar_tabela_validacao(
+        data=data,
+        oficina=None,
+        periodo=periodo,
+        proporcao=prop,
+        moeda=moeda,
+        filtro_type_05=regra.get("filtro_type_05") or None,
+        filtro_type_06=regra.get("filtro_type_06") or None,
+        filtro_account=regra.get("filtro_account") or None,
+    )
+
+    alerta_log = {
+        "id": f"rule_{regra.get('id', '')}_{timestamp_agora_iso()}",
+        "rule_id": regra.get("id", ""),
+        "timestamp": timestamp_agora_iso(),
+        "periodo": periodo,
+        "ano": ano,
+        "severidade": ranking.get("severidade", "informativo"),
+        "total_desvio": ranking.get("total_desvio", 0),
+        "notificacoes_enviadas": {"email": False, "teams": False},
+    }
+
+    notif = config.get("notifications_enabled", {})
+    if notif.get("email"):
+        from alertas.notifications_email import send_alert_email_consolidated
+        try:
+            send_alert_email_consolidated(
+                ranking, config.get("email", {}), modo, prop, tabela_df,
+            )
+            alerta_log["notificacoes_enviadas"]["email"] = True
+        except Exception:
+            logger.exception("Falha e-mail consolidado regra=%s", regra.get("id", ""))
+
+    if notif.get("teams"):
+        webhook = config.get("teams_webhook_url", "")
+        if webhook:
+            from alertas.notifications_teams import send_alert_teams_consolidated
+            try:
+                send_alert_teams_consolidated(
+                    ranking, webhook, modo, tabela_df,
+                )
+                alerta_log["notificacoes_enviadas"]["teams"] = True
+            except Exception:
+                logger.exception("Falha Teams consolidado regra=%s", regra.get("id", ""))
+
+    return alerta_log
+
+
+def run_rule_check(
+    rule_id: str,
+    periodo: str | None = None,
+    data_ref: date | None = None,
+) -> list[dict]:
+    """Executa uma unica regra e envia notificacoes respeitando sua agenda."""
+    if data_ref is None:
+        data_ref = date.today()
+    if periodo is None:
+        periodo = mes_atual_nome(data_ref)
+
+    rules_data = load_alert_rules()
+    rules = rules_data.get("rules", [])
+    config = rules_data.get("config", _default_config())
+    regra = next((r for r in rules if r.get("id") == rule_id), None)
+    if not regra or not regra.get("ativo", True):
+        return []
+
+    alerta_log = _executar_regra_notificacao(
+        regra=regra,
+        config=config,
+        periodo=periodo,
+        data_ref=data_ref,
+        cache_dados={},
+    )
+    if not alerta_log:
+        return []
+
+    log = load_alert_log()
+    log.append(alerta_log)
+    save_alert_log(log)
+
+    rules_data["config"]["ultima_execucao"] = timestamp_agora_iso()
+    save_alert_rules(rules_data)
+    return [alerta_log]
