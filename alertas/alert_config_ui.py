@@ -586,29 +586,11 @@ def _render_notificacoes(rules_data: dict, config: dict) -> None:
             if not webhook:
                 st.error("Configure o URL do Webhook primeiro.")
             else:
-                import json
-                import urllib.request
-                test_card = {
-                    "@type": "MessageCard",
-                    "@context": "http://schema.org/extensions",
-                    "themeColor": "3498DB",
-                    "summary": "SCI — Teste",
-                    "sections": [{
-                        "activityTitle": "✅ Teste de Conexão — SCI",
-                        "activitySubtitle": "Se você vê esta mensagem, o webhook está funcionando.",
-                        "markdown": True,
-                    }],
-                }
                 try:
-                    payload = json.dumps(test_card).encode("utf-8")
-                    req = urllib.request.Request(
-                        webhook, data=payload,
-                        headers={"Content-Type": "application/json"},
-                        method="POST",
-                    )
-                    with urllib.request.urlopen(req, timeout=30) as resp:
-                        resp.read()
-                    st.success("✅ Mensagem de teste enviada ao Teams!")
+                    from alertas.notifications_teams import send_test_teams_card
+
+                    send_test_teams_card(webhook)
+                    st.success("✅ Preview visual enviado ao Teams!")
                 except Exception as e:
                     st.error(f"❌ Falha ao enviar: {e}")
 

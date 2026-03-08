@@ -47,11 +47,31 @@ def _fmt_cpu_sign(valor: float, simbolo: str) -> str:
     return f"Δ {sinal}{s} {simbolo}/veíc"
 
 
+def _bar_text(desvio: float, max_desvio: float, width: int = 10) -> str:
+    """Barra textual proporcional ao maior desvio absoluto do card."""
+    if max_desvio <= 0:
+        return "[░░░░░░░░░░] 0% do maior desvio"
+
+    ratio = min(1.0, abs(desvio) / max_desvio)
+    filled = int(round(ratio * width))
+    if abs(desvio) > 0 and filled == 0:
+        filled = 1
+    empty = max(0, width - filled)
+    return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.0f}% do maior desvio"
+
+
+def _tree_html(text: str) -> str:
+    """Renderiza os conectores da arvore em cinza para melhorar a leitura."""
+    text_html = text.replace(" ", "&nbsp;")
+    return f'<span style="color:#9a9a9a;font-family:Consolas,monospace;">{text_html}</span>'
+
+
 def _build_ranking_text(ranking: dict) -> str:
     """Monta texto hierárquico completo do ranking (formato árvore)."""
     moeda = ranking.get("moeda", "BRL")
     simbolo = ranking.get("simbolo", "R$")
     itens = ranking.get("itens", [])
+    max_desvio = max((abs(it.get("desvio", 0)) for it in itens), default=0.0)
 
     # Agrupar por Type 05
     by_t05: dict[str, list[dict]] = {}
@@ -66,7 +86,7 @@ def _build_ranking_text(ranking: dict) -> str:
             sum(it["desvio_pct"] for it in t05_itens) / len(t05_itens)
             if t05_itens else 0
         )
-        lines.append(f"{_sev_icons(t05_pct)} {t05}")
+        lines.append(f"<strong>{_sev_icons(t05_pct)} {t05}</strong>")
 
         for idx_t6, it in enumerate(t05_itens):
             is_last_t6 = idx_t6 == len(t05_itens) - 1
@@ -74,14 +94,19 @@ def _build_ranking_text(ranking: dict) -> str:
             icons = _sev_icons(it["desvio_pct"])
 
             lines.append(
-                f"{tree_t6} {icons} {it['type_06']}: "
-                f"{fmt_k(it['real'], moeda)} "
-                f"| {fmt_delta_k(it['desvio'], moeda)} · "
+                f"{_tree_html(tree_t6)} <strong>{icons} {it['type_06']}:</strong> "
+                f"{fmt_k(it['real'], moeda)}"
+            )
+
+            tree_cont = "│  " if not is_last_t6 else "   "
+
+            lines.append(
+                f"{_tree_html(tree_cont)} {_bar_text(it['desvio'], max_desvio)} · "
+                f"{fmt_delta_k(it['desvio'], moeda)} · "
                 f"{abs(it['desvio_pct']):.1f}%"
             )
 
             accounts = it.get("accounts", [])
-            tree_cont = "│  " if not is_last_t6 else "   "
 
             for idx_acc, acc in enumerate(accounts):
                 is_last_acc = idx_acc == len(accounts) - 1
@@ -91,7 +116,7 @@ def _build_ranking_text(ranking: dict) -> str:
                     credit_tag = " ⚠️ menos receita"
 
                 lines.append(
-                    f"{tree_cont}{tree_acc} {acc['account']}: "
+                    f"{_tree_html(tree_cont + tree_acc)} <strong>{acc['account']}:</strong> "
                     f"{_fmt_k_sign(acc['desvio'], moeda)} "
                     f"({_fmt_cpu_sign(acc['delta_cpu'], simbolo)})"
                     f"{credit_tag}"
@@ -105,8 +130,8 @@ def _build_ranking_text(ranking: dict) -> str:
                     tree_ofi = "└─" if is_last_ofi else "├─"
 
                     lines.append(
-                        f"{tree_cont_acc}{tree_ofi} "
-                        f"📍 {ofi['oficina']}: "
+                        f"{_tree_html(tree_cont_acc + tree_ofi)} "
+                        f"<strong>📍 {ofi['oficina']}:</strong> "
                         f"{_fmt_k_sign(ofi['desvio'], moeda)}"
                     )
 
@@ -124,11 +149,11 @@ def _build_ranking_text(ranking: dict) -> str:
                             .replace("X", ".")
                         )
                         lines.append(
-                            f"{tree_cont_ofi}  "
+                            f"{_tree_html(tree_cont_ofi + '  ')} "
                             f"• {txt['texto']}  ({tv_fmt}k)"
                         )
 
-    return "<br>".join(l.replace(" ", "&nbsp;") for l in lines)
+    return "<br>".join(lines)
 
 
 def build_teams_card(alerta: dict) -> dict:
@@ -197,7 +222,9 @@ def build_teams_card_consolidated(
         f"🔴🔴{_sp}15-50%{_sp}·{_sp}"
         f"🟠{_sp}5-15%{_sp}·{_sp}"
         f"🟡{_sp}1-5%{_sp}·{_sp}"
-        f"🟢{_sp}&lt;1%"
+        f"🟢{_sp}&lt;1%<br>"
+        f"Barra{_sp}={_sp}desvio{_sp}absoluto{_sp}de{_sp}cada{_sp}Type{_sp}06{_sp}"
+        f"em{_sp}relacao{_sp}ao{_sp}maior{_sp}desvio{_sp}do{_sp}card"
     )
 
     sections = [
@@ -224,7 +251,8 @@ def build_teams_card_consolidated(
             sections.append({
                 "activityTitle": "📋 Tabela de Validação (Top 10)",
                 "text": "<br>".join(
-                    l.replace(" ", "&nbsp;") for l in tab_lines
+                    f"<strong>{l.split(':', 1)[0]}</strong>: {l.split(':', 1)[1].strip()}".replace(" ", "&nbsp;")
+                    for l in tab_lines
                 ),
                 "markdown": False,
             })
@@ -236,6 +264,124 @@ def build_teams_card_consolidated(
         "summary": f"SCI Alerta — {periodo}",
         "sections": sections,
     }
+
+
+def _build_test_ranking() -> dict:
+    """Ranking demonstrativo para validar o visual do card no Teams."""
+    return {
+        "periodo": "Preview Visual",
+        "moeda": "BRL",
+        "simbolo": "R$",
+        "severidade": "critico",
+        "total_desvio": 184000.0,
+        "itens": [
+            {
+                "type_05": "Burden",
+                "type_06": "Material Losses",
+                "real": 412000.0,
+                "esperado": 288000.0,
+                "desvio": 124000.0,
+                "desvio_pct": 43.1,
+                "delta_cpu": 24.8,
+                "accounts": [
+                    {
+                        "account": "Scrap Sales",
+                        "desvio": 104200.0,
+                        "delta_cpu": 20.8,
+                        "esperado": 50000.0,
+                        "oficinas": [
+                            {
+                                "oficina": "OF1",
+                                "desvio": 104200.0,
+                                "delta_cpu": 20.8,
+                                "textos": [
+                                    {"texto": 'tubo aco s/ costura sch 40 3/4"', "valor": 104200.0},
+                                    {"texto": "tubo metalon 40 x 40 x 3,0 stalx", "valor": 57400.0},
+                                    {"texto": "tubo metalon 50 x 50 x 3,0 stalx", "valor": 40800.0},
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            },
+            {
+                "type_05": "Labor",
+                "type_06": "Direct Labor",
+                "real": 298000.0,
+                "esperado": 238000.0,
+                "desvio": 60000.0,
+                "desvio_pct": 25.2,
+                "delta_cpu": 12.0,
+                "accounts": [
+                    {
+                        "account": "Wages",
+                        "desvio": 60000.0,
+                        "delta_cpu": 12.0,
+                        "esperado": 238000.0,
+                        "oficinas": [
+                            {
+                                "oficina": "OF2",
+                                "desvio": 60000.0,
+                                "delta_cpu": 12.0,
+                                "textos": [
+                                    {"texto": "horas extras manutencao", "valor": 32100.0},
+                                    {"texto": "apoio setup linha", "valor": 17900.0},
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+
+
+def _build_test_validation_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Type 06": "Material Losses",
+                "Account": "Scrap Sales",
+                "Real - Flex BUD P": 104200.0,
+                "% Delta": 43.1,
+            },
+            {
+                "Type 06": "Direct Labor",
+                "Account": "Wages",
+                "Real - Flex BUD P": 60000.0,
+                "% Delta": 25.2,
+            },
+            {
+                "Type 06": "Energy",
+                "Account": "Electricity",
+                "Real - Flex BUD P": 19800.0,
+                "% Delta": 7.9,
+            },
+        ]
+    )
+
+
+def send_test_teams_card(webhook_url: str) -> None:
+    """Envia um card de preview com a mesma estrutura visual do alerta consolidado."""
+    ranking = _build_test_ranking()
+    tabela_df = _build_test_validation_table()
+    card = build_teams_card_consolidated(ranking, "flex_bud_x_real", tabela_df)
+    card["summary"] = "SCI — Preview visual do alerta"
+    card["sections"][0]["activityTitle"] = "🧪 Preview Visual — Alerta SCI"
+    card["sections"][0]["activitySubtitle"] = (
+        "Simulação de webhook para validar hierarquia, barra, cores e legibilidade"
+    )
+
+    payload = json.dumps(card).encode("utf-8")
+
+    req = urllib.request.Request(
+        webhook_url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        resp.read()
 
 
 def send_alert_teams(alerta: dict, webhook_url: str) -> None:

@@ -947,7 +947,9 @@ def calcular_ranking_consolidado(
                                 tv = float(trow["Valor"])
                                 if moeda != "BRL":
                                     tv = converter_moeda(tv, moeda, taxas)
-                                texto_str = str(trow["Texto breve"]).strip()
+                                texto_str = " ".join(
+                                    str(trow["Texto breve"]).strip().split()
+                                ).lower()
                                 if texto_str and abs(tv) > 0.01:
                                     textos.append({
                                         "texto": texto_str,

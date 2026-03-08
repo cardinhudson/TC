@@ -755,10 +755,11 @@ class TestRankingConsolidado:
                         for ofi in acc["oficinas"]:
                             if ofi["oficina"] == "OF1":
                                 nomes = {t["texto"] for t in ofi["textos"]}
-                                # ecart D (1500 — menor) não deve estar no top 3
-                                assert "ecart D" not in nomes
-                                # ecart A (3000), B (2500), C (2000) são top 3
+                                # ecart d (1500 — menor) não deve estar no top 3
+                                assert "ecart d" not in nomes
+                                # ecart a (3000), b (2500), c (2000) são top 3
                                 assert len(nomes) == 3
+                                assert nomes == {"ecart a", "ecart b", "ecart c"}
 
     def test_top_n_limita_itens(self):
         data = _make_rich_data()
@@ -892,6 +893,8 @@ class TestTeamsCardConsolidado:
         assert any(icon in text for icon in ("🔴", "🟠", "🟡", "🟢"))
         # Deve conter legenda (espaços viram &nbsp; no HTML Teams)
         assert "Desvio" in text and "Total" in text
+        assert "maior" in text and "desvio" in text
+        assert "█" in text
 
 
 # =========================================================================
@@ -1025,6 +1028,17 @@ class TestBuildRankingText:
         text = _build_ranking_text(ranking)
         # Ranking deve listar oficinas que perdem
         assert "📍" in text
+
+    def test_texto_breve_lowercase_e_barra(self):
+        from alertas.notifications_teams import _build_ranking_text
+        data = _make_rich_data()
+        ranking = calcular_ranking_consolidado(
+            data, periodo="Junho", modo="flex_bud_x_real",
+            proporcao=0.5, top_n=10, moeda="BRL",
+        )
+        text = _build_ranking_text(ranking)
+        assert "sal" in text
+        assert "maior" in text and "desvio" in text
 
 
 # =========================================================================

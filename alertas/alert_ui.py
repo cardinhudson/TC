@@ -94,11 +94,12 @@ _CSS = """
 
 /* Barra de intensidade */
 .alc-bar-wrap {
-    height: 6px; background: #e8e8e8; border-radius: 3px;
-    margin: 2px 0 4px 20px; max-width: 360px;
+    height: 8px; background: #ececec; border-radius: 4px;
+    margin: 2px 0 4px 20px; max-width: 380px; overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 .alc-bar {
-    height: 100%; border-radius: 3px; min-width: 2px;
+    height: 100%; border-radius: 4px; min-width: 4px;
     transition: width 0.3s ease;
 }
 .alc-bar-critico   { background: linear-gradient(90deg, #e74c3c, #c0392b); }
@@ -131,6 +132,7 @@ _CSS = """
 }
 .alc-meta { font-size: 0.82em; color: #888; font-weight: 600; }
 .alc-legenda { font-size: 0.75em; color: #999; margin-top: 4px; }
+.alc-bar-note { font-size: 0.74em; color: #999; margin-top: 4px; }
 
 /* Tree lines */
 .alc-tree { color: #bbb; font-family: monospace; }
@@ -326,6 +328,13 @@ def _bar_html(desvio: float, max_desvio: float, sev_cls: str) -> str:
     )
 
 
+def _bar_pct(desvio: float, max_desvio: float) -> float:
+    """Percentual da barra em relacao ao maior desvio absoluto do card."""
+    if max_desvio <= 0:
+        return 0.0
+    return min(100.0, abs(desvio) / max_desvio * 100)
+
+
 def _fmt_k_sign(valor: float, moeda: str) -> str:
     """Valor em kMOEDA com sinal."""
     v = valor / 1000 if valor else 0.0
@@ -402,12 +411,14 @@ def _render_card_consolidado(
             )
 
             # Barra + delta
+            fill_pct = _bar_pct(it["desvio"], max_desvio)
             lines.append(
                 f'<div class="alc-t06-vals">'
                 f'{_bar_html(it["desvio"], max_desvio, sev_cls)}'
                 f'<span style="margin-left:20px;">'
                 f'{_esc(fmt_delta_k(it["desvio"], moeda))} · '
-                f'{abs(it["desvio_pct"]):.1f}%</span>'
+                f'{abs(it["desvio_pct"]):.1f}% · '
+                f'barra {fill_pct:.0f}% do maior desvio</span>'
                 f'</div>'
             )
 
@@ -472,6 +483,11 @@ def _render_card_consolidado(
     lines.append(
         '<div class="alc-legenda">'
         '🔴🔴🔴 &gt;50% · 🔴🔴 15-50% · 🟠 5-15% · 🟡 1-5% · 🟢 &lt;1%'
+        '</div>'
+    )
+    lines.append(
+        '<div class="alc-bar-note">'
+        'Barra = desvio absoluto de cada Type 06 em relacao ao maior desvio absoluto exibido neste card.'
         '</div>'
     )
     lines.append('</div>')

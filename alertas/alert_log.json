@@ -287,5 +287,70 @@
       "email": false,
       "teams": true
     }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T08:59:48",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T08:59:48",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:00:22",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:00:22",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:02:56",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:02:56",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:05:30",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:05:30",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:11:28",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:11:28",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
   }
 ]
