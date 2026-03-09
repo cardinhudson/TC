@@ -23,6 +23,38 @@ except ImportError as e:
     st.error(f"❌ Erro ao importar módulos de processamento: {e}")
     st.stop()
 
+# Importar módulo de alertas (opcional — não bloqueia a página se não existir)
+_ALERTAS_DISPONIVEL = False
+try:
+    from alertas.alert_engine import run_daily_check
+    _ALERTAS_DISPONIVEL = True
+except ImportError:
+    pass
+
+
+def _executar_alertas_pos_extracao():
+    """Executa verificação de alertas após extração de dados e exibe resultado."""
+    if not _ALERTAS_DISPONIVEL:
+        return
+    try:
+        with st.spinner("🔔 Verificando alertas do SCI..."):
+            alertas = run_daily_check()
+        if alertas:
+            n = len(alertas)
+            enviados = sum(
+                1 for a in alertas
+                if a.get("notificacoes_enviadas", {}).get("email")
+                or a.get("notificacoes_enviadas", {}).get("teams")
+            )
+            st.info(
+                f"🔔 **Central de Alertas:** {n} alerta(s) processado(s), "
+                f"{enviados} notificação(ões) enviada(s)."
+            )
+        else:
+            st.success("🔔 Central de Alertas: nenhum desvio identificado.")
+    except Exception as e:
+        st.warning(f"⚠️ Alertas não puderam ser verificados: {e}")
+
 # Função para obter data e hora de atualização dos dados
 def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
@@ -354,7 +386,7 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
     msgs: list[str] = []
     ok = True
 
-    # Padronização: arquivos de entrada ficam em dados/{ano}/ (mesma fonte para REAIS e BUDGET)
+    # Padronização (TC Ext): arquivos de entrada ficam em dados/TC_Ext/{ano}/ (mesma fonte para REAIS e BUDGET)
     caminho_sapiens = _encontrar_arquivo(ano, 'Dados SAPIENS.xlsx', incluir_bud=False)
     caminho_rateio = _encontrar_arquivo(ano, 'Reporting fluxo anexo.xlsx', incluir_bud=False)
     if not caminho_sapiens or not caminho_rateio:
@@ -597,7 +629,7 @@ with tab1:
     st.markdown("#### 📄 Arquivos (usados por REAIS e/ou BUDGET)")
     st.caption(
         "Os processamentos de REAIS e BUDGET usam os mesmos arquivos de entrada. "
-        "Padrão: manter os Excels em `dados/{ano}/`."
+        "Padrão: manter os Excels em `dados/TC_Ext/{ano}/`."
     )
 
     _salvar_upload_unificado(
@@ -701,6 +733,8 @@ with tab2:
     log_container = st.container()
     
     # Executar processamentos
+    executar_alertas_ao_final = False
+
     if executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"):
         with log_container:
             st.subheader("📊 Processando Dados REAIS...")
@@ -725,6 +759,7 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
                     st.json(resultado)
+                    executar_alertas_ao_final = True
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")
@@ -754,10 +789,14 @@ with tab2:
                     progress_bar.progress(100)
                     status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
                     st.json(resultado)
+                    executar_alertas_ao_final = True
             except Exception as e:
                 progress_bar.progress(0)
                 status_text.error(f"❌ Erro durante processamento: {str(e)}")
                 st.exception(e)
+
+    if executar_alertas_ao_final:
+        _executar_alertas_pos_extracao()
 
 # TAB 3: Status e Logs
 with tab3:

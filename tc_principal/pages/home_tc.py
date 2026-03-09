@@ -1138,9 +1138,56 @@ def render():
                 except Exception as e:
                     st.error(f"❌ Erro ao exportar: {e}")
 
+            def _preparar_tabela_flex_hierarquia(
+                df_base: pd.DataFrame,
+                coluna_id: str,
+            ) -> pd.DataFrame:
+                colunas_tabela = [
+                    col for col in [
+                        coluna_id,
+                        'BUD',
+                        'Flex Bud - BUD',
+                        'Flex BUD',
+                        'Total - Flex Bud',
+                        'Total',
+                        'Total / Flex Bud',
+                    ]
+                    if col in df_base.columns
+                ]
+                if not colunas_tabela:
+                    return pd.DataFrame()
+
+                df_tabela = df_base[colunas_tabela].copy()
+                for col in ['BUD', 'Flex BUD', 'Total']:
+                    if col not in df_tabela.columns:
+                        df_tabela[col] = 0.0
+
+                df_tabela = df_tabela[
+                    (df_tabela['Total'].abs() > 0.01)
+                    | (df_tabela['BUD'].abs() > 0.01)
+                    | (df_tabela['Flex BUD'].abs() > 0.01)
+                ].copy()
+                return df_tabela
+
             # ═══════════════════════════════════════
-            # Expanders 💰 Fixo e 💰 Variável com hierarquia Type 05 → Account
+            # Expanders 💰 Fixo e 💰 Variável com hierarquia Type 05 → Type 06 → Account
             # ═══════════════════════════════════════
+            expand_state_key = 'home_tc_flex_expand_all'
+            if expand_state_key not in st.session_state:
+                st.session_state[expand_state_key] = False
+
+            ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+            with ctrl_col1:
+                if st.button('Expandir tudo', key='home_tc_expandir_flex'):
+                    st.session_state[expand_state_key] = True
+            with ctrl_col2:
+                if st.button('Recolher tudo', key='home_tc_recolher_flex'):
+                    st.session_state[expand_state_key] = False
+            with ctrl_col3:
+                st.caption('Controle aplicado aos expanders desta tabela Flex.')
+
+            expandir_flex = st.session_state[expand_state_key]
+
             # Mostrar expanders apenas se visualização for Fixo/Variável
             if modo_visualizacao == "Fixo/Variável":
                 # ── BUD: hierarquia do Budget (todos os accounts) ──
@@ -1151,10 +1198,12 @@ def render():
                 )
                 if 'Type 05' not in df_bud_hier_base.columns:
                     df_bud_hier_base['Type 05'] = 'N/A'
+                if 'Type 06' not in df_bud_hier_base.columns:
+                    df_bud_hier_base['Type 06'] = 'N/A'
                 if 'Account' not in df_bud_hier_base.columns:
                     df_bud_hier_base['Account'] = 'N/A'
                 df_bud_hier = df_bud_hier_base.groupby(
-                    ['Categoria', 'Type 05', 'Account'], as_index=False
+                    ['Categoria', 'Type 05', 'Type 06', 'Account'], as_index=False
                 )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
 
                 # ── Real: hierarquia do Real (pode ter menos accounts) ──
@@ -1166,14 +1215,16 @@ def render():
                     )
                     if 'Type 05' not in df_real_hier.columns:
                         df_real_hier['Type 05'] = 'N/A'
+                    if 'Type 06' not in df_real_hier.columns:
+                        df_real_hier['Type 06'] = 'N/A'
                     if 'Account' not in df_real_hier.columns:
                         df_real_hier['Account'] = 'N/A'
                     df_real_hier_agg = df_real_hier.groupby(
-                        ['Categoria', 'Type 05', 'Account'], as_index=False
+                        ['Categoria', 'Type 05', 'Type 06', 'Account'], as_index=False
                     )['Custo FP'].sum().rename(columns={'Custo FP': 'Total'})
                 else:
                     df_real_hier_agg = pd.DataFrame(
-                        columns=['Categoria', 'Type 05', 'Account', 'Total']
+                        columns=['Categoria', 'Type 05', 'Type 06', 'Account', 'Total']
                     )
 
                 # Merge com volumes para cálculo de Flex (filtrados por período)
@@ -1198,7 +1249,9 @@ def render():
 
                 # Merge: BUD como base, Real onde disponível
                 df_hier_agg = df_bud_hier.merge(
-                    df_real_hier_agg, on=['Categoria', 'Type 05', 'Account'], how='left'
+                    df_real_hier_agg,
+                    on=['Categoria', 'Type 05', 'Type 06', 'Account'],
+                    how='left'
                 )
                 df_hier_agg['Total'] = df_hier_agg['Total'].fillna(0)
 
@@ -1248,7 +1301,7 @@ def render():
 
                     with st.expander(
                         f"💰 {categoria} - Total: {total_cat_fmt}",
-                        expanded=False
+                        expanded=expandir_flex
                     ):
                         # KPIs da categoria - 6 em linha única
                         ck1, ck2, ck3, ck4, ck5, ck6 = st.columns(6)
@@ -1282,48 +1335,62 @@ def render():
 
                             with st.expander(
                                 f"📊 Type 05: {type05} - Total: {t05_fmt}",
-                                expanded=False
+                                expanded=expandir_flex
                             ):
-                                # Preparar tabela por Account
-                                df_tabela = df_type05[[
-                                    'Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD',
-                                    'Total - Flex Bud', 'Total', 'Total / Flex Bud'
-                                ]].copy()
-
-# Filtrar linhas zeradas/nulas
-                                df_tabela = df_tabela[
-                                    (df_tabela['Total'].abs() > 0.01) |
-                                    (df_tabela['BUD'].abs() > 0.01)
-                                ].copy()
-
-                                if len(df_tabela) > 0:
-                                    # Usar tabela HTML com barrinha
-                                    html_tabela = criar_tabela_html_flex(
-                                        df_tabela, simbolo, sufixo
+                                type06_list = df_type05['Type 06'].unique()
+                                exibiu_type06 = False
+                                for type06 in type06_list:
+                                    df_type06 = df_type05[
+                                        df_type05['Type 06'] == type06
+                                    ].copy()
+                                    df_tabela = _preparar_tabela_flex_hierarquia(
+                                        df_type06,
+                                        'Account',
                                     )
-                                    st.markdown(html_tabela, unsafe_allow_html=True)
-                                else:
+
+                                    if len(df_tabela) == 0:
+                                        continue
+
+                                    exibiu_type06 = True
+                                    t06_total = df_type06['Total'].sum()
+                                    t06_fmt = f"{simbolo} {t06_total:,.2f}{sufixo}"
+
+                                    with st.expander(
+                                        f"📑 Type 06: {type06} - Total: {t06_fmt}",
+                                        expanded=expandir_flex,
+                                    ):
+                                        st.caption(f"Total do Type 06: {t06_fmt}")
+                                        html_tabela = criar_tabela_html_flex(
+                                            df_tabela, simbolo, sufixo
+                                        )
+                                        st.markdown(html_tabela, unsafe_allow_html=True)
+
+                                if not exibiu_type06:
                                     st.info("Sem dados para exibir.")
             else:
-                # Modo Total: expanders direto por Type 05 → Account (sem Fixo/Variável)
+                # Modo Total: expanders direto por Type 05 → Type 06 → Account (sem Fixo/Variável)
                 # ── BUD: agrupar do Budget (todos os accounts) ──
                 df_bud_total_base = df_bud[df_bud['Período'].isin(periodos_flex)].copy()
                 if 'Type 05' not in df_bud_total_base.columns:
                     df_bud_total_base['Type 05'] = 'N/A'
+                if 'Type 06' not in df_bud_total_base.columns:
+                    df_bud_total_base['Type 06'] = 'N/A'
                 if 'Account' not in df_bud_total_base.columns:
                     df_bud_total_base['Account'] = 'N/A'
                 df_bud_total = df_bud_total_base.groupby(
-                    ['Type 05', 'Account'], as_index=False
+                    ['Type 05', 'Type 06', 'Account'], as_index=False
                 )['Custo FP'].sum().rename(columns={'Custo FP': 'BUD'})
 
                 # ── Real: agrupar do Real (pode ter menos accounts) ──
                 df_real_total = df[df['Período'].isin(periodos_flex)].copy()
                 if 'Type 05' not in df_real_total.columns:
                     df_real_total['Type 05'] = 'N/A'
+                if 'Type 06' not in df_real_total.columns:
+                    df_real_total['Type 06'] = 'N/A'
                 if 'Account' not in df_real_total.columns:
                     df_real_total['Account'] = 'N/A'
                 df_real_total_agg = df_real_total.groupby(
-                    ['Type 05', 'Account'], as_index=False
+                    ['Type 05', 'Type 06', 'Account'], as_index=False
                 )['Custo FP'].sum().rename(columns={'Custo FP': 'Total'})
 
                 # Merge com volumes para cálculo de Flex (filtrados por período)
@@ -1349,7 +1416,9 @@ def render():
 
                 # Merge: BUD como base, Real onde disponível
                 df_total_agg = df_bud_total.merge(
-                    df_real_total_agg, on=['Type 05', 'Account'], how='left'
+                    df_real_total_agg,
+                    on=['Type 05', 'Type 06', 'Account'],
+                    how='left'
                 )
                 df_total_agg['Total'] = df_total_agg['Total'].fillna(0)
 
@@ -1403,7 +1472,7 @@ def render():
 
                     with st.expander(
                         f"📊 Type 05: {type05} - Total: {t05_fmt}",
-                        expanded=False
+                        expanded=expandir_flex
                     ):
                         # KPIs do Type 05
                         t05_bud = df_type05['BUD'].sum()
@@ -1428,17 +1497,36 @@ def render():
 
                         render_kpi_spacer()
 
-                        # Tabela por Account
-                        df_tabela = df_type05[[
-                            'Account', 'BUD', 'Flex Bud - BUD', 'Flex BUD',
-                            'Total - Flex Bud', 'Total', 'Total / Flex Bud'
-                        ]].copy()
+                        type06_list = df_type05['Type 06'].unique()
+                        exibiu_type06 = False
+                        for type06 in type06_list:
+                            df_type06 = df_type05[
+                                df_type05['Type 06'] == type06
+                            ].copy()
+                            df_tabela = _preparar_tabela_flex_hierarquia(
+                                df_type06,
+                                'Account',
+                            )
 
-                        # Usar tabela HTML com barrinha
-                        html_tabela = criar_tabela_html_flex(
-                            df_tabela, simbolo, sufixo
-                        )
-                        st.markdown(html_tabela, unsafe_allow_html=True)
+                            if len(df_tabela) == 0:
+                                continue
+
+                            exibiu_type06 = True
+                            t06_total = df_type06['Total'].sum()
+                            t06_fmt = f"{simbolo} {t06_total:,.2f}{sufixo}"
+
+                            with st.expander(
+                                f"📑 Type 06: {type06} - Total: {t06_fmt}",
+                                expanded=expandir_flex,
+                            ):
+                                st.caption(f"Total do Type 06: {t06_fmt}")
+                                html_tabela = criar_tabela_html_flex(
+                                    df_tabela, simbolo, sufixo
+                                )
+                                st.markdown(html_tabela, unsafe_allow_html=True)
+
+                        if not exibiu_type06:
+                            st.info("Sem dados para exibir.")
 
         else:
             st.info(

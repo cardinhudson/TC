@@ -28,7 +28,12 @@ datas = copy_metadata("streamlit")
 datas += collect_data_files("streamlit")
 
 # Todos os submódulos do Streamlit (evita ImportError em components, utils, etc.)
-hiddenimports = collect_submodules("streamlit")
+# Ignora a integração opcional com langchain, que não é usada no SCI.
+hiddenimports = collect_submodules(
+  "streamlit",
+  filter=lambda name: not name.startswith("streamlit.external.langchain"),
+  on_error="ignore",
+)
 
 # Módulos adicionais que o Streamlit usa por string dinâmica
 hiddenimports += [
@@ -37,11 +42,9 @@ hiddenimports += [
     "streamlit.runtime.scriptrunner",
     "streamlit.runtime.scriptrunner.script_runner",
     "streamlit.runtime.state",
-    "streamlit.runtime.legacy_caching",
     "streamlit.elements",
     "streamlit.logger",
     "altair",
-    "validators",
     "watchdog",
     "tornado",
     "click",

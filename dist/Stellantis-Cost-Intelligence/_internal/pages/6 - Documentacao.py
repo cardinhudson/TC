@@ -7,6 +7,7 @@ import os
 import base64
 import sys
 from datetime import datetime
+from tc_core.presentation_docs import render_presentation_section
 from versionamento import obter_versao_atual
 
 # Diretório raiz do projeto
@@ -178,10 +179,6 @@ with st.container():
         )
 
 
-def _ir_para_especificacao_tecnica() -> None:
-    st.session_state["indice_documentacao_pending"] = "🧾 Especificação Técnica"
-    st.rerun()
-
 # Função para detectar caminho base correto
 def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados"""
@@ -205,6 +202,44 @@ def _formatar_mtime(ts: float) -> str:
 def _ler_arquivo_texto_cacheado(caminho: str, mtime: float) -> str:
     with open(caminho, "r", encoding="utf-8") as f:
         return f.read()
+
+
+def _carregar_markdown(caminho: str) -> tuple[str | None, str | None, float | None]:
+    if not os.path.exists(caminho):
+        return None, f"Arquivo não encontrado: {caminho}", None
+    try:
+        mtime = os.path.getmtime(caminho)
+        return _ler_arquivo_texto_cacheado(caminho, mtime), None, mtime
+    except Exception as e:
+        return None, f"Erro ao carregar arquivo: {caminho} ({e})", None
+
+
+def _extrair_secao_por_heading(md: str, headings: list[str]) -> str:
+    """Extrai o conteúdo de uma seção markdown (sem o heading).
+
+    Procura o primeiro heading encontrado em `headings` e retorna até o próximo
+    heading de nível 2 ("## ").
+    """
+    if not md:
+        return ""
+    start = -1
+    heading_encontrado = None
+    for h in headings:
+        start = md.find(h)
+        if start != -1:
+            heading_encontrado = h
+            break
+    if start == -1 or heading_encontrado is None:
+        return ""
+
+    start_line_end = md.find("\n", start)
+    if start_line_end == -1:
+        return ""
+    start_content = start_line_end + 1
+    end = md.find("\n## ", start_content)
+    if end == -1:
+        end = len(md)
+    return md[start_content:end].strip()
 
 # Funções para persistir dados da equipe
 def salvar_dados_equipe(dados):
@@ -292,25 +327,13 @@ def carregar_foto_base64(foto_base64):
 st.sidebar.markdown("## 📑 Índice")
 st.sidebar.markdown("---")
 
-# Seletor de módulo (TC Extendido ou TC Veículos)
-modulo_doc = st.sidebar.radio(
-    "Módulo:",
-    ["📊 TC Extendido", "🚗 TC Veículos"],
-    horizontal=True,
-    key="modulo_documentacao"
-)
-st.sidebar.markdown("---")
-
-# Aplicar navegação pendente ANTES de instanciar o widget do índice.
-# (Evita: StreamlitAPIException: cannot be modified after the widget is instantiated.)
-if "indice_documentacao_pending" in st.session_state:
-    st.session_state["indice_documentacao"] = st.session_state.pop("indice_documentacao_pending")
+modulo_doc = "📌 Ambos (TC Ext + Veículos)"
 
 # Criar índices no sidebar
 indice_selecionado = st.sidebar.radio(
     "Selecione a seção:",
     [
-        "👥 Equipe do Projeto",
+        "👥 Equipe do SCI",
         "📐 Regras e Cálculo",
         "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
         "🏗️ Arquitetura e Estrutura",
@@ -319,6 +342,7 @@ indice_selecionado = st.sidebar.radio(
         "🔮 Guia de Best Estimate",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
+        "🔔 Sistema de Alertas",
         "📦 Guia de Build (EXE)",
         "🚀 Próximos Passos",
     ],
@@ -330,8 +354,8 @@ st.markdown("---")
 # ==========================================
 # SEÇÃO 1: EQUIPE DO PROJETO
 # ==========================================
-if indice_selecionado == "👥 Equipe do Projeto":
-    st.header("👥 Equipe do Projeto")
+if indice_selecionado == "👥 Equipe do SCI":
+    st.header("👥 Equipe do SCI")
     
     st.markdown("""
     Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento
@@ -567,7 +591,7 @@ if indice_selecionado == "👥 Equipe do Projeto":
     O **Stellantis Cost Intelligence (SCI)** é uma plataforma de análise de custos industriais composta por dois módulos
     complementares, cada um atendendo um nível de granularidade diferente:
 
-    **📊 TC Extendido (TC Ext)**
+    **📊 TC Estendido (TC Ext)**
     - Análise de custos por oficina, conta e período
     - Visualização Normal (Custo Total) e CPU (Custo por Unidade)
     - Dashboard interativo com filtros (Ano, Período, Oficina, USI, Veículo)
@@ -603,8 +627,98 @@ if indice_selecionado == "👥 Equipe do Projeto":
 # ==========================================
 # TC VEÍCULOS: REGRAS E CÁLCULO
 # ==========================================
+elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("📌 Ambos"):
+    st.header("📐 Regras e Cálculo — TC Ext + TC Veículos")
+
+    st.subheader("📊 TC Estendido")
+    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
+    if _err_ext:
+        st.error(_err_ext)
+    else:
+        st.caption(
+            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
+        )
+        with st.expander("📐 Regras e Cálculo — TC Estendido", expanded=True):
+            st.markdown(
+                _extrair_secao_por_heading(_md_ext, ["## 2) Regras e Cálculo — TC Estendido"])
+            )
+
+    _caminho_flex = os.path.join(get_base_path(), "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")
+    _md_flex, _err_flex, _mtime_flex = _carregar_markdown(_caminho_flex)
+    if not _err_flex:
+        st.caption(
+            f"Fonte: {_caminho_flex} | Atualizado em: {_formatar_mtime(_mtime_flex)}"
+        )
+        with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
+            st.markdown(
+                _extrair_secao_por_heading(
+                    _md_flex,
+                    ["## 7) Flex Bud — Ano Completo e Governança"],
+                )
+            )
+
+    st.markdown("---")
+
+    st.subheader("🚗 TC Veículos")
+    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
+    if _err_veic:
+        st.error(_err_veic)
+        st.stop()
+
+    st.caption(
+        f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
+    )
+    with st.expander("💰 Cadeia de Custos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 2) Cadeia de Custos TC Veículos"]))
+    with st.expander("🚗 Rateio por Veículo", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 3) Processo de Rateio por Veículo"]))
+    with st.expander("📊 Flex Budget", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 4) Flex Budget (TC Veículos)"]))
+    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 5) CPU (Custo por Unidade)"]))
+    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 6) KPIs do TC Veículos"]))
+    with st.expander("🎛️ Filtros", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 7) Filtros do TC Veículos"]))
+    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md_veic,
+                ["## 9) Premissas do Simulador Best Estimate"],
+            )
+        )
+
+    st.stop()
+
 elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC Veículos":
     st.header("📐 Regras e Cálculo — TC Veículos")
+
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+
+    with st.expander("💰 Cadeia de Custos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Cadeia de Custos TC Veículos"]))
+    with st.expander("🚗 Rateio por Veículo", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Processo de Rateio por Veículo"]))
+    with st.expander("📊 Flex Budget", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 4) Flex Budget (TC Veículos)"]))
+    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 5) CPU (Custo por Unidade)"]))
+    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 6) KPIs do TC Veículos"]))
+    with st.expander("🎛️ Filtros", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Filtros do TC Veículos"]))
+    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 9) Premissas do Simulador Best Estimate"]))
+
+    st.stop()
 
     st.info(
         "📌 **Módulo TC Veículos** — Regras de cálculo específicas para "
@@ -796,22 +910,24 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         """)
 
 # ==========================================
-# SEÇÃO 2: REGRAS E CÁLCULO — TC EXTENDIDO
+# SEÇÃO 2: REGRAS E CÁLCULO — TC ESTENDIDO
 # ==========================================
 elif indice_selecionado == "📐 Regras e Cálculo":
-    st.header("📐 Regras e Cálculo — TC Extendido")
+    st.header("📐 Regras e Cálculo — TC Estendido")
 
-    st.warning(
-        "⚠️ **Seção legada/complementar:** a referência oficial e atualizada de regras de cálculo "
-        "(CPU/Flex Bud/ordem de conversões/contratos de dados) está em `DOCUMENTACAO_SISTEMA_TC.md` "
-        "na seção **🧾 Especificação Técnica**."
-    )
-    st.button(
-        "➡️ Ir para a Especificação Técnica",
-        key="btn_ir_especificacao_regras",
-        use_container_width=True,
-        on_click=_ir_para_especificacao_tecnica,
-    )
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+    st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e Cálculo — TC Estendido"]))
+    st.markdown("---")
+    st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud — Ano Completo e Governança"]))
+    st.stop()
+
+    # Conteúdo antigo removido: esta seção agora é renderizada diretamente do Markdown oficial.
     
     st.markdown("""
     Esta seção documenta todas as regras de cálculo, filtros e metodologias utilizadas no projeto.
@@ -2275,8 +2391,60 @@ elif indice_selecionado == "📐 Regras e Cálculo":
 # ==========================================
 # TC VEÍCULOS: CÁLCULO POR TABELAS/GRÁFICOS
 # ==========================================
+elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc.startswith("📌 Ambos"):
+    st.header("🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU) — TC Ext + TC Veículos")
+
+    st.subheader("📊 TC Estendido")
+    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
+    if _err_ext:
+        st.error(_err_ext)
+    else:
+        st.caption(
+            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
+        )
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md_ext,
+                [
+                    "## 4) Visualizações — TC Estendido",
+                    "## 4) Visualizações",
+                ],
+            )
+        )
+
+    st.markdown("---")
+
+    st.subheader("🚗 TC Veículos")
+    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
+    if _err_veic:
+        st.error(_err_veic)
+    else:
+        st.caption(
+            f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
+        )
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md_veic,
+                ["## 8) Visualizações e Gráficos"],
+            )
+        )
+
+    st.stop()
+
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc == "🚗 TC Veículos":
     st.header("🧮 Cálculo por Tabelas/Gráficos — TC Veículos")
+
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+    st.markdown(_extrair_secao_por_heading(_md, ["## 8) Visualizações e Gráficos"]))
+    st.stop()
 
     st.info(
         "📌 **Módulo TC Veículos** — Tabelas e gráficos específicos do TC Veículos."
@@ -2357,18 +2525,36 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
 # SEÇÃO 2: CÁLCULO POR TABELAS/GRÁFICOS
 # ==========================================
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
-    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Extendido")
+    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Estendido")
 
-    st.info(
-        "Consulta rápida para evitar divergências entre gráfico e tabela. "
-        "A referência completa está em `DOCUMENTACAO_SISTEMA_TC.md` (aba 🧾 Especificação Técnica)."
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+    st.markdown(
+        "Esta seção explica os pontos que mais geram divergência entre **tabela** e **gráfico** "
+        "no TC Ext (Normal vs CPU)."
     )
-    st.button(
-        "➡️ Abrir a Especificação Técnica completa",
-        key="btn_ir_especificacao_calculos_por_visualizacao",
-        use_container_width=True,
-        on_click=_ir_para_especificacao_tecnica,
-    )
+
+    with st.expander("📌 CPU e regra de agregação", expanded=True):
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md,
+                ["## 2) Regras e Cálculo — TC Estendido"],
+            )
+        )
+
+    with st.expander("📌 Governança do ano completo (12 meses)", expanded=False):
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md,
+                ["## 7) Flex Bud — Ano Completo e Governança"],
+            )
+        )
+    st.stop()
 
     caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     if not os.path.exists(caminho_doc):
@@ -2400,8 +2586,57 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
 # ==========================================
 # TC VEÍCULOS: ARQUITETURA E ESTRUTURA
 # ==========================================
+elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.startswith("📌 Ambos"):
+    st.header("🏗️ Arquitetura e Estrutura — TC Ext + TC Veículos")
+
+    st.subheader("📊 TC Estendido")
+    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
+    if _err_ext:
+        st.error(_err_ext)
+    else:
+        st.caption(
+            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
+        )
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md_ext,
+                ["## 3) Arquitetura — TC Estendido"],
+            )
+        )
+
+    st.markdown("---")
+
+    st.subheader("🚗 TC Veículos")
+    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
+    if _err_veic:
+        st.error(_err_veic)
+    else:
+        st.caption(
+            f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
+        )
+        st.markdown(
+            _extrair_secao_por_heading(
+                _md_veic,
+                ["## 10) Arquitetura TC Veículos"],
+            )
+        )
+
+    st.stop()
+
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "🚗 TC Veículos":
     st.header("🏗️ Arquitetura e Estrutura — TC Veículos")
+
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+    st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC Veículos"]))
+    st.stop()
 
     st.info(
         "📌 **Módulo TC Veículos** — Estrutura de pastas, contratos de dados e pipeline de processamento."
@@ -2477,9 +2712,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         ├── ui_components.py       # Sidebar filters, CSS, KPIs
         └── pages/
             ├── __init__.py
-            ├── home_tc.py                      # Página principal (6 tabs)
-            ├── best_estimate_simulador_tc.py   # Simulador de premissas BE
-            ├── best_estimate_analise_tc.py     # Dashboard de análise BE
+            ├── home_tc.py                      # Página principal (6 tabs) + consumo/análise do Forecast (Real vs BE)
+            ├── best_estimate_simulador_tc.py   # Simulador de premissas BE (gera Forecast)
             └── waterfall_tc.py                 # Análise Waterfall (Real + Budget)
         ```
 
@@ -2514,9 +2748,9 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
 
         | Arquivo | Função |
         |---------|--------|
-        | `processamento_dados_BUD.py` | Processa dados Budget (principal + veículos) |
-        | `processamento_dados_veiculos_BUD.py` | Rateio por veículo + CPU |
-        | `processamento_dados.py` | Processa dados Real (Sapiens) |
+        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra upload, pré-validação e execução (Real/Budget) |
+        | `processamento_dados_veiculos_BUD.py` | Processa Budget (BUD) e grava parquets BUD |
+        | `processamento_dados_veiculos.py` | Processa Real (Sapiens/Redis) e grava parquets Real |
 
         ### 🔄 Pipeline
 
@@ -2562,19 +2796,17 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
 # SEÇÃO 2: ARQUITETURA E ESTRUTURA
 # ==========================================
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
-    st.header("🏗️ Arquitetura e Estrutura — TC Extendido")
+    st.header("🏗️ Arquitetura e Estrutura — TC Estendido")
 
-    st.warning(
-        "⚠️ **Seção legada/complementar:** a arquitetura e contratos canônicos (estrutura do projeto, "
-        "pipelines, schemas e critérios de aceite) estão em `DOCUMENTACAO_SISTEMA_TC.md` na seção "
-        "**🧾 Especificação Técnica**."
-    )
-    st.button(
-        "➡️ Ir para a Especificação Técnica",
-        key="btn_ir_especificacao_arquitetura",
-        use_container_width=True,
-        on_click=_ir_para_especificacao_tecnica,
-    )
+    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    _md, _err, _mtime = _carregar_markdown(_caminho)
+    if _err:
+        st.error(_err)
+        st.stop()
+
+    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
+    st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura — TC Estendido"]))
+    st.stop()
     
     st.markdown("""
     Esta seção documenta a arquitetura, estrutura de arquivos, tecnologias utilizadas
@@ -2603,55 +2835,24 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         st.subheader("📁 Estrutura de Arquivos")
         
         st.markdown("""
-        ### Estrutura do Projeto
+        ### Estrutura do Projeto (visão de alto nível)
         
         ```
-        C:\\GIT\\TC\\
-        ├── app.py                                    # Portal / Router (menu via st.navigation)
-        ├── pages\\
-        │   ├── 1 - Waterfall.py                     # Análise waterfall (~4.000 linhas)
-        │   ├── 2 - Best Estimate - Simulador.py     # Simulador de Best Estimate (~4.300 linhas)
-        │   ├── (removido) 3 - Best Estimate - Análise.py  # Análise legacy (substituída pela BE (Análise) baseada na Home)
-        │   ├── (removido) Waterfall_Analysis.py     # Página duplicada removida
-        │   ├── 5 - Extração de Dados.py             # Extração e processamento de dados (~600 linhas)
-        │   └── 6 - Documentacao.py                  # Documentação (este arquivo) (~3.900 linhas)
-        ├── tc_ext\\
-        │   └── pages\\
-        │       ├── home_ext.py                      # Home (TC Ext)
-        │       └── be_analise_ext.py                # Best Estimate (Análise) (base Home; lê dados/Forecast)
-        ├── dados\\
-        │   ├── historico_consolidado\\
-        │   │   ├── df_final_historico.parquet
-        │   │   ├── df_ke5z_historico.parquet
-        │   │   ├── df_vol_historico.parquet
-        │   │   └── BUD\\
-        │   │       ├── df_final_historico_BUD.parquet
-        │   │       ├── df_ke5z_historico_BUD.parquet
-        │   │       └── df_vol_historico_BUD.parquet
-        │   ├── 2024\\
-        │   │   ├── df_final.parquet
-        │   │   ├── df_vol.parquet
-        │   │   └── ... (outros arquivos)
-        │   ├── 2025\\
-        │   │   ├── df_final.parquet
-        │   │   ├── df_vol.parquet
-        │   │   └── BUD\\
-        │   │       ├── df_final_BUD.parquet
-        │   │       └── df_vol_BUD.parquet
-        │   └── Forecast\\
-        │       ├── df_final_historico_forecast.parquet
-        │       ├── df_vol_historico.parquet
-        │       ├── forecast_completo.parquet
-        │       ├── forecast_historico.parquet
-        │       └── forecast_previsao.parquet
-        └── tc_ext/notebooks/dados.ipynb                               # Notebook para processar dados
+        TC/
+        ├── app.py                     # Portal / Router (menu via st.navigation)
+        ├── pages/                     # Páginas legadas (Waterfall/BE Simulador/Extração/Documentação)
+        ├── tc_ext/                    # TC Ext (Linhas Secundárias)
+        ├── tc_principal/              # TC Veículos (TC Principal)
+        ├── tc_core/                   # Shared (paths/portabilidade/períodos/schema/moedas/UI)
+        ├── tc_copilot/                # IA (chat + relatório PDF)
+        └── dados/                     # Dados organizados por módulo
+            ├── TC_Ext/                # dados/TC_Ext/{ANO}/, historico_consolidado/, Forecast/
+            └── TC_Principal/          # dados/TC_Principal/{ANO}/, historico_consolidado/, Forecast/
         ```
         
         **Observações:**
-        - Arquivos principais: `historico_consolidado/` (usado pelo sistema)
-        - Dados por ano: `2024/` e `2025/` (para filtros específicos)
-        - Forecast: `Forecast/` (dados processados para previsões)
-        - Formato: Parquet para performance otimizada
+        - A estrutura de dados é **por módulo** (o histórico fica em `dados/TC_Ext/historico_consolidado/` e `dados/TC_Principal/historico_consolidado/`).
+        - Caminhos canônicos (Dev ↔ EXE) ficam em `tc_core/data/paths.py` + `tc_core/utils/portabilidade.py`.
         """)
 
         st.markdown("---")
@@ -2662,13 +2863,14 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         
         with col1:
             st.markdown("""
-            **app.py** (~10.000 linhas)
-            - Dashboard principal TC Ext
-            - Análise de custos com comparação Budget
-            - Cálculo Flex Bud
-            - Gráficos interativos
-            - Tabelas hierárquicas
-            - Exportação Excel
+            **app.py**
+            - Portal/roteador do SCI (menu lateral via `st.navigation`)
+            - Agrupa páginas de **TC Veículos**, **TC Ext**, **Documentação** e **TC Copilot**
+            - Não contém a lógica de cálculo — ela está nos módulos `tc_ext/` e `tc_principal/`
+
+            **tc_ext/pages/home_ext.py**
+            - Home do TC Ext (Real/Budget/Flex/CPU)
+            - Filtros + gráficos + exportação
             
             **pages/1 - Waterfall.py** (~4.000 linhas)
             - Análise waterfall entre períodos
@@ -2688,7 +2890,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             **tc_ext/pages/be_analise_ext.py**
             - Best Estimate (Análise) no TC Ext (substitui a análise legacy)
             - Mesma base visual e de cálculo da Home (TC Ext)
-            - Lê os outputs do simulador em `dados/Forecast/`
+            - Lê os outputs do simulador em `dados/TC_Ext/Forecast/`
             - Regra de CPU aplicada de forma consistente (Total/Volume)
             
             **(removido) pages/4 - Waterfall_Analysis.py** (página duplicada removida)
@@ -2717,40 +2919,44 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             A pasta `dados/` é o coração do sistema, onde todos os arquivos processados são armazenados.
             Ela é organizada de forma hierárquica para facilitar o gerenciamento e acesso aos dados.
             
-            **Estrutura Completa:**
+            **Estrutura Completa (padronizada por módulo):**
             ```
             dados/
-            ├── historico_consolidado/          # 📚 Dados históricos consolidados (PRINCIPAL)
-            │   ├── df_final_historico.parquet  # Dados de custos históricos consolidados
-            │   ├── df_ke5z_historico.parquet  # Dados KE5Z históricos consolidados
-            │   ├── df_vol_historico.parquet    # Volumes históricos consolidados
-            │   └── BUD/                        # 📊 Dados de Budget históricos
-            │       ├── df_final_historico_BUD.parquet
-            │       ├── df_ke5z_historico_BUD.parquet
-            │       └── df_vol_historico_BUD.parquet
+            ├── TC_Ext/                         # 📊 TC Ext (Linhas Secundárias)
+            │   ├── {ANO}/
+            │   │   ├── df_final.parquet
+            │   │   ├── df_vol.parquet
+            │   │   ├── df_ke5z_group.parquet
+            │   │   ├── Dados SAPIENS.xlsx
+            │   │   ├── Reporting fluxo anexo.xlsx
+            │   │   └── BUD/
+            │   │       ├── df_final_BUD.parquet
+            │   │       ├── df_vol_BUD.parquet
+            │   │       └── df_ke5z_group_BUD.parquet
+            │   ├── historico_consolidado/
+            │   │   ├── df_final_historico.parquet
+            │   │   ├── df_ke5z_historico.parquet
+            │   │   ├── df_vol_historico.parquet
+            │   │   └── BUD/
+            │   │       ├── df_final_historico_BUD.parquet
+            │   │       ├── df_ke5z_historico_BUD.parquet
+            │   │       └── df_vol_historico_BUD.parquet
+            │   └── Forecast/                   # 🔮 Outputs do Best Estimate / Forecast (TC Ext)
             │
-            ├── 2024/                           # 📅 Dados específicos do ano 2024
-            │   ├── df_final.parquet           # Dados de custos do ano
-            │   ├── df_vol.parquet             # Volumes do ano
-            │   ├── df_ke5z_group.parquet      # Dados KE5Z agrupados
-            │   └── Dados SAPIENS.xlsx          # Arquivo fonte (entrada)
-            │   └── Reporting fluxo anexo.xlsx  # Arquivo fonte (entrada)
-            │
-            ├── 2025/                           # 📅 Dados específicos do ano 2025
-            │   ├── df_final.parquet
-            │   ├── df_vol.parquet
-            │   ├── df_ke5z_group.parquet
-            │   ├── BUD/                        # 📊 Budget do ano 2025
-            │   │   ├── df_final_BUD.parquet
-            │   │   └── df_vol_BUD.parquet
-            │   └── ... (arquivos fonte)
-            │
-            └── Forecast/                       # 🔮 Dados processados para Forecast
-                ├── df_final_historico_forecast.parquet
-                ├── df_vol_historico.parquet
-                ├── forecast_completo.parquet
-                ├── forecast_historico.parquet
-                └── forecast_previsao.parquet
+            └── TC_Principal/                   # 🚗 TC Veículos (TC Principal)
+                ├── {ANO}/
+                │   ├── df_principal.parquet
+                │   ├── df_tc_sapiens.parquet
+                │   ├── df_veiculos_custo_fp.parquet
+                │   ├── df_vol_veiculos_actual.parquet
+                │   └── BUD/
+                │       ├── df_principal_BUD.parquet
+                │       ├── df_veiculos_custo_fp_BUD.parquet
+                │       └── df_vol_veiculos_BUD.parquet
+                ├── historico_consolidado/
+                └── Forecast/                   # 🔮 Outputs do Best Estimate (TC Veículos)
+                    ├── forecast_completo.parquet
+                    └── premissas.json
             ```
             """)
             
@@ -2765,23 +2971,25 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             o sistema verifica e cria automaticamente as pastas necessárias:
             
             ```python
-            # Exemplo de criação de pastas (tc_ext/notebooks/dados.ipynb)
-            PASTA_ANO = f'dados/{ANO_ATUAL}'  # Ex: dados/2025
-            PASTA_HISTORICO = 'dados/historico_consolidado'
-            PASTA_BUD = f'dados/{ANO_ATUAL}/BUD'
-            
-            # Criar estrutura de pastas
-            os.makedirs(PASTA_ANO, exist_ok=True)
-            os.makedirs(PASTA_HISTORICO, exist_ok=True)
-            os.makedirs(PASTA_BUD, exist_ok=True)
+            # Caminhos canônicos (dev ↔ EXE) — tc_core/data/paths.py
+            from tc_core.data.paths import PASTA_TC_EXT, PASTA_TC_PRINCIPAL
+
+            # TC Ext
+            pasta_ano_tc_ext = f"{PASTA_TC_EXT}/{ANO_ATUAL}"            # dados/TC_Ext/{ANO}
+            pasta_bud_tc_ext = f"{pasta_ano_tc_ext}/BUD"               # dados/TC_Ext/{ANO}/BUD
+            pasta_hist_tc_ext = f"{PASTA_TC_EXT}/historico_consolidado" # dados/TC_Ext/historico_consolidado
+
+            # TC Veículos
+            pasta_ano_tc_principal = f"{PASTA_TC_PRINCIPAL}/{ANO_ATUAL}" # dados/TC_Principal/{ANO}
+            pasta_bud_tc_principal = f"{pasta_ano_tc_principal}/BUD"     # dados/TC_Principal/{ANO}/BUD
             ```
             
             **2. Processo de Atualização:**
             
             **a) Processamento de Dados do Ano:**
-            - Os arquivos Excel (`Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`) são colocados na pasta do ano (ex: `dados/2025/`)
+            - Os arquivos Excel (`Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`) do **TC Ext** ficam em `dados/TC_Ext/{ANO}/`
             - O notebook `tc_ext/notebooks/dados.ipynb` processa esses arquivos e gera os arquivos Parquet
-            - Os arquivos Parquet são salvos na mesma pasta do ano
+            - Os arquivos Parquet são salvos na mesma pasta do ano (`dados/TC_Ext/{ANO}/`)
             - **Simultaneamente**, os dados são consolidados no histórico
             
             **b) Consolidação no Histórico:**
@@ -2791,21 +2999,12 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             
             **c) Processamento de Budget:**
             - Similar ao processo de dados do ano, mas os arquivos são processados pelo `tc_ext/notebooks/dados_BUD.ipynb`
-            - Os **outputs** de Budget (parquets/diagnósticos) são salvos em `dados/{ANO}/BUD/`
-            - Os **inputs** (Excels) são os mesmos do Real e ficam em `dados/{ANO}/`
-            - O histórico de Budget é consolidado em `historico_consolidado/BUD/`
+            - Os **outputs** de Budget do **TC Ext** são salvos em `dados/TC_Ext/{ANO}/BUD/`
+            - O histórico de Budget do **TC Ext** é consolidado em `dados/TC_Ext/historico_consolidado/BUD/`
             
             **d) Processamento de Forecast:**
-            - Quando o Forecast é gerado (páginas 2 ou 3 - Best Estimate), a pasta `dados/Forecast/` é criada automaticamente
-            - Os arquivos de forecast são salvos diretamente nesta pasta
-            - A pasta é criada dinamicamente se não existir:
-            ```python
-            pasta_dados = "dados"
-            pasta_forecast = os.path.join(pasta_dados, "Forecast")
-            
-            if not os.path.exists(pasta_forecast):
-                os.makedirs(pasta_forecast, exist_ok=True)
-            ```
+            - Forecast do **TC Ext**: outputs em `dados/TC_Ext/Forecast/`
+            - Forecast do **TC Veículos**: outputs em `dados/TC_Principal/Forecast/`
             """)
         
         st.markdown("---")
@@ -2816,9 +3015,9 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             **1. Relação entre Pastas por Ano e Histórico:**
             
             ```
-            dados/2025/df_final.parquet  ──┐
-                                           ├──> Concatena ──> dados/historico_consolidado/df_final_historico.parquet
-            dados/2024/df_final.parquet  ──┘
+            dados/TC_Ext/2026/df_final.parquet  ──┐
+                                                  ├──> Concatena ──> dados/TC_Ext/historico_consolidado/df_final_historico.parquet
+            dados/TC_Ext/2025/df_final.parquet  ──┘
             ```
             
             - **Dados do Ano:** Contêm apenas os dados do ano específico (útil para filtros rápidos)
@@ -2830,24 +3029,24 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             ```
             Arquivos Excel (entrada)
                 │
-                ├──> Processamento (tc_ext/notebooks/dados.ipynb)
+                ├──> Processamento (tc_ext/notebooks/dados.ipynb) — TC Ext
                 │       │
-                │       ├──> Salva em dados/{ANO}/ (dados do ano)
+                │       ├──> Salva em dados/TC_Ext/{ANO}/ (dados do ano)
                 │       │
-                │       └──> Concatena em historico_consolidado/ (histórico completo)
+                │       └──> Concatena em dados/TC_Ext/historico_consolidado/ (histórico completo)
                 │
-                └──> Sistema Streamlit lê de historico_consolidado/ (fonte principal)
+                └──> Sistema Streamlit lê de dados/TC_Ext/historico_consolidado/ (fonte principal do TC Ext)
             ```
             
             **3. Separação de Budget:**
             
-            - **Dados Reais:** `dados/{ANO}/` e `historico_consolidado/`
-            - **Dados Budget (outputs):** `dados/{ANO}/BUD/` e `historico_consolidado/BUD/`
+            - **TC Ext (Real):** `dados/TC_Ext/{ANO}/` e `dados/TC_Ext/historico_consolidado/`
+            - **TC Ext (Budget):** `dados/TC_Ext/{ANO}/BUD/` e `dados/TC_Ext/historico_consolidado/BUD/`
             - Esta separação evita misturar outputs de Budget com Real
             
             **4. Forecast como Dados Derivados:**
             
-            - A pasta `Forecast/` contém dados **processados e calculados** pelo sistema
+            - As pastas `Forecast/` contêm dados **processados e calculados** pelo sistema
             - Não são dados de entrada, mas sim **resultados** de cálculos de forecast
             - São gerados dinamicamente quando o usuário executa o Forecast
             """)
@@ -3026,6 +3225,45 @@ plotly>=5.0.0
 # ==========================================
 # TC VEÍCULOS: ESPECIFICAÇÃO TÉCNICA
 # ==========================================
+elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.startswith("📌 Ambos"):
+    st.header("🧾 Especificação Técnica — TC Ext + TC Veículos")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("📊 TC Estendido")
+        caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+        if not os.path.exists(caminho_doc):
+            st.error(f"Arquivo não encontrado: {caminho_doc}")
+        else:
+            try:
+                mtime_doc = os.path.getmtime(caminho_doc)
+                st.caption(
+                    f"Fonte: {caminho_doc} | Atualizado em: {_formatar_mtime(mtime_doc)}"
+                )
+                conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
+                st.markdown(conteudo)
+            except Exception as e:
+                st.error(f"Erro ao carregar especificação: {e}")
+
+    with col2:
+        st.subheader("🚗 TC Veículos")
+        caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+        if not os.path.exists(caminho_doc_tc):
+            st.error(f"Arquivo não encontrado: {caminho_doc_tc}")
+        else:
+            try:
+                mtime_tc = os.path.getmtime(caminho_doc_tc)
+                st.caption(
+                    f"Fonte: {caminho_doc_tc} | Atualizado em: {_formatar_mtime(mtime_tc)}"
+                )
+                conteudo_tc = _ler_arquivo_texto_cacheado(caminho_doc_tc, mtime_tc)
+                st.markdown(conteudo_tc)
+            except Exception as e:
+                st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+
+    st.stop()
+
 elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "🚗 TC Veículos":
     st.header("🧾 Especificação Técnica — TC Veículos")
 
@@ -3049,14 +3287,7 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
 
             _conteudo_tc = _ler_arquivo_texto_cacheado(_caminho_doc_tc, _mtime_tc)
 
-            st.download_button(
-                label="📥 Baixar especificação TC Veículos (Markdown)",
-                data=_conteudo_tc.encode("utf-8"),
-                file_name="DOCUMENTACAO_TC_PRINCIPAL.md",
-                mime="text/markdown",
-                use_container_width=True,
-            )
-
+            # Sem botões de download: a especificação deve estar toda escrita na página.
             st.markdown("---")
             st.markdown(_conteudo_tc)
         except Exception as e:
@@ -3066,7 +3297,7 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
 # SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
 # ==========================================
 elif indice_selecionado == "🧾 Especificação Técnica":
-    st.header("🧾 Especificação Técnica — TC Extendido")
+    st.header("🧾 Especificação Técnica — TC Estendido")
 
     st.markdown(
         """
@@ -3092,128 +3323,17 @@ elif indice_selecionado == "🧾 Especificação Técnica":
 
             conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
 
-            st.download_button(
-                label="📥 Baixar especificação (Markdown)",
-                data=conteudo.encode("utf-8"),
-                file_name="DOCUMENTACAO_SISTEMA_TC.md",
-                mime="text/markdown",
-                use_container_width=True,
-            )
-
+            # Sem botões de download: a especificação deve estar toda escrita na página.
             st.markdown("---")
             st.markdown(conteudo)
         except Exception as e:
             st.error(f"Erro ao carregar especificação: {e}")
 
 # ==========================================
-# TC VEÍCULOS: GUIA DE EXTRAÇÃO DE DADOS
-# ==========================================
-elif indice_selecionado == "📥 Guia de Extração de Dados" and modulo_doc == "🚗 TC Veículos":
-    st.header("📥 Guia de Extração de Dados — TC Veículos")
-
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-    <h2 style="color: white; margin: 0;">📥 Extração de Dados — TC Veículos</h2>
-    <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Pipeline de processamento de dados do módulo TC Veículos
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.expander("📋 **Visão Geral do Pipeline**", expanded=True):
-        st.markdown("""
-        ### 🔄 Fluxo de Processamento
-
-        ```
-        Arquivos Excel (Entrada)
-            │
-            ├──> processamento_dados_BUD.py
-            │       ├──> Lê dados brutos do Budget
-            │       ├──> Normaliza colunas e períodos
-            │       ├──> Calcula composição de custos
-            │       ├──> Grava df_principal_BUD.parquet
-            │       └──> Chama processamento_dados_veiculos_BUD.py
-            │               ├──> Rateio por veículo (tempo de produção)
-            │               ├──> Cálculo de CPU por veículo
-            │               ├──> Grava df_veiculos_custo_fp_BUD.parquet
-            │               └──> Grava df_veiculos_cpu_BUD.parquet
-            │
-            └──> processamento_dados.py
-                    ├──> Lê dados reais do Sapiens
-                    ├──> Normaliza e processa
-                    ├──> Grava df_principal.parquet
-                    └──> Grava df_veiculos_custo_fp.parquet
-        ```
-        """)
-
-    with st.expander("📂 **Arquivos de Processamento**", expanded=False):
-        st.markdown("""
-        ### 📋 Scripts e Funções
-
-        | Arquivo | Função |
-        |---------|--------|
-        | `processamento_dados_BUD.py` | Processa dados Budget (principal + veículos) |
-        | `processamento_dados_veiculos_BUD.py` | Rateio por veículo + CPU |
-        | `processamento_dados.py` | Processa dados Real (Sapiens) |
-
-        ### 📁 Pastas de Entrada
-        - `dados/TC_Principal/{ano}/` — Arquivos Excel de entrada
-
-        ### 📁 Pastas de Saída (Parquets processados)
-        - `dados/TC_Principal/{ano}/BUD/` — Budget processado
-        - `dados/TC_Principal/{ano}/` — Real processado
-        """)
-
-    with st.expander("🔧 **Detalhes do Processamento BUD**", expanded=False):
-        st.markdown("""
-        ### processamento_dados_BUD.py
-
-        **Etapas:**
-        1. **Leitura**: Excel com dados de Budget do TC Veículos
-        2. **Normalização**: Padronização de colunas (Oficina, Veículo, Período, etc.)
-        3. **Composição de Custos**:
-           - Despesa Primária (soma dos lançamentos)
-           - Custo FA = Despesa Primária × Rateio FA
-              - Custo FP = Despesa Primária − Custo FA
-              - Redis entra via aba massa - REDIS (linhas adicionais marcadas com `_fonte_redis=True`)
-              - D&A Dedicado (aba massa - D&A dedicado; alocado e depois somado por veículo)
-           - FP sem Dedicada = Custo FP − D&A Dedicado
-        4. **Gravação**: `df_principal_BUD.parquet`
-        5. **Chamada**: `processamento_dados_veiculos_BUD.py`
-
-        ### processamento_dados_veiculos_BUD.py
-
-        **Etapas:**
-        1. **Leitura** do tempo de produção por veículo e oficina
-        2. **Cálculo do percentual** de rateio por veículo
-        3. **Rateio**: FP sem Dedicada × Percentual = Custo Rateado
-        4. **Custo FP Veículo** = Custo Rateado + D&A Dedicado
-        5. **CPU** = Custo FP Veículo / Volume
-        6. **Gravação**: `df_veiculos_custo_fp_BUD.parquet`, `df_veiculos_cpu_BUD.parquet`
-        """)
-
-    with st.expander("📊 **Dados de Volume**", expanded=False):
-        st.markdown("""
-        ### Volumes por Veículo
-
-        | Arquivo | Descrição |
-        |---------|-----------|
-        | `df_vol_veiculos_BUD.parquet` | Volume Budget por veículo |
-        | `df_vol_veiculos_actual.parquet` | Volume Real por veículo |
-
-        **Colunas:** `Oficina`, `Veículo`, `Período`, `Volume`
-
-        Os volumes são usados para:
-        - Cálculo de CPU
-        - Cálculo de Flex Budget (proporção Real/BUD)
-        - Gráficos comparativos (BUD vs Real)
-        """)
-
-# ==========================================
 # SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS
 # ==========================================
 elif indice_selecionado == "📥 Guia de Extração de Dados":
-    st.header("📥 Guia de Extração de Dados — TC Extendido")
+    st.header("📥 Guia de Extração de Dados — TC Estendido")
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
@@ -3223,6 +3343,104 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
     </p>
     </div>
     """, unsafe_allow_html=True)
+
+    with st.expander("🚗 **TC Veículos — Pipeline completo (Real e Budget)**", expanded=False):
+        st.markdown("""
+        ### 🔄 Fluxo de Processamento (TC Veículos)
+
+        ```
+        Arquivos Excel (Entrada)
+            │
+            ├──> processamento_dados_veiculos_BUD.py (Budget)
+            │       ├──> Lê Budget + D&A dedicado + volumes/tempos
+            │       ├──> Normaliza colunas e períodos
+            │       ├──> Calcula composição (FA/FP) e rateios por veículo
+            │       ├──> Grava df_principal_BUD.parquet
+            │       ├──> Grava df_veiculos_custo_fp_BUD.parquet
+            │       └──> Grava df_veiculos_cpu_BUD.parquet
+            │
+            └──> processamento_dados_veiculos.py (Real)
+                    ├──> Lê Sapiens + Redis + volumes
+                    ├──> Normaliza e processa
+                    ├──> Grava df_principal.parquet
+                    ├──> Grava df_tc_sapiens.parquet (detalhado)
+                    └──> Grava df_veiculos_custo_fp.parquet / df_veiculos_cpu.parquet
+        ```
+
+        **Página Streamlit que executa o fluxo:** `tc_principal/pages/extracao_dados_tc.py`
+
+        ### ✅ Arquivo de entrada (fonte única)
+
+        - `Reporting veículos.xlsx` em `dados/TC_Principal/{ano}/`
+        - A página `extracao_dados_tc.py` permite **upload** com proteção contra sobrescrita (checkbox de confirmação)
+
+        ### 🧾 Abas obrigatórias — Budget (no Excel)
+
+        - `massa primária - BDG`
+        - `massa - REDIS`
+        - `Volume e EST PdR - BDG`
+        - `Volume BDG`
+        - `Volume Actual`
+        - `EST veículos - BDG`
+        - `massa - D&A dedicado`
+
+        ### 🧾 Abas obrigatórias — Real (no Excel)
+
+        - `Sapiens`
+        - `Volume e EST PdR - Actual`
+        - `Volume Actual`
+        - `EST veículos - Actual`
+
+        ### 🔎 Pré-validação (o que o app checa antes de processar)
+
+        - Se as abas obrigatórias existem
+        - Budget: colunas mínimas em `massa primária - BDG` (ex.: `Oficina`, `Account`) e `massa - REDIS` (ex.: `Oficina`)
+        - Budget: detecção de meses em `Volume BDG` (tentando múltiplos headers)
+        - Real: em `Sapiens`, valida colunas mínimas (ex.: `Oficina`, `Account`, `Valor`)
+        - Aviso operacional: para o fluxo completo, o Real depende do Budget ter gerado `df_dea_dedicado_BUD.parquet`
+        - Rateios manuais (QY/GS/SM): persistidos em `rateios_manuais.json` (usados no cálculo da taxa PdR)
+
+        ### 🧱 Consolidação histórica (multi-ano)
+
+        A página também consolida parquets multi-ano em `dados/TC_Principal/historico_consolidado/`.
+
+        ### 📂 Scripts e Funções
+
+        | Arquivo | Função |
+        |---------|--------|
+        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra execução e gravação dos parquets (Real/Budget) |
+        | `processamento_dados_veiculos_BUD.py` | Processa Budget + gera parquets BUD (principal + por veículo + CPU) |
+        | `processamento_dados_veiculos.py` | Processa Real (Sapiens/Redis) + gera parquets Real (principal + por veículo + CPU) |
+
+        ### 🗃️ Principais parquets gerados
+
+        **Budget** (`dados/TC_Principal/{ano}/BUD/`):
+        - `df_principal_BUD.parquet`
+        - `df_vol_veiculos_BUD.parquet` / `df_vol_veiculos_actual.parquet`
+        - `df_tempo_veiculos_BUD.parquet`
+        - `df_dea_dedicado_BUD.parquet`
+        - `df_veiculos_percentual_rateio_BUD.parquet` / `df_veiculos_custo_rateado_BUD.parquet`
+        - `df_veiculos_custo_fp_BUD.parquet` / `df_veiculos_cpu_BUD.parquet`
+
+        **Real** (`dados/TC_Principal/{ano}/`):
+        - `df_principal.parquet`
+        - `df_tc_sapiens.parquet` (detalhado)
+        - `df_vol_veiculos.parquet` / `df_tempo_veiculos.parquet` / `df_dea_dedicado.parquet`
+        - `df_veiculos_percentual_rateio.parquet` / `df_veiculos_custo_rateado.parquet`
+        - `df_veiculos_custo_fp.parquet` / `df_veiculos_cpu.parquet`
+        - `df_comparativo_real_budget.parquet`
+
+        ### 📁 Pastas (entrada e saída)
+        - Entrada: `dados/TC_Principal/{ano}/` (Excel/insumos)
+        - Saída Real: `dados/TC_Principal/{ano}/` (parquets Real)
+        - Saída Budget: `dados/TC_Principal/{ano}/BUD/` (parquets BUD)
+
+        ### 📊 Dados de Volume (usos)
+        Os volumes são usados para:
+        - CPU
+        - Flex Budget (proporção Real/BUD)
+        - Gráficos comparativos (BUD vs Real)
+        """)
     
     # Índice interno
     st.markdown("## 📋 Índice do Guia")
@@ -3291,8 +3509,8 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         - Lê guia **"Sapiens"** do Reporting fluxo anexo.xlsx
         - Lê guia **"Rateio"** para rateio por veículo
         - Lê guia **"Volume"** para volumes
-        - Salva em: `dados/{ANO}/`
-        - Histórico: `dados/historico_consolidado/`
+        - Salva em: `dados/TC_Ext/{ANO}/`
+        - Histórico: `dados/TC_Ext/historico_consolidado/`
         """)
         
         with col2:
@@ -3302,8 +3520,8 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         - Lê guia **"Voz de custo BDG"** do Reporting fluxo anexo.xlsx
         - Lê guia **"Rateio BDG"** para rateio por veículo
         - Lê guia **"Volume BDG"** para volumes
-        - Salva em: `dados/{ANO}/BUD/`
-        - Histórico: `dados/historico_consolidado/BUD/`
+        - Salva em: `dados/TC_Ext/{ANO}/BUD/`
+        - Histórico: `dados/TC_Ext/historico_consolidado/BUD/`
         """)
         
         st.markdown("### Fluxo Principal")
@@ -3339,8 +3557,8 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             **Processo**:
             1. Solicita ano para processar (padrão: ano atual)
             2. Cria estrutura de pastas:
-               - `dados/{ANO_ATUAL}/` - Dados do ano específico
-               - `dados/historico_consolidado/` - Histórico consolidado
+                    - `dados/TC_Ext/{ANO_ATUAL}/` - Dados do ano específico (TC Ext)
+                    - `dados/TC_Ext/historico_consolidado/` - Histórico consolidado (TC Ext)
             3. Verifica arquivos de entrada:
                - `Dados SAPIENS.xlsx`
                - `Reporting fluxo anexo.xlsx`
@@ -3348,13 +3566,13 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             
             **Variáveis Criadas**:
             - `ANO_ATUAL`: Ano selecionado para processamento
-            - `PASTA_ANO`: `dados/{ANO_ATUAL}/`
-            - `PASTA_HISTORICO`: `dados/historico_consolidado/`
+            - `PASTA_ANO`: `dados/TC_Ext/{ANO_ATUAL}/`
+            - `PASTA_HISTORICO`: `dados/TC_Ext/historico_consolidado/`
             - `CAMINHO_SAPIENS`: Caminho para Dados SAPIENS.xlsx
             - `CAMINHO_RATEIO`: Caminho para Reporting fluxo anexo.xlsx
-            - `CAMINHO_DF_FINAL`: `dados/{ANO}/df_final.parquet`
-            - `CAMINHO_DF_VOL`: `dados/{ANO}/df_vol.parquet`
-            - `CAMINHO_DF_KE5Z_GROUP`: `dados/{ANO}/df_ke5z_group.parquet`
+            - `CAMINHO_DF_FINAL`: `dados/TC_Ext/{ANO}/df_final.parquet`
+            - `CAMINHO_DF_VOL`: `dados/TC_Ext/{ANO}/df_vol.parquet`
+            - `CAMINHO_DF_KE5Z_GROUP`: `dados/TC_Ext/{ANO}/df_ke5z_group.parquet`
             """)
         
         with st.expander("📥 **Célula 1: Leitura dos Dados SAPIENS (KE5Z)**", expanded=False):
@@ -3490,14 +3708,14 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             
             **Consolidação do Histórico**:
             1. Carrega histórico existente (se existir):
-               - `dados/historico_consolidado/df_final_historico.parquet`
-               - `dados/historico_consolidado/df_vol_historico.parquet`
+                    - `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
+                    - `dados/TC_Ext/historico_consolidado/df_vol_historico.parquet`
             2. Adiciona coluna `Ano` aos dados do ano atual
             3. Concatena dados do ano atual com histórico existente
             4. Remove duplicatas (se houver)
             5. Salva histórico atualizado:
-               - `dados/historico_consolidado/df_final_historico.parquet`
-               - `dados/historico_consolidado/df_vol_historico.parquet`
+                    - `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
+                    - `dados/TC_Ext/historico_consolidado/df_vol_historico.parquet`
             
             **IMPORTANTE**: O histórico é sempre **concatenado**, nunca substituído
             """)
@@ -3522,17 +3740,17 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                 '"Sapiens"',
                 '"Rateio"',
                 '"Volume"',
-                "dados/{ANO}/",
+                "dados/TC_Ext/{ANO}/",
                 "Sem sufixo",
-                "dados/historico_consolidado/"
+                "dados/TC_Ext/historico_consolidado/"
             ],
             "tc_ext/notebooks/dados_BUD.ipynb (BUDGET)": [
                 '"Voz de custo BDG"',
                 '"Rateio BDG"',
                 '"Volume BDG"',
-                "dados/{ANO}/BUD/",
+                "dados/TC_Ext/{ANO}/BUD/",
                 "_BUD (ex: df_final_BUD.parquet)",
-                "dados/historico_consolidado/BUD/"
+                "dados/TC_Ext/historico_consolidado/BUD/"
             ]
         }
         
@@ -3555,7 +3773,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         with st.expander("📊 **Reporting fluxo anexo.xlsx**", expanded=False):
             st.markdown("""
-            **Localização**: `dados/{ANO}/Reporting fluxo anexo.xlsx` ou raiz do projeto
+            **Localização**: `dados/TC_Ext/{ANO}/Reporting fluxo anexo.xlsx` ou raiz do projeto
             
             **Guias Utilizadas (tc_ext/notebooks/dados.ipynb - REAL)**:
             1. **"Sapiens"** (Célula 1)
@@ -3581,7 +3799,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         with st.expander("📋 **Dados SAPIENS.xlsx**", expanded=False):
             st.markdown("""
-            **Localização**: `dados/{ANO}/Dados SAPIENS.xlsx` ou raiz do projeto
+            **Localização**: `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx` ou raiz do projeto
             
             **Guias Utilizadas**:
             1. **"Base conso"**
@@ -3801,7 +4019,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         **Processo**:
         1. **Verificar histórico existente**:
-           - Tenta carregar `dados/historico_consolidado/df_final_historico.parquet`
+              - Tenta carregar `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
            - Se não existir, cria DataFrame vazio
         
         2. **Adicionar coluna Ano**:
@@ -3829,7 +4047,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         st.markdown("### Estrutura do Histórico")
         
         st.code("""
-        dados/historico_consolidado/
+        dados/TC_Ext/historico_consolidado/
         ├── df_final_historico.parquet      # Todos os anos de custos (REAL)
         ├── df_vol_historico.parquet        # Todos os anos de volumes
         ├── df_ke5z_historico.parquet       # Dados KE5Z agrupados
@@ -3856,12 +4074,12 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "df_ke5z_historico.parquet"
             ],
             "Localização": [
-                "dados/{ANO}/",
-                "dados/{ANO}/",
-                "dados/{ANO}/",
-                "dados/historico_consolidado/",
-                "dados/historico_consolidado/",
-                "dados/historico_consolidado/"
+                "dados/TC_Ext/{ANO}/",
+                "dados/TC_Ext/{ANO}/",
+                "dados/TC_Ext/{ANO}/",
+                "dados/TC_Ext/historico_consolidado/",
+                "dados/TC_Ext/historico_consolidado/",
+                "dados/TC_Ext/historico_consolidado/"
             ],
             "Conteúdo": [
                 "Dados completos com rateio por veículo e volume",
@@ -3895,12 +4113,12 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "df_ke5z_historico_BUD.parquet"
             ],
             "Localização": [
-                "dados/{ANO}/BUD/",
-                "dados/{ANO}/BUD/",
-                "dados/{ANO}/BUD/",
-                "dados/historico_consolidado/BUD/",
-                "dados/historico_consolidado/BUD/",
-                "dados/historico_consolidado/BUD/"
+                "dados/TC_Ext/{ANO}/BUD/",
+                "dados/TC_Ext/{ANO}/BUD/",
+                "dados/TC_Ext/{ANO}/BUD/",
+                "dados/TC_Ext/historico_consolidado/BUD/",
+                "dados/TC_Ext/historico_consolidado/BUD/",
+                "dados/TC_Ext/historico_consolidado/BUD/"
             ],
             "Conteúdo": [
                 "Dados de Budget com rateio por veículo e volume",
@@ -4027,7 +4245,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Sintoma**: `FileNotFoundError` ao tentar ler arquivo Excel
             
             **Soluções**:
-            - Verificar se arquivo está em `dados/{ANO}/` ou na raiz do projeto
+            - Verificar se arquivo está em `dados/TC_Ext/{ANO}/` ou na raiz do projeto
             - Verificar nomes exatos: `Dados SAPIENS.xlsx` e `Reporting fluxo anexo.xlsx`
             - O notebook tenta copiar da raiz para pasta do ano automaticamente
             """)
@@ -4084,7 +4302,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             - Verificar se coluna `Ano` foi adicionada aos dados do ano atual
             - Verificar se concatenação foi executada corretamente
             - Verificar se arquivo de histórico foi salvo após concatenação
-            - Verificar permissões de escrita na pasta `historico_consolidado/`
+            - Verificar permissões de escrita na pasta `dados/TC_Ext/historico_consolidado/`
             """)
         
         st.markdown("### Validações Implementadas")
@@ -4161,7 +4379,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         3. **Cálculo de Veículos**: `CC21 = CC21% * Valor` (e similares)
         4. **Consolidação de Histórico**: Sempre concatenar, nunca substituir
         5. **Tipo de Volume**: Sempre numérico (float64), nunca object
-        6. **Estrutura de Pastas**: `dados/{ANO}/` para ano específico, `dados/historico_consolidado/` para histórico
+        6. **Estrutura de Pastas (TC Ext)**: `dados/TC_Ext/{ANO}/` para ano específico, `dados/TC_Ext/historico_consolidado/` para histórico
         7. **Sufixo BUD**: Arquivos de Budget sempre com sufixo `_BUD` e em pasta `BUD/`
         """)
         
@@ -4309,7 +4527,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             4. **APÓS seleção**: Sistema verifica novamente se arquivo existe
                - Se existe: Mostra aviso e botão "🔄 Confirmar Sobrescrita"
                - Se não existe: Salva automaticamente
-            5. Arquivo é salvo em: `dados/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
+            5. Arquivo é salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
             6. Página recarrega automaticamente (`st.rerun()`) para atualizar status
             
             **Vantagens do Upload**:
@@ -4324,18 +4542,18 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Onde**: Função `configurar_ano()` ou `configurar_ano_bud()` nos módulos Python
             
             **Processo** (executado automaticamente ao iniciar processamento):
-            1. **Cria pasta do ano**: `dados/{ANO}/`
-               - Exemplo: `dados/2024/` para ano 2024
-               - Exemplo: `dados/2026/` para ano 2026 (novo ano)
+                1. **Cria pasta do ano**: `dados/TC_Ext/{ANO}/`
+                    - Exemplo: `dados/TC_Ext/2024/` para ano 2024
+                    - Exemplo: `dados/TC_Ext/2026/` para ano 2026 (novo ano)
             
-            2. **Para dados REAIS**: Cria apenas `dados/{ANO}/`
+                2. **Para dados REAIS**: Cria apenas `dados/TC_Ext/{ANO}/`
             
-            3. **Para dados BUDGET**: Cria também `dados/{ANO}/BUD/`
-                    - Estrutura: `dados/2024/BUD/` para **outputs** de Budget
+                3. **Para dados BUDGET**: Cria também `dados/TC_Ext/{ANO}/BUD/`
+                          - Estrutura: `dados/TC_Ext/2024/BUD/` para **outputs** de Budget
             
             4. **Cria pastas de histórico** (se não existirem):
-               - `dados/historico_consolidado/` - Para dados REAIS
-               - `dados/historico_consolidado/BUD/` - Para dados BUDGET
+                    - `dados/TC_Ext/historico_consolidado/` - Para dados REAIS
+                    - `dados/TC_Ext/historico_consolidado/BUD/` - Para dados BUDGET
             
             **IMPORTANTE**: 
             - Pastas são criadas automaticamente, mesmo que não existam
@@ -4350,8 +4568,8 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Ordem de Prioridade de Busca** (do mais prioritário ao menos prioritário):
             
             **Para Dados REAIS**:
-            1. **Primeira opção**: `dados/{ANO}/Nome_do_Arquivo.xlsx`
-               - Exemplo: `dados/2024/Dados SAPIENS.xlsx`
+                1. **Primeira opção**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
+                    - Exemplo: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
                - **Esta é a pasta preferencial!** Arquivos aqui têm prioridade máxima
             
             2. **Segunda opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
@@ -4359,12 +4577,12 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                - Usado quando arquivo não está na pasta do ano
             
             **Para Dados BUDGET**:
-            1. **Primeira opção**: `dados/{ANO}/Nome_do_Arquivo.xlsx`
-               - Exemplo: `dados/2024/Dados SAPIENS.xlsx`
+                1. **Primeira opção**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
+                    - Exemplo: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
 
                 2. **Segunda opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
 
-                *(Compatibilidade/legado)*: se existir arquivo em `dados/{ANO}/BUD/`, ele pode ser **copiado** para `dados/{ANO}/`.
+                *(Compatibilidade/legado)*: se existir arquivo em `dados/TC_Ext/{ANO}/BUD/`, ele pode ser **copiado** para `dados/TC_Ext/{ANO}/`.
             
             **Comportamento**:
             - Sistema busca na ordem acima e usa o **primeiro arquivo encontrado**
@@ -4373,11 +4591,11 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Exemplo Prático - Processando 2026 pela primeira vez**:
             ```
-            1. Sistema cria: dados/2026/
-            2. Sistema busca: dados/2026/Dados SAPIENS.xlsx → ❌ Não encontrado
+            1. Sistema cria: dados/TC_Ext/2026/
+            2. Sistema busca: dados/TC_Ext/2026/Dados SAPIENS.xlsx → ❌ Não encontrado
             3. Sistema busca: ./Dados SAPIENS.xlsx → ✅ Encontrado na raiz
             4. Sistema usa: ./Dados SAPIENS.xlsx (da raiz)
-            5. Arquivos de saída são salvos em: dados/2026/
+            5. Arquivos de saída são salvos em: dados/TC_Ext/2026/
             ```
             """)
         
@@ -4424,7 +4642,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Processo**:
             1. **Carrega histórico existente** (se existir):
-               - Tenta carregar: `dados/historico_consolidado/df_final_historico.parquet`
+                    - Tenta carregar: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
                - Se não existir, cria DataFrame vazio
             
             2. **Adiciona coluna Ano aos dados atuais**:
@@ -4443,7 +4661,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                - Converte tipos se necessário
             
             6. **Salva histórico atualizado**:
-               - Salva em: `dados/historico_consolidado/df_final_historico.parquet`
+                    - Salva em: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
                - **IMPORTANTE**: Histórico é sempre **concatenado**, nunca substituído
             
             **Resultado**: Histórico contém dados de todos os anos processados
@@ -4468,10 +4686,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             st.markdown("""
             **📊 Dados REAIS - Ordem de Busca:**
             
-            1. `dados/{ANO}/Dados SAPIENS.xlsx`
+            1. `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx`
             2. `./Dados SAPIENS.xlsx` (raiz)
             
-            1. `dados/{ANO}/Reporting fluxo anexo.xlsx`
+            1. `dados/TC_Ext/{ANO}/Reporting fluxo anexo.xlsx`
             2. `./Reporting fluxo anexo.xlsx` (raiz)
             """)
         
@@ -4479,10 +4697,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             st.markdown("""
             **💰 Dados BUDGET - Ordem de Busca:**
             
-            1. `dados/{ANO}/Dados SAPIENS.xlsx`
+            1. `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx`
             2. `./Dados SAPIENS.xlsx` (raiz)
             
-            1. `dados/{ANO}/Reporting fluxo anexo.xlsx`
+            1. `dados/TC_Ext/{ANO}/Reporting fluxo anexo.xlsx`
             2. `./Reporting fluxo anexo.xlsx` (raiz)
             """)
         
@@ -4490,10 +4708,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         with st.expander("**Exemplo 1: Processando 2024 (ano existente)**", expanded=False):
             st.markdown("""
-            **Cenário**: Pasta `dados/2024/` já existe com arquivos
+            **Cenário**: Pasta `dados/TC_Ext/2024/` já existe com arquivos
             
             **Busca de Dados SAPIENS.xlsx**:
-            1. ✅ Encontrado em: `dados/2024/Dados SAPIENS.xlsx`
+            1. ✅ Encontrado em: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
             2. Sistema usa este arquivo (para na primeira opção)
             
             **Resultado**: Arquivo da pasta do ano é usado (prioridade máxima)
@@ -4501,17 +4719,17 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         with st.expander("**Exemplo 2: Processando 2026 (ano novo)**", expanded=False):
             st.markdown("""
-            **Cenário**: Pasta `dados/2026/` não existe ainda, arquivo está na raiz
+            **Cenário**: Pasta `dados/TC_Ext/2026/` não existe ainda, arquivo está na raiz
             
             **Busca de Dados SAPIENS.xlsx**:
-            1. ❌ Não encontrado em: `dados/2026/Dados SAPIENS.xlsx` (pasta não existe)
+            1. ❌ Não encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx` (pasta não existe)
             2. ✅ Encontrado em: `./Dados SAPIENS.xlsx` (raiz do projeto)
             3. Sistema usa arquivo da raiz
             
             **Resultado**: 
-            - Sistema cria `dados/2026/` automaticamente
+            - Sistema cria `dados/TC_Ext/2026/` automaticamente
             - Arquivo da raiz é usado para processamento
-            - Arquivos de saída são salvos em `dados/2026/`
+            - Arquivos de saída são salvos em `dados/TC_Ext/2026/`
             - **Arquivo da raiz permanece na raiz** (não é movido automaticamente)
             """)
         
@@ -4520,12 +4738,12 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Cenário**: Usuário faz upload de arquivo para ano 2026
             
             **Processo**:
-            1. Sistema cria `dados/2026/` (se não existir)
+            1. Sistema cria `dados/TC_Ext/2026/` (se não existir)
             2. Usuário faz upload de `Dados SAPIENS.xlsx`
-            3. Arquivo é salvo em: `dados/2026/Dados SAPIENS.xlsx`
+            3. Arquivo é salvo em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
             
             **Próxima busca**:
-            1. ✅ Encontrado em: `dados/2026/Dados SAPIENS.xlsx`
+            1. ✅ Encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
             2. Sistema usa este arquivo (prioridade máxima)
             
             **Resultado**: Arquivo uploadado tem prioridade sobre arquivo da raiz
@@ -4539,7 +4757,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         st.markdown("### Estrutura Completa de Pastas")
         
         st.code("""
-        dados/
+        dados/TC_Ext/
         ├── 2024/                    # Ano 2024 (dados REAIS)
         │   ├── Dados SAPIENS.xlsx
         │   ├── Reporting fluxo anexo.xlsx
@@ -4574,10 +4792,10 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Momento**: Ao iniciar o processamento (função `configurar_ano()`)
             
             **Pastas criadas automaticamente**:
-            - `dados/{ANO}/` - Sempre criada, mesmo que vazia
-            - `dados/{ANO}/BUD/` - Criada apenas para **outputs** do processamento BUDGET
-            - `dados/historico_consolidado/` - Criada se não existir
-            - `dados/historico_consolidado/BUD/` - Criada se não existir (para BUDGET)
+            - `dados/TC_Ext/{ANO}/` - Sempre criada, mesmo que vazia
+            - `dados/TC_Ext/{ANO}/BUD/` - Criada apenas para **outputs** do processamento BUDGET
+            - `dados/TC_Ext/historico_consolidado/` - Criada se não existir
+            - `dados/TC_Ext/historico_consolidado/BUD/` - Criada se não existir (para BUDGET)
             
             **Comando usado**: `os.makedirs(pasta, exist_ok=True)`
             - `exist_ok=True` significa que não dá erro se pasta já existe
@@ -4590,9 +4808,9 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             **Processo**:
             1. Usuário seleciona arquivo para upload
-            2. Sistema verifica se pasta `dados/{ANO}/` existe
+            2. Sistema verifica se pasta `dados/TC_Ext/{ANO}/` existe
             3. Se não existe: Cria automaticamente com `os.makedirs(pasta_ano, exist_ok=True)`
-            4. Salva arquivo em: `dados/{ANO}/Nome_do_Arquivo.xlsx`
+            4. Salva arquivo em: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
             
             **Resultado**: Pasta do ano é criada antes mesmo do processamento
             """)
@@ -4646,7 +4864,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             - Confirmação evita sobrescrita acidental
             
             **Passo 5: Salvamento**
-            - Arquivo é salvo em: `dados/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
+            - Arquivo é salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
             - Pasta do ano é criada automaticamente se não existir
             - Mensagem de sucesso é exibida
             
@@ -4731,7 +4949,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         with st.expander("**Fase 3: Salvamento e Consolidação**", expanded=False):
             st.markdown("""
             1. **Salvamento na Pasta do Ano**:
-               - Salva `df_final.parquet` em `dados/{ANO}/` (ou `BUD/`)
+               - Salva `df_final.parquet` em `dados/TC_Ext/{ANO}/` (ou `BUD/`)
                - Salva `df_vol.parquet`
                - Salva `df_ke5z_group.parquet`
                - Salva arquivos Excel intermediários (diagnósticos)
@@ -4767,8 +4985,8 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             2. **Opção A - Usar Upload** (Recomendado):
                - Ir para aba "Validação de Arquivos"
-               - Fazer upload de `Dados SAPIENS.xlsx` → Salvo em `dados/2026/`
-               - Fazer upload de `Reporting fluxo anexo.xlsx` → Salvo em `dados/2026/`
+                    - Fazer upload de `Dados SAPIENS.xlsx` → Salvo em `dados/TC_Ext/2026/`
+                    - Fazer upload de `Reporting fluxo anexo.xlsx` → Salvo em `dados/TC_Ext/2026/`
             
             3. **Opção B - Usar Arquivos da Raiz**:
                - Colocar arquivos na raiz do projeto
@@ -4776,13 +4994,13 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             4. **Executar processamento**:
                - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
-               - Sistema cria `dados/2026/` automaticamente
+                    - Sistema cria `dados/TC_Ext/2026/` automaticamente
                - Sistema busca arquivos (encontra na raiz ou na pasta do ano)
-               - Processa e salva em `dados/2026/`
+                    - Processa e salva em `dados/TC_Ext/2026/`
                - Consolida histórico
             
             **Resultado**: 
-            - Pasta `dados/2026/` criada com arquivos processados
+                - Pasta `dados/TC_Ext/2026/` criada com arquivos processados
             - Histórico atualizado com dados de 2026
             """)
         
@@ -4808,7 +5026,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
             4. **Executar processamento**:
                - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
-               - Sistema usa arquivo atualizado de `dados/2024/`
+                    - Sistema usa arquivo atualizado de `dados/TC_Ext/2024/`
                - Processa e atualiza arquivos Parquet
                - Atualiza histórico (concatena, não substitui)
             
@@ -4824,22 +5042,22 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Passo a Passo**:
             
             1. **Preparar arquivos REAIS**:
-               - Upload de `Dados SAPIENS.xlsx` (REAIS) → `dados/2026/`
-               - Upload de `Reporting fluxo anexo.xlsx` (REAIS) → `dados/2026/`
+                    - Upload de `Dados SAPIENS.xlsx` (REAIS) → `dados/TC_Ext/2026/`
+                    - Upload de `Reporting fluxo anexo.xlsx` (REAIS) → `dados/TC_Ext/2026/`
             
             2. **Preparar arquivos BUDGET** (se diferentes):
-               - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/2026/` (mesmo arquivo ou versão BUD)
-               - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/2026/` (com guias BDG)
+                    - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/TC_Ext/2026/` (mesmo arquivo ou versão BUD)
+                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/TC_Ext/2026/` (com guias BDG)
             
             3. **Executar processamento**:
                - Selecionar tipo: "🔄 Ambos"
                - Clicar em "🚀 Executar Ambos"
-               - Sistema processa REAIS primeiro → Salva em `dados/2026/`
-               - Sistema processa BUDGET depois → Salva em `dados/2026/BUD/`
+                    - Sistema processa REAIS primeiro → Salva em `dados/TC_Ext/2026/`
+                    - Sistema processa BUDGET depois → Salva em `dados/TC_Ext/2026/BUD/`
                - Consolida ambos os históricos
             
             **Resultado**: 
-            - Estrutura completa criada: `dados/2026/` e `dados/2026/BUD/`
+                - Estrutura completa criada: `dados/TC_Ext/2026/` e `dados/TC_Ext/2026/BUD/`
             - Históricos REAIS e BUDGET atualizados
             """)
         
@@ -4850,18 +5068,18 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             **Passo a Passo**:
             
             1. **Preparar arquivos BUDGET**:
-               - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/2024/`
-               - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/2024/`
+                    - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/TC_Ext/2024/`
+                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/TC_Ext/2024/`
             
             2. **Executar processamento BUDGET**:
                - Selecionar tipo: "💰 Dados BUDGET"
                - Clicar em "🚀 Executar tc_ext/notebooks/dados_BUD.ipynb"
-               - Sistema cria `dados/2024/BUD/` automaticamente
-               - Processa e salva em `dados/2024/BUD/`
+                    - Sistema cria `dados/TC_Ext/2024/BUD/` automaticamente
+                    - Processa e salva em `dados/TC_Ext/2024/BUD/`
                - Consolida histórico BUDGET
             
             **Resultado**: 
-            - Pasta `dados/2024/BUD/` criada com dados de Budget
+                - Pasta `dados/TC_Ext/2024/BUD/` criada com dados de Budget
             - Histórico BUDGET atualizado
             - Dados REAIS permanecem inalterados
             """)
@@ -4877,232 +5095,34 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
 
 
 # ==========================================
-# TC VEÍCULOS: GUIA DE BEST ESTIMATE
-# ==========================================
-elif indice_selecionado == "🔮 Guia de Best Estimate" and modulo_doc == "🚗 TC Veículos":
-    st.header("🔮 Guia de Best Estimate — TC Veículos")
-
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-    <h2 style="color: white; margin: 0;">🔮 Best Estimate — TC Veículos</h2>
-    <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Simulador de premissas e análise de Forecast para o módulo TC Veículos
-    </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.expander("📋 **Visão Geral do Best Estimate**", expanded=True):
-        st.markdown("""
-        ### 🔮 O que é o Best Estimate?
-
-        O Best Estimate (BE) no TC Veículos projeta custos futuros com base na **média histórica**
-        dos meses já realizados, ajustada por premissas de **sensibilidade**, **inflação** e **volume**.
-
-        O sistema é dividido em duas páginas:
-        - **Simulador** (`2 - Best Estimate - Simulador.py`): onde o usuário configura premissas e gera o Forecast
-        - **Análise** (`best_estimate_analise_tc.py`): dashboard que exibe Real + Forecast no mesmo layout da Home
-
-        ### 📂 Dados Gerados
-
-        | Arquivo | Descrição |
-        |---------|-----------|
-        | `dados/TC_Principal/Forecast/forecast_completo.parquet` | Projeção mês a mês com coluna `Tipo = 'BE'` |
-        | `dados/TC_Principal/Forecast/premissas.json` | Premissas aplicadas |
-        """)
-
-    with st.expander("⚙️ **Simulador — Premissas**", expanded=False):
-        st.markdown("""
-        ### 🎛️ Configuração de Premissas
-
-        O simulador permite configurar os seguintes parâmetros:
-
-        | Premissa | Escopo | Efeito |
-        |----------|--------|--------|
-        | **Sensibilidade** | Por oficina (Type 06) ou global | Controla o quanto a variação de volume afeta o custo |
-        | **Inflação** | Por Type 06 ou global | Aplica % de reajuste sobre **todos** os custos (fixos e variáveis) |
-        | **Volume** | Por veículo | Volume de produção projetado para o mês futuro |
-
-        ### 📐 Fórmula Geral (linha a linha)
-
-        ```
-        BE = Média_Histórica × Fator_Variação × Fator_Inflação
-        ```
-
-        **Onde:**
-        - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
-        - `Fator_Inflação` = 1 + (Inflação / 100)
-        - `Variação_Volume` = (Volume_Mês_Futuro / Volume_Médio_Histórico) − 1
-
-        **Aplicação por tipo de custo:**
-
-        | Tipo | Sensibilidade | Fórmula resultante |
-        |------|---------------|--------------------|
-        | **Fixo** | 0% | `BE = Média_Histórica × 1,0 × (1 + Inflação%)` — sem ajuste de volume |
-        | **Variável** | 100% | `BE = Média_Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%)` |
-        | **Semi-variável** | 0% < s < 100% | `BE = Média_Histórica × (1 + Var_Volume × s) × (1 + Inflação%)` |
-
-        **Exemplo numérico:**
-        ```
-        Custo médio histórico: R$ 10.000
-        Volume histórico médio: 1.000 un | Volume futuro: 1.100 un
-        Sensibilidade: 50% | Inflação: 5%
-
-        Passo 1 — Variação de volume: 1.100 / 1.000 − 1 = +10%
-        Passo 2 — Ajuste por sensibilidade: 10% × 50% = 5%
-        Passo 3 — Fator de variação: 1 + 0,05 = 1,05
-        Passo 4 — Fator de inflação: 1 + 0,05 = 1,05
-        Passo 5 — BE = 10.000 × 1,05 × 1,05 = R$ 11.025
-        ```
-
-        - **CPU BE** = Custo BE Total / Volume Projetado
-
-        ### ⚠️ Regras Especiais
-
-        - Quando `chaves_volume_base = []` (custo sem dimensão Veículo), o sistema calcula
-          a média de volume diretamente sem `groupby`
-        - Para custos com Veículo, o volume é somado por grupo (`.sum()`)
-        - A inflação é aplicada **após** o ajuste por sensibilidade
-        - Sensibilidade por Type 06 sobrescreve a sensibilidade global (Fixo/Variável)
-        """)
-
-    with st.expander("📊 **Análise — Dashboard de Forecast**", expanded=False):
-        st.markdown("""
-        ### 📈 Layout da Análise BE
-
-        A página de Análise reutiliza o layout da Home TC Veículos, mas alimentada
-        pelos dados de `forecast_completo.parquet`:
-
-        - **KPIs**: Custo FP Real vs BE, com deltas e percentuais
-        - **Gráficos por período**: barras com diferenciação visual:
-          - 🟣 **Roxo escuro** (`#4C1D95`): meses Históricos (realizados)
-          - 🟣 **Roxo claro** (`#C4B5FD`): meses de Best Estimate (projetados)
-        - **Tabelas**: Análise Flex com dados reais + projetados
-
-        ### 🔄 Fluxo de Atualização
-
-        ```
-        Simulador → gera forecast_completo.parquet
-            ↓
-        Análise BE → lê forecast + real
-            ↓
-        Unifica com coluna Tipo (Histórico / BE)
-            ↓
-        Exibe em gráficos e tabelas
-        ```
-        """)
-
-    with st.expander("🚗 **Rateio BE por Veículo**", expanded=False):
-        st.markdown("""
-        ### 📊 Função `ratear_be_por_veiculo()`
-
-        Quando dados de BE não possuem a coluna `Veículo`, é necessário distribuir
-        o custo proporcionalmente usando os percentuais de rateio pré-processados
-        na extração Real.
-
-        #### Origem dos Percentuais (fonte única)
-
-        Os percentuais são gerados **uma única vez** na extração Real
-        (`processamento_dados_veiculos.py`), usando:
-
-        ```
-        Fase 3: Volume Actual (12 meses) → [Veículo, Período, Volume]
-        Fase 4: EST × Volume = Tempo Veic → [Oficina, Veículo, Período, EST, Volume, Tempo Veic]
-        Fase 12: Percentual = Tempo Veic / Σ(Tempo Veic por Oficina+Período)
-        ```
-
-        O parquet resultante `df_veiculos_percentual_rateio.parquet` já contém
-        percentuais para **todos os 12 meses**, pois a aba "Volume Actual" do Excel
-        possui volumes planejados para o ano inteiro. Não há necessidade de
-        recalcular percentuais em runtime.
-
-        #### Fórmula de Rateio
-
-        ```
-        CustoFP_Veículo_BE = CustoFP_BE × Percentual(Veículo, Oficina, Período)
-        ```
-
-        #### Parâmetros
-
-        - `df_be`: DataFrame com dados do Best Estimate
-        - `df_percentual`: DataFrame com [Oficina, Veículo, Período, Percentual]
-          (gerado pela extração Real, fase12)
-        - `col_custo`: coluna a ratear (default: 'Custo FP')
-
-        #### Proteção contra colisão de colunas
-
-        O `df_be` pode chegar com colunas `Veículo`, `Percentual` e
-        `Custo FP Veiculo` herdadas do `df_total` (que contém dados Real
-        já rateados). A função remove essas colunas antes do merge com
-        `df_percentual` para evitar sufixos `_x`/`_y` que causariam
-        KeyError silencioso.
-
-        #### Fallback
-
-        Se uma Oficina+Período não encontrar percentual no parquet,
-        o custo é distribuído igualitariamente entre todos os veículos
-        conhecidos (1/N). Isso serve como safety net e normalmente
-        não é acionado.
-
-        #### Pontos de Chamada (padronizado)
-
-        A função é chamada em **4 pontos** no sistema, todos com a mesma
-        assinatura simples:
-
-        | Arquivo | Contexto |
-        |---------|----------|
-        | `waterfall_tc.py` | Rateio de linhas BE no gráfico waterfall |
-        | `best_estimate_analise_tc.py` (tab1) | Rateio BE para filtro por veículo |
-        | `best_estimate_analise_tc.py` (tab6) | Tabela detalhada BE por veículo |
-        | `home_tc.py` (tab6) | Tabela detalhada BE por veículo na Home |
-
-        #### Tabela de Conferência
-
-        Na aba **Tempo de Produção** da página BE Análise, existe uma tabela
-        pivotada de percentuais (linhas = Oficina × Veículo, colunas = meses)
-        para conferência com a coluna R do Excel "EST veículos - Actual".
-        """)
-
-    with st.expander("📥 **Integração com Waterfall**", expanded=False):
-        st.markdown("""
-        ### 🌊 BE no Waterfall
-
-        O Waterfall do TC Veículos integra dados de Best Estimate para meses futuros:
-
-        1. Carrega `forecast_completo.parquet` via `load_forecast_completo()`
-        2. Identifica meses de BE que **não existem** nos dados reais
-        3. Concatena dados reais + BE com coluna `Fonte` ('Real' ou 'BE')
-        4. Aplica rateio por veículo via `ratear_be_por_veiculo()` quando necessário
-
-        **Cores no gráfico Waterfall:**
-        - Barras de meses BE usam cores diferenciadas (BE) para distinguir do Real
-        - A coluna `Fonte` permite filtrar/identificar a origem dos dados
-        """)
-
-    with st.expander("🔧 **Pipeline Técnico**", expanded=False):
-        st.markdown("""
-        ### 📂 Arquivos Envolvidos
-
-        | Arquivo | Função |
-        |---------|--------|
-        | `pages/2 - Best Estimate - Simulador.py` | Página do simulador (tab Real + tab Budget) |
-        | `tc_principal/pages/best_estimate_simulador_tc.py` | Lógica do simulador TC Veículos |
-        | `tc_principal/pages/best_estimate_analise_tc.py` | Dashboard de análise BE |
-        | `tc_principal/shared.py` | `ratear_be_por_veiculo()`, loaders de forecast |
-
-        ### 💾 Armazenamento
-
-        ```
-        dados/TC_Principal/Forecast/
-        ├── forecast_completo.parquet
-        └── premissas.json
-        ```
-        """)
-
-# ==========================================
 # SEÇÃO 5: GUIA DE BEST ESTIMATE
 # ==========================================
 elif indice_selecionado == "🔮 Guia de Best Estimate":
-    st.header("🔮 Guia de Best Estimate — TC Extendido")
+    st.header("🔮 Guia de Best Estimate — TC Ext + TC Veículos")
+
+    with st.expander("🚗 **TC Veículos — Resumo operacional (Simulador + consumo na Home)**", expanded=False):
+        st.markdown("""
+        ### 🔮 O que é o Best Estimate (TC Veículos)
+
+        O Best Estimate (BE) projeta custos futuros a partir da média histórica já realizada,
+        ajustada por premissas de **sensibilidade**, **inflação** e **volume**.
+
+        **Onde configurar e gerar o Forecast:**
+        - Página Streamlit: `pages/2 - Best Estimate - Simulador.py`
+        - Lógica principal: `tc_principal/pages/best_estimate_simulador_tc.py`
+
+        **Arquivos gerados:**
+        - `dados/TC_Principal/Forecast/forecast_completo.parquet` (coluna `Tipo = 'BE'`)
+        - `dados/TC_Principal/Forecast/premissas.json`
+
+        **Onde o Forecast é consumido/analisado:**
+        - `tc_principal/pages/home_tc.py` (tabs) — compara Real vs BE no layout da Home
+
+        **Pontos de atenção (operacional):**
+        - Se o Forecast parecer "não atualizar", confirme que o `forecast_completo.parquet` foi regravado.
+        - Se a granularidade por veículo depender de rateio, a função `ratear_be_por_veiculo()` (em `tc_principal/shared.py`)
+          é aplicada nos fluxos que exigem visão por veículo.
+        """)
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
@@ -5521,14 +5541,14 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         st.markdown("## 📁 ESTRUTURA DE PASTAS DO FORECAST {#estrutura-forecast}")
         
         st.markdown("""
-        ### Organização da Pasta `dados/Forecast/`
+        ### Organização da Pasta `dados/TC_Ext/Forecast/`
         
         A pasta `Forecast/` é criada automaticamente quando o Best Estimate é gerado e contém
         os arquivos de previsão calculados pelo sistema.
         
         **Estrutura Completa:**
         ```
-        dados/
+        dados/TC_Ext/
         └── Forecast/                       # 🔮 Dados de Best Estimate/Forecast
             ├── forecast_completo.parquet   # Forecast completo com todas as linhas
             ├── forecast_historico.parquet  # Histórico de forecasts gerados
@@ -5581,14 +5601,14 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             **Onde**: Função `load_data()` nas páginas 2 e 3
             
             **Ordem de Prioridade de Busca**:
-            1. **Primeira opção**: `dados/Forecast/forecast_completo.parquet`
+                1. **Primeira opção**: `dados/TC_Ext/Forecast/forecast_completo.parquet`
                - Se existir, pode ser usado como base (mas forecast é recalculado)
             
-            2. **Segunda opção**: `dados/historico_consolidado/df_final_historico.parquet`
+                2. **Segunda opção**: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
                - **Fonte principal** de dados históricos
                - Contém todos os anos consolidados
             
-            3. **Terceira opção**: `dados/{ANO}/df_final.parquet`
+                3. **Terceira opção**: `dados/TC_Ext/{ANO}/df_final.parquet`
                - Dados específicos do ano (se filtro de ano aplicado)
             
             **Processo**:
@@ -5666,13 +5686,13 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             
             **Processo**:
             1. **Verificar/Criar pasta Forecast**:
-               - Verifica se `dados/Forecast/` existe
+                    - Verifica se `dados/TC_Ext/Forecast/` existe
                - Se não existe, cria automaticamente: `os.makedirs(pasta_forecast, exist_ok=True)`
             
             2. **Salvar forecast_completo.parquet**:
                - Arquivo principal com todas as linhas do forecast
                - Substitui arquivo anterior (não concatena)
-               - Localização: `dados/Forecast/forecast_completo.parquet`
+               - Localização: `dados/TC_Ext/Forecast/forecast_completo.parquet`
             
             3. **Salvar forecast_historico.parquet** (se aplicável):
                - Histórico de forecasts gerados anteriormente
@@ -5720,7 +5740,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         **4. Salvamento de Forecast:**
         - Botão para salvar forecast calculado
-        - Salva em `dados/Forecast/forecast_completo.parquet`
+        - Salva em `dados/TC_Ext/Forecast/forecast_completo.parquet`
         - Substitui forecast anterior
         
         **5. Análise de Sensibilidade:**
@@ -5791,7 +5811,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - Mantém o mesmo formato e estrutura do forecast normal
         
         **5. Persistência:**
-        - Os custos específicos são salvos em `dados/Forecast/custos_especificos.parquet`
+        - Os custos específicos são salvos em `dados/TC_Ext/Forecast/custos_especificos.parquet`
         - São carregados automaticamente ao gerar o forecast
         - Permanecem salvos até serem explicitamente excluídos
         
@@ -5817,7 +5837,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         **Funcionalidades:**
         
         **1. Fonte de dados (Forecast):**
-        - Lê `dados/Forecast/forecast_completo.parquet` (custos) e `dados/Forecast/df_vol_historico.parquet` (volume)
+        - Lê `dados/TC_Ext/Forecast/forecast_completo.parquet` (custos) e `dados/TC_Ext/Forecast/df_vol_historico.parquet` (volume)
         - Permite analisar previsões (BE) e histórico no mesmo layout
         - Expander de diagnóstico mostra paths, mtimes e contagens
         
@@ -5835,7 +5855,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - Facilita validar premissas (sensibilidade/inflação) pela variação temporal
         
         **5. Integração com o simulador:**
-        - O simulador gera/salva os arquivos em `dados/Forecast/`
+        - O simulador gera/salva os arquivos em `dados/TC_Ext/Forecast/`
         - A análise lê esses arquivos e atualiza as visualizações
         
         **6. Modos de visualização:**
@@ -5854,7 +5874,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         **Diagrama de Fluxo:**
         ```
-        Dados Históricos (historico_consolidado/)
+        Dados Históricos (dados/TC_Ext/historico_consolidado/)
                 │
                 ├──> Carregamento (load_data)
                 │       │
@@ -5881,7 +5901,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                 │       │
                 │       └──> DataFrame Completo com Forecast
                 │
-                └──> Salvamento (dados/Forecast/)
+                └──> Salvamento (dados/TC_Ext/Forecast/)
                         │
                         ├──> forecast_completo.parquet
                         ├──> forecast_historico.parquet
@@ -5901,7 +5921,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         st.markdown("## 📄 ARQUIVOS GERADOS {#arquivos-gerados-forecast}")
         
         st.markdown("""
-        ### Arquivos na Pasta `dados/Forecast/`
+        ### Arquivos na Pasta `dados/TC_Ext/Forecast/`
         
         **1. forecast_completo.parquet**
         - **Conteúdo**: Forecast completo com todas as linhas calculadas
@@ -5938,7 +5958,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - **Estrutura**: Mesmo formato de `df_final_historico_forecast.xlsx` com coluna Tipo = "BE Manual"
         - **Uso**: Armazena custos específicos que são integrados ao forecast final
         - **Atualização**: Criado/modificado ao adicionar ou excluir custos específicos
-        - **Localização**: `dados/Forecast/custos_especificos.parquet`
+        - **Localização**: `dados/TC_Ext/Forecast/custos_especificos.parquet`
         """)
         
         st.markdown("---")
@@ -5995,7 +6015,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             
             4. **Salvar Forecast**:
                - Clicar em "Salvar Forecast"
-               - Sistema cria `dados/Forecast/` automaticamente
+                    - Sistema cria `dados/TC_Ext/Forecast/` automaticamente
                - Salva `forecast_completo.parquet`
             
             5. **Analisar na Página 3**:
@@ -6004,7 +6024,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                - Visualizar análises detalhadas
             
             **Resultado**: 
-            - Pasta `dados/Forecast/` criada com forecast completo
+            - Pasta `dados/TC_Ext/Forecast/` criada com forecast completo
             - Forecast disponível para análises e comparações
             """)
         
@@ -6116,320 +6136,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
 # ==========================================
 elif indice_selecionado == "📊 Apresentação Visual":
     st.header("📊 Apresentação Visual - 5 Minutos")
-    
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Stellantis Cost Intelligence (SCI)</h2>
-        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Apresentação completa de 5 minutos — dois módulos (TC Extendido e TC Veículos) com slides visuais
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab_roteiro, tab_slides = st.tabs(["🎤 Roteiro (5 min)", "🧩 Slides (Markdown)"])
-
-    with tab_roteiro:
-        st.subheader("🎤 Roteiro sugerido (objetivo: clareza em 5 minutos)")
-        st.markdown(
-            """
-            **0:00–0:30 — O que é o Stellantis Cost Intelligence (SCI)**
-            - Plataforma de dashboards para decisão estratégica em custos de manufatura.
-            - Dois módulos complementares: **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo).
-            - Funcionalidades compartilhadas: Waterfall, Best Estimate, Extração, Multi-moeda.
-
-            ---
-
-            **0:30–1:30 — 📊 TC Extendido**
-            - Análise de **custo total agregado** e **CPU** (Custo por Unidade) — linhas secundárias.
-            - Coluna principal: `Total`. Dois modos: Custo Total ↔ CPU (`sum(Total)/sum(Volume)`).
-            - Filtros: Ano, Período, Oficina, Veículo, USI, Type 05/06, Account, filtros avançados.
-            - Regra crítica: CPU **nunca** é somada/mediada — sempre razão ponderada.
-            - Flex Budget: fixo inalterado; variável escala por `Vol_Real / Vol_BUD`.
-
-            ---
-
-            **1:30–3:00 — 🚗 TC Veículos**
-- Análise de **custo do Fluxo Principal (Custo FP) por veículo** — cadeia completa.
-- Cadeia: Despesa Primária − Custo FA = **Custo FP**; D&A Dedicado → FP sem Dedicada.
-            - **Rateio por veículo**: proporcional ao tempo de produção na oficina.
-            - 6 tabs: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo Produção, Dados Detalhados.
-            - Seleção de veículo específico aciona rateio; "Todos" mostra consolidado.
-
-            ---
-
-            **3:00–4:30 — 🔗 Funcionalidades compartilhadas**
-            - **Waterfall**: decompõe variações entre períodos (efeito volume vs efeito custo via Flex BUD).
-            - **Best Estimate**: Simulador (sensibilidade + inflação + volume → Forecast) + Análise (Home com dados projetados).
-              - Fórmula: `BE = Média × (1 + Var_Volume × Sensib) × (1 + Inflação)`.
-              - Cores: roxo escuro = Histórico, roxo claro = BE.
-            - Multi-moeda (BRL/USD/EUR), exportação Excel formatada, versionamento automático.
-
-            ---
-
-            **4:30–5:00 — Encerramento**
-            - Benefícios: horas → segundos, zero erros manuais, cenários "what-if".
-            - Equipe: Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus.
-            """
-        )
-        st.info(
-            "💡 **Dica**: se perguntarem sobre variações de TOTAL em CPU por mês, abra o expander "
-            "'Volume por período' para mostrar que a diferença vem do denominador (volume)."
-        )
-
-    with tab_slides:
-        st.markdown(
-            """
-            Cada slide abaixo pode ser expandido individualmente.
-            O conteúdo segue o mesmo roteiro de 5 minutos.
-            """
-        )
-
-        # ── SLIDE 0 ──
-        with st.expander("👥 Slide 0 — Equipe e Introdução", expanded=True):
-            st.markdown("""
-### 📊 Stellantis Cost Intelligence (SCI) — Sistema de Análise de Custos de Manufatura
-
-**Equipe:**
-- 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💻 **Lauro Paiva** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
-
----
-
-**Objetivo:**
-Transformar dados brutos de custo industrial (Excel / SAPIENS) em **insights acionáveis** para a tomada de decisão, por meio de dashboards interativos que permitem:
-
-- Comparar **Real vs Budget** com ajuste por volume (Flex Budget)
-- Decompor variações entre períodos via **Waterfall**
-- Projetar cenários futuros com **Best Estimate** (sensibilidade, inflação, volume)
-- Exportar análises em **Excel formatado** com multi-moeda (BRL / USD / EUR)
-
-O sistema é composto por dois módulos complementares — **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo) — detalhados nos slides seguintes.
-            """)
-
-        # ── SLIDE 1 ──
-        with st.expander("📌 Slide 1 — O que é o SCI  *(0:00 – 0:30)*"):
-            st.markdown("""
-**Stellantis Cost Intelligence (SCI)** — Dois módulos complementares em um único sistema de dashboards para decisão estratégica em custos de manufatura.
-
-| Módulo | Visão | Coluna de custo | Modo de exibição |
-|--------|-------|-----------------|------------------|
-| **📊 TC Extendido** | Agregada por oficina, período e veículo | `Total` | Custo Total ↔ CPU |
-| **🚗 TC Veículos** | Detalhada por modelo de veículo | `Custo FP` | Cadeia FA → FP → D&A |
-
-**Funcionalidades compartilhadas:** Waterfall · Best Estimate · Extração de Dados · Multi-moeda · Exportação Excel
-
-**🎯 Objetivo:**
-Transformar dados brutos (Excel / SAPIENS) em insights acionáveis — comparar Real vs Budget, decompor variações e projetar cenários futuros com Best Estimate.
-            """)
-
-        # ── SLIDE 2 ──
-        with st.expander("📊 Slide 2 — TC Extendido  *(0:30 – 1:30)*"):
-            st.markdown("""
-**Propósito:** Análise de custo total agregado e CPU (Custo por Unidade) por período, oficina e veículo — visão de linhas secundárias.
-
-**Coluna principal:** `Total`
-
-**Dois modos de visualização:**
-- 💰 **Custo Total** — `sum(Total)`, soma direta
-- 📏 **CPU** — `sum(Total) / sum(Volume)`, razão ponderada
-
-> ⚠️ **Regra crítica:** CPU nunca é somada ou mediada — sempre recalculada como razão ponderada.
-
----
-
-**Filtros disponíveis:**
-- *Básicos:* Ano · Período · Oficina · Veículo · USI
-- *Custo:* Type 05 · Type 06 · Account · Fornecedor
-- *Avançados:* Type 07 · Material · Pedido · Ordem · Origem
-
----
-
-**Flex Budget (TC Ext):**
-- *Custo Fixo:* Flex = Budget fixo (inalterado)
-- *Custo Variável:* Flex = Budget variável × (Volume Real / Volume Budget)
-- 🎯 Permite isolar: a variação veio do volume ou do custo?
-
----
-
-**Dados:** `dados/TC_Ext/{ano}/` · Parquets: `df_final.parquet`, `df_vol.parquet`
-            """)
-
-        # ── SLIDE 3 ──
-        with st.expander("🚗 Slide 3 — TC Veículos  *(1:30 – 3:00)*"):
-            st.markdown("""
-**Propósito:** Análise detalhada do custo do Fluxo Principal (Custo FP) por veículo, com cadeia completa de custos e rateio proporcional ao tempo de produção.
-
-**Coluna principal:** `Custo FP`
-
-**Cadeia de custos:**
-- Despesa Primária − Custo FA (Fluxo Anexo) = **Custo FP** (Fluxo Principal)
-- D&A Dedicado = parcela atribuída diretamente ao veículo
-- FP sem Dedicada = Custo FP − D&A Dedicado
-
----
-
-**Rateio proporcional ao tempo de produção:**
-
-1. `Percentual(v,o) = Tempo_Veíc(v,o) / Σ Tempo_Veíc(v,o)`
-2. `Custo_Rateado(v,o) = FP_sem_Dedicada(o) × Percentual(v,o)`
-3. `Custo_FP_Veíc(v,o) = Custo_Rateado(v,o) + D&A_Dedicado(v,o)`
-
-**Exemplo:**
-- Oficina Pintura — Veículo A: 40 min, Veículo B: 60 min
-- % Veíc A = 40%, % Veíc B = 60%
-- FP sem Dedicada = R$ 100.000 → Rateio A = R$ 40.000, Rateio B = R$ 60.000
-
-> Veículo = "Todos" → consolidado (sem rateio) · Veículo específico → dados rateados
-
----
-
-**6 Tabs da Home TC Veículos:**
-
-| Tab | Conteúdo |
-|-----|----------|
-| 🚗 TC Veículos | KPIs resumo + Custo FP × Flex BUD por período |
-| 📊 Análise Flex | Fixo/Variável com hierarquia Type 05 → Account |
-| 📈 Volume | Budget vs Realizado por período e por veículo |
-| 🏢 Custos por Oficina | Custo FP e Rateio FA por oficina |
-| ⏱️ Tempo Produção | Tempo Veículo vs Tempo FA por oficina |
-| 📋 Dados Detalhados | Tabelas exportáveis de Real e Budget |
-
----
-
-**Dados:** `dados/TC_Principal/{ano}/` · Budget em `BUD/` · Parquets: `df_principal`, `df_veiculos_custo_fp`, `df_vol_veiculos_actual`, `df_tempo_veiculos`, `df_dea_dedicado`, `df_volume_fa`
-
-**Filtros:** Oficina · Veículo (ativa rateio) · Type 05/06 · Account · Custo (Fixo/Variável)
-            """)
-
-        # ── SLIDE 4 ──
-        with st.expander("🔗 Slide 4 — Funcionalidades Compartilhadas  *(3:00 – 4:30)*"):
-            st.markdown("""
-**📈 Waterfall — "O que mudou entre dois períodos?"**
-- Compara dois períodos e decompõe a variação
-- O Flex Budget separa: *efeito Volume* vs *efeito Custo*
-- TC Ext: coluna `Total` · TC Veículos: cadeia Desp Primária → Redis → FA → D&A → FP
-
----
-
-**🔮 Best Estimate — Projeções inteligentes**
-
-*Simulador:* define premissas e gera Forecast
-
-| Premissa | Descrição |
-|----------|-----------|
-| **Sensibilidade** | O quanto o custo responde ao volume (0% = fixo, 100% = variável) |
-| **Inflação** | % de reajuste sobre **todos** os custos (fixos e variáveis) |
-| **Volume** | Produção projetada por veículo/mês |
-
-**Fórmula:** `BE = Média_Histórica × (1 + Var_Volume × Sensib) × (1 + Inflação)`
-
-- Fixo: sensibilidade = 0% → sem ajuste de volume
-- Variável: sensibilidade = 100% → escala com volume
-- Inflação aplicada **após** sensibilidade, a **todos** os custos
-
-*Análise:* layout da Home com dados de Forecast
-- 🟣 Roxo escuro (`#4C1D95`) = meses Históricos
-- 🟣 Roxo claro (`#C4B5FD`) = meses Best Estimate
-
-**Saída:** `dados/*/Forecast/forecast_completo.parquet`
-
----
-
-**🌐 Recursos transversais:**
-- 🔄 **Multi-moeda** — R$ · USD · EUR (câmbio em SQLite)
-- 📊 **Fator de escala** — Nenhum · K (÷1.000) · M (÷1.000.000) — nunca em CPU
-- 📤 **Exportação Excel** — downloads formatados com filtros aplicados
-- 🔄 **Versionamento** — automático, incrementa quando páginas mudam
-- ⚡ **Cache inteligente** — TTL + otimização de tipos
-- 📚 **Documentação** — página única e integrada no sistema
-            """)
-
-        # ── SLIDE 5 ──
-        with st.expander("📐 Slide 5 — Comparativo TC Ext vs TC Veículos"):
-            st.markdown("""
-| Aspecto | 📊 TC Extendido | 🚗 TC Veículos |
-|---------|----------------|----------------|
-| **Visão** | Agregada | Detalhada por veículo |
-| **Coluna de custo** | `Total` | `Custo FP` (cadeia) |
-| **Modo de exibição** | Custo Total ↔ CPU | Custo FP + cadeia |
-| **Rateio** | Não há | Proporcional (tempo) |
-| **Volume** | Simples | Por veículo + FA |
-| **Pasta de dados** | `dados/TC_Ext/` | `dados/TC_Principal/` |
-| **Filtros avançados** | Material, Pedido, Ordem, Origem… | Type 05/06, Account, Custo Fixo/Var |
-| **Tabs na Home** | Consolidada | 6 tabs especializadas |
-| **Flex Budget** | Total | Cadeia completa |
-| **Waterfall** | Coluna Total | Cadeia FA → FP → D&A |
-
-**Compartilhado:** Waterfall · Best Estimate · Extração · Export · Multi-moeda · Cache · Versionamento · Documentação
-            """)
-
-        # ── SLIDE 6 ──
-        with st.expander("🏗️ Slide 6 — Arquitetura Técnica"):
-            st.markdown("""
-**Estrutura modular:**
-- `app.py` — Portal / Router (`st.navigation`)
-  - `tc_ext/` — TC Extendido (home_ext, be_analise, normalizacao, metricas)
-  - `tc_principal/` — TC Veículos (home_tc, waterfall_tc, be_simulador, be_analise, extracao, shared)
-  - `tc_core/` — Camada compartilhada (paths, moeda, câmbio SQLite, UI)
-  - `pages/` — Páginas compartilhadas (Waterfall, Simulador, Extração, Documentação)
-
----
-
-**Fluxo de dados:**
-1. **Entrada** — Excel (SAPIENS/Reporting)
-2. **Processamento** — Notebooks Python (ETL automatizado)
-3. **Armazenamento** — Parquet (70% menos memória)
-4. **Visualização** — Dashboard Streamlit interativo
-
----
-
-**Stack tecnológico:**
-- 🐍 Python 3.13 — Linguagem principal
-- 🌐 Streamlit — Interface web interativa
-- 🐼 Pandas — Processamento de dados
-- 📦 Parquet — Armazenamento otimizado
-- 📊 Plotly / Altair — Visualizações interativas
-- 🗃️ SQLite — Câmbio persistido
-            """)
-
-        # ── SLIDE 7 ──
-        with st.expander("📈 Slide 7 — Resultados e Equipe  *(4:30 – 5:00)*"):
-            st.markdown("""
-**Benefícios alcançados:**
-- ⚡ **Eficiência** — De horas para segundos no processamento
-- ✅ **Precisão** — Zero erros manuais, cálculos padronizados
-- 💡 **Insights** — Visualizações claras e comparativas
-- 🔮 **Previsões** — Best Estimate com cenários "what-if"
-- 📈 **Escalabilidade** — Novos anos/períodos adicionados facilmente
-- 🔄 **Rastreabilidade** — Versionamento e documentação integrados
-
----
-
-**Equipe:**
-- 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💻 **Lauro Paiva** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
-            """)
-
-        # ── FAQ ──
-        with st.expander("❓ Perguntas Frequentes"):
-            st.markdown("""
-**Qual a diferença entre TC Ext e TC Veículos?**
-TC Ext analisa custo total agregado (com CPU). TC Veículos detalha o custo por modelo de veículo, com cadeia de custos (FA→FP→D&A) e rateio por tempo de produção.
-
-**Como funciona o rateio por veículo?**
-O custo FP sem Dedicada é distribuído proporcionalmente ao tempo de produção de cada veículo na oficina. D&A Dedicado é somado diretamente ao veículo.
-
-**A inflação só se aplica a custos fixos?**
-Não. A inflação se aplica a **todos** os custos (fixos e variáveis), após o ajuste por sensibilidade.
-
-**Quanto tempo leva processar novos dados?**
-Menos de 1 minuto para um ano completo.
-
-**Os dados ficam na nuvem?**
-Não. Todos os dados ficam no servidor local, sem envio externo.
-            """)
+    render_presentation_section(str(versao_atual), data_atualizacao)
 
 # ==========================================
 # SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO
@@ -6567,10 +6274,194 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
         st.code(traceback.format_exc())
 
 # ==========================================
+# SEÇÃO 8: SISTEMA DE ALERTAS
+# ==========================================
+elif indice_selecionado == "🔔 Sistema de Alertas":
+    st.header("🔔 Sistema de Alertas")
+
+    st.markdown(
+        """
+        <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border-radius: 10px; margin-bottom: 1.25rem; color: white;">
+            <h2 style="color: white; margin: 0;">🔔 Central de Alertas (TC Veículos)</h2>
+            <p style="color: #fff; opacity: 0.92; margin: 0.5rem 0 0 0;">
+                Monitoramento automático de desvios relevantes no TC Veículos — com ranking consolidado e notificações.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+### ✅ Objetivo
+Detectar rapidamente **anomalias / perdas** no custo do TC Veículos, priorizando o que mais impacta o resultado.
+
+O sistema gera um **ranking hierárquico**:
+**Type 05 → Type 06 → Account → Oficinas** (com texto breve quando disponível).
+
+### 📍 Onde fica no app
+No menu lateral do SCI existem duas páginas:
+- **Central de Alertas → Monitoramento** (`alertas/alert_ui.py`)
+- **Central de Alertas → Configuração de Alertas** (`alertas/alert_config_ui.py`)
+
+### 🔎 O que o alerta compara
+O motor suporta dois modos:
+1. **Budget Flex × Real** *(principal)*
+2. **Mês × Mês Anterior** *(secundário)*
+
+> Observação: no modo **Budget Flex × Real**, o “esperado” vem do cálculo de Flex BUD detalhado (reuso da base do TC Veículos).
+        """
+    )
+
+    with st.expander("🧠 Como o motor funciona (visão geral)", expanded=False):
+        st.markdown(
+            """
+**Fonte de dados (TC Veículos):** parquets consolidados em `dados/TC_Principal/historico_consolidado/`.
+
+**Etapas (alto nível):**
+1. Carrega Real, Volume Real, Budget e Volume Budget
+2. Calcula Flex BUD detalhado com dimensões (Oficina / Type 05 / Type 06 / Account)
+3. Aplica filtros da regra (Oficina, Type 05, Type 06, Account)
+4. Calcula **Real vs Esperado** e ranqueia os **Top N Type 06** com maior perda
+5. Consolida em um **card único** (drill-down hierárquico)
+
+**Severidade (padrão):** classificada por desvio percentual absoluto:
+- **Crítico:** ≥ 15%
+- **Moderado:** ≥ 5%
+- **Informativo:** < 5%
+
+**Base técnica principal:** `alertas/alert_engine.py`
+
+**Funções mais importantes:**
+- `calcular_ranking_consolidado()` — monta o card hierárquico único usado no monitoramento e nas notificações.
+- `gerar_tabela_validacao()` — gera a conferência `Type 05 / Type 06 / Account / Flex BUD / Real / Delta / % Delta`.
+- `evaluate_rule()` e `evaluate_all_rules()` — avaliam regras ativas e retornam a estrutura final do alerta.
+            """
+        )
+
+    with st.expander("⚙️ Configuração de regras", expanded=False):
+        st.markdown(
+            """
+Em **Configuração de Alertas**, é possível criar regras com:
+- **Ano** e **modo de comparação**
+- **Top N** (quantos Type 06 destacar)
+- **Moeda** (BRL / EUR / USD)
+- Filtros opcionais em cascata: **Type 05**, **Type 06**, **Account**
+- Filtro opcional de **Oficinas** (vazio = todas)
+
+Cada regra pode ser **ativada/desativada** e removida.
+
+**Observação importante:** hoje o SCI trabalha principalmente com **disparo manual ou pós-processamento**. A regra continua armazenando metadados de agenda por compatibilidade, mas o fluxo operacional atual privilegia o acionamento quando a base já foi processada e está pronta para leitura.
+            """
+        )
+
+    with st.expander("📊 Tabela de validação", expanded=False):
+        st.markdown(
+            """
+Essa tabela existe para permitir **auditoria rápida do cálculo** antes ou depois do envio do alerta.
+
+**Colunas principais:**
+- `Type 05`
+- `Type 06`
+- `Account`
+- `Flex BUD`
+- `Flex BUD P`
+- `Real`
+- `Real - Flex BUD P`
+- `% Delta`
+
+**Como interpretar:**
+- `Flex BUD` = valor esperado integral
+- `Flex BUD P` = valor esperado proporcional ao período corrente
+- `Real - Flex BUD P` = desvio monetário principal
+- `% Delta` = desvio percentual relativo ao esperado proporcional
+
+**Melhoria recente do sistema:**
+- o preenchimento de `Type 05` passou a ser preservado a partir do `flex_detalhado` e, quando necessário, complementado por mapeamento controlado com base em `Type 06 + Account`, evitando linhas vazias na validação.
+
+**Uso prático:**
+- conferir se a perda identificada no card bate com a linha detalhada
+- validar se a regra/filtro aplicado está trazendo o universo correto
+- apoiar explicação de desvio antes de acionar stakeholders
+            """
+        )
+
+    with st.expander("📨 Notificações (E-mail / Teams)", expanded=False):
+        st.markdown(
+            """
+O sistema pode enviar o ranking consolidado para:
+- **E-mail (Microsoft Graph / OAuth2)** — com autenticação MSAL
+- **Microsoft Teams (Webhook)** — com card hierárquico formatado
+
+Também existe a opção de manter apenas o uso **interno no app** (sem envio).
+
+Na aba **🧪 Testar Envio**, dá para validar rapidamente se o Graph/Webhook estão corretos.
+
+**Teams:**
+- envia card consolidado com árvore visual por `Type 05 -> Type 06 -> Account -> Oficina`
+- inclui barra textual de representatividade do desvio total
+- mantém legibilidade próxima da visualização interna do SCI
+
+**E-mail:**
+- usa HTML estruturado com ranking consolidado
+- pode incluir a tabela de validação junto do alerta
+- autenticação moderna via Microsoft Graph quando configurada
+            """
+        )
+
+    with st.expander("▶️ Fluxo operacional atual", expanded=False):
+        st.markdown(
+            """
+O fluxo hoje foi simplificado para ficar mais aderente ao uso real do SCI:
+
+- o usuário pode clicar em **Verificar agora** para gerar o ranking consolidado
+- o usuário pode clicar em **Disparar alertas ativos** para forçar o envio manual
+- o processamento de dados pode acionar a avaliação dos alertas ao final da atualização da base
+
+**Por que isso é melhor:**
+- reduz dependência de app aberto em um horário fixo
+- garante que o alerta roda sobre a base mais recente
+- deixa a operação mais previsível para fechamento e acompanhamento mensal
+            """
+        )
+
+    with st.expander("🗂️ Persistência e auditoria", expanded=False):
+        st.markdown(
+            """
+As configurações e o histórico ficam salvos em JSON no pacote `alertas/`:
+- `alertas/alert_rules.json` — regras + canais de notificação + agenda
+- `alertas/alert_log.json` — histórico de execuções (quando e o que foi enviado)
+
+O histórico pode ser consultado na aba **📜 Histórico** da página de configuração.
+            """
+        )
+
+    with st.expander("🧩 O que o usuário enxerga no monitoramento", expanded=False):
+        st.markdown(
+            """
+Na página de monitoramento, o SCI mostra um **card consolidado** em vez de vários alertas soltos.
+
+**Estrutura do card:**
+- agrupamento por `Type 05`
+- detalhamento por `Type 06`
+- drill-down até `Account` e `Oficina`
+- `Texto breve` em lowercase para leitura mais limpa
+- barra com percentual de participação no **desvio total** do card
+
+**Resultado para o usuário:**
+- mais fácil priorizar o que mais pesa no problema
+- mais fácil explicar o desvio para a operação
+- mais fácil validar antes de enviar Teams/e-mail
+            """
+        )
+
+# ==========================================
 # ==========================================
 # SEÇÃO: GUIA DE BUILD (EXE)
 # ==========================================
 elif indice_selecionado == "📦 Guia de Build (EXE)":
+    st.header("📦 Guia de Build (EXE)")
+
     st.header("📦 Guia de Build — Empacotamento como Executável Windows")
 
     st.info(
@@ -6583,7 +6474,7 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; border-radius: 10px; margin-bottom: 16px; color: white;">
         <h2 style="color: white; margin: 0;">📦 SCI — Guia de Empacotamento (EXE)</h2>
-        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (lido do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
+        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (mesmo conteúdo do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -7225,21 +7116,6 @@ elif indice_selecionado == "🚀 Próximos Passos":
         Melhor integração com Python, Streamlit e GENAI Gateway.
         """)
 
-# ============================================================================
-# ÚLTIMA SEÇÃO — Guia de Empacotamento (Executável)
-# ============================================================================
-st.markdown("---")
-st.header("📦 Guia de Empacotamento do Executável (passo a passo)")
-st.caption(
-    "Se você precisar recriar o executável no futuro (ou pedir para uma LLM reproduzir), "
-    "siga exatamente este passo a passo."
-)
-
-st.info("O guia completo está no índice em: **📦 Guia de Build (EXE)**")
-if st.button("Abrir guia no índice", key="btn_abrir_guia_build_exe"):
-    st.session_state["indice_documentacao_pending"] = "📦 Guia de Build (EXE)"
-    st.rerun()
-
 # Rodapé
 st.markdown("---")
 mes_atual = obter_mes_atual()
@@ -7252,3 +7128,4 @@ st.markdown(f"""
     <small>Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus</small>
 </div>
 """, unsafe_allow_html=True)
+

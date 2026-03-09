@@ -4,7 +4,7 @@ setlocal
 :: =============================================================================
 :: build_exe.bat — Stellantis Cost Intelligence (SCI)
 :: =============================================================================
-:: Usa streamlit-desktop-app (PyInstaller one-dir) + pos-build robusto.
+:: Usa SCI.spec (PyInstaller one-dir) + pos-build robusto.
 ::
 :: PORTABILIDADE: Funciona em qualquer PC - detecta venv ou .venv
 ::
@@ -19,7 +19,7 @@ setlocal
 :: SOLUCOES IMPLEMENTADAS:
 ::   1. Matar processos que travam arquivos (EXE, Excel, Streamlit)
 ::   2. Limpar dist/ com retry + espera (ate 3 tentativas)
-::   3. Apagar .spec e __pycache__ para forcar PYZ 100%% limpo
+::   3. Apagar __pycache__ e limpar build/dist para forcar PYZ 100%% limpo
 ::   4. Re-extrair dados dentro do _internal/ apos copiar os .py corretos
 ::   5. Conferencias automaticas pos-build
 ::   6. Detectar venv ou .venv automaticamente (portavel entre PCs)
@@ -65,11 +65,16 @@ exit /b 1
 echo [INFO] Ambiente virtual: %VENV_DIR%
 call %VENV_DIR%\Scripts\activate.bat
 
-echo [1/7] Verificando streamlit-desktop-app...
-pip show streamlit-desktop-app >nul 2>&1
+echo [1/7] Verificando ferramentas de build...
+%VENV_DIR%\Scripts\python.exe -c "import PyInstaller" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo       Instalando streamlit-desktop-app...
-    pip install streamlit-desktop-app --quiet
+    echo       Instalando PyInstaller...
+    pip install pyinstaller --quiet
+)
+%VENV_DIR%\Scripts\python.exe -c "import webview" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo       Instalando pywebview...
+    pip install pywebview --quiet
 )
 echo       OK
 
@@ -97,9 +102,6 @@ echo       OK
 :: ─────────────────────────────────────────────────────────────
 echo.
 echo [3/7] Limpando builds anteriores e cache...
-
-:: Apagar spec antigo para forcar regeneracao completa do PYZ
-if exist "Stellantis-Cost-Intelligence.spec" del /f /q "Stellantis-Cost-Intelligence.spec"
 
 :: Limpar __pycache__ de TODAS as pastas do projeto (evita bytecode stale no PYZ)
 for /d /r . %%d in (__pycache__) do (
@@ -140,13 +142,13 @@ if exist "%DIST_DIR%" (
 echo       OK
 
 :: ─────────────────────────────────────────────────────────────
-:: BUILD (PyInstaller via streamlit-desktop-app)
+:: BUILD (PyInstaller via SCI.spec)
 :: ─────────────────────────────────────────────────────────────
 echo.
 echo [4/7] Executando build (pode demorar 2-5 minutos)...
 echo       IMPORTANTE: o PYZ sera gerado do zero (sem bytecode stale).
 echo.
-streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence
+%VENV_DIR%\Scripts\python.exe -m PyInstaller --clean --noconfirm SCI.spec
 if %errorlevel% neq 0 (
     echo.
     echo [ERRO] Build falhou! Verifique o log acima.
@@ -175,6 +177,7 @@ if exist "tc_core" xcopy "tc_core" "%DEST%\tc_core\" /E /I /Y /Q >nul
 if exist "tc_principal" xcopy "tc_principal" "%DEST%\tc_principal\" /E /I /Y /Q >nul
 if exist "tc_ext" xcopy "tc_ext" "%DEST%\tc_ext\" /E /I /Y /Q >nul
 if exist "tc_copilot" xcopy "tc_copilot" "%DEST%\tc_copilot\" /E /I /Y /Q >nul
+if exist "alertas" xcopy "alertas" "%DEST%\alertas\" /E /I /Y /Q >nul
 if exist ".streamlit" xcopy ".streamlit" "%DEST%\.streamlit\" /E /I /Y /Q >nul
 
 :: Arquivos Python essenciais para extracao (sobrescrevem o PYZ em runtime via importlib)

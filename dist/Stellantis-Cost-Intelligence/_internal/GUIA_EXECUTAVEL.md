@@ -15,7 +15,7 @@ O sistema SCI pode ser distribuído como um **executável standalone** que não 
 
 ### Pacotes necessários:
 ```bash
-pip install streamlit-desktop-app pywebview pyinstaller
+pip install pyinstaller pywebview
 ```
 
 ---
@@ -40,16 +40,16 @@ cd C:\user\U235107\GitHub\TC
 
 **Opção B - Comando manual (mínimo):**
 ```powershell
-streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence
+C:/User/U235107/GitHub/TC/.venv/Scripts/python.exe -m PyInstaller --clean --noconfirm SCI.spec
 ```
 
-> Importante: o `streamlit-desktop-app` **não aceita** `--hidden-import` no CLI.
-> Para dependências importadas apenas em runtime (ex.: páginas multipage), use o `build_exe.bat`,
-> que faz o pós-build e copia os pacotes necessários para dentro do `_internal/`.
+> Importante: o fluxo atual usa a `SCI.spec`, porque ela centraliza `hiddenimports`,
+> metadados e pacotes com import dinâmico como `python-pptx`, `reportlab`, `msal`
+> e os módulos recentes da `Central de Alertas`.
 
 #### Observações importantes (para reprodução fiel)
 
-- O método oficial usado aqui é o mesmo do sistema de referência (DashAPPwin11): **`streamlit-desktop-app`**.
+- O método oficial usado aqui é **`PyInstaller` com `SCI.spec`**.
 - Se durante o build aparecer um aviso do PyInstaller dizendo que a pasta `dist\Stellantis-Cost-Intelligence` (e todo o conteúdo) será removida e pedindo confirmação, responda `Y`.
 - Se o build falhar com `SyntaxError: invalid non-printable character U+FEFF` em `app.py`, o arquivo está com **BOM (Byte Order Mark)**. Corrija com PowerShell:
 
@@ -71,6 +71,8 @@ xcopy "pages" "$dest\pages\" /E /I /Y /Q
 xcopy "tc_core" "$dest\tc_core\" /E /I /Y /Q
 xcopy "tc_principal" "$dest\tc_principal\" /E /I /Y /Q
 xcopy "tc_ext" "$dest\tc_ext\" /E /I /Y /Q
+xcopy "tc_copilot" "$dest\tc_copilot\" /E /I /Y /Q
+xcopy "alertas" "$dest\alertas\" /E /I /Y /Q
 xcopy ".streamlit" "$dest\.streamlit\" /E /I /Y /Q
 
 # Arquivos Python de processamento
@@ -126,6 +128,8 @@ dist/Stellantis-Cost-Intelligence/
     ├── tc_core/                        ← Módulos core
     ├── tc_principal/                   ← Módulos TC Principal
     ├── tc_ext/                         ← Módulos TC Ext
+   ├── tc_copilot/                     ← Relatórios e assistente IA
+   ├── alertas/                        ← Central de Alertas + Graph/Teams
     ├── .streamlit/                     ← Configurações Streamlit
     ├── processamento_dados.py          ← Processamento de dados REAIS
     ├── processamento_dados_BUD.py      ← Processamento de dados BUDGET
@@ -252,12 +256,10 @@ Verifique `SCI_error.log` ao lado do executável ou em `_internal/`
 
 ## Ferramenta de Build
 
-O sistema usa **`streamlit-desktop-app`** para gerar o executável, que:
-- Gera automaticamente o launcher com pywebview
-- Configura PyInstaller corretamente
-- Inclui metadados do Streamlit (crítico para funcionamento)
-
-Documentação: https://pypi.org/project/streamlit-desktop-app/
+O sistema usa **`PyInstaller` com `SCI.spec`** para gerar o executável, que:
+- Usa `launcher.py` como ponto de entrada para abrir o Streamlit em janela desktop com `pywebview`
+- Centraliza `hiddenimports`, metadados e recursos do projeto em um único arquivo versionado
+- Inclui pacotes com import dinâmico usados no SCI, como `python-pptx`, `reportlab`, `openai`, `msal` e módulos da `Central de Alertas`
 
 ---
 

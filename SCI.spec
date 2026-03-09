@@ -28,6 +28,7 @@
 #   - Inclui processamento_dados*.py e todos os scripts da raiz como data
 #   - hookspath=['.'] para usar hook-streamlit.py local
 #   - Inclui st_aggrid/streamlit-aggrid para tabelas interativas
+#   - Inclui alertas, TC Copilot e dependências dinâmicas recentes (Graph/PPT/PDF)
 # =============================================================================
 
 from PyInstaller.utils.hooks import (
@@ -64,11 +65,38 @@ try:
 except Exception:
     pass
 
+# Coleta bibliotecas com imports dinâmicos usados em relatórios, alertas e apresentação
+pptx_datas, pptx_binaries, pptx_hiddenimports = [], [], []
+try:
+    pptx_datas, pptx_binaries, pptx_hiddenimports = collect_all("pptx")
+except Exception:
+    pass
+
+reportlab_datas, reportlab_binaries, reportlab_hiddenimports = [], [], []
+try:
+    reportlab_datas, reportlab_binaries, reportlab_hiddenimports = collect_all("reportlab")
+except Exception:
+    pass
+
+msal_datas, msal_binaries, msal_hiddenimports = [], [], []
+try:
+    msal_datas, msal_binaries, msal_hiddenimports = collect_all("msal")
+except Exception:
+    pass
+
+openai_datas, openai_binaries, openai_hiddenimports = [], [], []
+try:
+    openai_datas, openai_binaries, openai_hiddenimports = collect_all("openai")
+except Exception:
+    pass
+
 # Metadados de pacotes que usam importlib.metadata em runtime
 extra_metadata = []
 for pkg in ["streamlit", "altair", "pandas", "pyarrow", "packaging",
-            "validators", "watchdog", "click", "tornado", "openpyxl",
-            "plotly", "numpy", "streamlit-aggrid"]:
+            "watchdog", "click", "tornado", "openpyxl",
+            "plotly", "numpy", "streamlit-aggrid", "python-pptx",
+            "reportlab", "msal", "openai", "PyPDF2", "python-dotenv",
+            "certifi", "truststore"]:
     try:
         extra_metadata += copy_metadata(pkg)
     except Exception:
@@ -87,7 +115,14 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Hidden imports — módulos carregados dinamicamente
 # ---------------------------------------------------------------------------
-hidden = st_hiddenimports + ag_hiddenimports + [
+hidden = (
+    st_hiddenimports
+    + ag_hiddenimports
+    + pptx_hiddenimports
+    + reportlab_hiddenimports
+    + msal_hiddenimports
+    + openai_hiddenimports
+    + [
     # Streamlit internos extras
     "streamlit.web.cli",
     "streamlit.runtime",
@@ -95,7 +130,6 @@ hidden = st_hiddenimports + ag_hiddenimports + [
     "streamlit.runtime.scriptrunner.script_runner",
     "streamlit.components.v1",
     "streamlit.runtime.state",
-    "streamlit.runtime.legacy_caching",
     "streamlit.elements",
     "streamlit.logger",
     # pywebview para app desktop (fallback para browser se ausente)
@@ -120,10 +154,22 @@ hidden = st_hiddenimports + ag_hiddenimports + [
     "plotly.graph_objects",
     "plotly.express",
     "pydeck",
+    "reportlab",
+    "reportlab.lib",
+    "reportlab.platypus",
+    "pptx",
+    "msal",
+    "requests",
+    "certifi",
+    "truststore",
+    "dotenv",
+    "openai",
+    "PyPDF2",
+    "matplotlib",
+    "matplotlib.pyplot",
     # AgGrid
     "st_aggrid",
     # Dependências do Streamlit
-    "validators",
     "watchdog",
     "tornado",
     "click",
@@ -158,6 +204,18 @@ hidden = st_hiddenimports + ag_hiddenimports + [
     "tc_ext.pages",
     "tc_ext.pages.home_ext",
     "tc_ext.pages.be_analise_ext",
+    "tc_copilot",
+    "tc_copilot.pages",
+    "tc_copilot.pages.home_copilot",
+    "tc_core.presentation_docs",
+    "alertas",
+    "alertas.alert_ui",
+    "alertas.alert_config_ui",
+    "alertas.alert_engine",
+    "alertas.notifications_email",
+    "alertas.notifications_teams",
+    "alertas.email_graph",
+    "alertas.scheduler",
     # Scripts da raiz (importados por nome sem pacote)
     "processamento_dados",
     "processamento_dados_BUD",
@@ -177,7 +235,7 @@ hidden = st_hiddenimports + ag_hiddenimports + [
     "threading",
     "webbrowser",
     "ctypes",
-]
+])
 
 # ---------------------------------------------------------------------------
 # Dados bundled — tudo em _internal/ (self-contained)
@@ -197,6 +255,8 @@ datas = [
     ("tc_core",         "tc_core"),
     ("tc_principal",    "tc_principal"),
     ("tc_ext",          "tc_ext"),
+    ("tc_copilot",      "tc_copilot"),
+    ("alertas",         "alertas"),
     # Scripts Python da raiz (importados diretamente pelo nome)
     ("processamento_dados.py",              "."),
     ("processamento_dados_BUD.py",          "."),
@@ -227,9 +287,21 @@ datas += plotly_datas
 datas += extra_metadata
 datas += ag_datas
 datas += wv_datas
+datas += pptx_datas
+datas += reportlab_datas
+datas += msal_datas
+datas += openai_datas
 
 # Binaries
-all_binaries = st_binaries + ag_binaries + wv_binaries
+all_binaries = (
+    st_binaries
+    + ag_binaries
+    + wv_binaries
+    + pptx_binaries
+    + reportlab_binaries
+    + msal_binaries
+    + openai_binaries
+)
 
 # ---------------------------------------------------------------------------
 # Análise — TODOS os caminhos relativos

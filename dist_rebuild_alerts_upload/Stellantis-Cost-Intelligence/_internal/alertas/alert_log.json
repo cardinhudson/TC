@@ -1,0 +1,356 @@
+[
+  {
+    "id": "df938431-4b43-4778-ac22-f76161cac2d6",
+    "rule_id": "3913a627-350a-4ed6-82ff-74731e4bf426",
+    "timestamp": "2026-03-05T09:46:28",
+    "titulo": "Desvio em Teste",
+    "mensagem": "Real R$ 0 vs Esperado R$ 310,642 (-100.0%)",
+    "severidade": "critico",
+    "tipo": "automatico",
+    "lido": true,
+    "metrica": "custo_total",
+    "metadata": {
+      "oficina": [],
+      "periodo": "Março",
+      "ano": 2026,
+      "valor_real": 0.0,
+      "valor_esperado": 310642.02,
+      "desvio_absoluto": -310642.02,
+      "desvio_percentual": -100.0,
+      "proporcao_mes": 0.1613,
+      "baixa_confianca": false
+    },
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": false
+    }
+  },
+  {
+    "id": "90568a22-cb40-4aae-8078-9dfab1083e80",
+    "rule_id": "6fb44621-91d3-404f-b699-4f4b80022ad3",
+    "timestamp": "2026-03-05T11:12:55",
+    "titulo": "Top 10 perdas — Todas",
+    "mensagem": "Budget Flex × Real | Março | Desvio total: R$ 4,896,818 | Maior: Plant Depreciation",
+    "severidade": "informativo",
+    "tipo": "automatico",
+    "lido": false,
+    "metadata": {
+      "oficinas": [],
+      "periodo": "Março",
+      "ano": 2026,
+      "modo": "flex_bud_x_real",
+      "proporcao_mes": 0.1613,
+      "total_desvio": 4896818.39,
+      "top_account": "Plant Depreciation"
+    },
+    "ranking": [
+      {
+        "account": "Plant Depreciation",
+        "type_05": "D&A",
+        "type_06": "Taxes, Insurance & Assets Amortization",
+        "real": 2591966.85,
+        "esperado": 0.0,
+        "desvio": 2591966.85,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "D&A",
+            "valor": 2591966.85
+          }
+        ]
+      },
+      {
+        "account": "Material",
+        "type_05": "Burden",
+        "type_06": "Maintenance",
+        "real": 576626.27,
+        "esperado": 0.0,
+        "desvio": 576626.27,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "TUBO ACO S/ COSTURA SCH 40 3/4\"",
+            "valor": 104187.85
+          },
+          {
+            "texto_breve": "BOMBA 17K658 1500 CC GRACO",
+            "valor": 85757.42
+          },
+          {
+            "texto_breve": "TUBO METALON 40 X 40 X 3,0 STALX",
+            "valor": 57353.5
+          },
+          {
+            "texto_breve": "KIT REPARO CAMISA GRACO 289548 EFLO 1500",
+            "valor": 41676.84
+          },
+          {
+            "texto_breve": "TUBO METALON 50 X 50 X 3,0 STALX",
+            "valor": 40843.96
+          }
+        ]
+      },
+      {
+        "account": "Electricity",
+        "type_05": "Burden",
+        "type_06": "Energy",
+        "real": 418275.75,
+        "esperado": 0.0,
+        "desvio": 418275.75,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "CONTRATO DE FORNECIMENTO DE ENERGIA",
+            "valor": 282084.85
+          },
+          {
+            "texto_breve": "Previsao de eletricidade",
+            "valor": 116634.37
+          },
+          {
+            "texto_breve": "FORNECIMENTO GAS NATURAL PRODUCAO",
+            "valor": 19556.53
+          }
+        ]
+      },
+      {
+        "account": "Third Part Services / Uma",
+        "type_05": "Burden",
+        "type_06": "Expenses",
+        "real": 358938.35,
+        "esperado": 0.0,
+        "desvio": 358938.35,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "Amortizacao Acumulada Sub. E Anel De Distr. Intern",
+            "valor": 358838.52
+          },
+          {
+            "texto_breve": "SERVICO DE CONSULTORIA",
+            "valor": 99.83
+          }
+        ]
+      },
+      {
+        "account": "Main/Principal",
+        "type_05": "Labor",
+        "type_06": "Direct Labor",
+        "real": 264739.82,
+        "esperado": 0.0,
+        "desvio": 264739.82,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "AJUSTE FEVEREIRO PARA BATER LABOR",
+            "valor": 264739.82
+          }
+        ]
+      },
+      {
+        "account": "Stock Obsolescence % Overstock",
+        "type_05": "Burden",
+        "type_06": "Material Losses",
+        "real": 209368.05,
+        "esperado": 0.0,
+        "desvio": 209368.05,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "Ecart de fiabilité",
+            "valor": 109901.81
+          },
+          {
+            "texto_breve": "Déclassements pièces autos et mulets",
+            "valor": 57688.92
+          },
+          {
+            "texto_breve": "Dépréciations pièces autos et mulets",
+            "valor": 38899.5
+          },
+          {
+            "texto_breve": "Dépréciations MHF",
+            "valor": 2877.81
+          }
+        ]
+      },
+      {
+        "account": "Service",
+        "type_05": "Burden",
+        "type_06": "Maintenance",
+        "real": 184023.09,
+        "esperado": 0.0,
+        "desvio": 184023.09,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "7.09  VARRICAO, COLETA, REMOCAO, INCINE",
+            "valor": 168266.86
+          },
+          {
+            "texto_breve": "SERVICO DE MANUTENCAO",
+            "valor": 14790.0
+          },
+          {
+            "texto_breve": "SERVICO DE INFORMATICA",
+            "valor": 564.28
+          },
+          {
+            "texto_breve": "SERVICO DE CONSULTORIA",
+            "valor": 401.95
+          }
+        ]
+      },
+      {
+        "account": "Taxes & Insurances",
+        "type_05": "D&A",
+        "type_06": "Taxes, Insurance & Assets Amortization",
+        "real": 119993.14,
+        "esperado": 0.0,
+        "desvio": 119993.14,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "ITA",
+            "valor": 119993.14
+          }
+        ]
+      },
+      {
+        "account": "Gas",
+        "type_05": "Burden",
+        "type_06": "Energy",
+        "real": 88896.29,
+        "esperado": 0.0,
+        "desvio": 88896.29,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "Previsao de gás",
+            "valor": 88896.29
+          }
+        ]
+      },
+      {
+        "account": "WC & Trainee",
+        "type_05": "Labor",
+        "type_06": "WC & Trainee",
+        "real": 83990.78,
+        "esperado": 0.0,
+        "desvio": 83990.78,
+        "desvio_pct": 0.0,
+        "severidade": "informativo",
+        "sub_despesas": [
+          {
+            "texto_breve": "AJUSTE FEVEREIRO PARA BATER LABOR",
+            "valor": 83990.78
+          }
+        ]
+      }
+    ],
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": false
+    }
+  },
+  {
+    "id": "daily_2026_Março_2026-03-07T09:23:23",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-07T09:23:23",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 849188.04,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-07T11:30:05",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-07T11:30:05",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 849188.04,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T08:59:48",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T08:59:48",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:00:22",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:00:22",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:02:56",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:02:56",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:05:30",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:05:30",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:11:28",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-08T09:11:28",
+    "periodo": "Março",
+    "ano": 2026,
+    "severidade": "critico",
+    "total_desvio": 823199.33,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  }
+]

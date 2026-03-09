@@ -70,6 +70,12 @@ matplotlib>=3.8.0
 python-dotenv>=1.0.0
 # Carregamento de variáveis de ambiente do arquivo .env
 
+certifi>=2024.0.0
+# CA bundle explícito para webhooks HTTPS no executável
+
+truststore>=0.10.0
+# Usa o repositório nativo de certificados do Windows no EXE
+
 PyPDF2>=3.0.0
 # Extração de texto de PDFs para consulta inteligente
 
