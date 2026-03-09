@@ -73,6 +73,9 @@ python-dotenv>=1.0.0
 PyPDF2>=3.0.0
 # Extração de texto de PDFs para consulta inteligente
 
+python-pptx>=0.6.23
+# Geração de apresentações PowerPoint nativas para exportação da apresentação visual
+
 # ==========================================
 # NOTA: DEPENDÊNCIAS DO CHATBOT SÃO OPCIONAIS
 # ==========================================

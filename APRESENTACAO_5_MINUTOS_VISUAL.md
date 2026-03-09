@@ -1,10 +1,10 @@
-# 📊 Stellantis Cost Intelligence (SCI)
-## Apresentação Visual — 5 Minutos
+﻿# ðŸ“Š Stellantis Cost Intelligence (SCI)
+## ApresentaÃ§Ã£o Visual â€” 5 Minutos
 
 <div align="center">
 
-**Equipe:** Hudson Cardin · Lauro Paiva · Frederico Cesar de Jesus  
-**Versão:** Sistema completo com versionamento automático  
+**Equipe:** Hudson Cardin Â· Lauro Paiva Â· Frederico Cesar de Jesus  
+**VersÃ£o:** Sistema completo com versionamento automÃ¡tico  
 **Data:** 2026
 
 ---
@@ -13,496 +13,496 @@
 
 ---
 
-## 🎯 SLIDE 1: O QUE É O SCI
-### ⏱️ 30 segundos
+## ðŸŽ¯ SLIDE 1: O QUE Ã‰ O SCI
+### â±ï¸ 30 segundos
 
 <div align="center">
 
-# 📊 Stellantis Cost Intelligence (SCI) — Sistema de Análise de Custos
+# ðŸ“Š Stellantis Cost Intelligence (SCI) â€” Sistema de AnÃ¡lise de Custos
 
-### Plataforma de Dashboards para decisão estratégica em custos de manufatura
+### Plataforma de Dashboards para decisÃ£o estratÃ©gica em custos de manufatura
 
 </div>
 
 ---
 
-### 🎯 Visão Geral
+### ðŸŽ¯ VisÃ£o Geral
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📊 SCI — Dois módulos complementares em um único sistema     │
-│                                                                     │
-│  ┌────────────────────────────┐  ┌────────────────────────────────┐ │
-│  │  📊 TC EXTENDIDO           │  │  🚗 TC VEÍCULOS                │ │
-│  │  ─────────────────────────│  │  ──────────────────────────────│ │
-│  │  Visão agregada de        │  │  Visão detalhada por           │ │
-│  │  custos por oficina,      │  │  veículo, com cadeia de        │ │
-│  │  período e veículo.       │  │  custos e rateio por           │ │
-│  │                           │  │  tempo de produção.            │ │
-│  │  Coluna: Total            │  │  Coluna: Custo FP              │ │
-│  │  Modo: Custo Total ↔ CPU  │  │  Modo: Cadeia FA → FP → D&A   │ │
-│  └────────────────────────────┘  └────────────────────────────────┘ │
-│                                                                     │
-│  🔗 Funcionalidades compartilhadas:                                 │
-│     Waterfall · Best Estimate · Extração · Multi-moeda · Export     │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š SCI â€” Dois mÃ³dulos complementares em um Ãºnico sistema     â”‚
+â”‚                                                                     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚  â”‚  ðŸ“Š TC ESTENDIDO           â”‚  â”‚  ðŸš— TC VEÃCULOS                â”‚ â”‚
+â”‚  â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”‚  â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”‚ â”‚
+â”‚  â”‚  VisÃ£o agregada de        â”‚  â”‚  VisÃ£o detalhada por           â”‚ â”‚
+â”‚  â”‚  custos por oficina,      â”‚  â”‚  veÃ­culo, com cadeia de        â”‚ â”‚
+â”‚  â”‚  perÃ­odo e veÃ­culo.       â”‚  â”‚  custos e rateio por           â”‚ â”‚
+â”‚  â”‚                           â”‚  â”‚  tempo de produÃ§Ã£o.            â”‚ â”‚
+â”‚  â”‚  Coluna: Total            â”‚  â”‚  Coluna: Custo FP              â”‚ â”‚
+â”‚  â”‚  Modo: Custo Total â†” CPU  â”‚  â”‚  Modo: Cadeia FA â†’ FP â†’ D&A   â”‚ â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ”— Funcionalidades compartilhadas:                                 â”‚
+â”‚     Waterfall Â· Best Estimate Â· ExtraÃ§Ã£o Â· Multi-moeda Â· Export     â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
-**🎯 Objetivo:**
-> Transformar dados brutos (Excel/SAPIENS) em **insights acionáveis** — comparar Real vs Budget,
-> decompor variações e projetar cenários futuros com Best Estimate.
+**ðŸŽ¯ Objetivo:**
+> Transformar dados brutos (Excel/SAPIENS) em **insights acionÃ¡veis** â€” comparar Real vs Budget,
+> decompor variaÃ§Ãµes e projetar cenÃ¡rios futuros com Best Estimate.
 
 ---
 
-## 📊 SLIDE 2: TC EXTENDIDO
-### ⏱️ 1 minuto
+## ðŸ“Š SLIDE 2: TC ESTENDIDO
+### â±ï¸ 1 minuto
 
 <div align="center">
 
-# 📊 Módulo 1 — TC Extendido
+# ðŸ“Š MÃ³dulo 1 â€” TC Estendido
 
-### Análise agregada de custo total e CPU por período
+### AnÃ¡lise agregada de custo total e CPU por perÃ­odo
 
 </div>
 
 ---
 
-### 📊 O que é o TC Extendido?
+### ðŸ“Š O que Ã© o TC Estendido?
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📊 TC EXTENDIDO — Linhas Secundárias                               │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  🎯 Propósito:                                                      │
-│     Análise de custo total agregado e CPU (Custo por Unidade)       │
-│     por período, oficina e veículo — visão de linhas secundárias    │
-│                                                                     │
-│  📐 Coluna principal de custo: Total                                │
-│                                                                     │
-│  🔄 Dois modos de visualização:                                     │
-│     ┌──────────────────────┐   ┌──────────────────────┐            │
-│     │  💰 Custo Total      │   │  📏 CPU              │            │
-│     │  sum(Total)          │   │  sum(Total)          │            │
-│     │  Soma direta         │   │  ─────────           │            │
-│     │                      │   │  sum(Volume)         │            │
-│     └──────────────────────┘   └──────────────────────┘            │
-│                                                                     │
-│  ⚠️  Regra crítica:                                                 │
-│     CPU NUNCA é somada/mediada — sempre recalculada como razão      │
-│     ponderada: sum(Total) / sum(Volume)                             │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 📋 Filtros e Dimensões
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🔍 FILTROS DISPONÍVEIS                                             │
-│                                                                     │
-│  Básicos:  Ano · Período · Oficina · Veículo · USI                  │
-│  Custo:    Type 05 · Type 06 · Account · Fornecedor                 │
-│  Avançado: Type 07 · Material · Pedido · Ordem · Origem             │
-│                                                                     │
-│  📊 DADOS DE ENTRADA                                                │
-│                                                                     │
-│  Pasta:     dados/TC_Ext/{ano}/                                     │
-│  Histórico: dados/TC_Ext/historico_consolidado/                     │
-│  Parquets:  df_final.parquet, df_vol.parquet                        │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š TC ESTENDIDO â€” Linhas SecundÃ¡rias                               â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŽ¯ PropÃ³sito:                                                      â”‚
+â”‚     AnÃ¡lise de custo total agregado e CPU (Custo por Unidade)       â”‚
+â”‚     por perÃ­odo, oficina e veÃ­culo â€” visÃ£o de linhas secundÃ¡rias    â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“ Coluna principal de custo: Total                                â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ”„ Dois modos de visualizaÃ§Ã£o:                                     â”‚
+â”‚     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”            â”‚
+â”‚     â”‚  ðŸ’° Custo Total      â”‚   â”‚  ðŸ“ CPU              â”‚            â”‚
+â”‚     â”‚  sum(Total)          â”‚   â”‚  sum(Total)          â”‚            â”‚
+â”‚     â”‚  Soma direta         â”‚   â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€           â”‚            â”‚
+â”‚     â”‚                      â”‚   â”‚  sum(Volume)         â”‚            â”‚
+â”‚     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜            â”‚
+â”‚                                                                     â”‚
+â”‚  âš ï¸  Regra crÃ­tica:                                                 â”‚
+â”‚     CPU NUNCA Ã© somada/mediada â€” sempre recalculada como razÃ£o      â”‚
+â”‚     ponderada: sum(Total) / sum(Volume)                             â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-### 📈 Flex Budget (TC Ext)
+### ðŸ“‹ Filtros e DimensÃµes
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📈 FLEX BUDGET — Ajuste por volume                                 │
-│                                                                     │
-│  Custo Fixo:                                                        │
-│     Flex = Budget fixo (inalterado)                                 │
-│                                                                     │
-│  Custo Variável:                                                    │
-│     Flex = Budget variável × (Volume Real / Volume Budget)          │
-│                                                                     │
-│  🎯 Permite isolar: variação veio do volume ou do custo?            │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ” FILTROS DISPONÃVEIS                                             â”‚
+â”‚                                                                     â”‚
+â”‚  BÃ¡sicos:  Ano Â· PerÃ­odo Â· Oficina Â· VeÃ­culo Â· USI                  â”‚
+â”‚  Custo:    Type 05 Â· Type 06 Â· Account Â· Fornecedor                 â”‚
+â”‚  AvanÃ§ado: Type 07 Â· Material Â· Pedido Â· Ordem Â· Origem             â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š DADOS DE ENTRADA                                                â”‚
+â”‚                                                                     â”‚
+â”‚  Pasta:     dados/TC_Ext/{ano}/                                     â”‚
+â”‚  HistÃ³rico: dados/TC_Ext/historico_consolidado/                     â”‚
+â”‚  Parquets:  df_final.parquet, df_vol.parquet                        â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🚗 SLIDE 3: TC VEÍCULOS
-### ⏱️ 1 minuto 30 segundos
+### ðŸ“ˆ Flex Budget (TC Ext)
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“ˆ FLEX BUDGET â€” Ajuste por volume                                 â”‚
+â”‚                                                                     â”‚
+â”‚  Custo Fixo:                                                        â”‚
+â”‚     Flex = Budget fixo (inalterado)                                 â”‚
+â”‚                                                                     â”‚
+â”‚  Custo VariÃ¡vel:                                                    â”‚
+â”‚     Flex = Budget variÃ¡vel Ã— (Volume Real / Volume Budget)          â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŽ¯ Permite isolar: variaÃ§Ã£o veio do volume ou do custo?            â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+---
+
+## ðŸš— SLIDE 3: TC VEÃCULOS
+### â±ï¸ 1 minuto 30 segundos
 
 <div align="center">
 
-# 🚗 Módulo 2 — TC Veículos
+# ðŸš— MÃ³dulo 2 â€” TC VeÃ­culos
 
-### Análise de custo do Fluxo Principal (Custo FP) rateado por modelo de veículo
+### AnÃ¡lise de custo do Fluxo Principal (Custo FP) rateado por modelo de veÃ­culo
 
 </div>
 
 ---
 
-### 🚗 O que é o TC Veículos?
+### ðŸš— O que Ã© o TC VeÃ­culos?
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🚗 TC VEÍCULOS — Custo do Fluxo Principal (FP) por Modelo          │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  🎯 Propósito:                                                      │
-│     Análise detalhada do custo do Fluxo Principal (Custo FP) por    │
-│     veículo, com cadeia completa de custos e rateio proporcional    │
-│     ao tempo de produção em cada oficina.                           │
-│                                                                     │
-│  📐 Coluna principal de custo: Custo FP                             │
-│                                                                     │
-│  🔗 Cadeia de custos:                                               │
-│     ┌──────────────────────────────────────────────────────────┐   │
-│     │ Despesa Primária = Custo FA + Custo FP                    │   │
-│     │                                                          │   │
-│     │ Custo FA = Rateio FA × Despesa Primária                   │   │
-│     │ Custo FP = Despesa Primária − Custo FA                    │   │
-│     └──────────────────────────────────────────────────────────┘   │
-│                               │                                     │
-│                    ┌──────────▼──────────┐                          │
-│                    │ D&A Dedicado        │                          │
-│                    │ (atribuído ao veíc.)│                          │
-│                    └──────────┬──────────┘                          │
-│                               │                                     │
-│                    ┌──────────▼──────────┐                          │
-│                    │ FP sem Dedicada     │                          │
-│                    │ = Custo FP − D&A    │                          │
-│                    └─────────────────────┘                          │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 🔄 Rateio por Veículo
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🔄 RATEIO PROPORCIONAL AO TEMPO DE PRODUÇÃO                       │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  Quando um veículo é selecionado, o sistema rateia os custos:       │
-│                                                                     │
-│  1. Percentual = Tempo_Veículo(v,o) / Σ Tempo_Veículo(v,o)         │
-│  2. Custo Rateado(v,o) = FP_sem_Dedicada(o) × Percentual(v,o)      │
-│  3. Custo FP Veículo(v,o) = Custo_Rateado(v,o) + D&A_Dedicado(v,o) │
-│                                                                     │
-│  Exemplo:                                                           │
-│  ┌───────────────────────────────────────────────────────┐          │
-│  │  Oficina: Pintura                                     │          │
-│  │  Veículo A: 40 min  │  Veículo B: 60 min              │          │
-│  │                                                       │          │
-│  │  % Veíc A = 40/(40+60) = 40%                          │          │
-│  │  % Veíc B = 60/(40+60) = 60%                          │          │
-│  │                                                       │          │
-│  │  FP sem Dedicada = R$ 100.000                         │          │
-│  │  Rateio Veíc A = 100.000 × 40% = R$ 40.000           │          │
-│  │  Rateio Veíc B = 100.000 × 60% = R$ 60.000           │          │
-│  └───────────────────────────────────────────────────────┘          │
-│                                                                     │
-│  Veículo = "Todos" → dados consolidados (sem rateio)                │
-│  Veículo específico → dados rateados com Custo FP Veículo           │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸš— TC VEÃCULOS â€” Custo do Fluxo Principal (FP) por Modelo          â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŽ¯ PropÃ³sito:                                                      â”‚
+â”‚     AnÃ¡lise detalhada do custo do Fluxo Principal (Custo FP) por    â”‚
+â”‚     veÃ­culo, com cadeia completa de custos e rateio proporcional    â”‚
+â”‚     ao tempo de produÃ§Ã£o em cada oficina.                           â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“ Coluna principal de custo: Custo FP                             â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ”— Cadeia de custos:                                               â”‚
+â”‚     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
+â”‚     â”‚ Despesa PrimÃ¡ria = Custo FA + Custo FP                    â”‚   â”‚
+â”‚     â”‚                                                          â”‚   â”‚
+â”‚     â”‚ Custo FA = Rateio FA Ã— Despesa PrimÃ¡ria                   â”‚   â”‚
+â”‚     â”‚ Custo FP = Despesa PrimÃ¡ria âˆ’ Custo FA                    â”‚   â”‚
+â”‚     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
+â”‚                               â”‚                                     â”‚
+â”‚                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                          â”‚
+â”‚                    â”‚ D&A Dedicado        â”‚                          â”‚
+â”‚                    â”‚ (atribuÃ­do ao veÃ­c.)â”‚                          â”‚
+â”‚                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
+â”‚                               â”‚                                     â”‚
+â”‚                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                          â”‚
+â”‚                    â”‚ FP sem Dedicada     â”‚                          â”‚
+â”‚                    â”‚ = Custo FP âˆ’ D&A    â”‚                          â”‚
+â”‚                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-### 📋 6 Tabs da Home TC Veículos
+### ðŸ”„ Rateio por VeÃ­culo
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🚗 HOME TC VEÍCULOS — 6 Tabs de Análise                           │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  ┌─────────────────────┐  ┌─────────────────────┐                  │
-│  │ 🚗 TC Veículos      │  │ 📊 Análise Flex     │                  │
-│  │ KPIs resumo +       │  │ Fixo/Variável com   │                  │
-│  │ Custo FP × Flex BUD │  │ hierarquia          │                  │
-│  │ por período         │  │ Type 05 → Account   │                  │
-│  └─────────────────────┘  └─────────────────────┘                  │
-│                                                                     │
-│  ┌─────────────────────┐  ┌─────────────────────┐                  │
-│  │ 📈 Volume           │  │ 🏢 Custos p/ Ofic.  │                  │
-│  │ Budget vs Realizado │  │ Custo FP e Rateio   │                  │
-│  │ por período e       │  │ FA por oficina      │                  │
-│  │ por veículo         │  │                     │                  │
-│  └─────────────────────┘  └─────────────────────┘                  │
-│                                                                     │
-│  ┌─────────────────────┐  ┌─────────────────────┐                  │
-│  │ ⏱️ Tempo Produção   │  │ 📋 Dados Detalhados │                  │
-│  │ Tempo Veículo vs    │  │ Tabelas exportáveis │                  │
-│  │ Tempo FA p/ oficina │  │ de Real e Budget    │                  │
-│  └─────────────────────┘  └─────────────────────┘                  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 📊 Dados e Filtros (TC Veículos)
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📊 DADOS DE ENTRADA                                                │
-│                                                                     │
-│  Pasta:     dados/TC_Principal/{ano}/                               │
-│  Budget:    dados/TC_Principal/{ano}/BUD/                           │
-│  Histórico: dados/TC_Principal/historico_consolidado/               │
-│  Parquets:  df_principal, df_veiculos_custo_fp,                     │
-│             df_vol_veiculos (Real) / df_vol_veiculos_actual (Actual),│
-│             df_dea_dedicado, df_volume_fa                           │
-│                                                                     │
-│  🔍 FILTROS: Oficina · Veículo (ativa rateio) · Type 05/06 ·       │
-│              Account · Custo (Fixo/Variável)                        │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ”„ RATEIO PROPORCIONAL AO TEMPO DE PRODUÃ‡ÃƒO                       â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  Quando um veÃ­culo Ã© selecionado, o sistema rateia os custos:       â”‚
+â”‚                                                                     â”‚
+â”‚  1. Percentual = Tempo_VeÃ­culo(v,o) / Î£ Tempo_VeÃ­culo(v,o)         â”‚
+â”‚  2. Custo Rateado(v,o) = FP_sem_Dedicada(o) Ã— Percentual(v,o)      â”‚
+â”‚  3. Custo FP VeÃ­culo(v,o) = Custo_Rateado(v,o) + D&A_Dedicado(v,o) â”‚
+â”‚                                                                     â”‚
+â”‚  Exemplo:                                                           â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”          â”‚
+â”‚  â”‚  Oficina: Pintura                                     â”‚          â”‚
+â”‚  â”‚  VeÃ­culo A: 40 min  â”‚  VeÃ­culo B: 60 min              â”‚          â”‚
+â”‚  â”‚                                                       â”‚          â”‚
+â”‚  â”‚  % VeÃ­c A = 40/(40+60) = 40%                          â”‚          â”‚
+â”‚  â”‚  % VeÃ­c B = 60/(40+60) = 60%                          â”‚          â”‚
+â”‚  â”‚                                                       â”‚          â”‚
+â”‚  â”‚  FP sem Dedicada = R$ 100.000                         â”‚          â”‚
+â”‚  â”‚  Rateio VeÃ­c A = 100.000 Ã— 40% = R$ 40.000           â”‚          â”‚
+â”‚  â”‚  Rateio VeÃ­c B = 100.000 Ã— 60% = R$ 60.000           â”‚          â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜          â”‚
+â”‚                                                                     â”‚
+â”‚  VeÃ­culo = "Todos" â†’ dados consolidados (sem rateio)                â”‚
+â”‚  VeÃ­culo especÃ­fico â†’ dados rateados com Custo FP VeÃ­culo           â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🔗 SLIDE 4: FUNCIONALIDADES COMPARTILHADAS
-### ⏱️ 1 minuto 30 segundos
+### ðŸ“‹ 6 Tabs da Home TC VeÃ­culos
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸš— HOME TC VEÃCULOS â€” 6 Tabs de AnÃ¡lise                           â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”‚
+â”‚  â”‚ ðŸš— TC VeÃ­culos      â”‚  â”‚ ðŸ“Š AnÃ¡lise Flex     â”‚                  â”‚
+â”‚  â”‚ KPIs resumo +       â”‚  â”‚ Fixo/VariÃ¡vel com   â”‚                  â”‚
+â”‚  â”‚ Custo FP Ã— Flex BUD â”‚  â”‚ hierarquia          â”‚                  â”‚
+â”‚  â”‚ por perÃ­odo         â”‚  â”‚ Type 05 â†’ Account   â”‚                  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â”‚
+â”‚                                                                     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”‚
+â”‚  â”‚ ðŸ“ˆ Volume           â”‚  â”‚ ðŸ¢ Custos p/ Ofic.  â”‚                  â”‚
+â”‚  â”‚ Budget vs Realizado â”‚  â”‚ Custo FP e Rateio   â”‚                  â”‚
+â”‚  â”‚ por perÃ­odo e       â”‚  â”‚ FA por oficina      â”‚                  â”‚
+â”‚  â”‚ por veÃ­culo         â”‚  â”‚                     â”‚                  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â”‚
+â”‚                                                                     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”‚
+â”‚  â”‚ â±ï¸ Tempo ProduÃ§Ã£o   â”‚  â”‚ ðŸ“‹ Dados Detalhados â”‚                  â”‚
+â”‚  â”‚ Tempo VeÃ­culo vs    â”‚  â”‚ Tabelas exportÃ¡veis â”‚                  â”‚
+â”‚  â”‚ Tempo FA p/ oficina â”‚  â”‚ de Real e Budget    â”‚                  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+---
+
+### ðŸ“Š Dados e Filtros (TC VeÃ­culos)
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š DADOS DE ENTRADA                                                â”‚
+â”‚                                                                     â”‚
+â”‚  Pasta:     dados/TC_Principal/{ano}/                               â”‚
+â”‚  Budget:    dados/TC_Principal/{ano}/BUD/                           â”‚
+â”‚  HistÃ³rico: dados/TC_Principal/historico_consolidado/               â”‚
+â”‚  Parquets:  df_principal, df_veiculos_custo_fp,                     â”‚
+â”‚             df_vol_veiculos (Real) / df_vol_veiculos_actual (Actual),â”‚
+â”‚             df_dea_dedicado, df_volume_fa                           â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ” FILTROS: Oficina Â· VeÃ­culo (ativa rateio) Â· Type 05/06 Â·       â”‚
+â”‚              Account Â· Custo (Fixo/VariÃ¡vel)                        â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+---
+
+## ðŸ”— SLIDE 4: FUNCIONALIDADES COMPARTILHADAS
+### â±ï¸ 1 minuto 30 segundos
 
 <div align="center">
 
-# 🔗 Funcionalidades Compartilhadas
+# ðŸ”— Funcionalidades Compartilhadas
 
-### Disponíveis em ambos os módulos (TC Ext e TC Veículos)
+### DisponÃ­veis em ambos os mÃ³dulos (TC Ext e TC VeÃ­culos)
 
 </div>
 
 ---
 
-### 📈 Waterfall — Análise de Variações
+### ðŸ“ˆ Waterfall â€” AnÃ¡lise de VariaÃ§Ãµes
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📈 WATERFALL — "O que mudou entre dois períodos?"                  │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  Compara dois períodos e decompõe a variação:                       │
-│                                                                     │
-│     Mês 1  ──▶  Efeito Volume  ──▶  Efeito Custo  ──▶  Mês 2      │
-│      100          +15                  +5                120        │
-│                                                                     │
-│  O Flex Budget SEPARA as causas:                                    │
-│     • Variação por Volume — quanto mudou por ter produzido mais/    │
-│       menos (ajuste Flex)                                           │
-│     • Variação por Custo — quanto mudou pelo custo em si            │
-│                                                                     │
-│  📊 TC Ext: coluna Total                                            │
-│  🚗 TC Veículos: cadeia Desp Primária → Redis → FA → D&A → FP      │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 🔮 Best Estimate — Simulador + consumo do Forecast
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🔮 BEST ESTIMATE — Projeções inteligentes                         │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  🎛️ SIMULADOR: define premissas e gera Forecast                    │
-│     ┌─────────────────────────────────────────────────────────┐    │
-│     │  Premissa        Descrição                              │    │
-│     │  ─────────────── ───────────────────────────────────── │    │
-│     │  Sensibilidade   O quanto o custo responde ao volume    │    │
-│     │                  (0% = fixo, 100% = variável)           │    │
-│     │  Inflação        % reajuste SOBRE TODOS os custos       │    │
-│     │  Volume          Produção projetada por veículo/mês     │    │
-│     └─────────────────────────────────────────────────────────┘    │
-│                                                                     │
-│  🧮 Fórmula:                                                       │
-│     BE = Média_Histórica × (1 + Var_Volume × Sensib) × (1 + Infl)  │
-│                                                                     │
-│     Fixo:     sensibilidade = 0% → sem ajuste de volume             │
-│     Variável: sensibilidade = 100% → escala com volume              │
-│     Inflação aplicada APÓS sensibilidade, a TODOS os custos         │
-│                                                                     │
-│  📊 CONSUMO: a Home do TC Veículos usa os outputs do Forecast       │
-│     quando disponíveis (mantém regras de CPU e fator/moeda).        │
-│                                                                     │
-│  Saída: dados/*/Forecast/forecast_completo.parquet                  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“ˆ WATERFALL â€” "O que mudou entre dois perÃ­odos?"                  â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  Compara dois perÃ­odos e decompÃµe a variaÃ§Ã£o:                       â”‚
+â”‚                                                                     â”‚
+â”‚     MÃªs 1  â”€â”€â–¶  Efeito Volume  â”€â”€â–¶  Efeito Custo  â”€â”€â–¶  MÃªs 2      â”‚
+â”‚      100          +15                  +5                120        â”‚
+â”‚                                                                     â”‚
+â”‚  O Flex Budget SEPARA as causas:                                    â”‚
+â”‚     â€¢ VariaÃ§Ã£o por Volume â€” quanto mudou por ter produzido mais/    â”‚
+â”‚       menos (ajuste Flex)                                           â”‚
+â”‚     â€¢ VariaÃ§Ã£o por Custo â€” quanto mudou pelo custo em si            â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š TC Ext: coluna Total                                            â”‚
+â”‚  ðŸš— TC VeÃ­culos: cadeia Desp PrimÃ¡ria â†’ Redis â†’ FA â†’ D&A â†’ FP      â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-### 🌐 Recursos Transversais
+### ðŸ”® Best Estimate â€” Simulador + consumo do Forecast
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🔄 MULTI-MOEDA                 📥 EXTRAÇÃO DE DADOS               │
-│     R$ · USD · EUR                 Upload Excel → Notebooks →       │
-│     Conversão com câmbio           Parquet consolidado               │
-│     persistido em SQLite                                            │
-│                                                                     │
-│  📊 FATOR DE ESCALA             📤 EXPORTAÇÃO EXCEL                 │
-│     Nenhum · K (÷1.000)           Downloads formatados com          │
-│     · M (÷1.000.000)              filtros do usuário aplicados      │
-│     Nunca em CPU                                                    │
-│                                                                     │
-│  🔄 VERSIONAMENTO               📚 DOCUMENTAÇÃO                    │
-│     Automático — incrementa        Página única e integrada         │
-│     quando páginas mudam           no próprio sistema               │
-│                                                                     │
-│  ⚡ CACHE INTELIGENTE                                               │
-│     TTL + otimização de tipos — consultas rápidas e eficientes      │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ”® BEST ESTIMATE â€” ProjeÃ§Ãµes inteligentes                         â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŽ›ï¸ SIMULADOR: define premissas e gera Forecast                    â”‚
+â”‚     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
+â”‚     â”‚  Premissa        DescriÃ§Ã£o                              â”‚    â”‚
+â”‚     â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”‚    â”‚
+â”‚     â”‚  Sensibilidade   O quanto o custo responde ao volume    â”‚    â”‚
+â”‚     â”‚                  (0% = fixo, 100% = variÃ¡vel)           â”‚    â”‚
+â”‚     â”‚  InflaÃ§Ã£o        % reajuste SOBRE TODOS os custos       â”‚    â”‚
+â”‚     â”‚  Volume          ProduÃ§Ã£o projetada por veÃ­culo/mÃªs     â”‚    â”‚
+â”‚     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ§® FÃ³rmula:                                                       â”‚
+â”‚     BE = MÃ©dia_HistÃ³rica Ã— (1 + Var_Volume Ã— Sensib) Ã— (1 + Infl)  â”‚
+â”‚                                                                     â”‚
+â”‚     Fixo:     sensibilidade = 0% â†’ sem ajuste de volume             â”‚
+â”‚     VariÃ¡vel: sensibilidade = 100% â†’ escala com volume              â”‚
+â”‚     InflaÃ§Ã£o aplicada APÃ“S sensibilidade, a TODOS os custos         â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š CONSUMO: a Home do TC VeÃ­culos usa os outputs do Forecast       â”‚
+â”‚     quando disponÃ­veis (mantÃ©m regras de CPU e fator/moeda).        â”‚
+â”‚                                                                     â”‚
+â”‚  SaÃ­da: dados/*/Forecast/forecast_completo.parquet                  â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 📐 SLIDE 5: COMPARATIVO TC EXT vs TC VEÍCULOS
-### ⏱️ 30 segundos
+### ðŸŒ Recursos Transversais
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ”„ MULTI-MOEDA                 ðŸ“¥ EXTRAÃ‡ÃƒO DE DADOS               â”‚
+â”‚     R$ Â· USD Â· EUR                 Upload Excel â†’ Notebooks â†’       â”‚
+â”‚     ConversÃ£o com cÃ¢mbio           Parquet consolidado               â”‚
+â”‚     persistido em SQLite                                            â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“Š FATOR DE ESCALA             ðŸ“¤ EXPORTAÃ‡ÃƒO EXCEL                 â”‚
+â”‚     Nenhum Â· K (Ã·1.000)           Downloads formatados com          â”‚
+â”‚     Â· M (Ã·1.000.000)              filtros do usuÃ¡rio aplicados      â”‚
+â”‚     Nunca em CPU                                                    â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ”„ VERSIONAMENTO               ðŸ“š DOCUMENTAÃ‡ÃƒO                    â”‚
+â”‚     AutomÃ¡tico â€” incrementa        PÃ¡gina Ãºnica e integrada         â”‚
+â”‚     quando pÃ¡ginas mudam           no prÃ³prio sistema               â”‚
+â”‚                                                                     â”‚
+â”‚  âš¡ CACHE INTELIGENTE                                               â”‚
+â”‚     TTL + otimizaÃ§Ã£o de tipos â€” consultas rÃ¡pidas e eficientes      â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+---
+
+## ðŸ“ SLIDE 5: COMPARATIVO TC EXT vs TC VEÃCULOS
+### â±ï¸ 30 segundos
 
 <div align="center">
 
-# 📐 Comparativo entre os Módulos
+# ðŸ“ Comparativo entre os MÃ³dulos
 
 </div>
 
 ---
 
-### 📋 Diferenças Resumidas
+### ðŸ“‹ DiferenÃ§as Resumidas
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  ASPECTO              📊 TC EXTENDIDO       🚗 TC VEÍCULOS          │
-│  ─────────────────── ──────────────────── ──────────────────────── │
-│  Visão                Agregada             Detalhada por veículo    │
-│  Coluna de custo      Total                Custo FP (cadeia)        │
-│  Modo de exibição     Custo Total ↔ CPU    Custo FP + cadeia        │
-│  Rateio               Não há               Proporcional (tempo)     │
-│  Volume               Simples              Por veículo + FA         │
-│  Pasta de dados       dados/TC_Ext/        dados/TC_Principal/      │
-│  Filtros avançados    Material, Pedido,    Type 05/06, Account,     │
-│                       Ordem, Origem...     Custo Fixo/Variável      │
-│  Tabs na Home         Consolidada          6 tabs especializadas    │
-│  Flex Budget          Total                Cadeia completa          │
-│  Waterfall            Coluna Total         Cadeia FA→FP→D&A         │
-│                                                                     │
-│  ─────────────────────────────────────────────────────────────────  │
-│  COMPARTILHADO: Waterfall · Best Estimate · Extração · Export ·     │
-│                 Multi-moeda · Cache · Versionamento · Documentação  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ASPECTO              ðŸ“Š TC ESTENDIDO       ðŸš— TC VEÃCULOS          â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”‚
+â”‚  VisÃ£o                Agregada             Detalhada por veÃ­culo    â”‚
+â”‚  Coluna de custo      Total                Custo FP (cadeia)        â”‚
+â”‚  Modo de exibiÃ§Ã£o     Custo Total â†” CPU    Custo FP + cadeia        â”‚
+â”‚  Rateio               NÃ£o hÃ¡               Proporcional (tempo)     â”‚
+â”‚  Volume               Simples              Por veÃ­culo + FA         â”‚
+â”‚  Pasta de dados       dados/TC_Ext/        dados/TC_Principal/      â”‚
+â”‚  Filtros avanÃ§ados    Material, Pedido,    Type 05/06, Account,     â”‚
+â”‚                       Ordem, Origem...     Custo Fixo/VariÃ¡vel      â”‚
+â”‚  Tabs na Home         Consolidada          6 tabs especializadas    â”‚
+â”‚  Flex Budget          Total                Cadeia completa          â”‚
+â”‚  Waterfall            Coluna Total         Cadeia FAâ†’FPâ†’D&A         â”‚
+â”‚                                                                     â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚  COMPARTILHADO: Waterfall Â· Best Estimate Â· ExtraÃ§Ã£o Â· Export Â·     â”‚
+â”‚                 Multi-moeda Â· Cache Â· Versionamento Â· DocumentaÃ§Ã£o  â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🏗️ SLIDE 6: ARQUITETURA TÉCNICA
-### ⏱️ 30 segundos
+## ðŸ—ï¸ SLIDE 6: ARQUITETURA TÃ‰CNICA
+### â±ï¸ 30 segundos
 
 <div align="center">
 
-# 🏗️ Arquitetura do Sistema
+# ðŸ—ï¸ Arquitetura do Sistema
 
 </div>
 
 ---
 
-### 📐 Estrutura Modular
+### ðŸ“ Estrutura Modular
 
 ```
-                    ┌─────────────────────┐
-                    │   📊 app.py         │
-                    │   Portal / Router   │
-                    │   (st.navigation)   │
-                    └──────────┬──────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          │                    │                    │
-  ┌───────▼────────┐  ┌───────▼────────┐  ┌───────▼────────┐
-  │ 📊 TC Extendido │  │ 🚗 TC Veículos │  │ 📚 Documentação │
-  │ Visão agregada  │  │ Visão veículo  │  │ Página única    │
-  └───────┬────────┘  └───────┬────────┘  └────────────────┘
-          │                    │
-  ┌───────▼────────┐  ┌───────▼────────┐
-  │ tc_ext/        │  │ tc_principal/  │
-  │ • home_ext     │  │ • home_tc      │
-  │ • be_analise   │  │ • waterfall_tc │
-  │ • normalizacao │  │ • be_simulador │
-  │ • metricas     │  │ • be_analise   │
-  └────────────────┘  │ • extracao     │
-                      │ • shared       │
-                      └────────────────┘
+                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                    â”‚   ðŸ“Š app.py         â”‚
+                    â”‚   Portal / Router   â”‚
+                    â”‚   (st.navigation)   â”‚
+                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                               â”‚
+          â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+          â”‚                    â”‚                    â”‚
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚ ðŸ“Š TC Estendido â”‚  â”‚ ðŸš— TC VeÃ­culos â”‚  â”‚ ðŸ“š DocumentaÃ§Ã£o â”‚
+  â”‚ VisÃ£o agregada  â”‚  â”‚ VisÃ£o veÃ­culo  â”‚  â”‚ PÃ¡gina Ãºnica    â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+          â”‚                    â”‚
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚ tc_ext/        â”‚  â”‚ tc_principal/  â”‚
+  â”‚ â€¢ home_ext     â”‚  â”‚ â€¢ home_tc      â”‚
+  â”‚ â€¢ be_analise   â”‚  â”‚ â€¢ waterfall_tc â”‚
+  â”‚ â€¢ normalizacao â”‚  â”‚ â€¢ be_simulador â”‚
+  â”‚ â€¢ metricas     â”‚  â”‚ â€¢ be_analise   â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚ â€¢ extracao     â”‚
+                      â”‚ â€¢ shared       â”‚
+                      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
-### 🔄 Fluxo de Dados
+### ðŸ”„ Fluxo de Dados
 
 ```
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│   📥 ENTRADA │ ───▶ │  ⚙️ PROCESSO │ ───▶ │ 💾 ARMAZENA  │
-│              │      │              │      │              │
-│ Excel Files  │      │ Notebooks    │      │ Parquet      │
-│ (SAPIENS)    │      │ Python ETL   │      │ (70% menos   │
-│              │      │ Automatizado │      │  memória)    │
-└──────────────┘      └──────────────┘      └──────────────┘
-                                                    │
-                                                    ▼
-                                          ┌──────────────┐
-                                          │ 📊 DASHBOARD │
-                                          │  Streamlit   │
-                                          │  Interativo  │
-                                          └──────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚   ðŸ“¥ ENTRADA â”‚ â”€â”€â”€â–¶ â”‚  âš™ï¸ PROCESSO â”‚ â”€â”€â”€â–¶ â”‚ ðŸ’¾ ARMAZENA  â”‚
+â”‚              â”‚      â”‚              â”‚      â”‚              â”‚
+â”‚ Excel Files  â”‚      â”‚ Notebooks    â”‚      â”‚ Parquet      â”‚
+â”‚ (SAPIENS)    â”‚      â”‚ Python ETL   â”‚      â”‚ (70% menos   â”‚
+â”‚              â”‚      â”‚ Automatizado â”‚      â”‚  memÃ³ria)    â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                                    â”‚
+                                                    â–¼
+                                          â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                                          â”‚ ðŸ“Š DASHBOARD â”‚
+                                          â”‚  Streamlit   â”‚
+                                          â”‚  Interativo  â”‚
+                                          â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
-### 🛠️ Stack Tecnológico
+### ðŸ› ï¸ Stack TecnolÃ³gico
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│  🐍 Python 3.13         Linguagem principal         │
-│  🌐 Streamlit           Interface web interativa    │
-│  🐼 Pandas              Processamento de dados      │
-│  📦 Parquet             Armazenamento otimizado     │
-│  📊 Plotly / Altair     Visualizações interativas   │
-│  🗃️ SQLite              Câmbio persistido           │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                     â”‚
+â”‚  ðŸ Python 3.13         Linguagem principal         â”‚
+â”‚  ðŸŒ Streamlit           Interface web interativa    â”‚
+â”‚  ðŸ¼ Pandas              Processamento de dados      â”‚
+â”‚  ðŸ“¦ Parquet             Armazenamento otimizado     â”‚
+â”‚  ðŸ“Š Plotly / Altair     VisualizaÃ§Ãµes interativas   â”‚
+â”‚  ðŸ—ƒï¸ SQLite              CÃ¢mbio persistido           â”‚
+â”‚                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🗺️ SLIDE 7: ESTRUTURA DE PAGES (NAVEGAÇÃO)
-### ⏱️ 30 segundos
+## ðŸ—ºï¸ SLIDE 7: ESTRUTURA DE PAGES (NAVEGAÃ‡ÃƒO)
+### â±ï¸ 30 segundos
 
 <div align="center">
 
-# 🗺️ Mapa de Páginas do SCI
+# ðŸ—ºï¸ Mapa de PÃ¡ginas do SCI
 
 ### Como o app organiza as telas (Streamlit `st.navigation`)
 
@@ -510,202 +510,202 @@
 
 ---
 
-### 🧭 Router (app.py) → Grupos e Páginas
+### ðŸ§­ Router (app.py) â†’ Grupos e PÃ¡ginas
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  📌 Fonte de verdade: app.py (dict PAGES)                           │
-│                                                                     │
-│  1) 🚗 TC Veículos (tc_principal/pages/)                            │
-│     • Home (TC Veículos)            → tc_principal/pages/home_tc.py │
-│     • Waterfall                     → tc_principal/pages/waterfall_tc.py │
-│     • Best Estimate (Simulador)     → tc_principal/pages/best_estimate_simulador_tc.py │
-│     • Extração de Dados             → tc_principal/pages/extracao_dados_tc.py │
-│     • Debug de Cálculos             → tc_principal/pages/debug_calculos_tc.py │
-│                                                                     │
-│  2) 📊 TC Ext (Linhas Secundárias)                                  │
-│     • Home (TC Ext)                 → tc_ext/pages/home_ext.py      │
-│     • Waterfall                     → pages/1 - Waterfall.py       │
-│     • Best Estimate (Simulador)     → pages/2 - Best Estimate - Simulador.py │
-│     • Extração de Dados             → pages/5 - Extração de Dados.py │
-│                                                                     │
-│  3) 📚 Documentação                                                 │
-│     • Documentação (Projeto)        → pages/6 - Documentacao.py     │
-│                                                                     │
-│  4) 🤖 TC Copilot                                                   │
-│     • TC Copilot                    → tc_copilot/pages/home_copilot.py │
-│                                                                     │
-│  🎯 Leitura rápida:                                                 │
-│     UI do TC Veículos fica em tc_principal/pages/                   │
-│     TC Ext reusa wrappers em pages/ (estrutura parecida)            │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ“Œ Fonte de verdade: app.py (dict PAGES)                           â”‚
+â”‚                                                                     â”‚
+â”‚  1) ðŸš— TC VeÃ­culos (tc_principal/pages/)                            â”‚
+â”‚     â€¢ Home (TC VeÃ­culos)            â†’ tc_principal/pages/home_tc.py â”‚
+â”‚     â€¢ Waterfall                     â†’ tc_principal/pages/waterfall_tc.py â”‚
+â”‚     â€¢ Best Estimate (Simulador)     â†’ tc_principal/pages/best_estimate_simulador_tc.py â”‚
+â”‚     â€¢ ExtraÃ§Ã£o de Dados             â†’ tc_principal/pages/extracao_dados_tc.py â”‚
+â”‚     â€¢ Debug de CÃ¡lculos             â†’ tc_principal/pages/debug_calculos_tc.py â”‚
+â”‚                                                                     â”‚
+â”‚  2) ðŸ“Š TC Ext (Linhas SecundÃ¡rias)                                  â”‚
+â”‚     â€¢ Home (TC Ext)                 â†’ tc_ext/pages/home_ext.py      â”‚
+â”‚     â€¢ Waterfall                     â†’ pages/1 - Waterfall.py       â”‚
+â”‚     â€¢ Best Estimate (Simulador)     â†’ pages/2 - Best Estimate - Simulador.py â”‚
+â”‚     â€¢ ExtraÃ§Ã£o de Dados             â†’ pages/5 - ExtraÃ§Ã£o de Dados.py â”‚
+â”‚                                                                     â”‚
+â”‚  3) ðŸ“š DocumentaÃ§Ã£o                                                 â”‚
+â”‚     â€¢ DocumentaÃ§Ã£o (Projeto)        â†’ pages/6 - Documentacao.py     â”‚
+â”‚                                                                     â”‚
+â”‚  4) ðŸ¤– TC Copilot                                                   â”‚
+â”‚     â€¢ TC Copilot                    â†’ tc_copilot/pages/home_copilot.py â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŽ¯ Leitura rÃ¡pida:                                                 â”‚
+â”‚     UI do TC VeÃ­culos fica em tc_principal/pages/                   â”‚
+â”‚     TC Ext reusa wrappers em pages/ (estrutura parecida)            â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🚗 SLIDE 8: PÁGINAS DO TC VEÍCULOS (RESUMO)
-### ⏱️ 45 segundos
+## ðŸš— SLIDE 8: PÃGINAS DO TC VEÃCULOS (RESUMO)
+### â±ï¸ 45 segundos
 
 <div align="center">
 
-# 🚗 TC Veículos — O que cada Page faz
+# ðŸš— TC VeÃ­culos â€” O que cada Page faz
 
-### (estrutura similar ao TC Ext; foco aqui no TC Veículos)
+### (estrutura similar ao TC Ext; foco aqui no TC VeÃ­culos)
 
 </div>
 
 ---
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  🏠 HOME (TC Veículos) — tc_principal/pages/home_tc.py              │
-│  • Painel principal com 6 tabs (KPIs, Flex, Volume, Oficinas, Tempo,│
-│    Detalhado)                                                      │
-│  • Aplica filtros globais (Ano, Moeda, Fator, Tipo)                 │
-│  • Consome Real/Budget e, quando disponível, Forecast (BE)          │
-│                                                                     │
-│  🌊 WATERFALL — tc_principal/pages/waterfall_tc.py                  │
-│  • “O que mudou entre períodos?”: Volume × Custo + cadeia TC        │
-│  • Suporta seleção de veículo (Todos vs Veículo → rateio)           │
-│  • Pode mesclar BE para meses sem Real (quando existir)             │
-│                                                                     │
-│  🔮 BEST ESTIMATE (Simulador) — tc_principal/pages/best_estimate_simulador_tc.py │
-│  • Define premissas (sensibilidade, inflação, volumes) e gera Forecast│
-│  • Salva/consome parquets em dados/TC_Principal/Forecast/           │
-│  • Rateia BE por veículo quando necessário                          │
-│                                                                     │
-│  📥 EXTRAÇÃO DE DADOS — tc_principal/pages/extracao_dados_tc.py      │
-│  • Upload + pré-validação + processamento (Real/Budget)             │
-│  • Gera parquets em dados/TC_Principal/{ano}/ e consolida histórico │
-│                                                                     │
-│  🧪 DEBUG DE CÁLCULOS — tc_principal/pages/debug_calculos_tc.py      │
-│  • Abas de auditoria para rastrear inconsistências e validar fórmulas│
-│  • Ajuda a conferir cadeia: Despesa Primária → FA → FP → D&A → CPU  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ  HOME (TC VeÃ­culos) â€” tc_principal/pages/home_tc.py              â”‚
+â”‚  â€¢ Painel principal com 6 tabs (KPIs, Flex, Volume, Oficinas, Tempo,â”‚
+â”‚    Detalhado)                                                      â”‚
+â”‚  â€¢ Aplica filtros globais (Ano, Moeda, Fator, Tipo)                 â”‚
+â”‚  â€¢ Consome Real/Budget e, quando disponÃ­vel, Forecast (BE)          â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸŒŠ WATERFALL â€” tc_principal/pages/waterfall_tc.py                  â”‚
+â”‚  â€¢ â€œO que mudou entre perÃ­odos?â€: Volume Ã— Custo + cadeia TC        â”‚
+â”‚  â€¢ Suporta seleÃ§Ã£o de veÃ­culo (Todos vs VeÃ­culo â†’ rateio)           â”‚
+â”‚  â€¢ Pode mesclar BE para meses sem Real (quando existir)             â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ”® BEST ESTIMATE (Simulador) â€” tc_principal/pages/best_estimate_simulador_tc.py â”‚
+â”‚  â€¢ Define premissas (sensibilidade, inflaÃ§Ã£o, volumes) e gera Forecastâ”‚
+â”‚  â€¢ Salva/consome parquets em dados/TC_Principal/Forecast/           â”‚
+â”‚  â€¢ Rateia BE por veÃ­culo quando necessÃ¡rio                          â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“¥ EXTRAÃ‡ÃƒO DE DADOS â€” tc_principal/pages/extracao_dados_tc.py      â”‚
+â”‚  â€¢ Upload + prÃ©-validaÃ§Ã£o + processamento (Real/Budget)             â”‚
+â”‚  â€¢ Gera parquets em dados/TC_Principal/{ano}/ e consolida histÃ³rico â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ§ª DEBUG DE CÃLCULOS â€” tc_principal/pages/debug_calculos_tc.py      â”‚
+â”‚  â€¢ Abas de auditoria para rastrear inconsistÃªncias e validar fÃ³rmulasâ”‚
+â”‚  â€¢ Ajuda a conferir cadeia: Despesa PrimÃ¡ria â†’ FA â†’ FP â†’ D&A â†’ CPU  â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 📈 SLIDE 9: RESULTADOS E ENCERRAMENTO
-### ⏱️ 30 segundos
+## ðŸ“ˆ SLIDE 9: RESULTADOS E ENCERRAMENTO
+### â±ï¸ 30 segundos
 
 <div align="center">
 
-# 📈 Resultados e Equipe
+# ðŸ“ˆ Resultados e Equipe
 
 </div>
 
 ---
 
-### ✅ Benefícios Alcançados
+### âœ… BenefÃ­cios AlcanÃ§ados
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  ⚡ EFICIÊNCIA          De horas para segundos no processamento     │
-│  ✅ PRECISÃO            Zero erros manuais — cálculos padronizados  │
-│  💡 INSIGHTS            Visualizações claras e comparativas         │
-│  🔮 PREVISÕES           Best Estimate com cenários "what-if"        │
-│  📈 ESCALABILIDADE      Novos anos/períodos adicionados facilmente  │
-│  🔄 RASTREABILIDADE     Versionamento e documentação integrados     │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 👥 Equipe
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│  👥 EQUIPE                                                          │
-│  ─────────────────────────────────────────────────────────────────  │
-│                                                                     │
-│  👨‍💻 Hudson Cardin              Full-Stack Developer                │
-│     Interface + lógica + cálculos do sistema                        │
-│                                                                     │
-│  👨‍💻 Lauro Paiva                Full-Stack Developer                │
-│     Interface + lógica + cálculos do sistema                        │
-│                                                                     │
-│  👨‍💼 Frederico Cesar de Jesus   Tech Advisor                       │
-│     Manufacturing Finance Controller, Stellantis                    │
-│     Orientação técnica estratégica e validações                     │
-│                                                                     │
-│  📚 Documentação: Página 6 do sistema                               │
-│  🔢 Versão: Consultar rodapé                                        │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  âš¡ EFICIÃŠNCIA          De horas para segundos no processamento     â”‚
+â”‚  âœ… PRECISÃƒO            Zero erros manuais â€” cÃ¡lculos padronizados  â”‚
+â”‚  ðŸ’¡ INSIGHTS            VisualizaÃ§Ãµes claras e comparativas         â”‚
+â”‚  ðŸ”® PREVISÃ•ES           Best Estimate com cenÃ¡rios "what-if"        â”‚
+â”‚  ðŸ“ˆ ESCALABILIDADE      Novos anos/perÃ­odos adicionados facilmente  â”‚
+â”‚  ðŸ”„ RASTREABILIDADE     Versionamento e documentaÃ§Ã£o integrados     â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-## 🎤 GUIA DE APRESENTAÇÃO
-
-### ⏱️ Timing Detalhado (5 minutos)
+### ðŸ‘¥ Equipe
 
 ```
-SLIDE 1 — O que é o SCI              30 segundos
-SLIDE 2 — TC Extendido                1 minuto
-SLIDE 3 — TC Veículos                 1 minuto 30 segundos
-SLIDE 4 — Funcionalidades compart.    1 minuto 30 segundos
-  • Waterfall                         30s
-  • Best Estimate                     45s
-  • Recursos transversais             15s
-SLIDE 5 — Comparativo                 —  (slide de apoio)
-SLIDE 6 — Arquitetura                 —  (slide de apoio)
-SLIDE 7 — Resultados e equipe         30 segundos
-────────────────────────────────────────────────────
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                     â”‚
+â”‚  ðŸ‘¥ EQUIPE                                                          â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ‘¨â€ðŸ’» Hudson Cardin              Full-Stack Developer                â”‚
+â”‚     Interface + lÃ³gica + cÃ¡lculos do sistema                        â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ‘¨â€ðŸ’» Lauro Paiva                Full-Stack Developer                â”‚
+â”‚     Interface + lÃ³gica + cÃ¡lculos do sistema                        â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ‘¨â€ðŸ’¼ Frederico Cesar de Jesus   Tech Advisor                       â”‚
+â”‚     Manufacturing Finance Controller, Stellantis                    â”‚
+â”‚     OrientaÃ§Ã£o tÃ©cnica estratÃ©gica e validaÃ§Ãµes                     â”‚
+â”‚                                                                     â”‚
+â”‚  ðŸ“š DocumentaÃ§Ã£o: PÃ¡gina 6 do sistema                               â”‚
+â”‚  ðŸ”¢ VersÃ£o: Consultar rodapÃ©                                        â”‚
+â”‚                                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+---
+
+## ðŸŽ¤ GUIA DE APRESENTAÃ‡ÃƒO
+
+### â±ï¸ Timing Detalhado (5 minutos)
+
+```
+SLIDE 1 â€” O que Ã© o SCI              30 segundos
+SLIDE 2 â€” TC Estendido                1 minuto
+SLIDE 3 â€” TC VeÃ­culos                 1 minuto 30 segundos
+SLIDE 4 â€” Funcionalidades compart.    1 minuto 30 segundos
+  â€¢ Waterfall                         30s
+  â€¢ Best Estimate                     45s
+  â€¢ Recursos transversais             15s
+SLIDE 5 â€” Comparativo                 â€”  (slide de apoio)
+SLIDE 6 â€” Arquitetura                 â€”  (slide de apoio)
+SLIDE 7 â€” Resultados e equipe         30 segundos
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 TOTAL                                 5 minutos
 ```
 
 ---
 
-### 💡 Dicas para o Apresentador
+### ðŸ’¡ Dicas para o Apresentador
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│  ✅ Demonstre o sistema ao vivo se possível         │
-│  ✅ Comece diferenciando TC Ext vs TC Veículos      │
-│  ✅ Mostre o rateio por veículo — é o diferencial   │
-│  ✅ No Best Estimate, explique a fórmula com o      │
-│     exemplo numérico (senão fica abstrato)          │
-│  ✅ Se perguntarem sobre variações de TOTAL em CPU, │
-│     abra o expander "Volume por período"            │
-│  ✅ Enfatize os ganhos de tempo e precisão          │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                     â”‚
+â”‚  âœ… Demonstre o sistema ao vivo se possÃ­vel         â”‚
+â”‚  âœ… Comece diferenciando TC Ext vs TC VeÃ­culos      â”‚
+â”‚  âœ… Mostre o rateio por veÃ­culo â€” Ã© o diferencial   â”‚
+â”‚  âœ… No Best Estimate, explique a fÃ³rmula com o      â”‚
+â”‚     exemplo numÃ©rico (senÃ£o fica abstrato)          â”‚
+â”‚  âœ… Se perguntarem sobre variaÃ§Ãµes de TOTAL em CPU, â”‚
+â”‚     abra o expander "Volume por perÃ­odo"            â”‚
+â”‚  âœ… Enfatize os ganhos de tempo e precisÃ£o          â”‚
+â”‚                                                     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
 
-### ❓ Perguntas Frequentes
+### â“ Perguntas Frequentes
 
-**Q: Qual a diferença entre TC Ext e TC Veículos?**
-A: TC Ext analisa custo total agregado (com CPU). TC Veículos detalha o custo por modelo de veículo, com cadeia de custos (FA→FP→D&A) e rateio por tempo de produção.
+**Q: Qual a diferenÃ§a entre TC Ext e TC VeÃ­culos?**
+A: TC Ext analisa custo total agregado (com CPU). TC VeÃ­culos detalha o custo por modelo de veÃ­culo, com cadeia de custos (FAâ†’FPâ†’D&A) e rateio por tempo de produÃ§Ã£o.
 
-**Q: Como funciona o rateio por veículo?**
-A: O custo FP sem Dedicada é distribuído proporcionalmente ao tempo de produção de cada veículo na oficina. D&A Dedicado é somado diretamente ao veículo.
+**Q: Como funciona o rateio por veÃ­culo?**
+A: O custo FP sem Dedicada Ã© distribuÃ­do proporcionalmente ao tempo de produÃ§Ã£o de cada veÃ­culo na oficina. D&A Dedicado Ã© somado diretamente ao veÃ­culo.
 
-**Q: A inflação só se aplica a custos fixos?**
-A: Não. A inflação se aplica a **todos** os custos (fixos e variáveis), após o ajuste por sensibilidade.
+**Q: A inflaÃ§Ã£o sÃ³ se aplica a custos fixos?**
+A: NÃ£o. A inflaÃ§Ã£o se aplica a **todos** os custos (fixos e variÃ¡veis), apÃ³s o ajuste por sensibilidade.
 
 **Q: Quanto tempo leva processar novos dados?**
 A: Menos de 1 minuto para um ano completo.
 
 **Q: Os dados ficam na nuvem?**
-A: Não. Todos os dados ficam no servidor local, sem envio externo.
+A: NÃ£o. Todos os dados ficam no servidor local, sem envio externo.
 
 ---
 
-## 🚀 Boa Apresentação!
+## ðŸš€ Boa ApresentaÃ§Ã£o!
 
-**Stellantis Cost Intelligence (SCI) — Transformando dados em decisões**
+**Stellantis Cost Intelligence (SCI) â€” Transformando dados em decisÃµes**
 
 <div align="center">
 
@@ -714,3 +714,4 @@ A: Não. Todos os dados ficam no servidor local, sem envio externo.
 </div>
 
 ![SCI](SCI_faixa.png)
+

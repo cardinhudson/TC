@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
@@ -7,36 +7,37 @@ import os
 import base64
 import sys
 from datetime import datetime
+from tc_core.presentation_docs import render_presentation_section
 from versionamento import obter_versao_atual
 
-# Diretório raiz do projeto
+# DiretÃ³rio raiz do projeto
 if hasattr(sys, '_MEIPASS'):
     _ROOT = sys._MEIPASS
 else:
     _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Configuração da página
+# ConfiguraÃ§Ã£o da pÃ¡gina
 st.set_page_config(
-    page_title="Documentação - Stellantis Cost Intelligence (SCI)",
-    page_icon="📚",
+    page_title="DocumentaÃ§Ã£o - Stellantis Cost Intelligence (SCI)",
+    page_icon="ðŸ“š",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Função para obter mês atual em português
+# FunÃ§Ã£o para obter mÃªs atual em portuguÃªs
 def obter_mes_atual():
-    """Retorna o mês atual em português"""
+    """Retorna o mÃªs atual em portuguÃªs"""
     meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        1: "Janeiro", 2: "Fevereiro", 3: "MarÃ§o", 4: "Abril",
         5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
         9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
     }
     agora = datetime.now()
     return meses[agora.month]
 
-# Função para obter data e hora de atualização dos dados
+# FunÃ§Ã£o para obter data e hora de atualizaÃ§Ã£o dos dados
 def obter_data_atualizacao_dados():
-    """Retorna a data e hora da última atualização dos arquivos de dados"""
+    """Retorna a data e hora da Ãºltima atualizaÃ§Ã£o dos arquivos de dados"""
     try:
         arquivos_dados = [
             os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
@@ -59,26 +60,26 @@ def obter_data_atualizacao_dados():
             try:
                 dt = datetime.fromtimestamp(data_atualizacao)
                 meses = {
-                    1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+                    1: "Janeiro", 2: "Fevereiro", 3: "MarÃ§o", 4: "Abril",
                     5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
                     9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
                 }
-                return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} às {dt.hour:02d}:{dt.minute:02d}"
+                return f"{dt.day:02d} de {meses[dt.month]} de {dt.year} Ã s {dt.hour:02d}:{dt.minute:02d}"
             except (ValueError, OSError):
-                return "Não disponível"
+                return "NÃ£o disponÃ­vel"
         return None
     except Exception:
         return None
 
-# Cabeçalho compacto com data de atualização
+# CabeÃ§alho compacto com data de atualizaÃ§Ã£o
 mes_atual = obter_mes_atual()
 ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 data_atualizacao = obter_data_atualizacao_dados()
 
-# Montar textos do cabeçalho
-texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus"
-texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
+# Montar textos do cabeÃ§alho
+texto_esquerda = f"ðŸ“š Stellantis Cost Intelligence (SCI) | VersÃ£o {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus"
+texto_direita = f"ðŸ“… Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
 
 st.markdown(f"""
 <div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
@@ -88,7 +89,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# CSS para melhorar visualização
+# CSS para melhorar visualizaÃ§Ã£o
 st.markdown("""
     <style>
         h1 {
@@ -106,14 +107,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📚 Documentação — Stellantis Cost Intelligence (SCI)")
+st.title("ðŸ“š DocumentaÃ§Ã£o â€” Stellantis Cost Intelligence (SCI)")
 
 
-# Tradutor (PT/EN/FR/ES) — traduz a página inteira via widget client-side
+# Tradutor (PT/EN/FR/ES) â€” traduz a pÃ¡gina inteira via widget client-side
 with st.container():
         cols = st.columns([1, 6])
         with cols[0]:
-                st.markdown("**🌐 Tradutor**")
+                st.markdown("**ðŸŒ Tradutor**")
         with cols[1]:
                 st.markdown(
                         "<div id='sci-translate-container' style='min-height: 28px;'></div>",
@@ -128,7 +129,7 @@ with st.container():
                         const parentWindow = window.parent;
                         const doc = parentWindow.document;
 
-                        // Container visível (criado via st.markdown)
+                        // Container visÃ­vel (criado via st.markdown)
                         const container = doc.getElementById('sci-translate-container');
                         if (!container) return;
 
@@ -155,7 +156,7 @@ with st.container():
                             };
                         }
 
-                        // Carrega o script uma única vez
+                        // Carrega o script uma Ãºnica vez
                         if (!doc.getElementById('google-translate-script')) {
                             const s = doc.createElement('script');
                             s.id = 'google-translate-script';
@@ -163,8 +164,8 @@ with st.container():
                             doc.body.appendChild(s);
                         }
                     } catch (e) {
-                        // Se a política do navegador/Streamlit bloquear acesso ao parent,
-                        // simplesmente não mostra o tradutor.
+                        // Se a polÃ­tica do navegador/Streamlit bloquear acesso ao parent,
+                        // simplesmente nÃ£o mostra o tradutor.
                     }
                 })();
                 </script>
@@ -173,17 +174,17 @@ with st.container():
         )
 
         st.caption(
-                "Tradução automática (PT/EN/FR/ES) via Google Translate. "
-                "Se o acesso externo estiver bloqueado na rede corporativa, o tradutor pode não aparecer."
+                "TraduÃ§Ã£o automÃ¡tica (PT/EN/FR/ES) via Google Translate. "
+                "Se o acesso externo estiver bloqueado na rede corporativa, o tradutor pode nÃ£o aparecer."
         )
 
 
-# Função para detectar caminho base correto
+# FunÃ§Ã£o para detectar caminho base correto
 def get_base_path():
     """Retorna o caminho base correto para LEITURA de dados"""
     import sys
     if hasattr(sys, '_MEIPASS'):
-        # Rodando no executável PyInstaller - apontar para _internal
+        # Rodando no executÃ¡vel PyInstaller - apontar para _internal
         return sys._MEIPASS
     else:
         # Rodando em desenvolvimento
@@ -194,7 +195,7 @@ def _formatar_mtime(ts: float) -> str:
     try:
         return datetime.fromtimestamp(ts).strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
-        return "Não disponível"
+        return "NÃ£o disponÃ­vel"
 
 
 @st.cache_data(show_spinner=False)
@@ -205,7 +206,7 @@ def _ler_arquivo_texto_cacheado(caminho: str, mtime: float) -> str:
 
 def _carregar_markdown(caminho: str) -> tuple[str | None, str | None, float | None]:
     if not os.path.exists(caminho):
-        return None, f"Arquivo não encontrado: {caminho}", None
+        return None, f"Arquivo nÃ£o encontrado: {caminho}", None
     try:
         mtime = os.path.getmtime(caminho)
         return _ler_arquivo_texto_cacheado(caminho, mtime), None, mtime
@@ -214,10 +215,10 @@ def _carregar_markdown(caminho: str) -> tuple[str | None, str | None, float | No
 
 
 def _extrair_secao_por_heading(md: str, headings: list[str]) -> str:
-    """Extrai o conteúdo de uma seção markdown (sem o heading).
+    """Extrai o conteÃºdo de uma seÃ§Ã£o markdown (sem o heading).
 
-    Procura o primeiro heading encontrado em `headings` e retorna até o próximo
-    heading de nível 2 ("## ").
+    Procura o primeiro heading encontrado em `headings` e retorna atÃ© o prÃ³ximo
+    heading de nÃ­vel 2 ("## ").
     """
     if not md:
         return ""
@@ -240,7 +241,7 @@ def _extrair_secao_por_heading(md: str, headings: list[str]) -> str:
         end = len(md)
     return md[start_content:end].strip()
 
-# Funções para persistir dados da equipe
+# FunÃ§Ãµes para persistir dados da equipe
 def salvar_dados_equipe(dados):
     """Salva os dados da equipe em arquivo JSON"""
     try:
@@ -262,7 +263,7 @@ def carregar_dados_equipe():
             'papel_projeto': 'Full-Stack Developer',
             'descricao_papel': (
                 'Desenvolvendo tanto a interface quanto a '
-                'lógica e os cálculos do sistema'
+                'lÃ³gica e os cÃ¡lculos do sistema'
             ),
         },
         'lauro': {
@@ -271,7 +272,7 @@ def carregar_dados_equipe():
             'papel_projeto': 'Full-Stack Developer',
             'descricao_papel': (
                 'Desenvolvendo tanto a interface quanto a '
-                'lógica e os cálculos do sistema'
+                'lÃ³gica e os cÃ¡lculos do sistema'
             ),
         },
         'frederico': {
@@ -281,8 +282,8 @@ def carregar_dados_equipe():
             'linkedin': '', 'foto': None,
             'papel_projeto': 'Tech Advisor',
             'descricao_papel': (
-                'Orientação técnica estratégica, validações '
-                'e suporte de alto nível ao projeto'
+                'OrientaÃ§Ã£o tÃ©cnica estratÃ©gica, validaÃ§Ãµes '
+                'e suporte de alto nÃ­vel ao projeto'
             ),
         },
     }
@@ -322,28 +323,28 @@ def carregar_foto_base64(foto_base64):
         pass
     return None
 
-# Sidebar com índices
-st.sidebar.markdown("## 📑 Índice")
+# Sidebar com Ã­ndices
+st.sidebar.markdown("## ðŸ“‘ Ãndice")
 st.sidebar.markdown("---")
 
-modulo_doc = "📌 Ambos (TC Ext + Veículos)"
+modulo_doc = "ðŸ“Œ Ambos (TC Ext + VeÃ­culos)"
 
-# Criar índices no sidebar
+# Criar Ã­ndices no sidebar
 indice_selecionado = st.sidebar.radio(
-    "Selecione a seção:",
+    "Selecione a seÃ§Ã£o:",
     [
-        "👥 Equipe do SCI",
-        "📐 Regras e Cálculo",
-        "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
-        "🏗️ Arquitetura e Estrutura",
-        "🧾 Especificação Técnica",
-        "📥 Guia de Extração de Dados",
-        "🔮 Guia de Best Estimate",
-        "📊 Apresentação Visual",
-        "💬 Chatbot de Documentação",
-        "🔔 Sistema de Alertas",
-        "📦 Guia de Build (EXE)",
-        "🚀 Próximos Passos",
+        "ðŸ‘¥ Equipe do SCI",
+        "ðŸ“ Regras e CÃ¡lculo",
+        "ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos (Normal vs CPU)",
+        "ðŸ—ï¸ Arquitetura e Estrutura",
+        "ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica",
+        "ðŸ“¥ Guia de ExtraÃ§Ã£o de Dados",
+        "ðŸ”® Guia de Best Estimate",
+        "ðŸ“Š ApresentaÃ§Ã£o Visual",
+        "ðŸ’¬ Chatbot de DocumentaÃ§Ã£o",
+        "ðŸ”” Sistema de Alertas",
+        "ðŸ“¦ Guia de Build (EXE)",
+        "ðŸš€ PrÃ³ximos Passos",
     ],
     key="indice_documentacao"
 )
@@ -351,14 +352,14 @@ indice_selecionado = st.sidebar.radio(
 st.markdown("---")
 
 # ==========================================
-# SEÇÃO 1: EQUIPE DO PROJETO
+# SEÃ‡ÃƒO 1: EQUIPE DO PROJETO
 # ==========================================
-if indice_selecionado == "👥 Equipe do SCI":
-    st.header("👥 Equipe do SCI")
+if indice_selecionado == "ðŸ‘¥ Equipe do SCI":
+    st.header("ðŸ‘¥ Equipe do SCI")
     
     st.markdown("""
-    Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento
-    e manutenção do **Stellantis Cost Intelligence (SCI)** — suas funções no projeto e perfis profissionais.
+    Esta seÃ§Ã£o apresenta os membros da equipe responsÃ¡veis pelo desenvolvimento
+    e manutenÃ§Ã£o do **Stellantis Cost Intelligence (SCI)** â€” suas funÃ§Ãµes no projeto e perfis profissionais.
     """)
 
     # CSS para cards da equipe
@@ -422,24 +423,24 @@ if indice_selecionado == "👥 Equipe do SCI":
 
     dados_equipe = carregar_dados_equipe()
 
-    # ── Definição dos membros ──
+    # â”€â”€ DefiniÃ§Ã£o dos membros â”€â”€
     membros = [
         {
             'key': 'hudson',
             'nome': 'Hudson Cardin',
-            'icone': '🔧',
+            'icone': 'ðŸ”§',
             'badge_class': 'team-badge-fullstack',
         },
         {
             'key': 'lauro',
             'nome': 'Lauro Paiva Junior',
-            'icone': '📊',
+            'icone': 'ðŸ“Š',
             'badge_class': 'team-badge-fullstack',
         },
         {
             'key': 'frederico',
             'nome': 'Frederico Cesar de Jesus',
-            'icone': '🧭',
+            'icone': 'ðŸ§­',
             'badge_class': 'team-badge-advisor',
         },
     ]
@@ -453,7 +454,7 @@ if indice_selecionado == "👥 Equipe do SCI":
         desc_papel = dados_m.get('descricao_papel', '')
 
         with col:
-            # ── Cabeçalho: nome + badge ──
+            # â”€â”€ CabeÃ§alho: nome + badge â”€â”€
             st.subheader(f"{membro['icone']} {membro['nome']}")
 
             if papel:
@@ -468,10 +469,10 @@ if indice_selecionado == "👥 Equipe do SCI":
                     unsafe_allow_html=True,
                 )
 
-            # ── Upload da foto (oculto por padrão) ──
-            with st.expander("📸 Upload da foto", expanded=False):
+            # â”€â”€ Upload da foto (oculto por padrÃ£o) â”€â”€
+            with st.expander("ðŸ“¸ Upload da foto", expanded=False):
                 foto_up = st.file_uploader(
-                    f"📸 Foto de {membro['nome']}",
+                    f"ðŸ“¸ Foto de {membro['nome']}",
                     type=['png', 'jpg', 'jpeg'],
                     key=f"foto_{k}",
                     help="Upload da foto de perfil (PNG, JPG, JPEG)",
@@ -503,47 +504,47 @@ if indice_selecionado == "👥 Equipe do SCI":
                 st.markdown(
                     '<div class="team-photo-box">'
                     '<span class="team-photo-placeholder">'
-                    '👤</span></div>',
+                    'ðŸ‘¤</span></div>',
                     unsafe_allow_html=True,
                 )
 
-            # ── Edição ──
+            # â”€â”€ EdiÃ§Ã£o â”€â”€
             with st.expander(
-                f"✏️ Editar informações", expanded=False
+                f"âœï¸ Editar informaÃ§Ãµes", expanded=False
             ):
                 with st.form(f"form_{k}"):
                     _papel = st.text_input(
-                        "🎯 Papel no Projeto:",
+                        "ðŸŽ¯ Papel no Projeto:",
                         value=dados_m.get('papel_projeto', ''),
                         key=f"papel_{k}",
                     )
                     _desc_papel = st.text_input(
-                        "📝 Descrição do Papel:",
+                        "ðŸ“ DescriÃ§Ã£o do Papel:",
                         value=dados_m.get('descricao_papel', ''),
                         key=f"desc_papel_{k}",
                     )
                     _cargo = st.text_input(
-                        "💼 Cargo:",
+                        "ðŸ’¼ Cargo:",
                         value=dados_m.get('cargo', ''),
                         key=f"cargo_{k}",
                     )
                     _empresa = st.text_input(
-                        "🏢 Empresa:",
+                        "ðŸ¢ Empresa:",
                         value=dados_m.get('empresa', ''),
                         key=f"empresa_{k}",
                     )
                     _exp = st.text_area(
-                        "🎯 Experiência:",
+                        "ðŸŽ¯ ExperiÃªncia:",
                         value=dados_m.get('experiencia', ''),
                         key=f"exp_{k}",
                     )
                     _linkedin = st.text_input(
-                        "🔗 LinkedIn:",
+                        "ðŸ”— LinkedIn:",
                         value=dados_m.get('linkedin', ''),
                         key=f"linkedin_{k}",
                     )
                     if st.form_submit_button(
-                        "💾 Salvar", use_container_width=True
+                        "ðŸ’¾ Salvar", use_container_width=True
                     ):
                         dados_equipe[k]['papel_projeto'] = _papel
                         dados_equipe[k]['descricao_papel'] = _desc_papel
@@ -552,66 +553,66 @@ if indice_selecionado == "👥 Equipe do SCI":
                         dados_equipe[k]['experiencia'] = _exp
                         dados_equipe[k]['linkedin'] = _linkedin
                         if salvar_dados_equipe(dados_equipe):
-                            st.success("✅ Salvo com sucesso!")
+                            st.success("âœ… Salvo com sucesso!")
                             st.rerun()
 
-            # ── Perfil Profissional ──
-            with st.expander("👨‍💻 Perfil Profissional", expanded=False):
+            # â”€â”€ Perfil Profissional â”€â”€
+            with st.expander("ðŸ‘¨â€ðŸ’» Perfil Profissional", expanded=False):
                 if dados_m.get('cargo') and dados_m.get('empresa'):
                     st.write(
-                        f"💼 **{dados_m['cargo']}** "
+                        f"ðŸ’¼ **{dados_m['cargo']}** "
                         f"na **{dados_m['empresa']}**"
                     )
                 elif dados_m.get('cargo'):
-                    st.write(f"💼 **{dados_m['cargo']}**")
+                    st.write(f"ðŸ’¼ **{dados_m['cargo']}**")
                 elif dados_m.get('empresa'):
-                    st.write(f"🏢 **{dados_m['empresa']}**")
+                    st.write(f"ðŸ¢ **{dados_m['empresa']}**")
                 else:
-                    st.write("💼 *Cargo não informado*")
+                    st.write("ðŸ’¼ *Cargo nÃ£o informado*")
 
                 if dados_m.get('experiencia'):
-                    st.write(f"🎯 {dados_m['experiencia']}")
+                    st.write(f"ðŸŽ¯ {dados_m['experiencia']}")
                 else:
-                    st.write("🎯 *Experiência não informada*")
+                    st.write("ðŸŽ¯ *ExperiÃªncia nÃ£o informada*")
 
                 if dados_m.get('linkedin'):
                     st.markdown(
-                        f"🔗 [Perfil no LinkedIn]"
+                        f"ðŸ”— [Perfil no LinkedIn]"
                         f"({dados_m['linkedin']})"
                     )
                 else:
-                    st.write("🔗 *LinkedIn não informado*")
+                    st.write("ðŸ”— *LinkedIn nÃ£o informado*")
 
     st.markdown("---")
 
     st.markdown("""
-    ### 🎯 Objetivos do Projeto
+    ### ðŸŽ¯ Objetivos do Projeto
 
-    O **Stellantis Cost Intelligence (SCI)** é uma plataforma de análise de custos industriais composta por dois módulos
-    complementares, cada um atendendo um nível de granularidade diferente:
+    O **Stellantis Cost Intelligence (SCI)** Ã© uma plataforma de anÃ¡lise de custos industriais composta por dois mÃ³dulos
+    complementares, cada um atendendo um nÃ­vel de granularidade diferente:
 
-    **📊 TC Extendido (TC Ext)**
-    - Análise de custos por oficina, conta e período
-    - Visualização Normal (Custo Total) e CPU (Custo por Unidade)
-    - Dashboard interativo com filtros (Ano, Período, Oficina, USI, Veículo)
-    - Flex Budget: ajuste do orçamento pela proporção de volume realizado
-    - Waterfall Analysis: decomposição de variações entre períodos
-    - Exportação Excel completa com formatação profissional
+    **ðŸ“Š TC Estendido (TC Ext)**
+    - AnÃ¡lise de custos por oficina, conta e perÃ­odo
+    - VisualizaÃ§Ã£o Normal (Custo Total) e CPU (Custo por Unidade)
+    - Dashboard interativo com filtros (Ano, PerÃ­odo, Oficina, USI, VeÃ­culo)
+    - Flex Budget: ajuste do orÃ§amento pela proporÃ§Ã£o de volume realizado
+    - Waterfall Analysis: decomposiÃ§Ã£o de variaÃ§Ãµes entre perÃ­odos
+    - ExportaÃ§Ã£o Excel completa com formataÃ§Ã£o profissional
 
-    **🚗 TC Veículos (TC Principal)**
-    - Cadeia completa: Despesa Primária → Custo FA → Custo FP → D&A → FP sem Dedicada
-    - Rateio proporcional por veículo (tempo de produção)
-    - 6 tabs especializadas: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo de Produção, Dados Detalhados
-    - Best Estimate: simulador de premissas (sensibilidade, inflação, volume) com geração de Forecast
-    - Análise de Best Estimate: layout da Home alimentado por dados de Forecast
+    **ðŸš— TC VeÃ­culos (TC Principal)**
+    - Cadeia completa: Despesa PrimÃ¡ria â†’ Custo FA â†’ Custo FP â†’ D&A â†’ FP sem Dedicada
+    - Rateio proporcional por veÃ­culo (tempo de produÃ§Ã£o)
+    - 6 tabs especializadas: TC VeÃ­culos, AnÃ¡lise Flex, Volume, Custos por Oficina, Tempo de ProduÃ§Ã£o, Dados Detalhados
+    - Best Estimate: simulador de premissas (sensibilidade, inflaÃ§Ã£o, volume) com geraÃ§Ã£o de Forecast
+    - AnÃ¡lise de Best Estimate: layout da Home alimentado por dados de Forecast
 
-    **🔧 Capacidades Transversais**
-    - 🚀 Cache inteligente com TTL e otimização de tipos de dados
-    - 📦 Dados em formato Parquet comprimido
-    - 💱 Conversão multi-moeda (BRL, USD, EUR) com taxas do banco de dados
-    - 📊 Fator de escala configurável (Nenhum / K / M)
-    - 🎨 Interface moderna com tabs, gráficos Altair e gradientes
-    - ⚡ Performance otimizada para grandes volumes (70%+ redução de memória)
+    **ðŸ”§ Capacidades Transversais**
+    - ðŸš€ Cache inteligente com TTL e otimizaÃ§Ã£o de tipos de dados
+    - ðŸ“¦ Dados em formato Parquet comprimido
+    - ðŸ’± ConversÃ£o multi-moeda (BRL, USD, EUR) com taxas do banco de dados
+    - ðŸ“Š Fator de escala configurÃ¡vel (Nenhum / K / M)
+    - ðŸŽ¨ Interface moderna com tabs, grÃ¡ficos Altair e gradientes
+    - âš¡ Performance otimizada para grandes volumes (70%+ reduÃ§Ã£o de memÃ³ria)
     """)
 
     st.markdown("<div style='height: 1.0rem;'></div>", unsafe_allow_html=True)
@@ -624,12 +625,12 @@ if indice_selecionado == "👥 Equipe do SCI":
             st.image("SCI_faixa.png", use_container_width=True)
 
 # ==========================================
-# TC VEÍCULOS: REGRAS E CÁLCULO
+# TC VEÃCULOS: REGRAS E CÃLCULO
 # ==========================================
-elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("📌 Ambos"):
-    st.header("📐 Regras e Cálculo — TC Ext + TC Veículos")
+elif indice_selecionado == "ðŸ“ Regras e CÃ¡lculo" and modulo_doc.startswith("ðŸ“Œ Ambos"):
+    st.header("ðŸ“ Regras e CÃ¡lculo â€” TC Ext + TC VeÃ­culos")
 
-    st.subheader("📊 TC Extendido")
+    st.subheader("ðŸ“Š TC Estendido")
     _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
     if _err_ext:
@@ -638,9 +639,9 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
         st.caption(
             f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
         )
-        with st.expander("📐 Regras e Cálculo — TC Extendido", expanded=True):
+        with st.expander("ðŸ“ Regras e CÃ¡lculo â€” TC Estendido", expanded=True):
             st.markdown(
-                _extrair_secao_por_heading(_md_ext, ["## 2) Regras e Cálculo — TC Extendido"])
+                _extrair_secao_por_heading(_md_ext, ["## 2) Regras e CÃ¡lculo â€” TC Estendido"])
             )
 
     _caminho_flex = os.path.join(get_base_path(), "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")
@@ -649,17 +650,17 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
         st.caption(
             f"Fonte: {_caminho_flex} | Atualizado em: {_formatar_mtime(_mtime_flex)}"
         )
-        with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
+        with st.expander("ðŸ“Œ Flex Bud â€” GovernanÃ§a (Ano Completo)", expanded=False):
             st.markdown(
                 _extrair_secao_por_heading(
                     _md_flex,
-                    ["## 7) Flex Bud — Ano Completo e Governança"],
+                    ["## 7) Flex Bud â€” Ano Completo e GovernanÃ§a"],
                 )
             )
 
     st.markdown("---")
 
-    st.subheader("🚗 TC Veículos")
+    st.subheader("ðŸš— TC VeÃ­culos")
     _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
     if _err_veic:
@@ -669,19 +670,19 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
     st.caption(
         f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
     )
-    with st.expander("💰 Cadeia de Custos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 2) Cadeia de Custos TC Veículos"]))
-    with st.expander("🚗 Rateio por Veículo", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 3) Processo de Rateio por Veículo"]))
-    with st.expander("📊 Flex Budget", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 4) Flex Budget (TC Veículos)"]))
-    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
+    with st.expander("ðŸ’° Cadeia de Custos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 2) Cadeia de Custos TC VeÃ­culos"]))
+    with st.expander("ðŸš— Rateio por VeÃ­culo", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 3) Processo de Rateio por VeÃ­culo"]))
+    with st.expander("ðŸ“Š Flex Budget", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 4) Flex Budget (TC VeÃ­culos)"]))
+    with st.expander("ðŸ“ˆ CPU (Custo por Unidade)", expanded=False):
         st.markdown(_extrair_secao_por_heading(_md_veic, ["## 5) CPU (Custo por Unidade)"]))
-    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 6) KPIs do TC Veículos"]))
-    with st.expander("🎛️ Filtros", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 7) Filtros do TC Veículos"]))
-    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
+    with st.expander("ðŸŽ¯ KPIs (Topo e Resumo)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 6) KPIs do TC VeÃ­culos"]))
+    with st.expander("ðŸŽ›ï¸ Filtros", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 7) Filtros do TC VeÃ­culos"]))
+    with st.expander("ðŸ”® Best Estimate â€” Premissas", expanded=False):
         st.markdown(
             _extrair_secao_por_heading(
                 _md_veic,
@@ -691,8 +692,8 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
 
     st.stop()
 
-elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC Veículos":
-    st.header("📐 Regras e Cálculo — TC Veículos")
+elif indice_selecionado == "ðŸ“ Regras e CÃ¡lculo" and modulo_doc == "ðŸš— TC VeÃ­culos":
+    st.header("ðŸ“ Regras e CÃ¡lculo â€” TC VeÃ­culos")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -702,217 +703,217 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
 
-    with st.expander("💰 Cadeia de Custos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Cadeia de Custos TC Veículos"]))
-    with st.expander("🚗 Rateio por Veículo", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Processo de Rateio por Veículo"]))
-    with st.expander("📊 Flex Budget", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 4) Flex Budget (TC Veículos)"]))
-    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
+    with st.expander("ðŸ’° Cadeia de Custos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Cadeia de Custos TC VeÃ­culos"]))
+    with st.expander("ðŸš— Rateio por VeÃ­culo", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Processo de Rateio por VeÃ­culo"]))
+    with st.expander("ðŸ“Š Flex Budget", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 4) Flex Budget (TC VeÃ­culos)"]))
+    with st.expander("ðŸ“ˆ CPU (Custo por Unidade)", expanded=False):
         st.markdown(_extrair_secao_por_heading(_md, ["## 5) CPU (Custo por Unidade)"]))
-    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 6) KPIs do TC Veículos"]))
-    with st.expander("🎛️ Filtros", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Filtros do TC Veículos"]))
-    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
+    with st.expander("ðŸŽ¯ KPIs (Topo e Resumo)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 6) KPIs do TC VeÃ­culos"]))
+    with st.expander("ðŸŽ›ï¸ Filtros", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Filtros do TC VeÃ­culos"]))
+    with st.expander("ðŸ”® Best Estimate â€” Premissas", expanded=False):
         st.markdown(_extrair_secao_por_heading(_md, ["## 9) Premissas do Simulador Best Estimate"]))
 
     st.stop()
 
     st.info(
-        "📌 **Módulo TC Veículos** — Regras de cálculo específicas para "
-        "análise de custo de produção de veículos."
+        "ðŸ“Œ **MÃ³dulo TC VeÃ­culos** â€” Regras de cÃ¡lculo especÃ­ficas para "
+        "anÃ¡lise de custo de produÃ§Ã£o de veÃ­culos."
     )
 
-    with st.expander("💰 **Composição de Custos**", expanded=True):
+    with st.expander("ðŸ’° **ComposiÃ§Ã£o de Custos**", expanded=True):
         st.markdown("""
-        ### 🔗 Cadeia de Custos TC Veículos
+        ### ðŸ”— Cadeia de Custos TC VeÃ­culos
 
         ```
-        Despesa Primária
-                    × Rateio FA
+        Despesa PrimÃ¡ria
+                    Ã— Rateio FA
                     = Custo FA (Fluxo Anexo)
 
                 Custo FP (Fluxo Principal)
-                    = Despesa Primária − Custo FA
+                    = Despesa PrimÃ¡ria âˆ’ Custo FA
 
-        D&A Dedicado = parcela de D&A atribuída diretamente ao veículo
-        FP sem Dedicada = Custo FP − D&A Dedicado
+        D&A Dedicado = parcela de D&A atribuÃ­da diretamente ao veÃ­culo
+        FP sem Dedicada = Custo FP âˆ’ D&A Dedicado
         ```
 
-        **Colunas Monetárias** (recebem conversão de moeda e fator):
+        **Colunas MonetÃ¡rias** (recebem conversÃ£o de moeda e fator):
         - `Despesa Primaria`, `Custo FA`, `Custo FP`, `D&A dedicado`, `FP sem Dedicada`
 
-        **Redis** — Não é uma coluna nem um `Account` fixo.
+        **Redis** â€” NÃ£o Ã© uma coluna nem um `Account` fixo.
         Redis entra como **linhas adicionais** vindas da aba **massa - REDIS**, marcadas com `_fonte_redis=True`.
 
         **KPI Redis:**
-        > Redis = Σ `Despesa Primaria` nas linhas com `_fonte_redis=True` (valores tipicamente negativos por serem receita)
+        > Redis = Î£ `Despesa Primaria` nas linhas com `_fonte_redis=True` (valores tipicamente negativos por serem receita)
         """)
 
-    with st.expander("🚗 **Rateio por Veículo**", expanded=False):
+    with st.expander("ðŸš— **Rateio por VeÃ­culo**", expanded=False):
         st.markdown("""
-        ### 📊 Processo de Rateio
+        ### ðŸ“Š Processo de Rateio
 
-        O custo da oficina é **rateado** aos veículos proporcionalmente ao **tempo de produção**:
+        O custo da oficina Ã© **rateado** aos veÃ­culos proporcionalmente ao **tempo de produÃ§Ã£o**:
 
-        - **Percentual(v,o)** = TempoVeic(v,o) / Σ TempoVeic(v,o)
-        - **CustoRateado(v,o)** = FPsemDedicada(o) × Percentual(v,o)
+        - **Percentual(v,o)** = TempoVeic(v,o) / Î£ TempoVeic(v,o)
+        - **CustoRateado(v,o)** = FPsemDedicada(o) Ã— Percentual(v,o)
         - **CustoFPVeiculo(v,o)** = CustoRateado(v,o) + D&A Dedicado(v,o)
 
         **Dados Consolidados vs Rateados:**
 
-        | Seleção | Fonte BUD | Fonte Real |
+        | SeleÃ§Ã£o | Fonte BUD | Fonte Real |
         |---------|-----------|------------|
         | Todos | `df_principal_BUD.parquet` | `df_principal.parquet` |
-        | Veículo específico | `df_veiculos_custo_fp_BUD.parquet` | `df_veiculos_custo_fp.parquet` |
+        | VeÃ­culo especÃ­fico | `df_veiculos_custo_fp_BUD.parquet` | `df_veiculos_custo_fp.parquet` |
 
-        > Quando **Veículo = "Todos"**: dados consolidados.
-        > Quando **Veículo = modelo específico**: dados rateados com `Custo FP Veiculo`.
+        > Quando **VeÃ­culo = "Todos"**: dados consolidados.
+        > Quando **VeÃ­culo = modelo especÃ­fico**: dados rateados com `Custo FP Veiculo`.
         """)
 
-    with st.expander("📊 **Flex Budget**", expanded=False):
+    with st.expander("ðŸ“Š **Flex Budget**", expanded=False):
         st.markdown("""
-        ### 🔄 Conceito
+        ### ðŸ”„ Conceito
 
-        O Budget Flex ajusta o orçamento pela proporção de volume realizado:
+        O Budget Flex ajusta o orÃ§amento pela proporÃ§Ã£o de volume realizado:
         - Custos **fixos** permanecem iguais ao Budget
-        - Custos **variáveis** são ajustados pela proporção de volume
+        - Custos **variÃ¡veis** sÃ£o ajustados pela proporÃ§Ã£o de volume
 
-        ### 📐 Fórmulas
+        ### ðŸ“ FÃ³rmulas
 
-        - **Proporção** = Volume Realizado / Volume Budget
-        - **Flex fixo** = BUD fixo (sem alteração)
-        - **Flex variável** = BUD variável × Proporção
-        - **Flex total** = Flex fixo + Flex variável
+        - **ProporÃ§Ã£o** = Volume Realizado / Volume Budget
+        - **Flex fixo** = BUD fixo (sem alteraÃ§Ã£o)
+        - **Flex variÃ¡vel** = BUD variÃ¡vel Ã— ProporÃ§Ã£o
+        - **Flex total** = Flex fixo + Flex variÃ¡vel
 
-        ### 🏷️ Classificação Fixo/Variável
+        ### ðŸ·ï¸ ClassificaÃ§Ã£o Fixo/VariÃ¡vel
 
-        A coluna `Custo` determina a classificação:
-        - Valores que começam com `"Fix"` (case-insensitive) → **Fixo**
-        - Todos os demais → **Variável**
+        A coluna `Custo` determina a classificaÃ§Ã£o:
+        - Valores que comeÃ§am com `"Fix"` (case-insensitive) â†’ **Fixo**
+        - Todos os demais â†’ **VariÃ¡vel**
 
         ```python
         mask_fixo = df['Custo'].str.lower().str.startswith('fix')
         ```
         """)
 
-    with st.expander("📈 **CPU (Custo por Unidade)**", expanded=False):
+    with st.expander("ðŸ“ˆ **CPU (Custo por Unidade)**", expanded=False):
         st.markdown("""
-        ### 💲 Fórmula
+        ### ðŸ’² FÃ³rmula
 
         **CPU = Custo Total / Volume Total**
 
-        Com proteção contra divisão por zero:
+        Com proteÃ§Ã£o contra divisÃ£o por zero:
         ```python
         CPU = np.where(volume != 0, custo / volume, 0.0)
         ```
 
-        **Quando o tipo de visualização é CPU:**
-        - Cada métrica é dividida pelo volume total
-        - O sistema recalcula CPU **após** agregações (nunca soma/média de CPU)
-        - O fator K/M é aplicado nas colunas monetárias antes do cálculo; para CPU sem escala, usar `Fator = Nenhum`
-        - Volumes de BUD e Actual são usados conforme o contexto
+        **Quando o tipo de visualizaÃ§Ã£o Ã© CPU:**
+        - Cada mÃ©trica Ã© dividida pelo volume total
+        - O sistema recalcula CPU **apÃ³s** agregaÃ§Ãµes (nunca soma/mÃ©dia de CPU)
+        - O fator K/M Ã© aplicado nas colunas monetÃ¡rias antes do cÃ¡lculo; para CPU sem escala, usar `Fator = Nenhum`
+        - Volumes de BUD e Actual sÃ£o usados conforme o contexto
         """)
 
-    with st.expander("🎯 **KPIs do TC Veículos**", expanded=False):
+    with st.expander("ðŸŽ¯ **KPIs do TC VeÃ­culos**", expanded=False):
         st.markdown("""
-        ### 📊 KPIs do Topo (fora das tabs)
+        ### ðŸ“Š KPIs do Topo (fora das tabs)
 
-        | KPI | Fórmula |
+        | KPI | FÃ³rmula |
         |-----|---------|
-        | Desp. Primária | Σ Despesa Primaria |
-        | Custo FA | Σ Custo FA |
-        | Redis | Σ Despesa Primaria (linhas `_fonte_redis=True`, origem: massa - REDIS) |
-        | Custo FP | Σ Custo FP |
-        | D&A Dedicada | Σ D&A dedicado |
-        | FP sem Dedicada | Σ FP sem Dedicada |
+        | Desp. PrimÃ¡ria | Î£ Despesa Primaria |
+        | Custo FA | Î£ Custo FA |
+        | Redis | Î£ Despesa Primaria (linhas `_fonte_redis=True`, origem: massa - REDIS) |
+        | Custo FP | Î£ Custo FP |
+        | D&A Dedicada | Î£ D&A dedicado |
+        | FP sem Dedicada | Î£ FP sem Dedicada |
 
-        ### 📊 KPIs do Resumo TC Veículos
+        ### ðŸ“Š KPIs do Resumo TC VeÃ­culos
 
-        | KPI | Fórmula |
+        | KPI | FÃ³rmula |
         |-----|---------|
-        | BUD | BUD fixo + BUD variável |
-        | Flex Bud − BUD | Flex total − BUD total |
-        | Flex BUD | BUD fixo + BUD variável × Proporção |
-        | Real − Flex Bud | Real total − Flex total |
-        | Real | Σ Custo FP Real |
+        | BUD | BUD fixo + BUD variÃ¡vel |
+        | Flex Bud âˆ’ BUD | Flex total âˆ’ BUD total |
+        | Flex BUD | BUD fixo + BUD variÃ¡vel Ã— ProporÃ§Ã£o |
+        | Real âˆ’ Flex Bud | Real total âˆ’ Flex total |
+        | Real | Î£ Custo FP Real |
         | Real / Flex Bud | Real / Flex BUD (%) |
         """)
 
-    with st.expander("🎯 **Arquitetura de Filtros**", expanded=False):
+    with st.expander("ðŸŽ¯ **Arquitetura de Filtros**", expanded=False):
         st.markdown("""
-        ### 🔍 Filtros do TC Veículos
+        ### ðŸ” Filtros do TC VeÃ­culos
 
         | Filtro | Tipo | Comportamento |
         |--------|------|---------------|
-        | Oficina | multiselect | "Todos" ou seleção múltipla |
-        | Tipo Custo | multiselect | Fixo/Variável ou todos |
-        | Veículo | **selectbox** | "Todos" (consolidado) ou **1 veículo** (rateado) |
-        | Período | multiselect | "Todos" ou seleção de meses |
+        | Oficina | multiselect | "Todos" ou seleÃ§Ã£o mÃºltipla |
+        | Tipo Custo | multiselect | Fixo/VariÃ¡vel ou todos |
+        | VeÃ­culo | **selectbox** | "Todos" (consolidado) ou **1 veÃ­culo** (rateado) |
+        | PerÃ­odo | multiselect | "Todos" ou seleÃ§Ã£o de meses |
 
-        **Cascading:** A seleção de Oficina filtra os Veículos disponíveis:
+        **Cascading:** A seleÃ§Ã£o de Oficina filtra os VeÃ­culos disponÃ­veis:
         ```python
         _df_filt_ofi = df[df['Oficina'].isin(oficinas_selecionadas)]
-        veiculos = sorted(_df_filt_ofi['Veículo'].dropna().unique())
+        veiculos = sorted(_df_filt_ofi['VeÃ­culo'].dropna().unique())
         ```
 
-        **Filtros globais:** Afetam KPIs, gráficos e Análise Flex simultaneamente.
+        **Filtros globais:** Afetam KPIs, grÃ¡ficos e AnÃ¡lise Flex simultaneamente.
         """)
 
-    with st.expander("📈 **Sensibilidade e Volume (Best Estimate)**", expanded=False):
+    with st.expander("ðŸ“ˆ **Sensibilidade e Volume (Best Estimate)**", expanded=False):
         st.markdown("""
-        ### 🔮 Premissas do Simulador BE
+        ### ðŸ”® Premissas do Simulador BE
 
-        O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflação**
-        e **volume** para projetar cenários futuros:
+        O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflaÃ§Ã£o**
+        e **volume** para projetar cenÃ¡rios futuros:
 
-        **Fórmula Geral:**
+        **FÃ³rmula Geral:**
         ```
-        BE = Média_Histórica × Fator_Variação × Fator_Inflação
+        BE = MÃ©dia_HistÃ³rica Ã— Fator_VariaÃ§Ã£o Ã— Fator_InflaÃ§Ã£o
         ```
 
         Onde:
-        - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
-        - `Fator_Inflação` = 1 + (Inflação / 100)
-        - `Variação_Volume` = (Volume_Futuro / Volume_Médio_Histórico) − 1
+        - `Fator_VariaÃ§Ã£o` = 1 + (VariaÃ§Ã£o_Volume Ã— Sensibilidade)
+        - `Fator_InflaÃ§Ã£o` = 1 + (InflaÃ§Ã£o / 100)
+        - `VariaÃ§Ã£o_Volume` = (Volume_Futuro / Volume_MÃ©dio_HistÃ³rico) âˆ’ 1
 
         **Sensibilidade (impacto do volume no custo):**
-        - Controla o quanto a variação de volume afeta o custo
+        - Controla o quanto a variaÃ§Ã£o de volume afeta o custo
         - Pode ser configurada por oficina (Type 06) ou global
-        - Custo Fixo: sensibilidade = 0% → custo não varia com o volume
-        - Custo Variável: sensibilidade = 100% → custo varia proporcionalmente ao volume
+        - Custo Fixo: sensibilidade = 0% â†’ custo nÃ£o varia com o volume
+        - Custo VariÃ¡vel: sensibilidade = 100% â†’ custo varia proporcionalmente ao volume
 
         **Volume:**
-        - Define o volume de produção projetado por veículo
-        - Usado para calcular a variação de volume, Flex Budget e CPU do Forecast
-        - Quando o custo não tem dimensão Veículo, o volume médio é usado diretamente (`.mean()`)
-        - Quando há Veículo, o volume é somado por grupo (`.sum()`)
+        - Define o volume de produÃ§Ã£o projetado por veÃ­culo
+        - Usado para calcular a variaÃ§Ã£o de volume, Flex Budget e CPU do Forecast
+        - Quando o custo nÃ£o tem dimensÃ£o VeÃ­culo, o volume mÃ©dio Ã© usado diretamente (`.mean()`)
+        - Quando hÃ¡ VeÃ­culo, o volume Ã© somado por grupo (`.sum()`)
 
-        **Inflação:**
-        - Aplica % de reajuste sobre **todos** os custos (fixos e variáveis)
-        - É aplicada **após** o ajuste por sensibilidade
-        - Fórmula: `Custo_Final = Custo_Ajustado_Sensibilidade × (1 + Inflação/100)`
+        **InflaÃ§Ã£o:**
+        - Aplica % de reajuste sobre **todos** os custos (fixos e variÃ¡veis)
+        - Ã‰ aplicada **apÃ³s** o ajuste por sensibilidade
+        - FÃ³rmula: `Custo_Final = Custo_Ajustado_Sensibilidade Ã— (1 + InflaÃ§Ã£o/100)`
 
         **Resultado por tipo de custo:**
-        - **Custo Fixo BE** = Média Histórica × (1 + Inflação%) — sem ajuste de volume
-        - **Custo Variável BE** = Média Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%)
+        - **Custo Fixo BE** = MÃ©dia HistÃ³rica Ã— (1 + InflaÃ§Ã£o%) â€” sem ajuste de volume
+        - **Custo VariÃ¡vel BE** = MÃ©dia HistÃ³rica Ã— (Vol_Futuro / Vol_HistÃ³rico) Ã— (1 + InflaÃ§Ã£o%)
 
-        ### 📊 Geração de Forecast
+        ### ðŸ“Š GeraÃ§Ã£o de Forecast
 
         O simulador gera arquivos em `dados/TC_Principal/Forecast/`:
-        - `forecast_completo.parquet` — Dados projetados mês a mês
-        - `premissas.json` — Premissas utilizadas (sensibilidade, inflação, volume)
+        - `forecast_completo.parquet` â€” Dados projetados mÃªs a mÃªs
+        - `premissas.json` â€” Premissas utilizadas (sensibilidade, inflaÃ§Ã£o, volume)
 
-        Estes dados alimentam a página **Best Estimate (Análise)**, que usa o mesmo
-        layout da Home (com gráficos e KPIs) mas com dados de Forecast.
+        Estes dados alimentam a pÃ¡gina **Best Estimate (AnÃ¡lise)**, que usa o mesmo
+        layout da Home (com grÃ¡ficos e KPIs) mas com dados de Forecast.
         """)
 
 # ==========================================
-# SEÇÃO 2: REGRAS E CÁLCULO — TC EXTENDIDO
+# SEÃ‡ÃƒO 2: REGRAS E CÃLCULO â€” TC ESTENDIDO
 # ==========================================
-elif indice_selecionado == "📐 Regras e Cálculo":
-    st.header("📐 Regras e Cálculo — TC Extendido")
+elif indice_selecionado == "ðŸ“ Regras e CÃ¡lculo":
+    st.header("ðŸ“ Regras e CÃ¡lculo â€” TC Estendido")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -921,49 +922,49 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         st.stop()
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e Cálculo — TC Extendido"]))
+    st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e CÃ¡lculo â€” TC Estendido"]))
     st.markdown("---")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud — Ano Completo e Governança"]))
+    st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud â€” Ano Completo e GovernanÃ§a"]))
     st.stop()
 
-    # Conteúdo antigo removido: esta seção agora é renderizada diretamente do Markdown oficial.
+    # ConteÃºdo antigo removido: esta seÃ§Ã£o agora Ã© renderizada diretamente do Markdown oficial.
     
     st.markdown("""
-    Esta seção documenta todas as regras de cálculo, filtros e metodologias utilizadas no projeto.
-    **IMPORTANTE:** Esta documentação serve como referência para garantir que todos os cálculos sejam
-    reproduzidos de forma idêntica, permitindo que a IA consulte e refaça qualquer cálculo do sistema.
+    Esta seÃ§Ã£o documenta todas as regras de cÃ¡lculo, filtros e metodologias utilizadas no projeto.
+    **IMPORTANTE:** Esta documentaÃ§Ã£o serve como referÃªncia para garantir que todos os cÃ¡lculos sejam
+    reproduzidos de forma idÃªntica, permitindo que a IA consulte e refaÃ§a qualquer cÃ¡lculo do sistema.
     
-    A documentação está organizada em expanders para facilitar a navegação. Cada seção contém explicações
-    detalhadas das regras, fórmulas matemáticas completas e exemplos práticos para facilitar o entendimento.
+    A documentaÃ§Ã£o estÃ¡ organizada em expanders para facilitar a navegaÃ§Ã£o. Cada seÃ§Ã£o contÃ©m explicaÃ§Ãµes
+    detalhadas das regras, fÃ³rmulas matemÃ¡ticas completas e exemplos prÃ¡ticos para facilitar o entendimento.
     """)
     
     st.markdown("---")
     
-    # EXPANDER 1: Cálculos Principais
-    with st.expander("🔢 **Cálculos Principais e Métricas Fundamentais**", expanded=False):
-        with st.expander("📊 **CPU (Custo por Unidade)**", expanded=False):
+    # EXPANDER 1: CÃ¡lculos Principais
+    with st.expander("ðŸ”¢ **CÃ¡lculos Principais e MÃ©tricas Fundamentais**", expanded=False):
+        with st.expander("ðŸ“Š **CPU (Custo por Unidade)**", expanded=False):
             st.markdown("""
-            ### 📊 CPU (Custo por Unidade)
+            ### ðŸ“Š CPU (Custo por Unidade)
             
-            O **CPU (Custo por Unidade)** é uma métrica fundamental que representa o custo médio por unidade de produção.
-            É calculado dividindo o custo total pelo volume de produção.
+            O **CPU (Custo por Unidade)** Ã© uma mÃ©trica fundamental que representa o custo mÃ©dio por unidade de produÃ§Ã£o.
+            Ã‰ calculado dividindo o custo total pelo volume de produÃ§Ã£o.
             
-            **Fórmula Matemática:**
+            **FÃ³rmula MatemÃ¡tica:**
             ```
             CPU = Custo_Total / Volume_Total
             ```
             
             Onde:
-            - `Custo_Total` = Soma de todos os custos individuais após agrupamento
-            - `Volume_Total` = Soma de todos os volumes após agrupamento
+            - `Custo_Total` = Soma de todos os custos individuais apÃ³s agrupamento
+            - `Volume_Total` = Soma de todos os volumes apÃ³s agrupamento
             
-            **⚠️ REGRA CRÍTICA:** O CPU deve ser calculado **APÓS** o agrupamento dos dados, nunca antes.
-            Esta é uma das regras mais importantes do sistema, pois calcular CPU antes de agrupar resulta em valores incorretos.
+            **âš ï¸ REGRA CRÃTICA:** O CPU deve ser calculado **APÃ“S** o agrupamento dos dados, nunca antes.
+            Esta Ã© uma das regras mais importantes do sistema, pois calcular CPU antes de agrupar resulta em valores incorretos.
             
-            **Por que calcular após agrupamento?**
+            **Por que calcular apÃ³s agrupamento?**
             
-            A média aritmética de CPUs individuais não é igual ao CPU do total agregado. Isso ocorre porque o CPU é uma
-            razão (divisão), e a média de razões não é igual à razão das médias.
+            A mÃ©dia aritmÃ©tica de CPUs individuais nÃ£o Ã© igual ao CPU do total agregado. Isso ocorre porque o CPU Ã© uma
+            razÃ£o (divisÃ£o), e a mÃ©dia de razÃµes nÃ£o Ã© igual Ã  razÃ£o das mÃ©dias.
             
             **Exemplo Ilustrativo:**
             
@@ -971,325 +972,325 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             - **Linha 1:** Custo Total = R$ 100, Volume = 10 unidades -> CPU = R$ 10,00/unidade
             - **Linha 2:** Custo Total = R$ 200, Volume = 40 unidades -> CPU = R$ 5,00/unidade
             
-            **Método Incorreto (calcular CPU antes de agrupar):**
-            - CPU médio = (R$ 10,00 + R$ 5,00) / 2 = **R$ 7,50/unidade** [INCORRETO]
+            **MÃ©todo Incorreto (calcular CPU antes de agrupar):**
+            - CPU mÃ©dio = (R$ 10,00 + R$ 5,00) / 2 = **R$ 7,50/unidade** [INCORRETO]
             
-            **Método Correto (calcular CPU após agrupar):**
+            **MÃ©todo Correto (calcular CPU apÃ³s agrupar):**
             - Custo Total Agregado = R$ 100 + R$ 200 = R$ 300
             - Volume Total Agregado = 10 + 40 = 50 unidades
             - CPU Agregado = R$ 300 / 50 = **R$ 6,00/unidade** [CORRETO]
             
-            A diferença entre R$ 7,50 e R$ 6,00 pode parecer pequena, mas em grandes volumes de dados essa discrepância
-            se acumula e resulta em análises completamente incorretas.
+            A diferenÃ§a entre R$ 7,50 e R$ 6,00 pode parecer pequena, mas em grandes volumes de dados essa discrepÃ¢ncia
+            se acumula e resulta em anÃ¡lises completamente incorretas.
             
-            **Interpretação do CPU:**
-            - **CPU baixo:** Indica eficiência operacional, menor custo por unidade produzida
-            - **CPU alto:** Indica ineficiência ou custos elevados por unidade produzida
-            - **Variação de CPU:** Mudanças no CPU entre períodos indicam variações na eficiência operacional
+            **InterpretaÃ§Ã£o do CPU:**
+            - **CPU baixo:** Indica eficiÃªncia operacional, menor custo por unidade produzida
+            - **CPU alto:** Indica ineficiÃªncia ou custos elevados por unidade produzida
+            - **VariaÃ§Ã£o de CPU:** MudanÃ§as no CPU entre perÃ­odos indicam variaÃ§Ãµes na eficiÃªncia operacional
             """)
         
-        with st.expander("💰 **Custo Total**", expanded=False):
+        with st.expander("ðŸ’° **Custo Total**", expanded=False):
             st.markdown("""
-            ### 💰 Custo Total
+            ### ðŸ’° Custo Total
         
-        O **Custo Total** representa a soma de todos os custos individuais após a aplicação de filtros e agrupamentos.
+        O **Custo Total** representa a soma de todos os custos individuais apÃ³s a aplicaÃ§Ã£o de filtros e agrupamentos.
         
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Custo_Total = Σ(Custo_Individual)
+        Custo_Total = Î£(Custo_Individual)
         ```
         
-        Onde `Σ` representa a soma de todos os custos individuais que atendem aos critérios de filtragem.
+        Onde `Î£` representa a soma de todos os custos individuais que atendem aos critÃ©rios de filtragem.
         
-        **Regras de Cálculo:**
-        - Sempre somar valores individuais, nunca calcular média
+        **Regras de CÃ¡lculo:**
+        - Sempre somar valores individuais, nunca calcular mÃ©dia
         - Aplicar todos os filtros antes de realizar o agrupamento
-        - Considerar apenas valores que atendem aos critérios de seleção
-        - Não incluir valores nulos ou zerados no cálculo
+        - Considerar apenas valores que atendem aos critÃ©rios de seleÃ§Ã£o
+        - NÃ£o incluir valores nulos ou zerados no cÃ¡lculo
         
-        **Agrupamento por Dimensões:**
+        **Agrupamento por DimensÃµes:**
         
-        O custo total pode ser calculado para diferentes níveis de agregação:
-        - Por período (mês, trimestre, semestre, ano)
+        O custo total pode ser calculado para diferentes nÃ­veis de agregaÃ§Ã£o:
+        - Por perÃ­odo (mÃªs, trimestre, semestre, ano)
         - Por oficina
-        - Por veículo
+        - Por veÃ­culo
         - Por categoria de custo (Type 05, Type 06, Account)
-        - Por combinação de dimensões
+        - Por combinaÃ§Ã£o de dimensÃµes
         
-        **Interpretação:**
+        **InterpretaÃ§Ã£o:**
         - **Custo Total crescente:** Indica aumento nos gastos operacionais
-        - **Custo Total decrescente:** Indica redução nos gastos operacionais
-        - **Comparação entre períodos:** Permite identificar tendências e variações
+        - **Custo Total decrescente:** Indica reduÃ§Ã£o nos gastos operacionais
+        - **ComparaÃ§Ã£o entre perÃ­odos:** Permite identificar tendÃªncias e variaÃ§Ãµes
         """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### 🔄 Fator de Conversão (K/M)
+        ### ðŸ”„ Fator de ConversÃ£o (K/M)
         
-        Os **Fatores de Conversão** são utilizados para facilitar a visualização de valores muito grandes,
-        convertendo-os para unidades mais legíveis (milhares ou milhões).
+        Os **Fatores de ConversÃ£o** sÃ£o utilizados para facilitar a visualizaÃ§Ã£o de valores muito grandes,
+        convertendo-os para unidades mais legÃ­veis (milhares ou milhÃµes).
         
-        **Fatores Disponíveis:**
+        **Fatores DisponÃ­veis:**
         - **K (milhares):** Divide o valor por 1.000
-        - **M (Milhões):** Divide o valor por 1.000.000
-        - **Nenhum:** Mantém o valor original
+        - **M (MilhÃµes):** Divide o valor por 1.000.000
+        - **Nenhum:** MantÃ©m o valor original
         
-        **Fórmulas Matemáticas:**
+        **FÃ³rmulas MatemÃ¡ticas:**
         ```
         Valor_K = Valor_Original / 1.000
         Valor_M = Valor_Original / 1.000.000
         ```
         
-        **⚠️ REGRA CRÍTICA:** O fator de conversão **NÃO** deve ser aplicado no modo **CPU (Custo por Unidade)**.
+        **âš ï¸ REGRA CRÃTICA:** O fator de conversÃ£o **NÃƒO** deve ser aplicado no modo **CPU (Custo por Unidade)**.
         
-        **Por que não aplicar em CPU?**
+        **Por que nÃ£o aplicar em CPU?**
         
-        O CPU já é uma razão (divisão entre Custo Total e Volume). Se aplicarmos o fator de conversão ao Custo Total
-        antes de calcular o CPU, estaríamos dividindo duas vezes, o que resultaria em valores completamente incorretos.
+        O CPU jÃ¡ Ã© uma razÃ£o (divisÃ£o entre Custo Total e Volume). Se aplicarmos o fator de conversÃ£o ao Custo Total
+        antes de calcular o CPU, estarÃ­amos dividindo duas vezes, o que resultaria em valores completamente incorretos.
         
         **Exemplo:**
         - Custo Total Original: R$ 1.000.000
         - Volume: 10.000 unidades
         - CPU Correto: R$ 1.000.000 / 10.000 = **R$ 100,00/unidade** [CORRETO]
         
-        Se aplicássemos o fator K antes:
+        Se aplicÃ¡ssemos o fator K antes:
         - Custo Total com K: R$ 1.000 K
         - CPU Incorreto: R$ 1.000 K / 10.000 = **R$ 0,10/unidade** [INCORRETO] (1000 vezes menor!)
         
-        **Ordem de Aplicação das Transformações:**
+        **Ordem de AplicaÃ§Ã£o das TransformaÃ§Ãµes:**
         
-        1. **Primeiro:** Aplicar fator de conversão (K/M) - apenas em modo Custo Total
-        2. **Segundo:** Converter moeda (se necessário)
-        3. **Terceiro:** Realizar cálculos (CPU, Flex Bud, diferenças, etc.)
+        1. **Primeiro:** Aplicar fator de conversÃ£o (K/M) - apenas em modo Custo Total
+        2. **Segundo:** Converter moeda (se necessÃ¡rio)
+        3. **Terceiro:** Realizar cÃ¡lculos (CPU, Flex Bud, diferenÃ§as, etc.)
         
-        Esta ordem garante que todas as transformações sejam aplicadas corretamente e que os resultados finais
+        Esta ordem garante que todas as transformaÃ§Ãµes sejam aplicadas corretamente e que os resultados finais
         sejam consistentes e precisos.
         """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### 📅 Agrupamento por Período
+        ### ðŸ“… Agrupamento por PerÃ­odo
         
-        O **Agrupamento por Período** permite consolidar dados em diferentes intervalos de tempo, facilitando
-        análises comparativas e identificação de tendências.
+        O **Agrupamento por PerÃ­odo** permite consolidar dados em diferentes intervalos de tempo, facilitando
+        anÃ¡lises comparativas e identificaÃ§Ã£o de tendÃªncias.
         
-        **Estrutura de Períodos:**
+        **Estrutura de PerÃ­odos:**
         
-        Quando os dados contêm informação de **Ano**, o sistema cria uma coluna combinada `Período_Ano` que
-        agrupa tanto o período quanto o ano:
+        Quando os dados contÃªm informaÃ§Ã£o de **Ano**, o sistema cria uma coluna combinada `PerÃ­odo_Ano` que
+        agrupa tanto o perÃ­odo quanto o ano:
         ```
-        Período_Ano = Período + " " + Ano
+        PerÃ­odo_Ano = PerÃ­odo + " " + Ano
         ```
         
         Exemplo: "Janeiro 2024", "Fevereiro 2024", etc.
         
         **Agrupamento com Ano:**
-        - Dimensões de agrupamento: `['Ano', 'Período']`
-        - Permite comparações ano a ano
-        - Facilita análises de tendências de longo prazo
+        - DimensÃµes de agrupamento: `['Ano', 'PerÃ­odo']`
+        - Permite comparaÃ§Ãµes ano a ano
+        - Facilita anÃ¡lises de tendÃªncias de longo prazo
         
         **Agrupamento sem Ano:**
-        - Dimensões de agrupamento: `['Período']`
-        - Útil quando todos os dados são do mesmo ano
-        - Simplifica análises mensais ou trimestrais
+        - DimensÃµes de agrupamento: `['PerÃ­odo']`
+        - Ãštil quando todos os dados sÃ£o do mesmo ano
+        - Simplifica anÃ¡lises mensais ou trimestrais
         
-        **Fórmula de Agregação:**
+        **FÃ³rmula de AgregaÃ§Ã£o:**
         ```
-        Custo_Total_Agrupado = Σ(Custo_Individual) agrupado por Período
-        Volume_Total_Agrupado = Σ(Volume_Individual) agrupado por Período
+        Custo_Total_Agrupado = Î£(Custo_Individual) agrupado por PerÃ­odo
+        Volume_Total_Agrupado = Î£(Volume_Individual) agrupado por PerÃ­odo
         ```
         
-        **Interpretação:**
-        - Permite identificar sazonalidades e padrões temporais
-        - Facilita comparações entre períodos equivalentes
-        - Suporta análises de tendências e projeções
+        **InterpretaÃ§Ã£o:**
+        - Permite identificar sazonalidades e padrÃµes temporais
+        - Facilita comparaÃ§Ãµes entre perÃ­odos equivalentes
+        - Suporta anÃ¡lises de tendÃªncias e projeÃ§Ãµes
         """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### 📈 Cálculo de Diferenças e Ratios
+        ### ðŸ“ˆ CÃ¡lculo de DiferenÃ§as e Ratios
         
-        As **Diferenças e Ratios** são métricas essenciais para análise de desempenho, permitindo comparar
+        As **DiferenÃ§as e Ratios** sÃ£o mÃ©tricas essenciais para anÃ¡lise de desempenho, permitindo comparar
         valores reais com valores planejados ou ajustados.
         
-        **1. Diferença Flex Bud - BUD:**
+        **1. DiferenÃ§a Flex Bud - BUD:**
         
-        Esta métrica compara o Budget Flexível (ajustado pelo volume real) com o Budget original planejado.
+        Esta mÃ©trica compara o Budget FlexÃ­vel (ajustado pelo volume real) com o Budget original planejado.
         
-        **Fórmula:**
+        **FÃ³rmula:**
         ```
         Delta_Flex_Bud = Flex_BUD - BUD
         ```
         
-        **Interpretação:**
+        **InterpretaÃ§Ã£o:**
         - **Valor positivo:** Flex Bud > BUD (custo ajustado maior que o planejado)
         - **Valor negativo:** Flex Bud < BUD (custo ajustado menor que o planejado)
         - **Zero:** Flex Bud = BUD (custo ajustado igual ao planejado)
         
-        **2. Diferença Total - Flex Bud:**
+        **2. DiferenÃ§a Total - Flex Bud:**
         
-        Esta métrica compara o custo real com o Budget Flexível, indicando a eficiência operacional.
+        Esta mÃ©trica compara o custo real com o Budget FlexÃ­vel, indicando a eficiÃªncia operacional.
         
-        **Fórmula:**
+        **FÃ³rmula:**
         ```
         Delta_Total_Flex = Total - Flex_BUD
         ```
         
-        **Interpretação:**
-        - **Valor positivo:** Total > Flex Bud (ineficiência operacional)
-        - **Valor negativo:** Total < Flex Bud (eficiência operacional)
+        **InterpretaÃ§Ã£o:**
+        - **Valor positivo:** Total > Flex Bud (ineficiÃªncia operacional)
+        - **Valor negativo:** Total < Flex Bud (eficiÃªncia operacional)
         - **Zero:** Total = Flex Bud (desempenho exatamente como esperado)
         
         **3. Ratio Total / Flex Bud:**
         
-        Esta métrica expressa o desempenho real como percentual do Budget Flexível.
+        Esta mÃ©trica expressa o desempenho real como percentual do Budget FlexÃ­vel.
         
-        **Fórmula:**
+        **FÃ³rmula:**
         ```
         Ratio = Total / Flex_BUD
         Percentual = Ratio * 100%
         ```
         
-        **Interpretação:**
-        - **< 100%:** Total < Flex Bud (melhor que esperado, eficiência operacional)
+        **InterpretaÃ§Ã£o:**
+        - **< 100%:** Total < Flex Bud (melhor que esperado, eficiÃªncia operacional)
         - **= 100%:** Total = Flex Bud (exatamente como esperado)
-        - **> 100%:** Total > Flex Bud (pior que esperado, ineficiência operacional)
+        - **> 100%:** Total > Flex Bud (pior que esperado, ineficiÃªncia operacional)
         
-        **Exemplo Prático:**
+        **Exemplo PrÃ¡tico:**
         - Flex Bud = R$ 500.000
         - Total Real = R$ 520.000
         - Ratio = 520.000 / 500.000 = 1,04 = **104%**
-        - Interpretação: O custo real está 4% acima do Budget Flexível, indicando ineficiência operacional
+        - InterpretaÃ§Ã£o: O custo real estÃ¡ 4% acima do Budget FlexÃ­vel, indicando ineficiÃªncia operacional
         """)
     
     # EXPANDER 2: Flex Bud
-    with st.expander("🔄 **Cálculo de Flex Bud (Budget Flexível)**", expanded=False):
-        with st.expander("📋 **Conceito e Regras Fundamentais**", expanded=False):
+    with st.expander("ðŸ”„ **CÃ¡lculo de Flex Bud (Budget FlexÃ­vel)**", expanded=False):
+        with st.expander("ðŸ“‹ **Conceito e Regras Fundamentais**", expanded=False):
             st.markdown("""
             ### Conceito
             
-            **Flex Bud** (Budget Flexível) é um valor ajustado que considera a variação de volume,
-            aplicando regras diferentes para custos fixos e **não‑fixos**.
+            **Flex Bud** (Budget FlexÃ­vel) Ã© um valor ajustado que considera a variaÃ§Ã£o de volume,
+            aplicando regras diferentes para custos fixos e **nÃ£oâ€‘fixos**.
             
-            **IMPORTANTE:** Existem dois contextos diferentes de cálculo:
-            1. **Real x Real** (Waterfall): Compara dois períodos reais (Mês 1 vs Mês 2)
-            2. **Real x Budget** (TC Ext): Compara período real vs budget planejado
+            **IMPORTANTE:** Existem dois contextos diferentes de cÃ¡lculo:
+            1. **Real x Real** (Waterfall): Compara dois perÃ­odos reais (MÃªs 1 vs MÃªs 2)
+            2. **Real x Budget** (TC Ext): Compara perÃ­odo real vs budget planejado
             """)
             
             st.markdown("---")
             
-            st.markdown("## 📋 Regras Fundamentais: Fixo vs Não‑Fixo")
+            st.markdown("## ðŸ“‹ Regras Fundamentais: Fixo vs NÃ£oâ€‘Fixo")
             
             st.markdown("""
             ### Regra Geral para Custos Fixos
             
-            **Princípio:** Custos fixos NÃO variam com o volume de produção.
+            **PrincÃ­pio:** Custos fixos NÃƒO variam com o volume de produÃ§Ã£o.
             
-            **Fórmula Geral:**
+            **FÃ³rmula Geral:**
             ```
             Flex_Fixo = Valor_Original_Fixo
             ```
             
-            **Explicação:**
-            - Independente da variação de volume, o custo fixo permanece constante
-            - Exemplos: Aluguel, salários fixos, depreciação
+            **ExplicaÃ§Ã£o:**
+            - Independente da variaÃ§Ã£o de volume, o custo fixo permanece constante
+            - Exemplos: Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o
             - Sensibilidade ao volume: **0%** (zero por cento)
             """)
             
             st.markdown("---")
             
             st.markdown("""
-            ### Regra Geral para Custos Não‑Fixos
+            ### Regra Geral para Custos NÃ£oâ€‘Fixos
             
-            **Princípio:** Custos **não‑fixos** variam PROPORCIONALMENTE ao volume de produção.
+            **PrincÃ­pio:** Custos **nÃ£oâ€‘fixos** variam PROPORCIONALMENTE ao volume de produÃ§Ã£o.
             
-            **Fórmula Geral:**
+            **FÃ³rmula Geral:**
             ```
-            Flex_NãoFixo = Valor_Original_NãoFixo * (Volume_Novo / Volume_Original)
+            Flex_NÃ£oFixo = Valor_Original_NÃ£oFixo * (Volume_Novo / Volume_Original)
             ```
             
-            **Explicação:**
-            - Se o volume dobra, o custo **não‑fixo** escala proporcionalmente
-            - Se o volume reduz pela metade, o custo **não‑fixo** escala proporcionalmente
-            - Exemplos: componentes variáveis e demais classificações que não sejam Fixo
+            **ExplicaÃ§Ã£o:**
+            - Se o volume dobra, o custo **nÃ£oâ€‘fixo** escala proporcionalmente
+            - Se o volume reduz pela metade, o custo **nÃ£oâ€‘fixo** escala proporcionalmente
+            - Exemplos: componentes variÃ¡veis e demais classificaÃ§Ãµes que nÃ£o sejam Fixo
             - Sensibilidade ao volume: **100%** (cem por cento)
             """)
         
-        # Ler o conteúdo do Flex Bud que está mais abaixo no arquivo
-        # Por enquanto, vou adicionar um placeholder e depois mover o conteúdo correto
-        st.info("📚 Conteúdo detalhado do Flex Bud será movido para cá...")
+        # Ler o conteÃºdo do Flex Bud que estÃ¡ mais abaixo no arquivo
+        # Por enquanto, vou adicionar um placeholder e depois mover o conteÃºdo correto
+        st.info("ðŸ“š ConteÃºdo detalhado do Flex Bud serÃ¡ movido para cÃ¡...")
     
     # EXPANDER 3: Volumes
-    with st.expander("📊 **Cálculo de Volumes**", expanded=False):
-        with st.expander("📁 **Fonte de Dados de Volume**", expanded=False):
+    with st.expander("ðŸ“Š **CÃ¡lculo de Volumes**", expanded=False):
+        with st.expander("ðŸ“ **Fonte de Dados de Volume**", expanded=False):
             st.markdown("""
-            ### 📁 Fonte de Dados de Volume
+            ### ðŸ“ Fonte de Dados de Volume
             
-            Os dados de volume são armazenados em arquivos Parquet otimizados para garantir performance e eficiência
-            no processamento. O sistema utiliza diferentes arquivos de volume dependendo do contexto de análise.
+            Os dados de volume sÃ£o armazenados em arquivos Parquet otimizados para garantir performance e eficiÃªncia
+            no processamento. O sistema utiliza diferentes arquivos de volume dependendo do contexto de anÃ¡lise.
             
             **Arquivos de Volume:**
             
-            - **`df_vol_historico.parquet`:** Dados históricos consolidados de volume
-            - **`df_vol.parquet`:** Dados de volume por ano específico
-            - **`df_vol_historico_BUD.parquet`:** Dados de volume do budget histórico
+            - **`df_vol_historico.parquet`:** Dados histÃ³ricos consolidados de volume
+            - **`df_vol.parquet`:** Dados de volume por ano especÃ­fico
+            - **`df_vol_historico_BUD.parquet`:** Dados de volume do budget histÃ³rico
             
             **Estrutura dos Dados de Volume:**
             
-            Os arquivos de volume contêm as seguintes colunas obrigatórias:
+            Os arquivos de volume contÃªm as seguintes colunas obrigatÃ³rias:
             - **`Volume`:** Quantidade de unidades produzidas
-            - **`Período`:** Período de referência (mês, trimestre, etc.)
-            - **`Oficina`:** Identificação da oficina
-            - **`Veículo`:** Identificação do veículo
+            - **`PerÃ­odo`:** PerÃ­odo de referÃªncia (mÃªs, trimestre, etc.)
+            - **`Oficina`:** IdentificaÃ§Ã£o da oficina
+            - **`VeÃ­culo`:** IdentificaÃ§Ã£o do veÃ­culo
             
             E a seguinte coluna opcional:
-            - **`Ano`:** Ano de referência (quando disponível)
+            - **`Ano`:** Ano de referÃªncia (quando disponÃ­vel)
             
-            **Sincronização com Dados de Custo:**
+            **SincronizaÃ§Ã£o com Dados de Custo:**
             
-            Os dados de volume são estruturados de forma a permitir sincronização perfeita com os dados de custo,
-            garantindo que o cálculo de CPU seja preciso e consistente.
+            Os dados de volume sÃ£o estruturados de forma a permitir sincronizaÃ§Ã£o perfeita com os dados de custo,
+            garantindo que o cÃ¡lculo de CPU seja preciso e consistente.
             """)
         
-        with st.expander("⚠️ **REGRA CRÍTICA: Filtragem de Volumes**", expanded=False):
+        with st.expander("âš ï¸ **REGRA CRÃTICA: Filtragem de Volumes**", expanded=False):
             st.markdown("""
-            ### ⚠️ REGRA CRÍTICA: Filtragem de Volumes
+            ### âš ï¸ REGRA CRÃTICA: Filtragem de Volumes
             
-            **Princípio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
-            principais de custo. Esta regra é absolutamente crítica para garantir a precisão do cálculo de CPU.
+            **PrincÃ­pio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
+            principais de custo. Esta regra Ã© absolutamente crÃ­tica para garantir a precisÃ£o do cÃ¡lculo de CPU.
             
             **Processo de Filtragem:**
             
             O processo de filtragem de volumes segue os seguintes passos:
             
-            1. **Criar conjunto filtrado:** Iniciar com uma cópia dos dados de volume originais
-            2. **Aplicar filtros sincronizados:** Usar os valores únicos extraídos dos dados de custo filtrados
-            3. **Filtrar por período:** Aplicar filtro específico para o período de análise
-            4. **Agrupar e somar:** Agrupar por período e somar os volumes
+            1. **Criar conjunto filtrado:** Iniciar com uma cÃ³pia dos dados de volume originais
+            2. **Aplicar filtros sincronizados:** Usar os valores Ãºnicos extraÃ­dos dos dados de custo filtrados
+            3. **Filtrar por perÃ­odo:** Aplicar filtro especÃ­fico para o perÃ­odo de anÃ¡lise
+            4. **Agrupar e somar:** Agrupar por perÃ­odo e somar os volumes
             
-            **Fórmula de Agregação:**
+            **FÃ³rmula de AgregaÃ§Ã£o:**
             
             ```
-            Volume_Total = Σ(Volume_Individual) agrupado por Período
+            Volume_Total = Î£(Volume_Individual) agrupado por PerÃ­odo
             ```
             
-            Onde `Σ` representa a soma de todos os volumes individuais que atendem aos critérios de filtragem.
+            Onde `Î£` representa a soma de todos os volumes individuais que atendem aos critÃ©rios de filtragem.
             
-            **Importância da Consistência:**
+            **ImportÃ¢ncia da ConsistÃªncia:**
             
-            A consistência entre os filtros aplicados aos dados de custo e volume é essencial porque:
-            - O CPU é calculado como Custo Total / Volume Total
-            - Se os filtros forem diferentes, o CPU resultante será completamente incorreto
-            - Análises baseadas em CPU incorreto podem levar a decisões de negócio equivocadas
+            A consistÃªncia entre os filtros aplicados aos dados de custo e volume Ã© essencial porque:
+            - O CPU Ã© calculado como Custo Total / Volume Total
+            - Se os filtros forem diferentes, o CPU resultante serÃ¡ completamente incorreto
+            - AnÃ¡lises baseadas em CPU incorreto podem levar a decisÃµes de negÃ³cio equivocadas
             
             **Exemplo de Impacto:**
             
-            Se você filtrar os custos para uma oficina específica mas não filtrar os volumes da mesma forma:
+            Se vocÃª filtrar os custos para uma oficina especÃ­fica mas nÃ£o filtrar os volumes da mesma forma:
             - Custo Total (filtrado): R$ 50.000 (apenas Oficina A)
-            - Volume Total (não filtrado): 100.000 unidades (todas as oficinas)
+            - Volume Total (nÃ£o filtrado): 100.000 unidades (todas as oficinas)
             - CPU Incorreto: R$ 50.000 / 100.000 = R$ 0,50/unidade [INCORRETO]
             
             O correto seria:
@@ -1299,45 +1300,45 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             """)
     
     # EXPANDER 4: Moeda e Taxas
-    with st.expander("💱 **Moeda e Taxas de Câmbio**", expanded=False):
-        with st.expander("💱 **Moedas Suportadas**", expanded=False):
+    with st.expander("ðŸ’± **Moeda e Taxas de CÃ¢mbio**", expanded=False):
+        with st.expander("ðŸ’± **Moedas Suportadas**", expanded=False):
             st.markdown("""
-            ### 💱 Moedas Suportadas
+            ### ðŸ’± Moedas Suportadas
             
-            O sistema suporta conversão entre diferentes moedas para facilitar análises internacionais e comparações
-            com dados de outras unidades de negócio. As moedas disponíveis são:
+            O sistema suporta conversÃ£o entre diferentes moedas para facilitar anÃ¡lises internacionais e comparaÃ§Ãµes
+            com dados de outras unidades de negÃ³cio. As moedas disponÃ­veis sÃ£o:
             
             - **BRL (R$):** Real Brasileiro - moeda base do sistema
-            - **USD ($):** Dólar Americano
+            - **USD ($):** DÃ³lar Americano
             - **EUR:** Euro
             
             **Moeda Base:**
             
-            O Real Brasileiro (BRL) é a moeda base do sistema. Todos os valores são originalmente armazenados em BRL,
-            e as conversões para outras moedas são realizadas multiplicando os valores pela taxa de câmbio correspondente.
+            O Real Brasileiro (BRL) Ã© a moeda base do sistema. Todos os valores sÃ£o originalmente armazenados em BRL,
+            e as conversÃµes para outras moedas sÃ£o realizadas multiplicando os valores pela taxa de cÃ¢mbio correspondente.
             """)
         
-        with st.expander("📊 **Taxas de Câmbio**", expanded=False):
+        with st.expander("ðŸ“Š **Taxas de CÃ¢mbio**", expanded=False):
             st.markdown("""
-            ### 📊 Taxas de Câmbio
+            ### ðŸ“Š Taxas de CÃ¢mbio
             
-            As **Taxas de Câmbio** definem a relação de conversão entre a moeda base (BRL) e as outras moedas suportadas.
+            As **Taxas de CÃ¢mbio** definem a relaÃ§Ã£o de conversÃ£o entre a moeda base (BRL) e as outras moedas suportadas.
             
-            **Definição Matemática:**
+            **DefiniÃ§Ã£o MatemÃ¡tica:**
             
-            As taxas são definidas como a quantidade de moeda estrangeira equivalente a 1 Real Brasileiro:
+            As taxas sÃ£o definidas como a quantidade de moeda estrangeira equivalente a 1 Real Brasileiro:
             ```
             1 BRL = Taxa_USD USD
             1 BRL = Taxa_EUR EUR
             ```
             
-            **Exemplo Prático:**
+            **Exemplo PrÃ¡tico:**
             
-            Se a taxa de câmbio USD for 0,20, isso significa que:
-            - 1 Real Brasileiro = 0,20 Dólares Americanos
+            Se a taxa de cÃ¢mbio USD for 0,20, isso significa que:
+            - 1 Real Brasileiro = 0,20 DÃ³lares Americanos
             - Para converter R$ 100,00 para USD: R$ 100,00 * 0,20 = $ 20,00
             
-            **Fórmula de Conversão:**
+            **FÃ³rmula de ConversÃ£o:**
             
             Para converter um valor de BRL para outra moeda:
             ```
@@ -1346,257 +1347,257 @@ elif indice_selecionado == "📐 Regras e Cálculo":
             
             Onde:
             - `Valor_BRL` = Valor original em Real Brasileiro
-            - `Taxa_Câmbio` = Taxa de câmbio da moeda de destino
+            - `Taxa_CÃ¢mbio` = Taxa de cÃ¢mbio da moeda de destino
             - `Valor_Convertido` = Valor convertido para a moeda de destino
             
-            **Ordem de Aplicação das Transformações:**
+            **Ordem de AplicaÃ§Ã£o das TransformaÃ§Ãµes:**
             
-            Quando múltiplas transformações são aplicadas (fator de conversão K/M e conversão de moeda), a ordem
-            é crítica para garantir resultados corretos:
+            Quando mÃºltiplas transformaÃ§Ãµes sÃ£o aplicadas (fator de conversÃ£o K/M e conversÃ£o de moeda), a ordem
+            Ã© crÃ­tica para garantir resultados corretos:
             
-            1. **Primeiro:** Aplicar fator de conversão (K/M) - apenas em modo Custo Total
-            2. **Segundo:** Converter moeda (se necessário)
-            3. **Terceiro:** Realizar cálculos (CPU, Flex Bud, diferenças, etc.)
+            1. **Primeiro:** Aplicar fator de conversÃ£o (K/M) - apenas em modo Custo Total
+            2. **Segundo:** Converter moeda (se necessÃ¡rio)
+            3. **Terceiro:** Realizar cÃ¡lculos (CPU, Flex Bud, diferenÃ§as, etc.)
             
-            **Exemplo Completo de Transformação:**
+            **Exemplo Completo de TransformaÃ§Ã£o:**
             
             Considere um valor original de R$ 1.000.000,00:
             
             - **Passo 1 (Fator K):** R$ 1.000.000,00 / 1.000 = R$ 1.000 K
-            - **Passo 2 (Conversão USD, taxa 0,20):** R$ 1.000 K * 0,20 = $ 200 K
-            - **Resultado Final:** $ 200 K (duzentos mil dólares)
+            - **Passo 2 (ConversÃ£o USD, taxa 0,20):** R$ 1.000 K * 0,20 = $ 200 K
+            - **Resultado Final:** $ 200 K (duzentos mil dÃ³lares)
             """)
         
-        with st.expander("💾 **Persistência e Atualização de Taxas**", expanded=False):
+        with st.expander("ðŸ’¾ **PersistÃªncia e AtualizaÃ§Ã£o de Taxas**", expanded=False):
             st.markdown("""
-            ### 💾 Persistência e Atualização de Taxas
+            ### ðŸ’¾ PersistÃªncia e AtualizaÃ§Ã£o de Taxas
             
-            As taxas de câmbio são armazenadas de forma persistente para garantir que as conversões sejam
-            consistentes entre diferentes sessões de análise.
+            As taxas de cÃ¢mbio sÃ£o armazenadas de forma persistente para garantir que as conversÃµes sejam
+            consistentes entre diferentes sessÃµes de anÃ¡lise.
             
             **Armazenamento:**
             
-            - As taxas são salvas em banco de dados ou arquivo de configuração
-            - Valores padrão são utilizados caso não existam taxas salvas
-            - As taxas podem ser atualizadas a qualquer momento através da interface do sistema
+            - As taxas sÃ£o salvas em banco de dados ou arquivo de configuraÃ§Ã£o
+            - Valores padrÃ£o sÃ£o utilizados caso nÃ£o existam taxas salvas
+            - As taxas podem ser atualizadas a qualquer momento atravÃ©s da interface do sistema
             
-            **Atualização de Taxas:**
+            **AtualizaÃ§Ã£o de Taxas:**
             
-            As taxas de câmbio podem ser atualizadas para refletir as condições de mercado atuais. Quando uma
-            nova taxa é definida, ela é aplicada a todos os cálculos subsequentes, garantindo que as análises
+            As taxas de cÃ¢mbio podem ser atualizadas para refletir as condiÃ§Ãµes de mercado atuais. Quando uma
+            nova taxa Ã© definida, ela Ã© aplicada a todos os cÃ¡lculos subsequentes, garantindo que as anÃ¡lises
             estejam sempre baseadas nas taxas mais recentes.
             
-            **Importância da Atualização:**
+            **ImportÃ¢ncia da AtualizaÃ§Ã£o:**
             
-            Manter as taxas de câmbio atualizadas é essencial para garantir a precisão das análises, especialmente
-            em períodos de alta volatilidade cambial. Taxas desatualizadas podem resultar em comparações e
-            análises completamente incorretas.
+            Manter as taxas de cÃ¢mbio atualizadas Ã© essencial para garantir a precisÃ£o das anÃ¡lises, especialmente
+            em perÃ­odos de alta volatilidade cambial. Taxas desatualizadas podem resultar em comparaÃ§Ãµes e
+            anÃ¡lises completamente incorretas.
             """)
     
-    # EXPANDER 5: Filtros e Perímetros
-    with st.expander("🔍 **Filtros e Perímetros de Análise**", expanded=False):
-        with st.expander("🎯 **Sistema de Filtros da Interface**", expanded=False):
+    # EXPANDER 5: Filtros e PerÃ­metros
+    with st.expander("ðŸ” **Filtros e PerÃ­metros de AnÃ¡lise**", expanded=False):
+        with st.expander("ðŸŽ¯ **Sistema de Filtros da Interface**", expanded=False):
             st.markdown("""
-            ### 🎯 Sistema de Filtros da Interface
+            ### ðŸŽ¯ Sistema de Filtros da Interface
             
-            O sistema possui um conjunto abrangente de filtros que permitem refinar a análise de dados de forma
-            precisa e flexível. Os filtros são aplicados sequencialmente, criando um perímetro de análise cada vez
-            mais específico conforme o usuário seleciona diferentes critérios.
+            O sistema possui um conjunto abrangente de filtros que permitem refinar a anÃ¡lise de dados de forma
+            precisa e flexÃ­vel. Os filtros sÃ£o aplicados sequencialmente, criando um perÃ­metro de anÃ¡lise cada vez
+            mais especÃ­fico conforme o usuÃ¡rio seleciona diferentes critÃ©rios.
             
-            **Ordem de Aplicação dos Filtros:**
+            **Ordem de AplicaÃ§Ã£o dos Filtros:**
             
-            Os filtros são aplicados na seguinte ordem hierárquica, garantindo que cada filtro refine o resultado
+            Os filtros sÃ£o aplicados na seguinte ordem hierÃ¡rquica, garantindo que cada filtro refine o resultado
             do filtro anterior:
             
-            1. **Ano** - Seleção do ano de análise (Radio button)
-            2. **Oficina** - Seleção de uma ou mais oficinas (Multiselect)
-            3. **Veículo** - Seleção de um ou mais veículos (Multiselect)
-            4. **USI** - Seleção de unidades de serviço (Multiselect)
-            5. **Período** - Seleção de período específico (Selectbox)
-            6. **Centro cst** - Seleção de centro de custo (Selectbox)
-            7. **Conta contábil** - Seleção de contas contábeis (Multiselect)
-            8. **Type 5** - Seleção de categorias Type 05 (Multiselect)
-            9. **Type 6** - Seleção de categorias Type 06 (Multiselect)
-            10. **Fornecedor** - Seleção de fornecedores (Multiselect)
-            11. **Fornec.** - Seleção adicional de fornecedores (Multiselect)
-            12. **Tipo** - Seleção de tipos de custo (Multiselect)
-            13. **Filtros Avançados:**
-                - **Usuário** - Filtro por usuário responsável
+            1. **Ano** - SeleÃ§Ã£o do ano de anÃ¡lise (Radio button)
+            2. **Oficina** - SeleÃ§Ã£o de uma ou mais oficinas (Multiselect)
+            3. **VeÃ­culo** - SeleÃ§Ã£o de um ou mais veÃ­culos (Multiselect)
+            4. **USI** - SeleÃ§Ã£o de unidades de serviÃ§o (Multiselect)
+            5. **PerÃ­odo** - SeleÃ§Ã£o de perÃ­odo especÃ­fico (Selectbox)
+            6. **Centro cst** - SeleÃ§Ã£o de centro de custo (Selectbox)
+            7. **Conta contÃ¡bil** - SeleÃ§Ã£o de contas contÃ¡beis (Multiselect)
+            8. **Type 5** - SeleÃ§Ã£o de categorias Type 05 (Multiselect)
+            9. **Type 6** - SeleÃ§Ã£o de categorias Type 06 (Multiselect)
+            10. **Fornecedor** - SeleÃ§Ã£o de fornecedores (Multiselect)
+            11. **Fornec.** - SeleÃ§Ã£o adicional de fornecedores (Multiselect)
+            12. **Tipo** - SeleÃ§Ã£o de tipos de custo (Multiselect)
+            13. **Filtros AvanÃ§ados:**
+                - **UsuÃ¡rio** - Filtro por usuÃ¡rio responsÃ¡vel
                 - **Material** - Filtro por material utilizado
-                - **Dt.lçto.** - Filtro por data de lançamento
+                - **Dt.lÃ§to.** - Filtro por data de lanÃ§amento
                 - **Texto breve** - Filtro por texto descritivo
-                - **Account** - Filtro por conta contábil específica
+                - **Account** - Filtro por conta contÃ¡bil especÃ­fica
             
-            **Princípio de Funcionamento:**
+            **PrincÃ­pio de Funcionamento:**
             
             Cada filtro atua como um "funil" que reduz progressivamente o conjunto de dados analisados. Quando
-            múltiplos filtros são aplicados, apenas os registros que atendem a **TODOS** os critérios selecionados
-            são incluídos na análise final.
+            mÃºltiplos filtros sÃ£o aplicados, apenas os registros que atendem a **TODOS** os critÃ©rios selecionados
+            sÃ£o incluÃ­dos na anÃ¡lise final.
             
-            **Exemplo de Aplicação Sequencial:**
+            **Exemplo de AplicaÃ§Ã£o Sequencial:**
             
-            Imagine que você selecionou:
+            Imagine que vocÃª selecionou:
             - Ano: 2024
             - Oficina: "Oficina A" e "Oficina B"
-            - Veículo: "Veículo X"
-            - Período: "Janeiro"
+            - VeÃ­culo: "VeÃ­culo X"
+            - PerÃ­odo: "Janeiro"
             
-            O sistema primeiro filtra todos os dados de 2024, depois mantém apenas os registros das Oficinas A e B,
-            em seguida mantém apenas os registros do Veículo X, e finalmente mantém apenas os registros de Janeiro.
-            O resultado final contém apenas os registros que atendem a todos esses critérios simultaneamente.
+            O sistema primeiro filtra todos os dados de 2024, depois mantÃ©m apenas os registros das Oficinas A e B,
+            em seguida mantÃ©m apenas os registros do VeÃ­culo X, e finalmente mantÃ©m apenas os registros de Janeiro.
+            O resultado final contÃ©m apenas os registros que atendem a todos esses critÃ©rios simultaneamente.
             """)
         
-        with st.expander("⚠️ **REGRA CRÍTICA: Perímetro de Filtros para Volumes**", expanded=False):
+        with st.expander("âš ï¸ **REGRA CRÃTICA: PerÃ­metro de Filtros para Volumes**", expanded=False):
             st.markdown("""
-            ### ⚠️ REGRA CRÍTICA: Perímetro de Filtros para Volumes
+            ### âš ï¸ REGRA CRÃTICA: PerÃ­metro de Filtros para Volumes
             
-            **Princípio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
-            principais de custo. Esta é uma das regras mais importantes do sistema, pois garante que o cálculo de
+            **PrincÃ­pio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
+            principais de custo. Esta Ã© uma das regras mais importantes do sistema, pois garante que o cÃ¡lculo de
             CPU seja preciso e consistente.
             
-            **Por que esta regra é crítica?**
+            **Por que esta regra Ã© crÃ­tica?**
             
-            O CPU é calculado como a razão entre Custo Total e Volume. Se os filtros aplicados ao custo forem
-            diferentes dos filtros aplicados ao volume, o CPU resultante será completamente incorreto.
+            O CPU Ã© calculado como a razÃ£o entre Custo Total e Volume. Se os filtros aplicados ao custo forem
+            diferentes dos filtros aplicados ao volume, o CPU resultante serÃ¡ completamente incorreto.
             
             **Exemplo Ilustrativo:**
             
-            Imagine que você filtrou os dados de custo para incluir apenas:
+            Imagine que vocÃª filtrou os dados de custo para incluir apenas:
             - Oficina: "Oficina A"
-            - Veículo: "Veículo X"
-            - Período: "Janeiro"
+            - VeÃ­culo: "VeÃ­culo X"
+            - PerÃ­odo: "Janeiro"
             
-            Se o volume não for filtrado da mesma forma, você poderia estar dividindo:
-            - Custo Total (filtrado): R$ 100.000 (apenas Oficina A, Veículo X, Janeiro)
-            - Volume Total (não filtrado): 50.000 unidades (todas as oficinas, todos os veículos, todos os períodos)
+            Se o volume nÃ£o for filtrado da mesma forma, vocÃª poderia estar dividindo:
+            - Custo Total (filtrado): R$ 100.000 (apenas Oficina A, VeÃ­culo X, Janeiro)
+            - Volume Total (nÃ£o filtrado): 50.000 unidades (todas as oficinas, todos os veÃ­culos, todos os perÃ­odos)
             - CPU Incorreto: R$ 100.000 / 50.000 = R$ 2,00/unidade [INCORRETO]
             
             O correto seria:
-            - Custo Total (filtrado): R$ 100.000 (Oficina A, Veículo X, Janeiro)
-            - Volume Total (filtrado): 10.000 unidades (Oficina A, Veículo X, Janeiro)
+            - Custo Total (filtrado): R$ 100.000 (Oficina A, VeÃ­culo X, Janeiro)
+            - Volume Total (filtrado): 10.000 unidades (Oficina A, VeÃ­culo X, Janeiro)
             - CPU Correto: R$ 100.000 / 10.000 = R$ 10,00/unidade [CORRETO]
             
-            **Mecanismo de Sincronização:**
+            **Mecanismo de SincronizaÃ§Ã£o:**
             
-            O sistema garante a sincronização dos filtros extraindo os valores únicos das dimensões filtradas dos
-            dados principais e aplicando esses mesmos valores aos dados de volume. Isso garante que o perímetro de
-            análise seja idêntico para ambos os conjuntos de dados.
+            O sistema garante a sincronizaÃ§Ã£o dos filtros extraindo os valores Ãºnicos das dimensÃµes filtradas dos
+            dados principais e aplicando esses mesmos valores aos dados de volume. Isso garante que o perÃ­metro de
+            anÃ¡lise seja idÃªntico para ambos os conjuntos de dados.
             
-            **Dimensões Sincronizadas:**
+            **DimensÃµes Sincronizadas:**
             
-            As seguintes dimensões são sempre sincronizadas entre dados de custo e volume:
-            - Veículo
+            As seguintes dimensÃµes sÃ£o sempre sincronizadas entre dados de custo e volume:
+            - VeÃ­culo
             - Oficina
             - USI
             - Centro de Custo
-            - Conta Contábil
+            - Conta ContÃ¡bil
             - Type 05
             - Type 06
             - Fornecedor
             - Tipo
-            - E todos os filtros avançados (Usuário, Material, Data, etc.)
+            - E todos os filtros avanÃ§ados (UsuÃ¡rio, Material, Data, etc.)
             """)
         
-        with st.expander("📊 **Sincronização de Filtros para Budget**", expanded=False):
+        with st.expander("ðŸ“Š **SincronizaÃ§Ã£o de Filtros para Budget**", expanded=False):
             st.markdown("""
-            ### 📊 Sincronização de Filtros para Budget
+            ### ðŸ“Š SincronizaÃ§Ã£o de Filtros para Budget
             
             **Regra Fundamental:** O Budget deve usar os mesmos filtros aplicados aos dados reais para garantir
-            comparações justas e precisas.
+            comparaÃ§Ãµes justas e precisas.
             
             **Por que sincronizar filtros do Budget?**
             
-            Quando comparamos dados reais com budget, precisamos garantir que estamos comparando "maçãs com maçãs".
-            Se os dados reais estão filtrados para uma oficina específica, o budget também deve estar filtrado para
-            a mesma oficina, caso contrário a comparação não terá sentido.
+            Quando comparamos dados reais com budget, precisamos garantir que estamos comparando "maÃ§Ã£s com maÃ§Ã£s".
+            Se os dados reais estÃ£o filtrados para uma oficina especÃ­fica, o budget tambÃ©m deve estar filtrado para
+            a mesma oficina, caso contrÃ¡rio a comparaÃ§Ã£o nÃ£o terÃ¡ sentido.
             
             **Exemplo:**
             
-            Se você filtrar os dados reais para:
+            Se vocÃª filtrar os dados reais para:
             - Oficina: "Oficina A"
-            - Veículo: "Veículo X"
+            - VeÃ­culo: "VeÃ­culo X"
             
-            O budget também será automaticamente filtrado para:
+            O budget tambÃ©m serÃ¡ automaticamente filtrado para:
             - Oficina: "Oficina A"
-            - Veículo: "Veículo X"
+            - VeÃ­culo: "VeÃ­culo X"
             
-            Isso garante que a comparação entre Real e Budget seja feita no mesmo contexto operacional.
+            Isso garante que a comparaÃ§Ã£o entre Real e Budget seja feita no mesmo contexto operacional.
             
-            **Mecanismo de Aplicação:**
+            **Mecanismo de AplicaÃ§Ã£o:**
             
-            O sistema extrai os valores únicos de todas as dimensões filtradas dos dados reais e aplica esses mesmos
-            valores como filtros ao budget. Isso garante que o perímetro de análise seja idêntico para ambos os
-            conjuntos de dados, permitindo comparações precisas e significativas.
+            O sistema extrai os valores Ãºnicos de todas as dimensÃµes filtradas dos dados reais e aplica esses mesmos
+            valores como filtros ao budget. Isso garante que o perÃ­metro de anÃ¡lise seja idÃªntico para ambos os
+            conjuntos de dados, permitindo comparaÃ§Ãµes precisas e significativas.
             """)
 
     # EXPANDER 3: Volumes
-    with st.expander("📊 **Cálculo de Volumes**", expanded=False):
-        with st.expander("📁 **Fonte de Dados de Volume**", expanded=False):
+    with st.expander("ðŸ“Š **CÃ¡lculo de Volumes**", expanded=False):
+        with st.expander("ðŸ“ **Fonte de Dados de Volume**", expanded=False):
             st.markdown("""
-            ### 📁 Fonte de Dados de Volume
+            ### ðŸ“ Fonte de Dados de Volume
             
-            Os dados de volume são armazenados em arquivos Parquet otimizados para garantir performance e eficiência
-            no processamento. O sistema utiliza diferentes arquivos de volume dependendo do contexto de análise.
+            Os dados de volume sÃ£o armazenados em arquivos Parquet otimizados para garantir performance e eficiÃªncia
+            no processamento. O sistema utiliza diferentes arquivos de volume dependendo do contexto de anÃ¡lise.
             
             **Arquivos de Volume:**
             
-            - **`df_vol_historico.parquet`:** Dados históricos consolidados de volume
-            - **`df_vol.parquet`:** Dados de volume por ano específico
-            - **`df_vol_historico_BUD.parquet`:** Dados de volume do budget histórico
+            - **`df_vol_historico.parquet`:** Dados histÃ³ricos consolidados de volume
+            - **`df_vol.parquet`:** Dados de volume por ano especÃ­fico
+            - **`df_vol_historico_BUD.parquet`:** Dados de volume do budget histÃ³rico
             
             **Estrutura dos Dados de Volume:**
             
-            Os arquivos de volume contêm as seguintes colunas obrigatórias:
+            Os arquivos de volume contÃªm as seguintes colunas obrigatÃ³rias:
             - **`Volume`:** Quantidade de unidades produzidas
-            - **`Período`:** Período de referência (mês, trimestre, etc.)
-            - **`Oficina`:** Identificação da oficina
-            - **`Veículo`:** Identificação do veículo
+            - **`PerÃ­odo`:** PerÃ­odo de referÃªncia (mÃªs, trimestre, etc.)
+            - **`Oficina`:** IdentificaÃ§Ã£o da oficina
+            - **`VeÃ­culo`:** IdentificaÃ§Ã£o do veÃ­culo
             
             E a seguinte coluna opcional:
-            - **`Ano`:** Ano de referência (quando disponível)
+            - **`Ano`:** Ano de referÃªncia (quando disponÃ­vel)
             
-            **Sincronização com Dados de Custo:**
+            **SincronizaÃ§Ã£o com Dados de Custo:**
             
-            Os dados de volume são estruturados de forma a permitir sincronização perfeita com os dados de custo,
-            garantindo que o cálculo de CPU seja preciso e consistente.
+            Os dados de volume sÃ£o estruturados de forma a permitir sincronizaÃ§Ã£o perfeita com os dados de custo,
+            garantindo que o cÃ¡lculo de CPU seja preciso e consistente.
             """)
         
-        with st.expander("⚠️ **REGRA CRÍTICA: Filtragem de Volumes**", expanded=False):
+        with st.expander("âš ï¸ **REGRA CRÃTICA: Filtragem de Volumes**", expanded=False):
             st.markdown("""
-            ### ⚠️ REGRA CRÍTICA: Filtragem de Volumes
+            ### âš ï¸ REGRA CRÃTICA: Filtragem de Volumes
             
-            **Princípio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
-            principais de custo. Esta regra é absolutamente crítica para garantir a precisão do cálculo de CPU.
+            **PrincÃ­pio Fundamental:** Os volumes devem usar **EXATAMENTE** os mesmos filtros aplicados aos dados
+            principais de custo. Esta regra Ã© absolutamente crÃ­tica para garantir a precisÃ£o do cÃ¡lculo de CPU.
             
             **Processo de Filtragem:**
             
             O processo de filtragem de volumes segue os seguintes passos:
             
-            1. **Criar conjunto filtrado:** Iniciar com uma cópia dos dados de volume originais
-            2. **Aplicar filtros sincronizados:** Usar os valores únicos extraídos dos dados de custo filtrados
-            3. **Filtrar por período:** Aplicar filtro específico para o período de análise
-            4. **Agrupar e somar:** Agrupar por período e somar os volumes
+            1. **Criar conjunto filtrado:** Iniciar com uma cÃ³pia dos dados de volume originais
+            2. **Aplicar filtros sincronizados:** Usar os valores Ãºnicos extraÃ­dos dos dados de custo filtrados
+            3. **Filtrar por perÃ­odo:** Aplicar filtro especÃ­fico para o perÃ­odo de anÃ¡lise
+            4. **Agrupar e somar:** Agrupar por perÃ­odo e somar os volumes
             
-            **Fórmula de Agregação:**
+            **FÃ³rmula de AgregaÃ§Ã£o:**
             
             ```
-            Volume_Total = Σ(Volume_Individual) agrupado por Período
+            Volume_Total = Î£(Volume_Individual) agrupado por PerÃ­odo
             ```
             
-            Onde `Σ` representa a soma de todos os volumes individuais que atendem aos critérios de filtragem.
+            Onde `Î£` representa a soma de todos os volumes individuais que atendem aos critÃ©rios de filtragem.
             
-            **Importância da Consistência:**
+            **ImportÃ¢ncia da ConsistÃªncia:**
             
-            A consistência entre os filtros aplicados aos dados de custo e volume é essencial porque:
-            - O CPU é calculado como Custo Total / Volume Total
-            - Se os filtros forem diferentes, o CPU resultante será completamente incorreto
-            - Análises baseadas em CPU incorreto podem levar a decisões de negócio equivocadas
+            A consistÃªncia entre os filtros aplicados aos dados de custo e volume Ã© essencial porque:
+            - O CPU Ã© calculado como Custo Total / Volume Total
+            - Se os filtros forem diferentes, o CPU resultante serÃ¡ completamente incorreto
+            - AnÃ¡lises baseadas em CPU incorreto podem levar a decisÃµes de negÃ³cio equivocadas
             
             **Exemplo de Impacto:**
             
-            Se você filtrar os custos para uma oficina específica mas não filtrar os volumes da mesma forma:
+            Se vocÃª filtrar os custos para uma oficina especÃ­fica mas nÃ£o filtrar os volumes da mesma forma:
             - Custo Total (filtrado): R$ 50.000 (apenas Oficina A)
-            - Volume Total (não filtrado): 100.000 unidades (todas as oficinas)
+            - Volume Total (nÃ£o filtrado): 100.000 unidades (todas as oficinas)
             - CPU Incorreto: R$ 50.000 / 100.000 = R$ 0,50/unidade [INCORRETO]
             
             O correto seria:
@@ -1607,24 +1608,24 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     
     st.markdown("---")
     
-    st.markdown("## 📋 Regras Fundamentais: Fixo vs Não‑Fixo")
+    st.markdown("## ðŸ“‹ Regras Fundamentais: Fixo vs NÃ£oâ€‘Fixo")
     
     st.markdown("""
     ### Regra Geral para Custos Fixos
     
-    **Princípio:** Custos fixos NÃO variam com o volume de produção.
+    **PrincÃ­pio:** Custos fixos NÃƒO variam com o volume de produÃ§Ã£o.
     
-    **Fórmula Geral:**
+    **FÃ³rmula Geral:**
     ```
     Flex_Fixo = Valor_Original_Fixo
     ```
     
-    **Explicação:**
-    - Independente da variação de volume, o custo fixo permanece constante
-    - Exemplos: Aluguel, salários fixos, depreciação
+    **ExplicaÃ§Ã£o:**
+    - Independente da variaÃ§Ã£o de volume, o custo fixo permanece constante
+    - Exemplos: Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o
     - Sensibilidade ao volume: **0%** (zero por cento)
     
-    **Implementação:**
+    **ImplementaÃ§Ã£o:**
     ```python
     # Sempre manter o valor original
     flex_fixo = custo_fixo_original
@@ -1634,27 +1635,27 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
     
     st.markdown("""
-    ### Regra Geral para Custos Variáveis
+    ### Regra Geral para Custos VariÃ¡veis
     
-    **Princípio:** Custos variáveis variam PROPORCIONALMENTE ao volume de produção.
+    **PrincÃ­pio:** Custos variÃ¡veis variam PROPORCIONALMENTE ao volume de produÃ§Ã£o.
     
-    **Fórmula Geral:**
+    **FÃ³rmula Geral:**
     ```
-    Flex_NãoFixo = Valor_Original_NãoFixo * (Volume_Novo / Volume_Original)
+    Flex_NÃ£oFixo = Valor_Original_NÃ£oFixo * (Volume_Novo / Volume_Original)
     ```
     
-    **Explicação:**
-    - Se o volume dobra, o custo variável dobra
-    - Se o volume reduz pela metade, o custo variável reduz pela metade
-    - Exemplos: Matéria-prima, energia variável, comissões
+    **ExplicaÃ§Ã£o:**
+    - Se o volume dobra, o custo variÃ¡vel dobra
+    - Se o volume reduz pela metade, o custo variÃ¡vel reduz pela metade
+    - Exemplos: MatÃ©ria-prima, energia variÃ¡vel, comissÃµes
     - Sensibilidade ao volume: **100%** (cem por cento)
     
-    **Implementação:**
+    **ImplementaÃ§Ã£o:**
     ```python
-    # Calcular proporção de volume
+    # Calcular proporÃ§Ã£o de volume
     proporcao = volume_novo / volume_original
     
-    # Aplicar proporção ao custo variável
+    # Aplicar proporÃ§Ã£o ao custo variÃ¡vel
     flex_variavel = custo_variavel_original * proporcao
     ```
     """)
@@ -1662,20 +1663,20 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
     
     st.markdown("""
-    ### Identificação de Fixo vs Variável
+    ### IdentificaÃ§Ã£o de Fixo vs VariÃ¡vel
     
     **Coluna 'Custo' no DataFrame:**
-    - Deve conter os valores: `'Fixo'` ou `'Variável'`
-    - Cada linha de dados deve ter esta classificação
+    - Deve conter os valores: `'Fixo'` ou `'VariÃ¡vel'`
+    - Cada linha de dados deve ter esta classificaÃ§Ã£o
     
-    **Implementação:**
+    **ImplementaÃ§Ã£o:**
     ```python
-    # Separar Fixo e Variável
+    # Separar Fixo e VariÃ¡vel
     if 'Custo' in df.columns:
         custo_fixo = df[df['Custo'] == 'Fixo']['Total'].sum()
-        custo_variavel = df[df['Custo'] == 'Variável']['Total'].sum()
+        custo_variavel = df[df['Custo'] == 'VariÃ¡vel']['Total'].sum()
     else:
-        # Se não tiver coluna Custo, assumir tudo como variável
+        # Se nÃ£o tiver coluna Custo, assumir tudo como variÃ¡vel
         custo_fixo = 0
         custo_variavel = df['Total'].sum()
     ```
@@ -1683,104 +1684,104 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     
     st.markdown("---")
     
-    # Sub-seções para separar os dois casos
-    st.markdown("## 📊 CASO 1: Flex para Comparação Real x Real (Waterfall)")
+    # Sub-seÃ§Ãµes para separar os dois casos
+    st.markdown("## ðŸ“Š CASO 1: Flex para ComparaÃ§Ã£o Real x Real (Waterfall)")
     
     st.markdown("""
     ### Contexto
     
-    Usado na página **1 - Waterfall** para comparar dois períodos reais:
-    - **Mês 1** (período inicial real)
-    - **Mês 2** (período final real)
+    Usado na pÃ¡gina **1 - Waterfall** para comparar dois perÃ­odos reais:
+    - **MÃªs 1** (perÃ­odo inicial real)
+    - **MÃªs 2** (perÃ­odo final real)
     
-    **Objetivo:** Calcular o que seria o custo do Mês 1 ajustado pelo volume do Mês 2.
+    **Objetivo:** Calcular o que seria o custo do MÃªs 1 ajustado pelo volume do MÃªs 2.
     """)
     
     st.markdown("---")
     
     st.markdown("""
-    ### Regras de Cálculo - Real x Real
+    ### Regras de CÃ¡lculo - Real x Real
         
-        **Passo 1: Identificar Custos do Mês 1**
+        **Passo 1: Identificar Custos do MÃªs 1**
         ```python
-        # Separar Fixo e Variável do Mês 1
+        # Separar Fixo e VariÃ¡vel do MÃªs 1
         C1_Fixo = df_m1[df_m1['Custo'] == 'Fixo']['Total'].sum()
-        C1_Variavel = df_m1[df_m1['Custo'] == 'Variável']['Total'].sum()
+        C1_Variavel = df_m1[df_m1['Custo'] == 'VariÃ¡vel']['Total'].sum()
         C1_Total = C1_Fixo + C1_Variavel
         ```
         
         **Passo 2: Obter Volumes**
         ```python
-        V1 = volume_real_mes1  # Volume do Mês 1
-        V2 = volume_real_mes2  # Volume do Mês 2
+        V1 = volume_real_mes1  # Volume do MÃªs 1
+        V2 = volume_real_mes2  # Volume do MÃªs 2
         ```
         
-        **Passo 3: Calcular Proporção de Volume**
+        **Passo 3: Calcular ProporÃ§Ã£o de Volume**
         ```python
-        rho = V2 / V1  # Proporção de volume
+        rho = V2 / V1  # ProporÃ§Ã£o de volume
         ```
         
-        **Passo 4: Aplicar Regras de Fixo e Variável**
+        **Passo 4: Aplicar Regras de Fixo e VariÃ¡vel**
         
         **Para Custo Fixo:**
         ```python
-        # REGRA: Fixo não varia com volume
+        # REGRA: Fixo nÃ£o varia com volume
         Flex_Mes1_Fixo = C1_Fixo
-        # Explicação: Mantém o valor original, independente da variação de volume
+        # ExplicaÃ§Ã£o: MantÃ©m o valor original, independente da variaÃ§Ã£o de volume
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Flex_Mês1_Fixo = C_1_Fixo
+        Flex_MÃªs1_Fixo = C_1_Fixo
         ```
-        **Por que não multiplica pela proporção?**
-        - Custos fixos são independentes do volume de produção
-        - Exemplos: Aluguel, salários fixos, depreciação
+        **Por que nÃ£o multiplica pela proporÃ§Ã£o?**
+        - Custos fixos sÃ£o independentes do volume de produÃ§Ã£o
+        - Exemplos: Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o
         - Mesmo que o volume dobre, o custo fixo permanece igual
         
-        **Para Custo Variável:**
+        **Para Custo VariÃ¡vel:**
         ```python
-        # REGRA: Variável varia proporcionalmente ao volume
+        # REGRA: VariÃ¡vel varia proporcionalmente ao volume
         Flex_Mes1_Variavel = C1_Variavel * rho
                              = C1_Variavel * (V2 / V1)
-        # Explicação: Multiplica pelo fator de proporção de volume
+        # ExplicaÃ§Ã£o: Multiplica pelo fator de proporÃ§Ã£o de volume
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Flex_Mês1_Variável = C_1_Variável * rho
-                              = C_1_Variável * (V_2 / V_1)
+        Flex_MÃªs1_VariÃ¡vel = C_1_VariÃ¡vel * rho
+                              = C_1_VariÃ¡vel * (V_2 / V_1)
         ```
-        **Por que multiplica pela proporção?**
-        - Custos variáveis variam proporcionalmente ao volume
-        - Se o volume dobra, o custo variável dobra
-        - Se o volume reduz pela metade, o custo variável reduz pela metade
-        - Exemplos: Matéria-prima, energia variável, comissões
+        **Por que multiplica pela proporÃ§Ã£o?**
+        - Custos variÃ¡veis variam proporcionalmente ao volume
+        - Se o volume dobra, o custo variÃ¡vel dobra
+        - Se o volume reduz pela metade, o custo variÃ¡vel reduz pela metade
+        - Exemplos: MatÃ©ria-prima, energia variÃ¡vel, comissÃµes
         
-        **Passo 5: Calcular Flex Mês 1 Total**
+        **Passo 5: Calcular Flex MÃªs 1 Total**
         ```python
         Flex_Mes1_Total = Flex_Mes1_Fixo + Flex_Mes1_Variavel
                          = C1_Fixo + (C1_Variavel * rho)
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Flex_Mês1_Total = Flex_Mês1_Fixo + Flex_Mês1_Variável
-                        = C_1_Fixo + (C_1_Variável * rho)
-                        = C_1_Fixo + C_1_Variável * (V_2 / V_1)
+        Flex_MÃªs1_Total = Flex_MÃªs1_Fixo + Flex_MÃªs1_VariÃ¡vel
+                        = C_1_Fixo + (C_1_VariÃ¡vel * rho)
+                        = C_1_Fixo + C_1_VariÃ¡vel * (V_2 / V_1)
         ```
     """)
     
     st.markdown("---")
     
     st.markdown("""
-    ### Fórmulas Matemáticas Completas - Real x Real
+    ### FÃ³rmulas MatemÃ¡ticas Completas - Real x Real
     
-    **Definições:**
-    - `V_1` = Volume Real do Mês 1
-    - `V_2` = Volume Real do Mês 2
-    - `C_1_Fixo` = Custo Total Fixo do Mês 1
-    - `C_1_Variável` = Custo Total Variável do Mês 1
-    - `C_1_Total` = Custo Total do Mês 1 = `C_1_Fixo + C_1_Variável`
+    **DefiniÃ§Ãµes:**
+    - `V_1` = Volume Real do MÃªs 1
+    - `V_2` = Volume Real do MÃªs 2
+    - `C_1_Fixo` = Custo Total Fixo do MÃªs 1
+    - `C_1_VariÃ¡vel` = Custo Total VariÃ¡vel do MÃªs 1
+    - `C_1_Total` = Custo Total do MÃªs 1 = `C_1_Fixo + C_1_VariÃ¡vel`
     
-    **Proporção de Volume:**
+    **ProporÃ§Ã£o de Volume:**
     ```
     rho = V_2 / V_1
     ```
@@ -1789,87 +1790,87 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     - `rho < 1` significa que o volume diminuiu
     - `rho = 1` significa que o volume permaneceu igual
     
-    **Cálculo de Flex Mês 1 (em Custo Total):**
+    **CÃ¡lculo de Flex MÃªs 1 (em Custo Total):**
     
     Para **Custo Fixo:**
     ```
-    Flex_Mês1_Fixo = C_1_Fixo
+    Flex_MÃªs1_Fixo = C_1_Fixo
     ```
-    **Regra Aplicada:** Fixo não varia com volume
+    **Regra Aplicada:** Fixo nÃ£o varia com volume
     - Valor original mantido: `C_1_Fixo`
-    - Não multiplica pela proporção de volume
-    - Motivo: Custos fixos são independentes do volume de produção
+    - NÃ£o multiplica pela proporÃ§Ã£o de volume
+    - Motivo: Custos fixos sÃ£o independentes do volume de produÃ§Ã£o
     
-    Para **Custo Variável:**
+    Para **Custo VariÃ¡vel:**
     ```
-    Flex_Mês1_Variável = C_1_Variável * rho
-                          = C_1_Variável * (V_2 / V_1)
+    Flex_MÃªs1_VariÃ¡vel = C_1_VariÃ¡vel * rho
+                          = C_1_VariÃ¡vel * (V_2 / V_1)
     ```
-    **Regra Aplicada:** Variável varia proporcionalmente ao volume
-    - Valor original: `C_1_Variável`
-    - Multiplica pela proporção: `rho = V_2 / V_1`
-    - Motivo: Custos variáveis aumentam/diminuem na mesma proporção do volume
+    **Regra Aplicada:** VariÃ¡vel varia proporcionalmente ao volume
+    - Valor original: `C_1_VariÃ¡vel`
+    - Multiplica pela proporÃ§Ã£o: `rho = V_2 / V_1`
+    - Motivo: Custos variÃ¡veis aumentam/diminuem na mesma proporÃ§Ã£o do volume
     
-    **Flex Mês 1 Total (em Custo Total):**
+    **Flex MÃªs 1 Total (em Custo Total):**
     ```
-    Flex_Mês1_Total = Flex_Mês1_Fixo + Flex_Mês1_Variável
-                    = C_1_Fixo + (C_1_Variável * rho)
-                    = C_1_Fixo + C_1_Variável * (V_2 / V_1)
+    Flex_MÃªs1_Total = Flex_MÃªs1_Fixo + Flex_MÃªs1_VariÃ¡vel
+                    = C_1_Fixo + (C_1_VariÃ¡vel * rho)
+                    = C_1_Fixo + C_1_VariÃ¡vel * (V_2 / V_1)
     ```
-    **Regra Aplicada:** Soma do Fixo (inalterado) + Variável (ajustado)
+    **Regra Aplicada:** Soma do Fixo (inalterado) + VariÃ¡vel (ajustado)
     """)
     
     st.markdown("---")
     
     st.markdown("""
-    ### Cálculo em CPU (Custo por Unidade) - Real x Real
+    ### CÃ¡lculo em CPU (Custo por Unidade) - Real x Real
     
     **IMPORTANTE:** No modo CPU, calcular em Custo Total primeiro, depois converter.
         
-        **BUD (Mês 1) em CPU:**
+        **BUD (MÃªs 1) em CPU:**
         ```
         BUD_CPU = C_1_Total / V_1
-                 = (C_1_Fixo + C_1_Variável) / V_1
+                 = (C_1_Fixo + C_1_VariÃ¡vel) / V_1
         ```
         
-        **Flex Mês 1 em CPU:**
+        **Flex MÃªs 1 em CPU:**
         ```
-        Flex_Mês1_CPU = Flex_Mês1_Total / V_2
-                       = [C_1_Fixo + C_1_Variável * (V_2 / V_1)] / V_2
-                       = (C_1_Fixo / V_2) + (C_1_Variável / V_1)
+        Flex_MÃªs1_CPU = Flex_MÃªs1_Total / V_2
+                       = [C_1_Fixo + C_1_VariÃ¡vel * (V_2 / V_1)] / V_2
+                       = (C_1_Fixo / V_2) + (C_1_VariÃ¡vel / V_1)
         ```
         
-        **Diferença (Flex Mês 1 - Mês 1):**
+        **DiferenÃ§a (Flex MÃªs 1 - MÃªs 1):**
         ```
-        Delta_Flex = Flex_Mês1_CPU - BUD_CPU
-               = [(C_1_Fixo / V_2) + (C_1_Variável / V_1)] - [(C_1_Fixo + C_1_Variável) / V_1]
+        Delta_Flex = Flex_MÃªs1_CPU - BUD_CPU
+               = [(C_1_Fixo / V_2) + (C_1_VariÃ¡vel / V_1)] - [(C_1_Fixo + C_1_VariÃ¡vel) / V_1]
                = (C_1_Fixo / V_2) - (C_1_Fixo / V_1)
                = C_1_Fixo * (1/V_2 - 1/V_1)
                = C_1_Fixo * (V_1 - V_2) / (V_1 * V_2)
         ```
         
-        **Interpretação:**
-        - Se `V_2 > V_1`: `Delta_Flex < 0` (CPU diminui porque custo fixo é diluído em mais volume)
-        - Se `V_2 < V_1`: `Delta_Flex > 0` (CPU aumenta porque custo fixo é concentrado em menos volume)
-        - Se `V_2 = V_1`: `Delta_Flex = 0` (sem variação)
+        **InterpretaÃ§Ã£o:**
+        - Se `V_2 > V_1`: `Delta_Flex < 0` (CPU diminui porque custo fixo Ã© diluÃ­do em mais volume)
+        - Se `V_2 < V_1`: `Delta_Flex > 0` (CPU aumenta porque custo fixo Ã© concentrado em menos volume)
+        - Se `V_2 = V_1`: `Delta_Flex = 0` (sem variaÃ§Ã£o)
     """)
     
     st.markdown("---")
     
     st.markdown("""
-    ### Implementação - Real x Real
+    ### ImplementaÃ§Ã£o - Real x Real
         
         ```python
-        # 1. Obter dados do Mês 1
-        df_m1 = df_filtrado[df_filtrado['Período'] == mes_inicial]
+        # 1. Obter dados do MÃªs 1
+        df_m1 = df_filtrado[df_filtrado['PerÃ­odo'] == mes_inicial]
         
-        # 2. Separar Fixo e Variável
+        # 2. Separar Fixo e VariÃ¡vel
         if 'Custo' in df_m1.columns:
             C1_Fixo = df_m1[df_m1['Custo'] == 'Fixo']['Total'].sum()
-            C1_Variavel = df_m1[df_m1['Custo'] == 'Variável']['Total'].sum()
+            C1_Variavel = df_m1[df_m1['Custo'] == 'VariÃ¡vel']['Total'].sum()
         else:
             C1_Fixo = 0
-            C1_Variavel = df_m1['Total'].sum()  # Tudo é variável
+            C1_Variavel = df_m1['Total'].sum()  # Tudo Ã© variÃ¡vel
         
         C1_Total = C1_Fixo + C1_Variavel
         
@@ -1877,15 +1878,15 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         volume_m1 = df_vol_m1['Volume'].sum()
         volume_m2 = df_vol_m2['Volume'].sum()
         
-        # 4. Calcular proporção
+        # 4. Calcular proporÃ§Ã£o
         rho = volume_m2 / volume_m1 if volume_m1 != 0 else 1.0
         
-        # 5. Calcular Flex Mês 1 (em Custo Total)
-        Flex_Mes1_Fixo = C1_Fixo  # Não varia
+        # 5. Calcular Flex MÃªs 1 (em Custo Total)
+        Flex_Mes1_Fixo = C1_Fixo  # NÃ£o varia
         Flex_Mes1_Variavel = C1_Variavel * rho  # Varia proporcionalmente
         Flex_Mes1_Total = Flex_Mes1_Fixo + Flex_Mes1_Variavel
         
-        # 6. Converter para CPU (se necessário)
+        # 6. Converter para CPU (se necessÃ¡rio)
         if tipo_visualizacao == "CPU (Custo por Unidade)":
             BUD_CPU = C1_Total / volume_m1 if volume_m1 != 0 else 0
             Flex_Mes1_CPU = Flex_Mes1_Total / volume_m2 if volume_m2 != 0 else 0
@@ -1896,46 +1897,46 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
     
     st.markdown("""
-    ### Exemplo Prático - Real x Real
+    ### Exemplo PrÃ¡tico - Real x Real
         
         **Dados:**
-        - Volume Real Mês 1 (`V_1`): 40,848 unidades
-        - Volume Real Mês 2 (`V_2`): 60,333 unidades
-        - Custo Total Fixo Mês 1 (`C_1_Fixo`): R$ 126.91
-        - Custo Total Variável Mês 1 (`C_1_Variável`): R$ 755.36
-        - Custo Total Mês 1 (`C_1_Total`): R$ 882.27
+        - Volume Real MÃªs 1 (`V_1`): 40,848 unidades
+        - Volume Real MÃªs 2 (`V_2`): 60,333 unidades
+        - Custo Total Fixo MÃªs 1 (`C_1_Fixo`): R$ 126.91
+        - Custo Total VariÃ¡vel MÃªs 1 (`C_1_VariÃ¡vel`): R$ 755.36
+        - Custo Total MÃªs 1 (`C_1_Total`): R$ 882.27
         
-        **Cálculo:**
+        **CÃ¡lculo:**
         ```
         rho = V_2 / V_1 = 60,333 / 40,848 = 1.482373
         
-        Flex_Mês1_Fixo = R$ 126.91
-        Flex_Mês1_Variável = R$ 755.36 * 1.482373 = R$ 1,119.72
-        Flex_Mês1_Total = R$ 126.91 + R$ 1,119.72 = R$ 1,246.63
+        Flex_MÃªs1_Fixo = R$ 126.91
+        Flex_MÃªs1_VariÃ¡vel = R$ 755.36 * 1.482373 = R$ 1,119.72
+        Flex_MÃªs1_Total = R$ 126.91 + R$ 1,119.72 = R$ 1,246.63
         ```
         
         **Em CPU:**
         ```
         BUD_CPU = R$ 882.27 / 40,848 = R$ 0.0216 por unidade
-        Flex_Mês1_CPU = R$ 1,246.63 / 60,333 = R$ 0.0207 por unidade
+        Flex_MÃªs1_CPU = R$ 1,246.63 / 60,333 = R$ 0.0207 por unidade
         Delta_Flex = R$ 0.0207 - R$ 0.0216 = -R$ 0.0009 por unidade
         ```
         
-        **Interpretação:**
+        **InterpretaÃ§Ã£o:**
         - O volume aumentou 48.24% (`rho = 1.482373`)
-        - O custo variável aumentou proporcionalmente: R$ 755.36 -> R$ 1,119.72
+        - O custo variÃ¡vel aumentou proporcionalmente: R$ 755.36 -> R$ 1,119.72
         - O custo fixo permaneceu igual: R$ 126.91
-        - Em CPU, o custo por unidade diminuiu porque o custo fixo foi diluído em mais volume
+        - Em CPU, o custo por unidade diminuiu porque o custo fixo foi diluÃ­do em mais volume
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Modos de Comparação - Real x Real
+        ### Modos de ComparaÃ§Ã£o - Real x Real
         
-        **Mês a Mês:**
-        - `V_1` = Volume do mês inicial
-        - `V_2` = Volume do mês final
+        **MÃªs a MÃªs:**
+        - `V_1` = Volume do mÃªs inicial
+        - `V_2` = Volume do mÃªs final
         
         **Ano a Ano:**
         - `V_1` = Volume total do ano inicial
@@ -1952,14 +1953,14 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     
     st.markdown("---")
     
-    st.markdown("## 💰 CASO 2: Flex para Comparação Real x Budget (TC Ext)")
+    st.markdown("## ðŸ’° CASO 2: Flex para ComparaÃ§Ã£o Real x Budget (TC Ext)")
     
     st.markdown("""
         ### Contexto
         
-        Usado na página **TC Ext** para comparar período real vs budget planejado:
-        - **Real** = Dados reais do período
-        - **Budget** = Dados planejados do período
+        Usado na pÃ¡gina **TC Ext** para comparar perÃ­odo real vs budget planejado:
+        - **Real** = Dados reais do perÃ­odo
+        - **Budget** = Dados planejados do perÃ­odo
         
         **Objetivo:** Calcular o que seria o budget ajustado pelo volume real.
         """)
@@ -1967,42 +1968,42 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
         
     st.markdown("""
-        ### Regras de Cálculo - Real x Budget
+        ### Regras de CÃ¡lculo - Real x Budget
         
         **Passo 1: Identificar Custos do Budget**
         ```python
-        # Separar Fixo e Variável do Budget
+        # Separar Fixo e VariÃ¡vel do Budget
         B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
-        B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+        B_Variavel = df_budget[df_budget['Custo'] == 'VariÃ¡vel']['Total'].sum()
         B_Total = B_Fixo + B_Variavel
         ```
         
         **Passo 2: Obter Volumes**
         ```python
         V_Budget = volume_budget  # Volume planejado no Budget
-        V_Real = volume_real      # Volume real do período
+        V_Real = volume_real      # Volume real do perÃ­odo
         ```
         
-        **Passo 3: Calcular Proporção de Volume**
+        **Passo 3: Calcular ProporÃ§Ã£o de Volume**
         ```python
-        rho = V_Real / V_Budget  # Proporção de volume real vs planejado
+        rho = V_Real / V_Budget  # ProporÃ§Ã£o de volume real vs planejado
         ```
         
-        **Passo 4: Aplicar Regras de Fixo e Variável**
+        **Passo 4: Aplicar Regras de Fixo e VariÃ¡vel**
         
         **Para Custo Fixo:**
         ```python
-        # REGRA: Fixo não varia com volume
+        # REGRA: Fixo nÃ£o varia com volume
         Flex_Bud_Fixo = B_Fixo
-        # Explicação: Mantém o valor do budget, independente da variação de volume
+        # ExplicaÃ§Ã£o: MantÃ©m o valor do budget, independente da variaÃ§Ã£o de volume
         ```
         
-        **Para Custo Variável:**
+        **Para Custo VariÃ¡vel:**
         ```python
-        # REGRA: Variável varia proporcionalmente ao volume
+        # REGRA: VariÃ¡vel varia proporcionalmente ao volume
         Flex_Bud_Variavel = B_Variavel * rho
                             = B_Variavel * (V_Real / V_Budget)
-        # Explicação: Ajusta o budget variável pela proporção de volume real vs planejado
+        # ExplicaÃ§Ã£o: Ajusta o budget variÃ¡vel pela proporÃ§Ã£o de volume real vs planejado
         ```
         
         **Passo 5: Calcular Flex Bud Total**
@@ -2015,91 +2016,91 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
         
     st.markdown("""
-        ### Fórmulas Matemáticas Completas - Real x Budget
+        ### FÃ³rmulas MatemÃ¡ticas Completas - Real x Budget
         
-        **Definições:**
+        **DefiniÃ§Ãµes:**
         ```python
-        # Separar Fixo e Variável do Budget
+        # Separar Fixo e VariÃ¡vel do Budget
         B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
-        B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+        B_Variavel = df_budget[df_budget['Custo'] == 'VariÃ¡vel']['Total'].sum()
         B_Total = B_Fixo + B_Variavel
         ```
         
         **Passo 2: Obter Volumes**
         ```python
         V_Budget = volume_budget  # Volume planejado no Budget
-        V_Real = volume_real      # Volume real do período
+        V_Real = volume_real      # Volume real do perÃ­odo
         ```
         
-        **Passo 3: Calcular Proporção de Volume**
+        **Passo 3: Calcular ProporÃ§Ã£o de Volume**
         ```python
-        rho = V_Real / V_Budget  # Proporção de volume real vs planejado
+        rho = V_Real / V_Budget  # ProporÃ§Ã£o de volume real vs planejado
         ```
         
-        **Passo 4: Aplicar Regras de Fixo e Variável**
+        **Passo 4: Aplicar Regras de Fixo e VariÃ¡vel**
         
         **Para Custo Fixo:**
         ```python
-        # REGRA: Fixo não varia com volume
+        # REGRA: Fixo nÃ£o varia com volume
         Flex_Bud_Fixo = B_Fixo
-        # Explicação: Mantém o valor do budget, independente da variação de volume
+        # ExplicaÃ§Ã£o: MantÃ©m o valor do budget, independente da variaÃ§Ã£o de volume
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
         Flex_Bud_Fixo = B_Fixo
         ```
-        **Por que não multiplica pela proporção?**
-        - Custos fixos são independentes do volume de produção
-        - O budget fixo foi planejado e não deve ser ajustado
-        - Exemplos: Aluguel, salários fixos, depreciação
+        **Por que nÃ£o multiplica pela proporÃ§Ã£o?**
+        - Custos fixos sÃ£o independentes do volume de produÃ§Ã£o
+        - O budget fixo foi planejado e nÃ£o deve ser ajustado
+        - Exemplos: Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o
         - Mesmo que o volume real seja diferente do planejado, o custo fixo permanece igual
         
-        **Para Custo Variável:**
+        **Para Custo VariÃ¡vel:**
         ```python
-        # REGRA: Variável varia proporcionalmente ao volume
+        # REGRA: VariÃ¡vel varia proporcionalmente ao volume
         Flex_Bud_Variavel = B_Variavel * rho
                             = B_Variavel * (V_Real / V_Budget)
-        # Explicação: Ajusta o budget variável pela proporção de volume real vs planejado
+        # ExplicaÃ§Ã£o: Ajusta o budget variÃ¡vel pela proporÃ§Ã£o de volume real vs planejado
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Flex_Bud_Variável = B_Variável * rho
-                           = B_Variável * (V_Real / V_Budget)
+        Flex_Bud_VariÃ¡vel = B_VariÃ¡vel * rho
+                           = B_VariÃ¡vel * (V_Real / V_Budget)
         ```
-        **Por que multiplica pela proporção?**
-        - Custos variáveis variam proporcionalmente ao volume
-        - Se o volume real for maior que o planejado, o custo variável deve aumentar
-        - Se o volume real for menor que o planejado, o custo variável deve diminuir
-        - Exemplos: Matéria-prima, energia variável, comissões
-        - O budget variável precisa ser ajustado para refletir o volume real
+        **Por que multiplica pela proporÃ§Ã£o?**
+        - Custos variÃ¡veis variam proporcionalmente ao volume
+        - Se o volume real for maior que o planejado, o custo variÃ¡vel deve aumentar
+        - Se o volume real for menor que o planejado, o custo variÃ¡vel deve diminuir
+        - Exemplos: MatÃ©ria-prima, energia variÃ¡vel, comissÃµes
+        - O budget variÃ¡vel precisa ser ajustado para refletir o volume real
         
         **Passo 5: Calcular Flex Bud Total**
         ```python
         Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variavel
                         = B_Fixo + (B_Variavel * rho)
         ```
-        **Fórmula Matemática:**
+        **FÃ³rmula MatemÃ¡tica:**
         ```
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
-                       = B_Fixo + (B_Variável * rho)
-                       = B_Fixo + B_Variável * (V_Real / V_Budget)
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_VariÃ¡vel
+                       = B_Fixo + (B_VariÃ¡vel * rho)
+                       = B_Fixo + B_VariÃ¡vel * (V_Real / V_Budget)
         ```
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Fórmulas Matemáticas Completas - Real x Budget
+        ### FÃ³rmulas MatemÃ¡ticas Completas - Real x Budget
         
-        **Definições:**
-        - `V_Real` = Volume Real do período
-        - `V_Budget` = Volume Budget planejado do período
+        **DefiniÃ§Ãµes:**
+        - `V_Real` = Volume Real do perÃ­odo
+        - `V_Budget` = Volume Budget planejado do perÃ­odo
         - `B_Fixo` = Custo Total Fixo do Budget
-        - `B_Variável` = Custo Total Variável do Budget
-        - `B_Total` = Custo Total do Budget = `B_Fixo + B_Variável`
-        - `R_Total` = Custo Total Real do período
+        - `B_VariÃ¡vel` = Custo Total VariÃ¡vel do Budget
+        - `B_Total` = Custo Total do Budget = `B_Fixo + B_VariÃ¡vel`
+        - `R_Total` = Custo Total Real do perÃ­odo
         
-        **Proporção de Volume:**
+        **ProporÃ§Ã£o de Volume:**
         ```
         rho = V_Real / V_Budget
         ```
@@ -2108,54 +2109,54 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         - `rho < 1` significa que o volume real foi menor que o planejado
         - `rho = 1` significa que o volume real foi exatamente o planejado
         
-        **Cálculo de Flex Bud (em Custo Total):**
+        **CÃ¡lculo de Flex Bud (em Custo Total):**
         
         Para **Custo Fixo:**
         ```
         Flex_Bud_Fixo = B_Fixo
         ```
-        **Regra Aplicada:** Fixo não varia com volume
+        **Regra Aplicada:** Fixo nÃ£o varia com volume
         - Valor do budget mantido: `B_Fixo`
-        - Não multiplica pela proporção de volume
-        - Motivo: Custos fixos são independentes do volume, então mantém o valor planejado
+        - NÃ£o multiplica pela proporÃ§Ã£o de volume
+        - Motivo: Custos fixos sÃ£o independentes do volume, entÃ£o mantÃ©m o valor planejado
         
-        Para **Custo Variável:**
+        Para **Custo VariÃ¡vel:**
         ```
-        Flex_Bud_Variável = B_Variável * rho
-                           = B_Variável * (V_Real / V_Budget)
+        Flex_Bud_VariÃ¡vel = B_VariÃ¡vel * rho
+                           = B_VariÃ¡vel * (V_Real / V_Budget)
         ```
-        **Regra Aplicada:** Variável varia proporcionalmente ao volume
-        - Valor do budget: `B_Variável`
-        - Multiplica pela proporção: `rho = V_Real / V_Budget`
-        - Motivo: Se o volume real for maior que o planejado, o custo variável deve aumentar proporcionalmente
+        **Regra Aplicada:** VariÃ¡vel varia proporcionalmente ao volume
+        - Valor do budget: `B_VariÃ¡vel`
+        - Multiplica pela proporÃ§Ã£o: `rho = V_Real / V_Budget`
+        - Motivo: Se o volume real for maior que o planejado, o custo variÃ¡vel deve aumentar proporcionalmente
         
         **Flex Bud Total (em Custo Total):**
         ```
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
-                       = B_Fixo + (B_Variável * rho)
-                       = B_Fixo + B_Variável * (V_Real / V_Budget)
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_VariÃ¡vel
+                       = B_Fixo + (B_VariÃ¡vel * rho)
+                       = B_Fixo + B_VariÃ¡vel * (V_Real / V_Budget)
         ```
-        **Regra Aplicada:** Soma do Fixo (inalterado) + Variável (ajustado)
+        **Regra Aplicada:** Soma do Fixo (inalterado) + VariÃ¡vel (ajustado)
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Cálculo em CPU (Custo por Unidade) - Real x Budget
+        ### CÃ¡lculo em CPU (Custo por Unidade) - Real x Budget
         
         **IMPORTANTE:** No modo CPU, calcular em Custo Total primeiro, depois converter.
         
         **BUD em CPU:**
         ```
         BUD_CPU = B_Total / V_Budget
-                 = (B_Fixo + B_Variável) / V_Budget
+                 = (B_Fixo + B_VariÃ¡vel) / V_Budget
         ```
         
         **Flex Bud em CPU:**
         ```
         Flex_Bud_CPU = Flex_Bud_Total / V_Real
-                     = [B_Fixo + B_Variável * (V_Real / V_Budget)] / V_Real
-                     = (B_Fixo / V_Real) + (B_Variável / V_Budget)
+                     = [B_Fixo + B_VariÃ¡vel * (V_Real / V_Budget)] / V_Real
+                     = (B_Fixo / V_Real) + (B_VariÃ¡vel / V_Budget)
         ```
         
         **Total Real em CPU:**
@@ -2163,12 +2164,12 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         Total_Real_CPU = R_Total / V_Real
         ```
         
-        **Diferenças:**
+        **DiferenÃ§as:**
         
         **Flex Bud - BUD:**
         ```
         Delta_Flex_Bud = Flex_Bud_CPU - BUD_CPU
-                   = [(B_Fixo / V_Real) + (B_Variável / V_Budget)] - [(B_Fixo + B_Variável) / V_Budget]
+                   = [(B_Fixo / V_Real) + (B_VariÃ¡vel / V_Budget)] - [(B_Fixo + B_VariÃ¡vel) / V_Budget]
                    = (B_Fixo / V_Real) - (B_Fixo / V_Budget)
                    = B_Fixo * (1/V_Real - 1/V_Budget)
                    = B_Fixo * (V_Budget - V_Real) / (V_Real * V_Budget)
@@ -2177,26 +2178,26 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         **Total - Flex Bud:**
         ```
         Delta_Total_Flex = Total_Real_CPU - Flex_Bud_CPU
-                     = (R_Total / V_Real) - [(B_Fixo / V_Real) + (B_Variável / V_Budget)]
+                     = (R_Total / V_Real) - [(B_Fixo / V_Real) + (B_VariÃ¡vel / V_Budget)]
         ```
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Implementação - Real x Budget
+        ### ImplementaÃ§Ã£o - Real x Budget
         
         ```python
         # 1. Obter dados de Budget
         df_budget = load_budget_data(ano_selecionado)
         
-        # 2. Separar Fixo e Variável do Budget
+        # 2. Separar Fixo e VariÃ¡vel do Budget
         if 'Custo' in df_budget.columns:
             B_Fixo = df_budget[df_budget['Custo'] == 'Fixo']['Total'].sum()
-            B_Variavel = df_budget[df_budget['Custo'] == 'Variável']['Total'].sum()
+            B_Variavel = df_budget[df_budget['Custo'] == 'VariÃ¡vel']['Total'].sum()
         else:
             B_Fixo = 0
-            B_Variavel = df_budget['Total'].sum()  # Tudo é variável
+            B_Variavel = df_budget['Total'].sum()  # Tudo Ã© variÃ¡vel
         
         B_Total = B_Fixo + B_Variavel
         
@@ -2204,15 +2205,15 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         volume_real = df_vol_real['Volume'].sum()
         volume_budget = df_vol_budget['Volume'].sum()
         
-        # 4. Calcular proporção
+        # 4. Calcular proporÃ§Ã£o
         rho = volume_real / volume_budget if volume_budget != 0 else 1.0
         
         # 5. Calcular Flex Bud (em Custo Total)
-        Flex_Bud_Fixo = B_Fixo  # Não varia
+        Flex_Bud_Fixo = B_Fixo  # NÃ£o varia
         Flex_Bud_Variavel = B_Variavel * rho  # Varia proporcionalmente
         Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variavel
         
-        # 6. Converter para CPU (se necessário)
+        # 6. Converter para CPU (se necessÃ¡rio)
         if tipo_visualizacao == "CPU (Custo por Unidade)":
             BUD_CPU = B_Total / volume_budget if volume_budget != 0 else 0
             Flex_Bud_CPU = Flex_Bud_Total / volume_real if volume_real != 0 else 0
@@ -2226,42 +2227,42 @@ elif indice_selecionado == "📐 Regras e Cálculo":
     st.markdown("---")
         
     st.markdown("""
-        ### Exemplo Prático - Real x Budget
+        ### Exemplo PrÃ¡tico - Real x Budget
         
         **Dados:**
         - Volume Real (`V_Real`): 50,000 unidades
         - Volume Budget (`V_Budget`): 60,000 unidades
         - Custo Total Fixo Budget (`B_Fixo`): R$ 200,000
-        - Custo Total Variável Budget (`B_Variável`): R$ 400,000
+        - Custo Total VariÃ¡vel Budget (`B_VariÃ¡vel`): R$ 400,000
         - Custo Total Budget (`B_Total`): R$ 600,000
         - Custo Total Real (`R_Total`): R$ 550,000
         
-        **Cálculo Passo a Passo:**
+        **CÃ¡lculo Passo a Passo:**
         
-        **1. Calcular Proporção de Volume:**
+        **1. Calcular ProporÃ§Ã£o de Volume:**
         ```
         rho = V_Real / V_Budget = 50,000 / 60,000 = 0.833333
         ```
-        *Interpretação: Volume real foi 16.67% menor que o planejado*
+        *InterpretaÃ§Ã£o: Volume real foi 16.67% menor que o planejado*
         
         **2. Aplicar Regra para Custo Fixo:**
         ```
         Flex_Bud_Fixo = B_Fixo
                        = R$ 200,000
         ```
-        *Regra: Fixo não varia -> mantém valor do budget*
+        *Regra: Fixo nÃ£o varia -> mantÃ©m valor do budget*
         
-        **3. Aplicar Regra para Custo Variável:**
+        **3. Aplicar Regra para Custo VariÃ¡vel:**
         ```
-        Flex_Bud_Variável = B_Variável * rho
+        Flex_Bud_VariÃ¡vel = B_VariÃ¡vel * rho
                            = R$ 400,000 * 0.833333
                            = R$ 333,333.33
         ```
-        *Regra: Variável varia proporcionalmente -> ajusta pelo volume real*
+        *Regra: VariÃ¡vel varia proporcionalmente -> ajusta pelo volume real*
         
         **4. Calcular Total:**
         ```
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_VariÃ¡vel
                         = R$ 200,000 + R$ 333,333.33
                         = R$ 533,333.33
         ```
@@ -2276,52 +2277,52 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         Delta_Total_Flex = R$ 11.00 - R$ 10.67 = R$ 0.33 por unidade
         ```
         
-        **Interpretação:**
+        **InterpretaÃ§Ã£o:**
         - O volume real foi 16.67% menor que o planejado (`rho = 0.833333`)
-        - O budget variável foi ajustado proporcionalmente: R$ 400,000 -> R$ 333,333.33
+        - O budget variÃ¡vel foi ajustado proporcionalmente: R$ 400,000 -> R$ 333,333.33
         - O budget fixo permaneceu igual: R$ 200,000
         - Em CPU, o Flex Bud aumentou porque o custo fixo foi concentrado em menos volume
-        - O Total Real está R$ 0.33 acima do Flex Bud, indicando ineficiência operacional
+        - O Total Real estÃ¡ R$ 0.33 acima do Flex Bud, indicando ineficiÃªncia operacional
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Exemplo Prático 2 - Real x Budget (Volume Real > Volume Budget)
+        ### Exemplo PrÃ¡tico 2 - Real x Budget (Volume Real > Volume Budget)
         
         **Dados:**
         - Volume Real (`V_Real`): 62,208 unidades
         - Volume Budget (`V_Budget`): 60,120 unidades
         - Custo Total Fixo Budget (`B_Fixo`): R$ 200,000
-        - Custo Total Variável Budget (`B_Variável`): R$ 400,000
+        - Custo Total VariÃ¡vel Budget (`B_VariÃ¡vel`): R$ 400,000
         - Custo Total Budget (`B_Total`): R$ 600,000
         
-        **Cálculo Passo a Passo:**
+        **CÃ¡lculo Passo a Passo:**
         
-        **1. Calcular Proporção de Volume:**
+        **1. Calcular ProporÃ§Ã£o de Volume:**
         ```
         rho = V_Real / V_Budget = 62,208 / 60,120 = 1.0347
         ```
-        *Interpretação: Volume real foi 3.47% maior que o planejado*
+        *InterpretaÃ§Ã£o: Volume real foi 3.47% maior que o planejado*
         
         **2. Aplicar Regra para Custo Fixo:**
         ```
         Flex_Bud_Fixo = B_Fixo
                        = R$ 200,000
         ```
-        *Regra: Fixo não varia -> mantém valor do budget*
+        *Regra: Fixo nÃ£o varia -> mantÃ©m valor do budget*
         
-        **3. Aplicar Regra para Custo Variável:**
+        **3. Aplicar Regra para Custo VariÃ¡vel:**
         ```
-        Flex_Bud_Variável = B_Variável * rho
+        Flex_Bud_VariÃ¡vel = B_VariÃ¡vel * rho
                            = R$ 400,000 * 1.0347
                            = R$ 413,880
         ```
-        *Regra: Variável varia proporcionalmente -> ajusta pelo volume real*
+        *Regra: VariÃ¡vel varia proporcionalmente -> ajusta pelo volume real*
         
         **4. Calcular Total:**
         ```
-        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_Variável
+        Flex_Bud_Total = Flex_Bud_Fixo + Flex_Bud_VariÃ¡vel
                         = R$ 200,000 + R$ 413,880
                         = R$ 613,880
         ```
@@ -2333,67 +2334,67 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         Flex_Bud_CPU = R$ 613,880 / 62,208 = R$ 9.87 por unidade
         ```
         
-        **Diferenças:**
+        **DiferenÃ§as:**
         ```
         Delta_Flex_Bud (Custo Total) = R$ 613,880 - R$ 600,000 = R$ 13,880 (positivo) [CORRETO]
         Delta_Flex_Bud (CPU) = R$ 9.87 - R$ 9.98 = -R$ 0.11 (negativo)
         ```
         
-        **Interpretação:**
+        **InterpretaÃ§Ã£o:**
         - O volume real foi 3.47% maior que o planejado (`rho = 1.0347`)
-        - O budget variável foi ajustado proporcionalmente: R$ 400,000 -> R$ 413,880
+        - O budget variÃ¡vel foi ajustado proporcionalmente: R$ 400,000 -> R$ 413,880
         - O budget fixo permaneceu igual: R$ 200,000
-        - **Em Custo Total:** Flex_Bud_Total > BUD_Total (porque o custo variável aumentou)
-        - **Em CPU:** Flex_Bud_CPU < BUD_CPU (porque o custo fixo foi diluído em mais volume)
+        - **Em Custo Total:** Flex_Bud_Total > BUD_Total (porque o custo variÃ¡vel aumentou)
+        - **Em CPU:** Flex_Bud_CPU < BUD_CPU (porque o custo fixo foi diluÃ­do em mais volume)
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Comparação: Real x Real vs Real x Budget
+        ### ComparaÃ§Ã£o: Real x Real vs Real x Budget
         
         | Aspecto | Real x Real (Waterfall) | Real x Budget (TC Ext) |
         |---------|------------------------|------------------------|
-        | **Base** | Custo Real Mês 1 | Custo Budget |
-        | **Volume Referência** | Volume Real Mês 1 | Volume Budget |
-        | **Volume Ajuste** | Volume Real Mês 2 | Volume Real |
-        | **Proporção** | `V_2 / V_1` | `V_Real / V_Budget` |
-        | **Objetivo** | Ajustar Mês 1 pelo volume do Mês 2 | Ajustar Budget pelo volume Real |
-        | **Uso** | Comparar dois períodos reais | Comparar Real vs Planejado |
+        | **Base** | Custo Real MÃªs 1 | Custo Budget |
+        | **Volume ReferÃªncia** | Volume Real MÃªs 1 | Volume Budget |
+        | **Volume Ajuste** | Volume Real MÃªs 2 | Volume Real |
+        | **ProporÃ§Ã£o** | `V_2 / V_1` | `V_Real / V_Budget` |
+        | **Objetivo** | Ajustar MÃªs 1 pelo volume do MÃªs 2 | Ajustar Budget pelo volume Real |
+        | **Uso** | Comparar dois perÃ­odos reais | Comparar Real vs Planejado |
         """)
         
     st.markdown("---")
         
     st.markdown("""
-        ### Regras Gerais Aplicáveis a Ambos os Casos
+        ### Regras Gerais AplicÃ¡veis a Ambos os Casos
         
         **1. Custo Fixo:**
-        - Sempre mantém o valor original (não varia com volume)
+        - Sempre mantÃ©m o valor original (nÃ£o varia com volume)
         - `Flex_Fixo = Valor_Original`
         
-        **2. Custo Variável:**
+        **2. Custo VariÃ¡vel:**
         - Varia proporcionalmente ao volume
-        - `Flex_Variável = Valor_Original * (Volume_Novo / Volume_Original)`
+        - `Flex_VariÃ¡vel = Valor_Original * (Volume_Novo / Volume_Original)`
         
-        **3. Ordem de Cálculo:**
+        **3. Ordem de CÃ¡lculo:**
         1. Calcular em **Custo Total** primeiro
-        2. Separar Fixo e Variável
-        3. Aplicar proporção de volume apenas ao Variável
-        4. Somar Fixo + Variável ajustado
-        5. Se necessário, converter para **CPU** dividindo pelo volume final
+        2. Separar Fixo e VariÃ¡vel
+        3. Aplicar proporÃ§Ã£o de volume apenas ao VariÃ¡vel
+        4. Somar Fixo + VariÃ¡vel ajustado
+        5. Se necessÃ¡rio, converter para **CPU** dividindo pelo volume final
         
-        **4. Tratamento de Divisão por Zero:**
+        **4. Tratamento de DivisÃ£o por Zero:**
         - Se `Volume_Original = 0`: usar `rho = 1.0` (sem ajuste)
         - Se `Volume_Final = 0`: usar `Flex_CPU = 0`
         """)
 
 # ==========================================
-# TC VEÍCULOS: CÁLCULO POR TABELAS/GRÁFICOS
+# TC VEÃCULOS: CÃLCULO POR TABELAS/GRÃFICOS
 # ==========================================
-elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc.startswith("📌 Ambos"):
-    st.header("🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU) — TC Ext + TC Veículos")
+elif indice_selecionado == "ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos (Normal vs CPU)" and modulo_doc.startswith("ðŸ“Œ Ambos"):
+    st.header("ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos (Normal vs CPU) â€” TC Ext + TC VeÃ­culos")
 
-    st.subheader("📊 TC Extendido")
+    st.subheader("ðŸ“Š TC Estendido")
     _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
     if _err_ext:
@@ -2406,15 +2407,15 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
             _extrair_secao_por_heading(
                 _md_ext,
                 [
-                    "## 4) Visualizações — TC Extendido",
-                    "## 4) Visualizações",
+                    "## 4) VisualizaÃ§Ãµes â€” TC Estendido",
+                    "## 4) VisualizaÃ§Ãµes",
                 ],
             )
         )
 
     st.markdown("---")
 
-    st.subheader("🚗 TC Veículos")
+    st.subheader("ðŸš— TC VeÃ­culos")
     _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
     if _err_veic:
@@ -2426,14 +2427,14 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         st.markdown(
             _extrair_secao_por_heading(
                 _md_veic,
-                ["## 8) Visualizações e Gráficos"],
+                ["## 8) VisualizaÃ§Ãµes e GrÃ¡ficos"],
             )
         )
 
     st.stop()
 
-elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc == "🚗 TC Veículos":
-    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Veículos")
+elif indice_selecionado == "ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos (Normal vs CPU)" and modulo_doc == "ðŸš— TC VeÃ­culos":
+    st.header("ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos â€” TC VeÃ­culos")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -2442,89 +2443,89 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         st.stop()
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 8) Visualizações e Gráficos"]))
+    st.markdown(_extrair_secao_por_heading(_md, ["## 8) VisualizaÃ§Ãµes e GrÃ¡ficos"]))
     st.stop()
 
     st.info(
-        "📌 **Módulo TC Veículos** — Tabelas e gráficos específicos do TC Veículos."
+        "ðŸ“Œ **MÃ³dulo TC VeÃ­culos** â€” Tabelas e grÃ¡ficos especÃ­ficos do TC VeÃ­culos."
     )
 
-    with st.expander("📊 **Análise Flex por Categoria**", expanded=True):
+    with st.expander("ðŸ“Š **AnÃ¡lise Flex por Categoria**", expanded=True):
         st.markdown("""
-        ### 🔍 Modos de Visualização
+        ### ðŸ” Modos de VisualizaÃ§Ã£o
 
-        - **Fixo/Variável**: Expanders `💰 Fixo` e `💰 Variável`, cada um com sub-expanders por `Type 05` → tabela por `Account`
-        - **Total**: Expanders direto por `Type 05` → tabela por `Account`
+        - **Fixo/VariÃ¡vel**: Expanders `ðŸ’° Fixo` e `ðŸ’° VariÃ¡vel`, cada um com sub-expanders por `Type 05` â†’ tabela por `Account`
+        - **Total**: Expanders direto por `Type 05` â†’ tabela por `Account`
 
         **Expander TOTAL:**
         - Re-agrega **todas** as linhas das oficinas por `(Type 05, Type 06, Account, Custo)`
-        - Mostra tabela detalhada com todas as contas (não apenas 1 linha sintética)
+        - Mostra tabela detalhada com todas as contas (nÃ£o apenas 1 linha sintÃ©tica)
         - Mesmo layout dos expanders por oficina
 
-        ### 📋 Tabela Flex por Account
+        ### ðŸ“‹ Tabela Flex por Account
 
-        | Coluna | Cálculo |
+        | Coluna | CÃ¡lculo |
         |--------|---------|
         | Account | Nome da conta |
-        | BUD | Σ Custo FP Budget |
-        | Flex Bud − BUD | Flex − BUD |
-        | Flex BUD | Fixo: BUD / Variável: BUD × Proporção |
-        | Total − Flex Bud | Real − Flex |
-        | Total | Σ Custo FP Real |
+        | BUD | Î£ Custo FP Budget |
+        | Flex Bud âˆ’ BUD | Flex âˆ’ BUD |
+        | Flex BUD | Fixo: BUD / VariÃ¡vel: BUD Ã— ProporÃ§Ã£o |
+        | Total âˆ’ Flex Bud | Real âˆ’ Flex |
+        | Total | Î£ Custo FP Real |
         | Total / Flex Bud | Real/Flex (com barrinha de progresso) |
 
-        ### 🎨 Barrinha de Progresso
-        - 🟢 Verde: ≤ 90%
-        - 🟡 Gradiente verde→vermelho: 90%–100%
-        - 🔴 Vermelho: ≥ 100%
+        ### ðŸŽ¨ Barrinha de Progresso
+        - ðŸŸ¢ Verde: â‰¤ 90%
+        - ðŸŸ¡ Gradiente verdeâ†’vermelho: 90%â€“100%
+        - ðŸ”´ Vermelho: â‰¥ 100%
         """)
 
-    with st.expander("📈 **Gráficos do TC Veículos**", expanded=False):
+    with st.expander("ðŸ“ˆ **GrÃ¡ficos do TC VeÃ­culos**", expanded=False):
         st.markdown("""
-        ### 📊 Custo FP por Período
-        - **Barras**: Real por período com degradê roxo (`scheme='purples'`)
+        ### ðŸ“Š Custo FP por PerÃ­odo
+        - **Barras**: Real por perÃ­odo com degradÃª roxo (`scheme='purples'`)
         - **Linha pontilhada**: Flex BUD (laranja, `strokeDash=[10,5]`)
-        - **Delta**: Gráfico inferior com `Real − Flex BUD` (verde/vermelho)
+        - **Delta**: GrÃ¡fico inferior com `Real âˆ’ Flex BUD` (verde/vermelho)
         - Biblioteca: **Altair** com `data_transformers.disable_max_rows()`
 
-        ### 🎨 Cores do Best Estimate
-        Na página de **Análise BE**, os gráficos por período usam codificação por cor
+        ### ðŸŽ¨ Cores do Best Estimate
+        Na pÃ¡gina de **AnÃ¡lise BE**, os grÃ¡ficos por perÃ­odo usam codificaÃ§Ã£o por cor
         na coluna `Tipo` para diferenciar meses:
-        - 🟣 **Roxo escuro** (`#4C1D95`): meses **Históricos** (realizados)
-        - 🟣 **Roxo claro** (`#C4B5FD`): meses de **Best Estimate** (projetados)
+        - ðŸŸ£ **Roxo escuro** (`#4C1D95`): meses **HistÃ³ricos** (realizados)
+        - ðŸŸ£ **Roxo claro** (`#C4B5FD`): meses de **Best Estimate** (projetados)
 
-        ### 📊 Volume
-        - **Barras**: Volume Budget (degradê verde)
+        ### ðŸ“Š Volume
+        - **Barras**: Volume Budget (degradÃª verde)
         - **Linha tracejada**: Volume Realizado (laranja)
-        - **Por Veículo**: Barras agrupadas por modelo
+        - **Por VeÃ­culo**: Barras agrupadas por modelo
 
-        ### 📊 Custos por Oficina
+        ### ðŸ“Š Custos por Oficina
         - Barras Custo FP por Oficina
         - Barras Rateio FA por Oficina (verde/vermelho)
-        - Tabela BUD vs Flex pivotada Oficina × Período
+        - Tabela BUD vs Flex pivotada Oficina Ã— PerÃ­odo
         """)
 
-    with st.expander("📋 **Tabs Disponíveis**", expanded=False):
+    with st.expander("ðŸ“‹ **Tabs DisponÃ­veis**", expanded=False):
         st.markdown("""
-        ### 🗂️ Organização em Tabs
+        ### ðŸ—‚ï¸ OrganizaÃ§Ã£o em Tabs
 
-        O TC Veículos organiza os dados em **6 tabs**:
+        O TC VeÃ­culos organiza os dados em **6 tabs**:
 
-        | Tab | Conteúdo |
+        | Tab | ConteÃºdo |
         |-----|----------|
-        | 🚗 TC Veículos | KPIs resumo + Gráfico Custo FP × Flex BUD por período |
-        | 📊 Análise Flex | Fixo/Variável com hierarquia Type 05 → Account |
-        | 📈 Volume | Budget vs Realizado (por período e por veículo) |
-        | 🏢 Custos por Oficina | Custo FP e Rateio FA por oficina |
-        | ⏱️ Tempo de Produção | Tempo Veículo vs Tempo FA por oficina |
-        | 📋 Dados Detalhados | Tabelas exportáveis de Real e Budget |
+        | ðŸš— TC VeÃ­culos | KPIs resumo + GrÃ¡fico Custo FP Ã— Flex BUD por perÃ­odo |
+        | ðŸ“Š AnÃ¡lise Flex | Fixo/VariÃ¡vel com hierarquia Type 05 â†’ Account |
+        | ðŸ“ˆ Volume | Budget vs Realizado (por perÃ­odo e por veÃ­culo) |
+        | ðŸ¢ Custos por Oficina | Custo FP e Rateio FA por oficina |
+        | â±ï¸ Tempo de ProduÃ§Ã£o | Tempo VeÃ­culo vs Tempo FA por oficina |
+        | ðŸ“‹ Dados Detalhados | Tabelas exportÃ¡veis de Real e Budget |
         """)
 
 # ==========================================
-# SEÇÃO 2: CÁLCULO POR TABELAS/GRÁFICOS
+# SEÃ‡ÃƒO 2: CÃLCULO POR TABELAS/GRÃFICOS
 # ==========================================
-elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
-    st.header("🧮 Cálculo por Tabelas/Gráficos — TC Extendido")
+elif indice_selecionado == "ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos (Normal vs CPU)":
+    st.header("ðŸ§® CÃ¡lculo por Tabelas/GrÃ¡ficos â€” TC Estendido")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -2534,43 +2535,43 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
     st.markdown(
-        "Esta seção explica os pontos que mais geram divergência entre **tabela** e **gráfico** "
+        "Esta seÃ§Ã£o explica os pontos que mais geram divergÃªncia entre **tabela** e **grÃ¡fico** "
         "no TC Ext (Normal vs CPU)."
     )
 
-    with st.expander("📌 CPU e regra de agregação", expanded=True):
+    with st.expander("ðŸ“Œ CPU e regra de agregaÃ§Ã£o", expanded=True):
         st.markdown(
             _extrair_secao_por_heading(
                 _md,
-                ["## 2) Regras e Cálculo — TC Extendido"],
+                ["## 2) Regras e CÃ¡lculo â€” TC Estendido"],
             )
         )
 
-    with st.expander("📌 Governança do ano completo (12 meses)", expanded=False):
+    with st.expander("ðŸ“Œ GovernanÃ§a do ano completo (12 meses)", expanded=False):
         st.markdown(
             _extrair_secao_por_heading(
                 _md,
-                ["## 7) Flex Bud — Ano Completo e Governança"],
+                ["## 7) Flex Bud â€” Ano Completo e GovernanÃ§a"],
             )
         )
     st.stop()
 
     caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     if not os.path.exists(caminho_doc):
-        st.error(f"Arquivo não encontrado: {caminho_doc}")
+        st.error(f"Arquivo nÃ£o encontrado: {caminho_doc}")
     else:
         try:
             with open(caminho_doc, "r", encoding="utf-8") as f:
                 conteudo = f.read()
 
             def _extrair_trecho(md: str) -> str:
-                start_token = "### 9.6 Guia de cálculo por visualização"
+                start_token = "### 9.6 Guia de cÃ¡lculo por visualizaÃ§Ã£o"
                 start = md.find(start_token)
                 if start == -1:
-                    start_token = "## 9) Gráficos e tabelas"
+                    start_token = "## 9) GrÃ¡ficos e tabelas"
                     start = md.find(start_token)
                 if start == -1:
-                    return "⚠️ Não encontrei a seção de cálculos no arquivo de especificação."
+                    return "âš ï¸ NÃ£o encontrei a seÃ§Ã£o de cÃ¡lculos no arquivo de especificaÃ§Ã£o."
 
                 end = md.find("\n## ", start + 1)
                 if end == -1:
@@ -2580,15 +2581,15 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
             st.markdown("---")
             st.markdown(_extrair_trecho(conteudo))
         except Exception as e:
-            st.error(f"Erro ao carregar/parsear especificação: {e}")
+            st.error(f"Erro ao carregar/parsear especificaÃ§Ã£o: {e}")
 
 # ==========================================
-# TC VEÍCULOS: ARQUITETURA E ESTRUTURA
+# TC VEÃCULOS: ARQUITETURA E ESTRUTURA
 # ==========================================
-elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.startswith("📌 Ambos"):
-    st.header("🏗️ Arquitetura e Estrutura — TC Ext + TC Veículos")
+elif indice_selecionado == "ðŸ—ï¸ Arquitetura e Estrutura" and modulo_doc.startswith("ðŸ“Œ Ambos"):
+    st.header("ðŸ—ï¸ Arquitetura e Estrutura â€” TC Ext + TC VeÃ­culos")
 
-    st.subheader("📊 TC Extendido")
+    st.subheader("ðŸ“Š TC Estendido")
     _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
     if _err_ext:
@@ -2600,13 +2601,13 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.star
         st.markdown(
             _extrair_secao_por_heading(
                 _md_ext,
-                ["## 3) Arquitetura — TC Extendido"],
+                ["## 3) Arquitetura â€” TC Estendido"],
             )
         )
 
     st.markdown("---")
 
-    st.subheader("🚗 TC Veículos")
+    st.subheader("ðŸš— TC VeÃ­culos")
     _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
     if _err_veic:
@@ -2618,14 +2619,14 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.star
         st.markdown(
             _extrair_secao_por_heading(
                 _md_veic,
-                ["## 10) Arquitetura TC Veículos"],
+                ["## 10) Arquitetura TC VeÃ­culos"],
             )
         )
 
     st.stop()
 
-elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "🚗 TC Veículos":
-    st.header("🏗️ Arquitetura e Estrutura — TC Veículos")
+elif indice_selecionado == "ðŸ—ï¸ Arquitetura e Estrutura" and modulo_doc == "ðŸš— TC VeÃ­culos":
+    st.header("ðŸ—ï¸ Arquitetura e Estrutura â€” TC VeÃ­culos")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -2634,168 +2635,168 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         st.stop()
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC Veículos"]))
+    st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC VeÃ­culos"]))
     st.stop()
 
     st.info(
-        "📌 **Módulo TC Veículos** — Estrutura de pastas, contratos de dados e pipeline de processamento."
+        "ðŸ“Œ **MÃ³dulo TC VeÃ­culos** â€” Estrutura de pastas, contratos de dados e pipeline de processamento."
     )
 
-    with st.expander("📁 **Contratos de Dados (Parquets)**", expanded=True):
+    with st.expander("ðŸ“ **Contratos de Dados (Parquets)**", expanded=True):
         st.markdown("""
-        ### 📂 Estrutura de Pastas
+        ### ðŸ“‚ Estrutura de Pastas
 
         ```
         dados/TC_Principal/
-        ├── {ano}/
-        │   ├── BUD/
-        │   │   ├── df_principal_BUD.parquet         # Custo consolidado BUD
-        │   │   ├── df_vol_veiculos_BUD.parquet      # Volume por veículo BUD
-        │   │   ├── df_veiculos_custo_fp_BUD.parquet  # Custo FP rateado BUD
-        │   │   ├── df_veiculos_cpu_BUD.parquet      # CPU por veículo BUD
-        │   │   ├── df_tempo_veiculos_BUD.parquet    # Tempo de produção BUD
-        │   │   ├── df_dea_dedicado_BUD.parquet      # D&A Dedicado BUD
-        │   │   └── df_volume_fa_BUD.parquet         # Volume Fluxo Anexo BUD
-        │   ├── df_principal.parquet                 # Custo Real consolidado
-        │   ├── df_vol_veiculos_actual.parquet       # Volume Realizado
-        │   ├── df_veiculos_custo_fp.parquet         # Custo FP Real rateado
-        │   └── df_veiculos_cpu.parquet              # CPU Real
-        ├── Forecast/
-        │   ├── forecast_completo.parquet            # Projeção BE mês a mês
-        │   └── premissas.json                       # Premissas do simulador
-        └── historico_consolidado/
-            ├── df_principal_historico.parquet        # Multi-ano consolidado
-            └── BUD/
-                └── df_principal_historico_BUD.parquet
+        â”œâ”€â”€ {ano}/
+        â”‚   â”œâ”€â”€ BUD/
+        â”‚   â”‚   â”œâ”€â”€ df_principal_BUD.parquet         # Custo consolidado BUD
+        â”‚   â”‚   â”œâ”€â”€ df_vol_veiculos_BUD.parquet      # Volume por veÃ­culo BUD
+        â”‚   â”‚   â”œâ”€â”€ df_veiculos_custo_fp_BUD.parquet  # Custo FP rateado BUD
+        â”‚   â”‚   â”œâ”€â”€ df_veiculos_cpu_BUD.parquet      # CPU por veÃ­culo BUD
+        â”‚   â”‚   â”œâ”€â”€ df_tempo_veiculos_BUD.parquet    # Tempo de produÃ§Ã£o BUD
+        â”‚   â”‚   â”œâ”€â”€ df_dea_dedicado_BUD.parquet      # D&A Dedicado BUD
+        â”‚   â”‚   â””â”€â”€ df_volume_fa_BUD.parquet         # Volume Fluxo Anexo BUD
+        â”‚   â”œâ”€â”€ df_principal.parquet                 # Custo Real consolidado
+        â”‚   â”œâ”€â”€ df_vol_veiculos_actual.parquet       # Volume Realizado
+        â”‚   â”œâ”€â”€ df_veiculos_custo_fp.parquet         # Custo FP Real rateado
+        â”‚   â””â”€â”€ df_veiculos_cpu.parquet              # CPU Real
+        â”œâ”€â”€ Forecast/
+        â”‚   â”œâ”€â”€ forecast_completo.parquet            # ProjeÃ§Ã£o BE mÃªs a mÃªs
+        â”‚   â””â”€â”€ premissas.json                       # Premissas do simulador
+        â””â”€â”€ historico_consolidado/
+            â”œâ”€â”€ df_principal_historico.parquet        # Multi-ano consolidado
+            â””â”€â”€ BUD/
+                â””â”€â”€ df_principal_historico_BUD.parquet
         ```
 
-        ### 📋 Schema — Principal BUD
+        ### ðŸ“‹ Schema â€” Principal BUD
 
-        | Coluna | Tipo | Descrição |
+        | Coluna | Tipo | DescriÃ§Ã£o |
         |--------|------|-----------|
         | `Oficina` | str | Centro de custo (oficina) |
-        | `Veículo` | str | Modelo do veículo |
-        | `Type 05` | str | Classificação nível 1 |
-        | `Type 06` | str | Classificação nível 2 |
-        | `Custo` | str | Fixo ou Variável |
-        | `Account` | str | Conta contábil (inclui "Redis") |
-        | `Período` | str | Mês por extenso |
-        | `Despesa Primaria` | float | Despesa primária (R$) |
+        | `VeÃ­culo` | str | Modelo do veÃ­culo |
+        | `Type 05` | str | ClassificaÃ§Ã£o nÃ­vel 1 |
+        | `Type 06` | str | ClassificaÃ§Ã£o nÃ­vel 2 |
+        | `Custo` | str | Fixo ou VariÃ¡vel |
+        | `Account` | str | Conta contÃ¡bil (inclui "Redis") |
+        | `PerÃ­odo` | str | MÃªs por extenso |
+        | `Despesa Primaria` | float | Despesa primÃ¡ria (R$) |
         | `Custo FA` | float | Custo do Fluxo Anexo |
         | `Custo FP` | float | Custo FP consolidado |
         | `D&A dedicado` | float | D&A dedicada |
         | `FP sem Dedicada` | float | Custo FP sem D&A |
 
-        ### 📋 Schema — Veículos Rateado (BUD)
+        ### ðŸ“‹ Schema â€” VeÃ­culos Rateado (BUD)
 
-        | Coluna | Tipo | Descrição |
+        | Coluna | Tipo | DescriÃ§Ã£o |
         |--------|------|-----------|
         | `Oficina` | str | Centro de custo |
-        | `Veículo` | str | Modelo do veículo |
-        | `Custo Rateado` | float | Custo × percentual do veículo |
+        | `VeÃ­culo` | str | Modelo do veÃ­culo |
+        | `Custo Rateado` | float | Custo Ã— percentual do veÃ­culo |
         | `D&A dedicado` | float | D&A dedicada direta |
         | `Custo FP Veiculo` | float | Rateado + D&A |
-        | `Ano` | int | Ano de referência |
+        | `Ano` | int | Ano de referÃªncia |
 
-        > O parquet BUD veículos tem `Custo FP Veiculo` (não `Custo FP`). O sistema faz mapeamento automático.
+        > O parquet BUD veÃ­culos tem `Custo FP Veiculo` (nÃ£o `Custo FP`). O sistema faz mapeamento automÃ¡tico.
         """)
 
-    with st.expander("🔧 **Módulos e Arquivos**", expanded=False):
+    with st.expander("ðŸ”§ **MÃ³dulos e Arquivos**", expanded=False):
         st.markdown("""
-        ### 📂 Estrutura do Código
+        ### ðŸ“‚ Estrutura do CÃ³digo
 
         ```
         tc_principal/
-        ├── __init__.py
-        ├── shared.py              # Constantes, loaders, helpers, ratear_be_por_veiculo()
-        ├── ui_components.py       # Sidebar filters, CSS, KPIs
-        └── pages/
-            ├── __init__.py
-            ├── home_tc.py                      # Página principal (6 tabs) + consumo/análise do Forecast (Real vs BE)
-            ├── best_estimate_simulador_tc.py   # Simulador de premissas BE (gera Forecast)
-            └── waterfall_tc.py                 # Análise Waterfall (Real + Budget)
+        â”œâ”€â”€ __init__.py
+        â”œâ”€â”€ shared.py              # Constantes, loaders, helpers, ratear_be_por_veiculo()
+        â”œâ”€â”€ ui_components.py       # Sidebar filters, CSS, KPIs
+        â””â”€â”€ pages/
+            â”œâ”€â”€ __init__.py
+            â”œâ”€â”€ home_tc.py                      # PÃ¡gina principal (6 tabs) + consumo/anÃ¡lise do Forecast (Real vs BE)
+            â”œâ”€â”€ best_estimate_simulador_tc.py   # Simulador de premissas BE (gera Forecast)
+            â””â”€â”€ waterfall_tc.py                 # AnÃ¡lise Waterfall (Real + Budget)
         ```
 
-        ### ⚙️ Filtros — Arquitetura Unificada
+        ### âš™ï¸ Filtros â€” Arquitetura Unificada
 
         ```
         Sidebar filters
-             │
-             ├── Veículo = "Todos" ──► usar_rateado = False
-             │         ├── df_principal_BUD  → df_bud
-             │         └── df_principal_Real → df
-             │
-             └── Veículo = "CC21 biton" ──► usar_rateado = True
-                       ├── df_veiculos_custo_fp_BUD → df_bud (filtrado)
-                       └── df_veiculos_custo_fp_Real → df (filtrado)
-             │
+             â”‚
+             â”œâ”€â”€ VeÃ­culo = "Todos" â”€â”€â–º usar_rateado = False
+             â”‚         â”œâ”€â”€ df_principal_BUD  â†’ df_bud
+             â”‚         â””â”€â”€ df_principal_Real â†’ df
+             â”‚
+             â””â”€â”€ VeÃ­culo = "CC21 biton" â”€â”€â–º usar_rateado = True
+                       â”œâ”€â”€ df_veiculos_custo_fp_BUD â†’ df_bud (filtrado)
+                       â””â”€â”€ df_veiculos_custo_fp_Real â†’ df (filtrado)
+             â”‚
         aplicar_fator_df() + converter_moeda_df()
-             │
+             â”‚
         calcular_flex_budget()
-             │
-        ┌─────────────────────────────┐
-        │  Todos os tabs usam         │
-        │  df_bud, df, df_vol_bud,    │
-        │  df_vol_actual, df_flex     │
-        └─────────────────────────────┘
+             â”‚
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Todos os tabs usam         â”‚
+        â”‚  df_bud, df, df_vol_bud,    â”‚
+        â”‚  df_vol_actual, df_flex     â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
         ```
         """)
 
-    with st.expander("⚙️ **ETL e Processamento**", expanded=False):
+    with st.expander("âš™ï¸ **ETL e Processamento**", expanded=False):
         st.markdown("""
-        ### 📋 Arquivos de Processamento
+        ### ðŸ“‹ Arquivos de Processamento
 
-        | Arquivo | Função |
+        | Arquivo | FunÃ§Ã£o |
         |---------|--------|
-        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra upload, pré-validação e execução (Real/Budget) |
+        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra upload, prÃ©-validaÃ§Ã£o e execuÃ§Ã£o (Real/Budget) |
         | `processamento_dados_veiculos_BUD.py` | Processa Budget (BUD) e grava parquets BUD |
         | `processamento_dados_veiculos.py` | Processa Real (Sapiens/Redis) e grava parquets Real |
 
-        ### 🔄 Pipeline
+        ### ðŸ”„ Pipeline
 
-        1. Extração dos dados brutos (Excel/SAP)
-        2. Normalização de colunas e períodos
-        3. Cálculo de composição de custos (Desp. Primária → FA → FP)
-        4. Rateio por veículo (tempo de produção)
-        5. Cálculo de CPU por veículo
-        6. Gravação em Parquet na pasta `dados/TC_Principal/{ano}/`
+        1. ExtraÃ§Ã£o dos dados brutos (Excel/SAP)
+        2. NormalizaÃ§Ã£o de colunas e perÃ­odos
+        3. CÃ¡lculo de composiÃ§Ã£o de custos (Desp. PrimÃ¡ria â†’ FA â†’ FP)
+        4. Rateio por veÃ­culo (tempo de produÃ§Ã£o)
+        5. CÃ¡lculo de CPU por veÃ­culo
+        6. GravaÃ§Ã£o em Parquet na pasta `dados/TC_Principal/{ano}/`
 
-        ### 💾 Cache
+        ### ðŸ’¾ Cache
         - `@st.cache_data(ttl=3600)` em todos os loaders
-        - Botão "🔄 Limpar Cache" na sidebar para forçar recarga
+        - BotÃ£o "ðŸ”„ Limpar Cache" na sidebar para forÃ§ar recarga
         """)
 
-    with st.expander("🌐 **Configurações Globais**", expanded=False):
+    with st.expander("ðŸŒ **ConfiguraÃ§Ãµes Globais**", expanded=False):
         st.markdown("""
-        ### 💱 Moeda
+        ### ðŸ’± Moeda
 
-        | Código | Símbolo | Conversão |
+        | CÃ³digo | SÃ­mbolo | ConversÃ£o |
         |--------|---------|-----------|
         | BRL | R$ | 1.0 (base) |
-        | USD | $ | 1/Taxa USD→BRL |
-        | EUR | € | 1/Taxa EUR→BRL |
+        | USD | $ | 1/Taxa USDâ†’BRL |
+        | EUR | â‚¬ | 1/Taxa EURâ†’BRL |
 
-        ### 📊 Fator
+        ### ðŸ“Š Fator
 
-        | Opção | Divisor |
+        | OpÃ§Ã£o | Divisor |
         |-------|---------|
         | Nenhum | 1 |
         | K (milhares) | 1.000 |
-        | M (milhões) | 1.000.000 |
+        | M (milhÃµes) | 1.000.000 |
 
-        ### 👁️ Tipo de Visualização
+        ### ðŸ‘ï¸ Tipo de VisualizaÃ§Ã£o
 
         | Tipo | Comportamento |
         |------|---------------|
         | Custo Total | Valores absolutos em R$/USD/EUR |
-        | CPU | Custo ÷ Volume (fator = Nenhum) |
+        | CPU | Custo Ã· Volume (fator = Nenhum) |
         """)
 
 # ==========================================
-# SEÇÃO 2: ARQUITETURA E ESTRUTURA
+# SEÃ‡ÃƒO 2: ARQUITETURA E ESTRUTURA
 # ==========================================
-elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
-    st.header("🏗️ Arquitetura e Estrutura — TC Extendido")
+elif indice_selecionado == "ðŸ—ï¸ Arquitetura e Estrutura":
+    st.header("ðŸ—ï¸ Arquitetura e Estrutura â€” TC Estendido")
 
     _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
     _md, _err, _mtime = _carregar_markdown(_caminho)
@@ -2804,59 +2805,59 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         st.stop()
 
     st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura — TC Extendido"]))
+    st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura â€” TC Estendido"]))
     st.stop()
     
     st.markdown("""
-    Esta seção documenta a arquitetura, estrutura de arquivos, tecnologias utilizadas
-    e informações sobre a equipe responsável pelo desenvolvimento do projeto.
+    Esta seÃ§Ã£o documenta a arquitetura, estrutura de arquivos, tecnologias utilizadas
+    e informaÃ§Ãµes sobre a equipe responsÃ¡vel pelo desenvolvimento do projeto.
     """)
     
     st.markdown("---")
     
-    # Métricas principais
+    # MÃ©tricas principais
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("💻 Linhas de Código", "20.000+", "Sistema completo")
+        st.metric("ðŸ’» Linhas de CÃ³digo", "20.000+", "Sistema completo")
     
     with col2:
-        st.metric("📊 Páginas", "6", "Funcionalidades completas")
+        st.metric("ðŸ“Š PÃ¡ginas", "6", "Funcionalidades completas")
     
     with col3:
-        st.metric("⚡ Otimização", "70%+", "Memória reduzida")
+        st.metric("âš¡ OtimizaÃ§Ã£o", "70%+", "MemÃ³ria reduzida")
     
     with col4:
-        st.metric("📁 Arquivos", "Parquet", "Formato otimizado")
+        st.metric("ðŸ“ Arquivos", "Parquet", "Formato otimizado")
         
     # EXPANDER 1: Estrutura de Arquivos
-    with st.expander("📁 **Estrutura de Arquivos e Organização do Projeto**", expanded=False):
-        st.subheader("📁 Estrutura de Arquivos")
+    with st.expander("ðŸ“ **Estrutura de Arquivos e OrganizaÃ§Ã£o do Projeto**", expanded=False):
+        st.subheader("ðŸ“ Estrutura de Arquivos")
         
         st.markdown("""
-        ### Estrutura do Projeto (visão de alto nível)
+        ### Estrutura do Projeto (visÃ£o de alto nÃ­vel)
         
         ```
         TC/
-        ├── app.py                     # Portal / Router (menu via st.navigation)
-        ├── pages/                     # Páginas legadas (Waterfall/BE Simulador/Extração/Documentação)
-        ├── tc_ext/                    # TC Ext (Linhas Secundárias)
-        ├── tc_principal/              # TC Veículos (TC Principal)
-        ├── tc_core/                   # Shared (paths/portabilidade/períodos/schema/moedas/UI)
-        ├── tc_copilot/                # IA (chat + relatório PDF)
-        └── dados/                     # Dados organizados por módulo
-            ├── TC_Ext/                # dados/TC_Ext/{ANO}/, historico_consolidado/, Forecast/
-            └── TC_Principal/          # dados/TC_Principal/{ANO}/, historico_consolidado/, Forecast/
+        â”œâ”€â”€ app.py                     # Portal / Router (menu via st.navigation)
+        â”œâ”€â”€ pages/                     # PÃ¡ginas legadas (Waterfall/BE Simulador/ExtraÃ§Ã£o/DocumentaÃ§Ã£o)
+        â”œâ”€â”€ tc_ext/                    # TC Ext (Linhas SecundÃ¡rias)
+        â”œâ”€â”€ tc_principal/              # TC VeÃ­culos (TC Principal)
+        â”œâ”€â”€ tc_core/                   # Shared (paths/portabilidade/perÃ­odos/schema/moedas/UI)
+        â”œâ”€â”€ tc_copilot/                # IA (chat + relatÃ³rio PDF)
+        â””â”€â”€ dados/                     # Dados organizados por mÃ³dulo
+            â”œâ”€â”€ TC_Ext/                # dados/TC_Ext/{ANO}/, historico_consolidado/, Forecast/
+            â””â”€â”€ TC_Principal/          # dados/TC_Principal/{ANO}/, historico_consolidado/, Forecast/
         ```
         
-        **Observações:**
-        - A estrutura de dados é **por módulo** (o histórico fica em `dados/TC_Ext/historico_consolidado/` e `dados/TC_Principal/historico_consolidado/`).
-        - Caminhos canônicos (Dev ↔ EXE) ficam em `tc_core/data/paths.py` + `tc_core/utils/portabilidade.py`.
+        **ObservaÃ§Ãµes:**
+        - A estrutura de dados Ã© **por mÃ³dulo** (o histÃ³rico fica em `dados/TC_Ext/historico_consolidado/` e `dados/TC_Principal/historico_consolidado/`).
+        - Caminhos canÃ´nicos (Dev â†” EXE) ficam em `tc_core/data/paths.py` + `tc_core/utils/portabilidade.py`.
         """)
 
         st.markdown("---")
         
-        st.subheader("📄 Arquivos Principais")
+        st.subheader("ðŸ“„ Arquivos Principais")
         
         col1, col2 = st.columns(2)
         
@@ -2864,113 +2865,113 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             st.markdown("""
             **app.py**
             - Portal/roteador do SCI (menu lateral via `st.navigation`)
-            - Agrupa páginas de **TC Veículos**, **TC Ext**, **Documentação** e **TC Copilot**
-            - Não contém a lógica de cálculo — ela está nos módulos `tc_ext/` e `tc_principal/`
+            - Agrupa pÃ¡ginas de **TC VeÃ­culos**, **TC Ext**, **DocumentaÃ§Ã£o** e **TC Copilot**
+            - NÃ£o contÃ©m a lÃ³gica de cÃ¡lculo â€” ela estÃ¡ nos mÃ³dulos `tc_ext/` e `tc_principal/`
 
             **tc_ext/pages/home_ext.py**
             - Home do TC Ext (Real/Budget/Flex/CPU)
-            - Filtros + gráficos + exportação
+            - Filtros + grÃ¡ficos + exportaÃ§Ã£o
             
             **pages/1 - Waterfall.py** (~4.000 linhas)
-            - Análise waterfall entre períodos
-            - Cálculo Flex Mês 1
-            - Gráficos waterfall interativos
+            - AnÃ¡lise waterfall entre perÃ­odos
+            - CÃ¡lculo Flex MÃªs 1
+            - GrÃ¡ficos waterfall interativos
             - Tabelas com hierarquia
             
             **pages/2 - Best Estimate - Simulador.py** (~4.300 linhas)
-            - Simulação interativa de Best Estimate
+            - SimulaÃ§Ã£o interativa de Best Estimate
             - Ajuste de sensibilidade em tempo real
-            - Configuração de inflação
-            - Gráficos de premissas
+            - ConfiguraÃ§Ã£o de inflaÃ§Ã£o
+            - GrÃ¡ficos de premissas
             """)
         
         with col2:
             st.markdown("""
             **tc_ext/pages/be_analise_ext.py**
-            - Best Estimate (Análise) no TC Ext (substitui a análise legacy)
-            - Mesma base visual e de cálculo da Home (TC Ext)
-            - Lê os outputs do simulador em `dados/TC_Ext/Forecast/`
+            - Best Estimate (AnÃ¡lise) no TC Ext (substitui a anÃ¡lise legacy)
+            - Mesma base visual e de cÃ¡lculo da Home (TC Ext)
+            - LÃª os outputs do simulador em `dados/TC_Ext/Forecast/`
             - Regra de CPU aplicada de forma consistente (Total/Volume)
             
-            **(removido) pages/4 - Waterfall_Analysis.py** (página duplicada removida)
-            - Análise waterfall entre períodos (legado)
-            - Cálculo Flex Mês 1
-            - Gráficos waterfall interativos
+            **(removido) pages/4 - Waterfall_Analysis.py** (pÃ¡gina duplicada removida)
+            - AnÃ¡lise waterfall entre perÃ­odos (legado)
+            - CÃ¡lculo Flex MÃªs 1
+            - GrÃ¡ficos waterfall interativos
             
-            **pages/5 - Extração de Dados.py** (~600 linhas)
-            - Interface para extração e processamento de dados
+            **pages/5 - ExtraÃ§Ã£o de Dados.py** (~600 linhas)
+            - Interface para extraÃ§Ã£o e processamento de dados
             - Upload de arquivos
-            - Validação de arquivos
-            - Execução de notebooks de processamento
+            - ValidaÃ§Ã£o de arquivos
+            - ExecuÃ§Ã£o de notebooks de processamento
             
             **pages/6 - Documentacao.py** (~3.900 linhas)
-            - Documentação completa do sistema
-            - Regras e cálculos
+            - DocumentaÃ§Ã£o completa do sistema
+            - Regras e cÃ¡lculos
             - Arquitetura e estrutura
-            - Guia de extração de dados
+            - Guia de extraÃ§Ã£o de dados
             """)
     
     # Sub-expander: Estrutura da Pasta dados
-    with st.expander("📂 **Estrutura e Funcionamento da Pasta `dados/`**", expanded=False):
+    with st.expander("ðŸ“‚ **Estrutura e Funcionamento da Pasta `dados/`**", expanded=False):
         st.markdown("""
-            ### 📂 Organização da Pasta `dados/`
+            ### ðŸ“‚ OrganizaÃ§Ã£o da Pasta `dados/`
             
-            A pasta `dados/` é o coração do sistema, onde todos os arquivos processados são armazenados.
-            Ela é organizada de forma hierárquica para facilitar o gerenciamento e acesso aos dados.
+            A pasta `dados/` Ã© o coraÃ§Ã£o do sistema, onde todos os arquivos processados sÃ£o armazenados.
+            Ela Ã© organizada de forma hierÃ¡rquica para facilitar o gerenciamento e acesso aos dados.
             
-            **Estrutura Completa (padronizada por módulo):**
+            **Estrutura Completa (padronizada por mÃ³dulo):**
             ```
             dados/
-            ├── TC_Ext/                         # 📊 TC Ext (Linhas Secundárias)
-            │   ├── {ANO}/
-            │   │   ├── df_final.parquet
-            │   │   ├── df_vol.parquet
-            │   │   ├── df_ke5z_group.parquet
-            │   │   ├── Dados SAPIENS.xlsx
-            │   │   ├── Reporting fluxo anexo.xlsx
-            │   │   └── BUD/
-            │   │       ├── df_final_BUD.parquet
-            │   │       ├── df_vol_BUD.parquet
-            │   │       └── df_ke5z_group_BUD.parquet
-            │   ├── historico_consolidado/
-            │   │   ├── df_final_historico.parquet
-            │   │   ├── df_ke5z_historico.parquet
-            │   │   ├── df_vol_historico.parquet
-            │   │   └── BUD/
-            │   │       ├── df_final_historico_BUD.parquet
-            │   │       ├── df_ke5z_historico_BUD.parquet
-            │   │       └── df_vol_historico_BUD.parquet
-            │   └── Forecast/                   # 🔮 Outputs do Best Estimate / Forecast (TC Ext)
-            │
-            └── TC_Principal/                   # 🚗 TC Veículos (TC Principal)
-                ├── {ANO}/
-                │   ├── df_principal.parquet
-                │   ├── df_tc_sapiens.parquet
-                │   ├── df_veiculos_custo_fp.parquet
-                │   ├── df_vol_veiculos_actual.parquet
-                │   └── BUD/
-                │       ├── df_principal_BUD.parquet
-                │       ├── df_veiculos_custo_fp_BUD.parquet
-                │       └── df_vol_veiculos_BUD.parquet
-                ├── historico_consolidado/
-                └── Forecast/                   # 🔮 Outputs do Best Estimate (TC Veículos)
-                    ├── forecast_completo.parquet
-                    └── premissas.json
+            â”œâ”€â”€ TC_Ext/                         # ðŸ“Š TC Ext (Linhas SecundÃ¡rias)
+            â”‚   â”œâ”€â”€ {ANO}/
+            â”‚   â”‚   â”œâ”€â”€ df_final.parquet
+            â”‚   â”‚   â”œâ”€â”€ df_vol.parquet
+            â”‚   â”‚   â”œâ”€â”€ df_ke5z_group.parquet
+            â”‚   â”‚   â”œâ”€â”€ Dados SAPIENS.xlsx
+            â”‚   â”‚   â”œâ”€â”€ Reporting fluxo anexo.xlsx
+            â”‚   â”‚   â””â”€â”€ BUD/
+            â”‚   â”‚       â”œâ”€â”€ df_final_BUD.parquet
+            â”‚   â”‚       â”œâ”€â”€ df_vol_BUD.parquet
+            â”‚   â”‚       â””â”€â”€ df_ke5z_group_BUD.parquet
+            â”‚   â”œâ”€â”€ historico_consolidado/
+            â”‚   â”‚   â”œâ”€â”€ df_final_historico.parquet
+            â”‚   â”‚   â”œâ”€â”€ df_ke5z_historico.parquet
+            â”‚   â”‚   â”œâ”€â”€ df_vol_historico.parquet
+            â”‚   â”‚   â””â”€â”€ BUD/
+            â”‚   â”‚       â”œâ”€â”€ df_final_historico_BUD.parquet
+            â”‚   â”‚       â”œâ”€â”€ df_ke5z_historico_BUD.parquet
+            â”‚   â”‚       â””â”€â”€ df_vol_historico_BUD.parquet
+            â”‚   â””â”€â”€ Forecast/                   # ðŸ”® Outputs do Best Estimate / Forecast (TC Ext)
+            â”‚
+            â””â”€â”€ TC_Principal/                   # ðŸš— TC VeÃ­culos (TC Principal)
+                â”œâ”€â”€ {ANO}/
+                â”‚   â”œâ”€â”€ df_principal.parquet
+                â”‚   â”œâ”€â”€ df_tc_sapiens.parquet
+                â”‚   â”œâ”€â”€ df_veiculos_custo_fp.parquet
+                â”‚   â”œâ”€â”€ df_vol_veiculos_actual.parquet
+                â”‚   â””â”€â”€ BUD/
+                â”‚       â”œâ”€â”€ df_principal_BUD.parquet
+                â”‚       â”œâ”€â”€ df_veiculos_custo_fp_BUD.parquet
+                â”‚       â””â”€â”€ df_vol_veiculos_BUD.parquet
+                â”œâ”€â”€ historico_consolidado/
+                â””â”€â”€ Forecast/                   # ðŸ”® Outputs do Best Estimate (TC VeÃ­culos)
+                    â”œâ”€â”€ forecast_completo.parquet
+                    â””â”€â”€ premissas.json
             ```
             """)
             
         st.markdown("---")
             
         st.markdown("""
-            ### 🔄 Como as Pastas São Criadas e Atualizadas
+            ### ðŸ”„ Como as Pastas SÃ£o Criadas e Atualizadas
             
-            **1. Criação Inicial da Estrutura:**
+            **1. CriaÃ§Ã£o Inicial da Estrutura:**
             
-            Quando o sistema é executado pela primeira vez ou quando novos dados são processados,
-            o sistema verifica e cria automaticamente as pastas necessárias:
+            Quando o sistema Ã© executado pela primeira vez ou quando novos dados sÃ£o processados,
+            o sistema verifica e cria automaticamente as pastas necessÃ¡rias:
             
             ```python
-            # Caminhos canônicos (dev ↔ EXE) — tc_core/data/paths.py
+            # Caminhos canÃ´nicos (dev â†” EXE) â€” tc_core/data/paths.py
             from tc_core.data.paths import PASTA_TC_EXT, PASTA_TC_PRINCIPAL
 
             # TC Ext
@@ -2978,136 +2979,136 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
             pasta_bud_tc_ext = f"{pasta_ano_tc_ext}/BUD"               # dados/TC_Ext/{ANO}/BUD
             pasta_hist_tc_ext = f"{PASTA_TC_EXT}/historico_consolidado" # dados/TC_Ext/historico_consolidado
 
-            # TC Veículos
+            # TC VeÃ­culos
             pasta_ano_tc_principal = f"{PASTA_TC_PRINCIPAL}/{ANO_ATUAL}" # dados/TC_Principal/{ANO}
             pasta_bud_tc_principal = f"{pasta_ano_tc_principal}/BUD"     # dados/TC_Principal/{ANO}/BUD
             ```
             
-            **2. Processo de Atualização:**
+            **2. Processo de AtualizaÃ§Ã£o:**
             
             **a) Processamento de Dados do Ano:**
             - Os arquivos Excel (`Dados SAPIENS.xlsx`, `Reporting fluxo anexo.xlsx`) do **TC Ext** ficam em `dados/TC_Ext/{ANO}/`
             - O notebook `tc_ext/notebooks/dados.ipynb` processa esses arquivos e gera os arquivos Parquet
-            - Os arquivos Parquet são salvos na mesma pasta do ano (`dados/TC_Ext/{ANO}/`)
-            - **Simultaneamente**, os dados são consolidados no histórico
+            - Os arquivos Parquet sÃ£o salvos na mesma pasta do ano (`dados/TC_Ext/{ANO}/`)
+            - **Simultaneamente**, os dados sÃ£o consolidados no histÃ³rico
             
-            **b) Consolidação no Histórico:**
-            - Após processar os dados do ano, o sistema **concatena** os novos dados com o histórico existente
-            - Os arquivos em `historico_consolidado/` são **atualizados** (não substituídos)
-            - Isso permite que o sistema tenha acesso a **todos os dados históricos** em um único lugar
+            **b) ConsolidaÃ§Ã£o no HistÃ³rico:**
+            - ApÃ³s processar os dados do ano, o sistema **concatena** os novos dados com o histÃ³rico existente
+            - Os arquivos em `historico_consolidado/` sÃ£o **atualizados** (nÃ£o substituÃ­dos)
+            - Isso permite que o sistema tenha acesso a **todos os dados histÃ³ricos** em um Ãºnico lugar
             
             **c) Processamento de Budget:**
-            - Similar ao processo de dados do ano, mas os arquivos são processados pelo `tc_ext/notebooks/dados_BUD.ipynb`
-            - Os **outputs** de Budget do **TC Ext** são salvos em `dados/TC_Ext/{ANO}/BUD/`
-            - O histórico de Budget do **TC Ext** é consolidado em `dados/TC_Ext/historico_consolidado/BUD/`
+            - Similar ao processo de dados do ano, mas os arquivos sÃ£o processados pelo `tc_ext/notebooks/dados_BUD.ipynb`
+            - Os **outputs** de Budget do **TC Ext** sÃ£o salvos em `dados/TC_Ext/{ANO}/BUD/`
+            - O histÃ³rico de Budget do **TC Ext** Ã© consolidado em `dados/TC_Ext/historico_consolidado/BUD/`
             
             **d) Processamento de Forecast:**
             - Forecast do **TC Ext**: outputs em `dados/TC_Ext/Forecast/`
-            - Forecast do **TC Veículos**: outputs em `dados/TC_Principal/Forecast/`
+            - Forecast do **TC VeÃ­culos**: outputs em `dados/TC_Principal/Forecast/`
             """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### 🔗 Como as Pastas Funcionam Entre Si
+        ### ðŸ”— Como as Pastas Funcionam Entre Si
             
-            **1. Relação entre Pastas por Ano e Histórico:**
+            **1. RelaÃ§Ã£o entre Pastas por Ano e HistÃ³rico:**
             
             ```
-            dados/TC_Ext/2026/df_final.parquet  ──┐
-                                                  ├──> Concatena ──> dados/TC_Ext/historico_consolidado/df_final_historico.parquet
-            dados/TC_Ext/2025/df_final.parquet  ──┘
+            dados/TC_Ext/2026/df_final.parquet  â”€â”€â”
+                                                  â”œâ”€â”€> Concatena â”€â”€> dados/TC_Ext/historico_consolidado/df_final_historico.parquet
+            dados/TC_Ext/2025/df_final.parquet  â”€â”€â”˜
             ```
             
-            - **Dados do Ano:** Contêm apenas os dados do ano específico (útil para filtros rápidos)
-            - **Histórico Consolidado:** Contém **TODOS** os anos concatenados (usado pelo sistema principal)
-            - O sistema **prioriza** o histórico consolidado para análises que precisam de múltiplos anos
+            - **Dados do Ano:** ContÃªm apenas os dados do ano especÃ­fico (Ãºtil para filtros rÃ¡pidos)
+            - **HistÃ³rico Consolidado:** ContÃ©m **TODOS** os anos concatenados (usado pelo sistema principal)
+            - O sistema **prioriza** o histÃ³rico consolidado para anÃ¡lises que precisam de mÃºltiplos anos
             
             **2. Fluxo de Dados:**
             
             ```
             Arquivos Excel (entrada)
-                │
-                ├──> Processamento (tc_ext/notebooks/dados.ipynb) — TC Ext
-                │       │
-                │       ├──> Salva em dados/TC_Ext/{ANO}/ (dados do ano)
-                │       │
-                │       └──> Concatena em dados/TC_Ext/historico_consolidado/ (histórico completo)
-                │
-                └──> Sistema Streamlit lê de dados/TC_Ext/historico_consolidado/ (fonte principal do TC Ext)
+                â”‚
+                â”œâ”€â”€> Processamento (tc_ext/notebooks/dados.ipynb) â€” TC Ext
+                â”‚       â”‚
+                â”‚       â”œâ”€â”€> Salva em dados/TC_Ext/{ANO}/ (dados do ano)
+                â”‚       â”‚
+                â”‚       â””â”€â”€> Concatena em dados/TC_Ext/historico_consolidado/ (histÃ³rico completo)
+                â”‚
+                â””â”€â”€> Sistema Streamlit lÃª de dados/TC_Ext/historico_consolidado/ (fonte principal do TC Ext)
             ```
             
-            **3. Separação de Budget:**
+            **3. SeparaÃ§Ã£o de Budget:**
             
             - **TC Ext (Real):** `dados/TC_Ext/{ANO}/` e `dados/TC_Ext/historico_consolidado/`
             - **TC Ext (Budget):** `dados/TC_Ext/{ANO}/BUD/` e `dados/TC_Ext/historico_consolidado/BUD/`
-            - Esta separação evita misturar outputs de Budget com Real
+            - Esta separaÃ§Ã£o evita misturar outputs de Budget com Real
             
             **4. Forecast como Dados Derivados:**
             
-            - As pastas `Forecast/` contêm dados **processados e calculados** pelo sistema
-            - Não são dados de entrada, mas sim **resultados** de cálculos de forecast
-            - São gerados dinamicamente quando o usuário executa o Forecast
+            - As pastas `Forecast/` contÃªm dados **processados e calculados** pelo sistema
+            - NÃ£o sÃ£o dados de entrada, mas sim **resultados** de cÃ¡lculos de forecast
+            - SÃ£o gerados dinamicamente quando o usuÃ¡rio executa o Forecast
             """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### ⚙️ Regras de Criação e Atualização
+        ### âš™ï¸ Regras de CriaÃ§Ã£o e AtualizaÃ§Ã£o
             
-            **Regra 1: Criação Automática**
-            - Todas as pastas são criadas automaticamente quando necessário
-            - O parâmetro `exist_ok=True` garante que não há erro se a pasta já existir
-            - Não é necessário criar manualmente nenhuma pasta
+            **Regra 1: CriaÃ§Ã£o AutomÃ¡tica**
+            - Todas as pastas sÃ£o criadas automaticamente quando necessÃ¡rio
+            - O parÃ¢metro `exist_ok=True` garante que nÃ£o hÃ¡ erro se a pasta jÃ¡ existir
+            - NÃ£o Ã© necessÃ¡rio criar manualmente nenhuma pasta
             
-            **Regra 2: Consolidação Incremental**
-            - O histórico é **atualizado** (não substituído) a cada processamento
-            - Novos dados são **adicionados** ao histórico existente
-            - Isso mantém a integridade dos dados históricos
+            **Regra 2: ConsolidaÃ§Ã£o Incremental**
+            - O histÃ³rico Ã© **atualizado** (nÃ£o substituÃ­do) a cada processamento
+            - Novos dados sÃ£o **adicionados** ao histÃ³rico existente
+            - Isso mantÃ©m a integridade dos dados histÃ³ricos
             
-            **Regra 3: Separação por Tipo**
-            - Dados Reais e Budget são mantidos **separados** em pastas diferentes
-            - Isso evita confusão e permite comparações precisas
-            - O sistema sabe qual pasta usar baseado no modo de comparação selecionado
+            **Regra 3: SeparaÃ§Ã£o por Tipo**
+            - Dados Reais e Budget sÃ£o mantidos **separados** em pastas diferentes
+            - Isso evita confusÃ£o e permite comparaÃ§Ãµes precisas
+            - O sistema sabe qual pasta usar baseado no modo de comparaÃ§Ã£o selecionado
             
             **Regra 4: Formato Parquet**
-            - Todos os arquivos processados são salvos em formato **Parquet**
-            - Parquet oferece compressão e leitura rápida
+            - Todos os arquivos processados sÃ£o salvos em formato **Parquet**
+            - Parquet oferece compressÃ£o e leitura rÃ¡pida
             - Formato otimizado para grandes volumes de dados
             """)
     
     # EXPANDER 2: Tecnologias
-    with st.expander("💻 **Tecnologias e Bibliotecas**", expanded=False):
-        st.subheader("💻 Tecnologias e Bibliotecas")
+    with st.expander("ðŸ’» **Tecnologias e Bibliotecas**", expanded=False):
+        st.subheader("ðŸ’» Tecnologias e Bibliotecas")
         
         st.markdown(f"""
-        ### Stack Tecnológico
+        ### Stack TecnolÃ³gico
         
         **Framework Principal:**
-        - **Streamlit** {st.__version__} - Framework web para aplicações de dados
+        - **Streamlit** {st.__version__} - Framework web para aplicaÃ§Ãµes de dados
         
         **Linguagem:**
-        - **Python** 3.8+ - Linguagem de programação
+        - **Python** 3.8+ - Linguagem de programaÃ§Ã£o
         
         **Processamento de Dados:**
-        - **Pandas** 2.0.0+ - Manipulação e análise de dados
-        - **NumPy** 1.24.0+ - Operações numéricas
+        - **Pandas** 2.0.0+ - ManipulaÃ§Ã£o e anÃ¡lise de dados
+        - **NumPy** 1.24.0+ - OperaÃ§Ãµes numÃ©ricas
         
-        **Visualizações:**
-        - **Altair** 5.0.0+ - Gráficos interativos
-        - **Plotly** - Gráficos waterfall avançados
+        **VisualizaÃ§Ãµes:**
+        - **Altair** 5.0.0+ - GrÃ¡ficos interativos
+        - **Plotly** - GrÃ¡ficos waterfall avanÃ§ados
         
         **Formato de Dados:**
         - **PyArrow** 12.0.0+ - Suporte a Parquet
         - **Parquet** - Formato de dados otimizado
         
-        **Exportação:**
-        - **OpenPyXL** 3.1.0+ - Geração de arquivos Excel
+        **ExportaÃ§Ã£o:**
+        - **OpenPyXL** 3.1.0+ - GeraÃ§Ã£o de arquivos Excel
         """)
         
         st.markdown("---")
         
-        st.subheader("🔧 Dependências Principais")
+        st.subheader("ðŸ”§ DependÃªncias Principais")
         
         st.code("""
 # requirements.txt
@@ -3122,118 +3123,118 @@ plotly>=5.0.0
         
         st.markdown("---")
         
-        st.subheader("⚡ Otimizações Implementadas")
+        st.subheader("âš¡ OtimizaÃ§Ãµes Implementadas")
         
         st.markdown("""
-        **Gestão de Memória:**
-        - Cache inteligente com TTL configurável
-        - Otimização de tipos: Category para strings repetidas
+        **GestÃ£o de MemÃ³ria:**
+        - Cache inteligente com TTL configurÃ¡vel
+        - OtimizaÃ§Ã£o de tipos: Category para strings repetidas
         - Downcast: Float64 -> Float32, Int64 -> Int32
-        - Redução de cópias: Apenas quando necessário
+        - ReduÃ§Ã£o de cÃ³pias: Apenas quando necessÃ¡rio
         
-        **Operações Vetorizadas:**
-        - Substituição de `iterrows()` por merge e `np.where()`
-        - Substituição de `apply()` por operações vetorizadas
-        - Filtros booleanos ao invés de loops
+        **OperaÃ§Ãµes Vetorizadas:**
+        - SubstituiÃ§Ã£o de `iterrows()` por merge e `np.where()`
+        - SubstituiÃ§Ã£o de `apply()` por operaÃ§Ãµes vetorizadas
+        - Filtros booleanos ao invÃ©s de loops
         - Agrupamento otimizado com `agg()` direto
         
-        **Cálculos Otimizados:**
-        - CPU calculado após agrupamento (nunca antes)
-        - Flex Bud com merge ao invés de loops
-        - Volume sincronizado entre tabelas e gráficos
-        - Cache de filtros para opções repetidas
+        **CÃ¡lculos Otimizados:**
+        - CPU calculado apÃ³s agrupamento (nunca antes)
+        - Flex Bud com merge ao invÃ©s de loops
+        - Volume sincronizado entre tabelas e grÃ¡ficos
+        - Cache de filtros para opÃ§Ãµes repetidas
         """)
     
-    # EXPANDER 3: Desafios e Soluções
-    with st.expander("⚠️ **Desafios Principais & Soluções Implementadas**", expanded=False):
+    # EXPANDER 3: Desafios e SoluÃ§Ãµes
+    with st.expander("âš ï¸ **Desafios Principais & SoluÃ§Ãµes Implementadas**", expanded=False):
         st.markdown("""
-        ### 📊 Desafios Identificados
+        ### ðŸ“Š Desafios Identificados
         
-        - **📁 Dados grandes:** Milhões de registros causando lentidão
-        - **💾 Uso de memória:** Excedia limites de processamento
+        - **ðŸ“ Dados grandes:** MilhÃµes de registros causando lentidÃ£o
+        - **ðŸ’¾ Uso de memÃ³ria:** Excedia limites de processamento
         - **Instabilidade:** Sistema lento com muitos filtros
-        - **🐌 Cálculos complexos:** Flex Bud e Forecast demorados
-        - **🔄 Sincronização:** Dados de tabela vs gráficos diferentes
-        - **📊 Visualizações:** Gráficos sem gradientes e pouco informativos
+        - **ðŸŒ CÃ¡lculos complexos:** Flex Bud e Forecast demorados
+        - **ðŸ”„ SincronizaÃ§Ã£o:** Dados de tabela vs grÃ¡ficos diferentes
+        - **ðŸ“Š VisualizaÃ§Ãµes:** GrÃ¡ficos sem gradientes e pouco informativos
         """)
         
         st.markdown("---")
         
         st.markdown("""
-        ### ✅ Soluções Implementadas
+        ### âœ… SoluÃ§Ãµes Implementadas
         
-        - **📊 Otimização de dados:** Parquet com tipos categóricos
-        - **⚡ Cache estratégico:** TTL configurável por tipo de dado
-        - **🔄 Operações vetorizadas:** Substituição de iterrows() e apply()
-        - **📈 Cálculos otimizados:** Flex Bud e CPU após agrupamento
-        - **🎯 Sincronização:** Mesma fonte de dados para tabelas e gráficos
-        - **🎨 Visualizações melhoradas:** Gradientes, delta charts, barras HTML
+        - **ðŸ“Š OtimizaÃ§Ã£o de dados:** Parquet com tipos categÃ³ricos
+        - **âš¡ Cache estratÃ©gico:** TTL configurÃ¡vel por tipo de dado
+        - **ðŸ”„ OperaÃ§Ãµes vetorizadas:** SubstituiÃ§Ã£o de iterrows() e apply()
+        - **ðŸ“ˆ CÃ¡lculos otimizados:** Flex Bud e CPU apÃ³s agrupamento
+        - **ðŸŽ¯ SincronizaÃ§Ã£o:** Mesma fonte de dados para tabelas e grÃ¡ficos
+        - **ðŸŽ¨ VisualizaÃ§Ãµes melhoradas:** Gradientes, delta charts, barras HTML
         """)
         
-        st.info("🎆 **Resultado Final:** Sistema 100% estável com performance otimizada e visualizações profissionais!")
+        st.info("ðŸŽ† **Resultado Final:** Sistema 100% estÃ¡vel com performance otimizada e visualizaÃ§Ãµes profissionais!")
     
-    # EXPANDER 4: Estatísticas do Sistema
-    with st.expander("📊 **Estatísticas e Métricas do Sistema**", expanded=False):
+    # EXPANDER 4: EstatÃ­sticas do Sistema
+    with st.expander("ðŸ“Š **EstatÃ­sticas e MÃ©tricas do Sistema**", expanded=False):
         col1, col2, col3 = st.columns(3)
         
         with col1:
             st.markdown("""
-            ### 💾 Dados e Performance
+            ### ðŸ’¾ Dados e Performance
             
-            **📁 Arquivos Principais:**
-            - `df_final_historico.parquet` (dados históricos)
+            **ðŸ“ Arquivos Principais:**
+            - `df_final_historico.parquet` (dados histÃ³ricos)
             - `df_vol_historico.parquet` (volumes)
             - `df_final_historico_BUD.parquet` (budget)
             
-            **⚡ Otimizações:**
-            - Tipos categóricos para strings
-            - Downcast de numéricos
-            - Compressão Parquet
+            **âš¡ OtimizaÃ§Ãµes:**
+            - Tipos categÃ³ricos para strings
+            - Downcast de numÃ©ricos
+            - CompressÃ£o Parquet
             - Cache com TTL
             """)
         
         with col2:
             st.markdown("""
-            ### 📊 Páginas do Sistema
+            ### ðŸ“Š PÃ¡ginas do Sistema
             
-            **📄 Páginas Disponíveis:**
+            **ðŸ“„ PÃ¡ginas DisponÃ­veis:**
             - `app.py` - Portal / Router (menu via st.navigation)
-            - `1 - Waterfall.py` - Análise waterfall (~4.000 linhas)
-            - `2 - Best Estimate - Simulador.py` - Simulação (~4.300 linhas)
-            - `tc_ext/pages/be_analise_ext.py` - Best Estimate (Análise) (base Home)
-            - `4 - Waterfall_Analysis.py` - (removido) página duplicada
-            - `5 - Extração de Dados.py` - Extração e processamento (~600 linhas)
-            - `6 - Documentacao.py` - Documentação (~3.900 linhas)
+            - `1 - Waterfall.py` - AnÃ¡lise waterfall (~4.000 linhas)
+            - `2 - Best Estimate - Simulador.py` - SimulaÃ§Ã£o (~4.300 linhas)
+            - `tc_ext/pages/be_analise_ext.py` - Best Estimate (AnÃ¡lise) (base Home)
+            - `4 - Waterfall_Analysis.py` - (removido) pÃ¡gina duplicada
+            - `5 - ExtraÃ§Ã£o de Dados.py` - ExtraÃ§Ã£o e processamento (~600 linhas)
+            - `6 - Documentacao.py` - DocumentaÃ§Ã£o (~3.900 linhas)
             
-            **📊 Total:** ~33.000+ linhas de código
+            **ðŸ“Š Total:** ~33.000+ linhas de cÃ³digo
             """)
         
         with col3:
             st.markdown(f"""
-            ### 🔧 Tecnologias
+            ### ðŸ”§ Tecnologias
             
             **Stack Principal:**
             - Streamlit {st.__version__}
             - Pandas {pd.__version__}
             - NumPy {np.__version__}
-            - Altair (versão instalada)
-            - Plotly (versão instalada)
-            - OpenPyXL (versão instalada)
+            - Altair (versÃ£o instalada)
+            - Plotly (versÃ£o instalada)
+            - OpenPyXL (versÃ£o instalada)
             """)
 
 # ==========================================
-# TC VEÍCULOS: ESPECIFICAÇÃO TÉCNICA
+# TC VEÃCULOS: ESPECIFICAÃ‡ÃƒO TÃ‰CNICA
 # ==========================================
-elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.startswith("📌 Ambos"):
-    st.header("🧾 Especificação Técnica — TC Ext + TC Veículos")
+elif indice_selecionado == "ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica" and modulo_doc.startswith("ðŸ“Œ Ambos"):
+    st.header("ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica â€” TC Ext + TC VeÃ­culos")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📊 TC Extendido")
+        st.subheader("ðŸ“Š TC Estendido")
         caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
         if not os.path.exists(caminho_doc):
-            st.error(f"Arquivo não encontrado: {caminho_doc}")
+            st.error(f"Arquivo nÃ£o encontrado: {caminho_doc}")
         else:
             try:
                 mtime_doc = os.path.getmtime(caminho_doc)
@@ -3243,13 +3244,13 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.starts
                 conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
                 st.markdown(conteudo)
             except Exception as e:
-                st.error(f"Erro ao carregar especificação: {e}")
+                st.error(f"Erro ao carregar especificaÃ§Ã£o: {e}")
 
     with col2:
-        st.subheader("🚗 TC Veículos")
+        st.subheader("ðŸš— TC VeÃ­culos")
         caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
         if not os.path.exists(caminho_doc_tc):
-            st.error(f"Arquivo não encontrado: {caminho_doc_tc}")
+            st.error(f"Arquivo nÃ£o encontrado: {caminho_doc_tc}")
         else:
             try:
                 mtime_tc = os.path.getmtime(caminho_doc_tc)
@@ -3259,16 +3260,16 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.starts
                 conteudo_tc = _ler_arquivo_texto_cacheado(caminho_doc_tc, mtime_tc)
                 st.markdown(conteudo_tc)
             except Exception as e:
-                st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+                st.error(f"Erro ao carregar especificaÃ§Ã£o TC VeÃ­culos: {e}")
 
     st.stop()
 
-elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "🚗 TC Veículos":
-    st.header("🧾 Especificação Técnica — TC Veículos")
+elif indice_selecionado == "ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica" and modulo_doc == "ðŸš— TC VeÃ­culos":
+    st.header("ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica â€” TC VeÃ­culos")
 
     st.markdown(
         """
-        Especificação técnica completa do módulo **TC Veículos** em formato Markdown.
+        EspecificaÃ§Ã£o tÃ©cnica completa do mÃ³dulo **TC VeÃ­culos** em formato Markdown.
         Arquivo fonte: `DOCUMENTACAO_TC_PRINCIPAL.md`
         """
     )
@@ -3276,7 +3277,7 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
     _caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
 
     if not os.path.exists(_caminho_doc_tc):
-        st.error(f"Arquivo não encontrado: {_caminho_doc_tc}")
+        st.error(f"Arquivo nÃ£o encontrado: {_caminho_doc_tc}")
     else:
         try:
             _mtime_tc = os.path.getmtime(_caminho_doc_tc)
@@ -3286,33 +3287,33 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
 
             _conteudo_tc = _ler_arquivo_texto_cacheado(_caminho_doc_tc, _mtime_tc)
 
-            # Sem botões de download: a especificação deve estar toda escrita na página.
+            # Sem botÃµes de download: a especificaÃ§Ã£o deve estar toda escrita na pÃ¡gina.
             st.markdown("---")
             st.markdown(_conteudo_tc)
         except Exception as e:
-            st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+            st.error(f"Erro ao carregar especificaÃ§Ã£o TC VeÃ­culos: {e}")
 
 # ==========================================
-# SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
+# SEÃ‡ÃƒO 3: ESPECIFICAÃ‡ÃƒO TÃ‰CNICA (REESCRITA)
 # ==========================================
-elif indice_selecionado == "🧾 Especificação Técnica":
-    st.header("🧾 Especificação Técnica — TC Extendido")
+elif indice_selecionado == "ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica":
+    st.header("ðŸ§¾ EspecificaÃ§Ã£o TÃ©cnica â€” TC Estendido")
 
     st.markdown(
         """
-        Esta seção consolida uma **especificação técnica completa** em formato Markdown.
-        O objetivo é permitir que você reescreva o projeto com IA preservando:
+        Esta seÃ§Ã£o consolida uma **especificaÃ§Ã£o tÃ©cnica completa** em formato Markdown.
+        O objetivo Ã© permitir que vocÃª reescreva o projeto com IA preservando:
         - funcionalidades
-        - regras de cálculo (CPU/Flex Bud)
+        - regras de cÃ¡lculo (CPU/Flex Bud)
         - fontes de dados e contratos (schemas)
-        - comportamento de filtros e gráficos
+        - comportamento de filtros e grÃ¡ficos
         """
     )
 
     caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
 
     if not os.path.exists(caminho_doc):
-        st.error(f"Arquivo não encontrado: {caminho_doc}")
+        st.error(f"Arquivo nÃ£o encontrado: {caminho_doc}")
     else:
         try:
             mtime_doc = os.path.getmtime(caminho_doc)
@@ -3322,96 +3323,96 @@ elif indice_selecionado == "🧾 Especificação Técnica":
 
             conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
 
-            # Sem botões de download: a especificação deve estar toda escrita na página.
+            # Sem botÃµes de download: a especificaÃ§Ã£o deve estar toda escrita na pÃ¡gina.
             st.markdown("---")
             st.markdown(conteudo)
         except Exception as e:
-            st.error(f"Erro ao carregar especificação: {e}")
+            st.error(f"Erro ao carregar especificaÃ§Ã£o: {e}")
 
 # ==========================================
-# SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS
+# SEÃ‡ÃƒO 4: GUIA DE EXTRAÃ‡ÃƒO DE DADOS
 # ==========================================
-elif indice_selecionado == "📥 Guia de Extração de Dados":
-    st.header("📥 Guia de Extração de Dados — TC Extendido")
+elif indice_selecionado == "ðŸ“¥ Guia de ExtraÃ§Ã£o de Dados":
+    st.header("ðŸ“¥ Guia de ExtraÃ§Ã£o de Dados â€” TC Estendido")
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-    <h2 style="color: white; margin: 0;">📚 Documentação Completa para IA</h2>
+    <h2 style="color: white; margin: 0;">ðŸ“š DocumentaÃ§Ã£o Completa para IA</h2>
     <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
             Todos os Relacionamentos, Processos e Estruturas de Dados
     </p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🚗 **TC Veículos — Pipeline completo (Real e Budget)**", expanded=False):
+    with st.expander("ðŸš— **TC VeÃ­culos â€” Pipeline completo (Real e Budget)**", expanded=False):
         st.markdown("""
-        ### 🔄 Fluxo de Processamento (TC Veículos)
+        ### ðŸ”„ Fluxo de Processamento (TC VeÃ­culos)
 
         ```
         Arquivos Excel (Entrada)
-            │
-            ├──> processamento_dados_veiculos_BUD.py (Budget)
-            │       ├──> Lê Budget + D&A dedicado + volumes/tempos
-            │       ├──> Normaliza colunas e períodos
-            │       ├──> Calcula composição (FA/FP) e rateios por veículo
-            │       ├──> Grava df_principal_BUD.parquet
-            │       ├──> Grava df_veiculos_custo_fp_BUD.parquet
-            │       └──> Grava df_veiculos_cpu_BUD.parquet
-            │
-            └──> processamento_dados_veiculos.py (Real)
-                    ├──> Lê Sapiens + Redis + volumes
-                    ├──> Normaliza e processa
-                    ├──> Grava df_principal.parquet
-                    ├──> Grava df_tc_sapiens.parquet (detalhado)
-                    └──> Grava df_veiculos_custo_fp.parquet / df_veiculos_cpu.parquet
+            â”‚
+            â”œâ”€â”€> processamento_dados_veiculos_BUD.py (Budget)
+            â”‚       â”œâ”€â”€> LÃª Budget + D&A dedicado + volumes/tempos
+            â”‚       â”œâ”€â”€> Normaliza colunas e perÃ­odos
+            â”‚       â”œâ”€â”€> Calcula composiÃ§Ã£o (FA/FP) e rateios por veÃ­culo
+            â”‚       â”œâ”€â”€> Grava df_principal_BUD.parquet
+            â”‚       â”œâ”€â”€> Grava df_veiculos_custo_fp_BUD.parquet
+            â”‚       â””â”€â”€> Grava df_veiculos_cpu_BUD.parquet
+            â”‚
+            â””â”€â”€> processamento_dados_veiculos.py (Real)
+                    â”œâ”€â”€> LÃª Sapiens + Redis + volumes
+                    â”œâ”€â”€> Normaliza e processa
+                    â”œâ”€â”€> Grava df_principal.parquet
+                    â”œâ”€â”€> Grava df_tc_sapiens.parquet (detalhado)
+                    â””â”€â”€> Grava df_veiculos_custo_fp.parquet / df_veiculos_cpu.parquet
         ```
 
-        **Página Streamlit que executa o fluxo:** `tc_principal/pages/extracao_dados_tc.py`
+        **PÃ¡gina Streamlit que executa o fluxo:** `tc_principal/pages/extracao_dados_tc.py`
 
-        ### ✅ Arquivo de entrada (fonte única)
+        ### âœ… Arquivo de entrada (fonte Ãºnica)
 
-        - `Reporting veículos.xlsx` em `dados/TC_Principal/{ano}/`
-        - A página `extracao_dados_tc.py` permite **upload** com proteção contra sobrescrita (checkbox de confirmação)
+        - `Reporting veÃ­culos.xlsx` em `dados/TC_Principal/{ano}/`
+        - A pÃ¡gina `extracao_dados_tc.py` permite **upload** com proteÃ§Ã£o contra sobrescrita (checkbox de confirmaÃ§Ã£o)
 
-        ### 🧾 Abas obrigatórias — Budget (no Excel)
+        ### ðŸ§¾ Abas obrigatÃ³rias â€” Budget (no Excel)
 
-        - `massa primária - BDG`
+        - `massa primÃ¡ria - BDG`
         - `massa - REDIS`
         - `Volume e EST PdR - BDG`
         - `Volume BDG`
         - `Volume Actual`
-        - `EST veículos - BDG`
+        - `EST veÃ­culos - BDG`
         - `massa - D&A dedicado`
 
-        ### 🧾 Abas obrigatórias — Real (no Excel)
+        ### ðŸ§¾ Abas obrigatÃ³rias â€” Real (no Excel)
 
         - `Sapiens`
         - `Volume e EST PdR - Actual`
         - `Volume Actual`
-        - `EST veículos - Actual`
+        - `EST veÃ­culos - Actual`
 
-        ### 🔎 Pré-validação (o que o app checa antes de processar)
+        ### ðŸ”Ž PrÃ©-validaÃ§Ã£o (o que o app checa antes de processar)
 
-        - Se as abas obrigatórias existem
-        - Budget: colunas mínimas em `massa primária - BDG` (ex.: `Oficina`, `Account`) e `massa - REDIS` (ex.: `Oficina`)
-        - Budget: detecção de meses em `Volume BDG` (tentando múltiplos headers)
-        - Real: em `Sapiens`, valida colunas mínimas (ex.: `Oficina`, `Account`, `Valor`)
+        - Se as abas obrigatÃ³rias existem
+        - Budget: colunas mÃ­nimas em `massa primÃ¡ria - BDG` (ex.: `Oficina`, `Account`) e `massa - REDIS` (ex.: `Oficina`)
+        - Budget: detecÃ§Ã£o de meses em `Volume BDG` (tentando mÃºltiplos headers)
+        - Real: em `Sapiens`, valida colunas mÃ­nimas (ex.: `Oficina`, `Account`, `Valor`)
         - Aviso operacional: para o fluxo completo, o Real depende do Budget ter gerado `df_dea_dedicado_BUD.parquet`
-        - Rateios manuais (QY/GS/SM): persistidos em `rateios_manuais.json` (usados no cálculo da taxa PdR)
+        - Rateios manuais (QY/GS/SM): persistidos em `rateios_manuais.json` (usados no cÃ¡lculo da taxa PdR)
 
-        ### 🧱 Consolidação histórica (multi-ano)
+        ### ðŸ§± ConsolidaÃ§Ã£o histÃ³rica (multi-ano)
 
-        A página também consolida parquets multi-ano em `dados/TC_Principal/historico_consolidado/`.
+        A pÃ¡gina tambÃ©m consolida parquets multi-ano em `dados/TC_Principal/historico_consolidado/`.
 
-        ### 📂 Scripts e Funções
+        ### ðŸ“‚ Scripts e FunÃ§Ãµes
 
-        | Arquivo | Função |
+        | Arquivo | FunÃ§Ã£o |
         |---------|--------|
-        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra execução e gravação dos parquets (Real/Budget) |
-        | `processamento_dados_veiculos_BUD.py` | Processa Budget + gera parquets BUD (principal + por veículo + CPU) |
-        | `processamento_dados_veiculos.py` | Processa Real (Sapiens/Redis) + gera parquets Real (principal + por veículo + CPU) |
+        | `tc_principal/pages/extracao_dados_tc.py` | Orquestra execuÃ§Ã£o e gravaÃ§Ã£o dos parquets (Real/Budget) |
+        | `processamento_dados_veiculos_BUD.py` | Processa Budget + gera parquets BUD (principal + por veÃ­culo + CPU) |
+        | `processamento_dados_veiculos.py` | Processa Real (Sapiens/Redis) + gera parquets Real (principal + por veÃ­culo + CPU) |
 
-        ### 🗃️ Principais parquets gerados
+        ### ðŸ—ƒï¸ Principais parquets gerados
 
         **Budget** (`dados/TC_Principal/{ano}/BUD/`):
         - `df_principal_BUD.parquet`
@@ -3429,141 +3430,141 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         - `df_veiculos_custo_fp.parquet` / `df_veiculos_cpu.parquet`
         - `df_comparativo_real_budget.parquet`
 
-        ### 📁 Pastas (entrada e saída)
+        ### ðŸ“ Pastas (entrada e saÃ­da)
         - Entrada: `dados/TC_Principal/{ano}/` (Excel/insumos)
-        - Saída Real: `dados/TC_Principal/{ano}/` (parquets Real)
-        - Saída Budget: `dados/TC_Principal/{ano}/BUD/` (parquets BUD)
+        - SaÃ­da Real: `dados/TC_Principal/{ano}/` (parquets Real)
+        - SaÃ­da Budget: `dados/TC_Principal/{ano}/BUD/` (parquets BUD)
 
-        ### 📊 Dados de Volume (usos)
-        Os volumes são usados para:
+        ### ðŸ“Š Dados de Volume (usos)
+        Os volumes sÃ£o usados para:
         - CPU
-        - Flex Budget (proporção Real/BUD)
-        - Gráficos comparativos (BUD vs Real)
+        - Flex Budget (proporÃ§Ã£o Real/BUD)
+        - GrÃ¡ficos comparativos (BUD vs Real)
         """)
     
-    # Índice interno
-    st.markdown("## 📋 Índice do Guia")
+    # Ãndice interno
+    st.markdown("## ðŸ“‹ Ãndice do Guia")
     st.markdown("""
-    ### 📖 Capítulo 1: Estrutura e Processamento dos Notebooks
-    1. [Visão Geral](#visao-geral)
+    ### ðŸ“– CapÃ­tulo 1: Estrutura e Processamento dos Notebooks
+    1. [VisÃ£o Geral](#visao-geral)
     2. [Notebook tc_ext/notebooks/dados.ipynb - Dados REAIS](#dados-reais)
     3. [Notebook tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET](#dados-budget)
     4. [Estrutura de Arquivos de Entrada](#estrutura-entrada)
     5. [Relacionamentos e Merges](#relacionamentos)
     6. [Colunas e Estrutura Final](#colunas-finais)
-    7. [Consolidação do Histórico](#consolidacao)
-    8. [Arquivos de Saída](#arquivos-saida)
+    7. [ConsolidaÃ§Ã£o do HistÃ³rico](#consolidacao)
+    8. [Arquivos de SaÃ­da](#arquivos-saida)
     9. [Fluxo Completo](#fluxo-completo)
     10. [Tratamento de Erros](#tratamento-erros)
-    11. [Checklist para Manutenção](#checklist)
+    11. [Checklist para ManutenÃ§Ã£o](#checklist)
     
-    ### 🔄 Capítulo 2: Funcionamento da Atualização e Extração
-    1. [Visão Geral do Processo de Atualização](#visao-atualizacao)
-    2. [Ordem Cronológica dos Eventos](#ordem-cronologica)
+    ### ðŸ”„ CapÃ­tulo 2: Funcionamento da AtualizaÃ§Ã£o e ExtraÃ§Ã£o
+    1. [VisÃ£o Geral do Processo de AtualizaÃ§Ã£o](#visao-atualizacao)
+    2. [Ordem CronolÃ³gica dos Eventos](#ordem-cronologica)
     3. [Sistema de Busca de Arquivos](#busca-arquivos)
-    4. [Criação de Pastas e Estrutura](#criacao-pastas)
+    4. [CriaÃ§Ã£o de Pastas e Estrutura](#criacao-pastas)
     5. [Sistema de Upload de Arquivos](#sistema-upload)
-    6. [Processamento e Execução](#processamento-execucao)
-    7. [Cenários de Uso](#cenarios-uso)
+    6. [Processamento e ExecuÃ§Ã£o](#processamento-execucao)
+    7. [CenÃ¡rios de Uso](#cenarios-uso)
     """)
     
     st.markdown("---")
     
     # ==========================================
-    # CAPÍTULO 1: ESTRUTURA E PROCESSAMENTO DOS NOTEBOOKS
+    # CAPÃTULO 1: ESTRUTURA E PROCESSAMENTO DOS NOTEBOOKS
     # ==========================================
     
-    with st.expander("📖 **Capítulo 1: Estrutura e Processamento dos Notebooks**", expanded=False):
+    with st.expander("ðŸ“– **CapÃ­tulo 1: Estrutura e Processamento dos Notebooks**", expanded=False):
         st.markdown("""
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin: 2rem 0; color: white;">
-            <h2 style="color: white; margin: 0;">📖 Capítulo 1: Estrutura e Processamento dos Notebooks</h2>
+            <h2 style="color: white; margin: 0;">ðŸ“– CapÃ­tulo 1: Estrutura e Processamento dos Notebooks</h2>
             <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-                Documentação Completa dos Notebooks de Extração - Estrutura, Processamento e Relacionamentos
+                DocumentaÃ§Ã£o Completa dos Notebooks de ExtraÃ§Ã£o - Estrutura, Processamento e Relacionamentos
             </p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Seção 1: Visão Geral
-        st.markdown("## 🎯 VISÃO GERAL {#visao-geral}")
+        # SeÃ§Ã£o 1: VisÃ£o Geral
+        st.markdown("## ðŸŽ¯ VISÃƒO GERAL {#visao-geral}")
         
         st.markdown("### Objetivo dos Notebooks")
         st.markdown("""
-        Os notebooks `tc_ext/notebooks/dados.ipynb` e `tc_ext/notebooks/dados_BUD.ipynb` são responsáveis por:
-        - **Carregar** dados de múltiplas fontes (Excel: SAPIENS, Reporting fluxo anexo)
+        Os notebooks `tc_ext/notebooks/dados.ipynb` e `tc_ext/notebooks/dados_BUD.ipynb` sÃ£o responsÃ¡veis por:
+        - **Carregar** dados de mÃºltiplas fontes (Excel: SAPIENS, Reporting fluxo anexo)
         - **Processar** e **normalizar** dados de diferentes formatos e guias
-        - **Unificar** informações através de merges por chaves comuns
-        - **Calcular** rateios por veículo (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)
+        - **Unificar** informaÃ§Ãµes atravÃ©s de merges por chaves comuns
+        - **Calcular** rateios por veÃ­culo (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)
         - **Gerar** arquivos Parquet e Excel otimizados para uso no dashboard
-        - **Consolidar** dados históricos para análises multi-anos
+        - **Consolidar** dados histÃ³ricos para anÃ¡lises multi-anos
         """)
         
-        st.markdown("### Diferença entre tc_ext/notebooks/dados.ipynb e tc_ext/notebooks/dados_BUD.ipynb")
+        st.markdown("### DiferenÃ§a entre tc_ext/notebooks/dados.ipynb e tc_ext/notebooks/dados_BUD.ipynb")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("""
-            **📊 tc_ext/notebooks/dados.ipynb - Dados REAIS**
+            **ðŸ“Š tc_ext/notebooks/dados.ipynb - Dados REAIS**
         - Processa dados de custos **reais** (executados)
-        - Lê guia **"Sapiens"** do Reporting fluxo anexo.xlsx
-        - Lê guia **"Rateio"** para rateio por veículo
-        - Lê guia **"Volume"** para volumes
+        - LÃª guia **"Sapiens"** do Reporting fluxo anexo.xlsx
+        - LÃª guia **"Rateio"** para rateio por veÃ­culo
+        - LÃª guia **"Volume"** para volumes
         - Salva em: `dados/TC_Ext/{ANO}/`
-        - Histórico: `dados/TC_Ext/historico_consolidado/`
+        - HistÃ³rico: `dados/TC_Ext/historico_consolidado/`
         """)
         
         with col2:
             st.markdown("""
-            **📈 tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET**
-        - Processa dados de **orçamento/planejamento** (Budget)
-        - Lê guia **"Voz de custo BDG"** do Reporting fluxo anexo.xlsx
-        - Lê guia **"Rateio BDG"** para rateio por veículo
-        - Lê guia **"Volume BDG"** para volumes
+            **ðŸ“ˆ tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET**
+        - Processa dados de **orÃ§amento/planejamento** (Budget)
+        - LÃª guia **"Voz de custo BDG"** do Reporting fluxo anexo.xlsx
+        - LÃª guia **"Rateio BDG"** para rateio por veÃ­culo
+        - LÃª guia **"Volume BDG"** para volumes
         - Salva em: `dados/TC_Ext/{ANO}/BUD/`
-        - Histórico: `dados/TC_Ext/historico_consolidado/BUD/`
+        - HistÃ³rico: `dados/TC_Ext/historico_consolidado/BUD/`
         """)
         
         st.markdown("### Fluxo Principal")
         st.code("""
         Arquivos Excel (Entrada)
-            │
-            ├──> tc_ext/notebooks/dados.ipynb (REAL)
-            │       ├──> Processamento
-            │       ├──> Merges (Account, Nº conta, Centro cst, Oficina+Período)
-            │       ├──> Cálculo Rateio por Veículo
-            │       ├──> Merge com Volume
-            │       └──> Salvar Parquet + Consolidar Histórico
-            │
-            └──> tc_ext/notebooks/dados_BUD.ipynb (BUDGET)
-                    ├──> Processamento (mesma lógica)
-                    ├──> Merges (mesmas chaves)
-                    ├──> Cálculo Rateio por Veículo
-                    ├──> Merge com Volume
-                    └──> Salvar Parquet (BUD) + Consolidar Histórico (BUD)
+            â”‚
+            â”œâ”€â”€> tc_ext/notebooks/dados.ipynb (REAL)
+            â”‚       â”œâ”€â”€> Processamento
+            â”‚       â”œâ”€â”€> Merges (Account, NÂº conta, Centro cst, Oficina+PerÃ­odo)
+            â”‚       â”œâ”€â”€> CÃ¡lculo Rateio por VeÃ­culo
+            â”‚       â”œâ”€â”€> Merge com Volume
+            â”‚       â””â”€â”€> Salvar Parquet + Consolidar HistÃ³rico
+            â”‚
+            â””â”€â”€> tc_ext/notebooks/dados_BUD.ipynb (BUDGET)
+                    â”œâ”€â”€> Processamento (mesma lÃ³gica)
+                    â”œâ”€â”€> Merges (mesmas chaves)
+                    â”œâ”€â”€> CÃ¡lculo Rateio por VeÃ­culo
+                    â”œâ”€â”€> Merge com Volume
+                    â””â”€â”€> Salvar Parquet (BUD) + Consolidar HistÃ³rico (BUD)
         """, language="text")
         
         st.markdown("---")
         
-        # Seção 2: tc_ext/notebooks/dados.ipynb - Dados REAIS
-        st.markdown("## 📊 NOTEBOOK tc_ext/notebooks/dados.ipynb - DADOS REAIS {#dados-reais}")
+        # SeÃ§Ã£o 2: tc_ext/notebooks/dados.ipynb - Dados REAIS
+        st.markdown("## ðŸ“Š NOTEBOOK tc_ext/notebooks/dados.ipynb - DADOS REAIS {#dados-reais}")
         
         st.markdown("### Estrutura do Processamento")
         
-        with st.expander("🔧 **Célula 0: Configuração Inicial**", expanded=False):
+        with st.expander("ðŸ”§ **CÃ©lula 0: ConfiguraÃ§Ã£o Inicial**", expanded=False):
             st.markdown("""
             **Objetivo**: Configurar ano, pastas e caminhos
             
             **Processo**:
-            1. Solicita ano para processar (padrão: ano atual)
+            1. Solicita ano para processar (padrÃ£o: ano atual)
             2. Cria estrutura de pastas:
-                    - `dados/TC_Ext/{ANO_ATUAL}/` - Dados do ano específico (TC Ext)
-                    - `dados/TC_Ext/historico_consolidado/` - Histórico consolidado (TC Ext)
+                    - `dados/TC_Ext/{ANO_ATUAL}/` - Dados do ano especÃ­fico (TC Ext)
+                    - `dados/TC_Ext/historico_consolidado/` - HistÃ³rico consolidado (TC Ext)
             3. Verifica arquivos de entrada:
                - `Dados SAPIENS.xlsx`
                - `Reporting fluxo anexo.xlsx`
-            4. Define caminhos de entrada e saída
+            4. Define caminhos de entrada e saÃ­da
             
-            **Variáveis Criadas**:
+            **VariÃ¡veis Criadas**:
             - `ANO_ATUAL`: Ano selecionado para processamento
             - `PASTA_ANO`: `dados/TC_Ext/{ANO_ATUAL}/`
             - `PASTA_HISTORICO`: `dados/TC_Ext/historico_consolidado/`
@@ -3574,83 +3575,83 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             - `CAMINHO_DF_KE5Z_GROUP`: `dados/TC_Ext/{ANO}/df_ke5z_group.parquet`
             """)
         
-        with st.expander("📥 **Célula 1: Leitura dos Dados SAPIENS (KE5Z)**", expanded=False):
+        with st.expander("ðŸ“¥ **CÃ©lula 1: Leitura dos Dados SAPIENS (KE5Z)**", expanded=False):
             st.markdown("""
             **Arquivo**: `Reporting fluxo anexo.xlsx`
             **Guia**: `"Sapiens"`
-            **Cabeçalho**: Linha 1 (`header=1`)
-            **Colunas**: A até T (20 colunas, `usecols=range(20)`)
+            **CabeÃ§alho**: Linha 1 (`header=1`)
+            **Colunas**: A atÃ© T (20 colunas, `usecols=range(20)`)
             
             **Colunas Lidas**:
-            - `Mes`, `Período`, `Nºconta`, `Centrocst`, `Nºdoc.ref.`, `Dt.lçto.`
+            - `Mes`, `PerÃ­odo`, `NÂºconta`, `Centrocst`, `NÂºdoc.ref.`, `Dt.lÃ§to.`
             - `Valor`, `QTD`, `Type 05`, `Type 06`, `Account` (Type 07)
             - `USI`, `Oficina`, `Doc.compra`, `Texto breve`
-            - `Fornecedor`, `Material`, `Usuário`, `Fornec.`, `Tipo`
+            - `Fornecedor`, `Material`, `UsuÃ¡rio`, `Fornec.`, `Tipo`
             
             **DataFrame Criado**: `df_KE5Z`
             
-            **Validação**: Soma da coluna `Valor` para verificar leitura
+            **ValidaÃ§Ã£o**: Soma da coluna `Valor` para verificar leitura
             """)
         
-        with st.expander("🔗 **Célula 2: Merge com Base Conso (Custo)**", expanded=False):
+        with st.expander("ðŸ”— **CÃ©lula 2: Merge com Base Conso (Custo)**", expanded=False):
             st.markdown("""
             **Arquivo**: `Dados SAPIENS.xlsx`
             **Guia**: `"Base conso"`
             
             **Processo**:
-            1. Lê guia "Base conso"
-            2. Renomeia `Type 04` → `Custo` (se existir)
-            3. Mantém apenas colunas: `Custo`, `Type 07`
-            4. Renomeia `Type 07` → `Account`
+            1. LÃª guia "Base conso"
+            2. Renomeia `Type 04` â†’ `Custo` (se existir)
+            3. MantÃ©m apenas colunas: `Custo`, `Type 07`
+            4. Renomeia `Type 07` â†’ `Account`
             5. Faz merge com `df_KE5Z` usando `Account` como chave
             
             **Chave de Merge**: `Account` (Type 07)
-            **Tipo**: `left` (mantém todos os registros de KE5Z)
+            **Tipo**: `left` (mantÃ©m todos os registros de KE5Z)
             
             **Resultado**: Adiciona coluna `Custo` ao `df_KE5Z`
-            - Valores possíveis: `"Variável"` ou `"Fixo"`
+            - Valores possÃ­veis: `"VariÃ¡vel"` ou `"Fixo"`
             """)
         
-        with st.expander("📊 **Célula 3: Processamento de Rateio**", expanded=False):
+        with st.expander("ðŸ“Š **CÃ©lula 3: Processamento de Rateio**", expanded=False):
             st.markdown("""
             **Arquivo**: `Reporting fluxo anexo.xlsx`
             **Guia**: `"Rateio"`
             
             **Processo**:
-            1. Lê guia sem header (`header=None`)
-            2. Remove primeira linha (linha de referência)
-            3. Usa segunda linha como cabeçalho (meses)
-            4. Remove linha usada como cabeçalho
+            1. LÃª guia sem header (`header=None`)
+            2. Remove primeira linha (linha de referÃªncia)
+            3. Usa segunda linha como cabeÃ§alho (meses)
+            4. Remove linha usada como cabeÃ§alho
             5. Identifica colunas de meses (janeiro a dezembro)
             6. Usa `melt()` para transformar colunas de meses em linhas
-            7. Cria colunas: `Período` (mês) e `Rateio` (valor)
-            8. Normaliza `Período` para capitalizado (Janeiro, Fevereiro, etc.)
-            9. Filtra: Remove `Oficina == 'Veículos'` e linhas com `Oficina` NaN
+            7. Cria colunas: `PerÃ­odo` (mÃªs) e `Rateio` (valor)
+            8. Normaliza `PerÃ­odo` para capitalizado (Janeiro, Fevereiro, etc.)
+            9. Filtra: Remove `Oficina == 'VeÃ­culos'` e linhas com `Oficina` NaN
             
-            **Colunas de Identificação (id_vars)**:
-            - `Oficina`, `Veículo` (e outras colunas não-mês)
+            **Colunas de IdentificaÃ§Ã£o (id_vars)**:
+            - `Oficina`, `VeÃ­culo` (e outras colunas nÃ£o-mÃªs)
             
             **Colunas Transformadas (value_vars)**:
-            - Meses: Janeiro, Fevereiro, Março, ..., Dezembro
+            - Meses: Janeiro, Fevereiro, MarÃ§o, ..., Dezembro
             
-            **DataFrame Criado**: `df` (com colunas: `Oficina`, `Veículo`, `Período`, `Rateio`)
+            **DataFrame Criado**: `df` (com colunas: `Oficina`, `VeÃ­culo`, `PerÃ­odo`, `Rateio`)
             """)
         
-        with st.expander("🔄 **Célula 4: Merge KE5Z ↔ Rateio e Cálculo por Veículo**", expanded=False):
+        with st.expander("ðŸ”„ **CÃ©lula 4: Merge KE5Z â†” Rateio e CÃ¡lculo por VeÃ­culo**", expanded=False):
             st.markdown("""
-            **Chave de Merge**: `['Oficina', 'Período']` (COMPOSTA)
-            **Tipo**: `left` (mantém todos os registros de KE5Z)
+            **Chave de Merge**: `['Oficina', 'PerÃ­odo']` (COMPOSTA)
+            **Tipo**: `left` (mantÃ©m todos os registros de KE5Z)
             
             **Processo**:
-            1. Merge `df_KE5Z` com `df` (rateio) usando `['Oficina', 'Período']`
-            2. Pivot: Transforma `Veículo` em colunas de `Rateio`
-               - Index: `['Oficina', 'Período']`
-               - Columns: `Veículo` (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)
+            1. Merge `df_KE5Z` com `df` (rateio) usando `['Oficina', 'PerÃ­odo']`
+            2. Pivot: Transforma `VeÃ­culo` em colunas de `Rateio`
+               - Index: `['Oficina', 'PerÃ­odo']`
+               - Columns: `VeÃ­culo` (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)
                - Values: `Rateio` (percentuais)
-               - Aggfunc: `mean` (média para agregar duplicatas)
-            3. Renomeia colunas de veículos: adiciona `%` (ex: `CC21%`, `CC22%`)
-            4. Merge reverso: `df_KE5Z` com `df_pivot` usando `['Oficina', 'Período']`
-            5. Calcula colunas de valores por veículo:
+               - Aggfunc: `mean` (mÃ©dia para agregar duplicatas)
+            3. Renomeia colunas de veÃ­culos: adiciona `%` (ex: `CC21%`, `CC22%`)
+            4. Merge reverso: `df_KE5Z` com `df_pivot` usando `['Oficina', 'PerÃ­odo']`
+            5. Calcula colunas de valores por veÃ­culo:
                - `CC21 = CC21% * Valor`
                - `CC22 = CC22% * Valor`
                - `CC24 = CC24% * Valor`
@@ -3660,80 +3661,80 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             6. Calcula `Soma_Percentuais = CC21% + CC22% + ... + J516%`
             7. Remove colunas de percentual (`CC21%`, `CC22%`, etc.)
             
-            **Resultado**: `df_final` com colunas de valores por veículo calculadas
+            **Resultado**: `df_final` com colunas de valores por veÃ­culo calculadas
             """)
         
-        with st.expander("📈 **Célula 5: Processamento de Volume**", expanded=False):
+        with st.expander("ðŸ“ˆ **CÃ©lula 5: Processamento de Volume**", expanded=False):
             st.markdown("""
             **Arquivo**: `Reporting fluxo anexo.xlsx`
             **Guia**: `"Volume"`
-            **Cabeçalho**: Linha 51 (`header=50`, 0-indexed)
+            **CabeÃ§alho**: Linha 51 (`header=50`, 0-indexed)
             
             **Processo**:
-            1. Lê guia "Volume" com cabeçalho na linha 51
+            1. LÃª guia "Volume" com cabeÃ§alho na linha 51
             2. Identifica colunas de meses (janeiro a dezembro)
             3. Usa `melt()` para transformar colunas de meses em linhas
-            4. Cria colunas: `Período` (mês) e `Volume` (valor)
-            5. Normaliza `Período` para capitalizado
-            6. Converte `Volume` para numérico
-            7. Remove linhas onde `Oficina` ou `Período` são NaN
+            4. Cria colunas: `PerÃ­odo` (mÃªs) e `Volume` (valor)
+            5. Normaliza `PerÃ­odo` para capitalizado
+            6. Converte `Volume` para numÃ©rico
+            7. Remove linhas onde `Oficina` ou `PerÃ­odo` sÃ£o NaN
             8. Preenche NaN em `Volume` com 0
             9. Remove duplicatas
             
-            **Colunas Finais**: `Oficina`, `Veículo`, `Período`, `Volume`
+            **Colunas Finais**: `Oficina`, `VeÃ­culo`, `PerÃ­odo`, `Volume`
             
             **DataFrame Criado**: `df_vol`
             """)
         
-        with st.expander("🔗 **Célula 6: Merge df_final ↔ df_vol (Volume)**", expanded=False):
+        with st.expander("ðŸ”— **CÃ©lula 6: Merge df_final â†” df_vol (Volume)**", expanded=False):
             st.markdown("""
-            **Chave de Merge**: `['Oficina', 'Período', 'Veículo']` (COMPOSTA)
-            **Tipo**: `left` (mantém todos os registros de df_final)
+            **Chave de Merge**: `['Oficina', 'PerÃ­odo', 'VeÃ­culo']` (COMPOSTA)
+            **Tipo**: `left` (mantÃ©m todos os registros de df_final)
             
             **Processo**:
             1. Verifica se colunas de chave existem em ambos DataFrames
             2. Faz merge adicionando coluna `Volume` ao `df_final`
-            3. Preenche NaN em `Volume` com 0 (se não houver match)
+            3. Preenche NaN em `Volume` com 0 (se nÃ£o houver match)
             
             **Resultado**: `df_final` com coluna `Volume` adicionada
             """)
         
-        with st.expander("💾 **Célula 7: Salvamento e Consolidação**", expanded=False):
+        with st.expander("ðŸ’¾ **CÃ©lula 7: Salvamento e ConsolidaÃ§Ã£o**", expanded=False):
             st.markdown("""
             **Arquivos Salvos (Pasta do Ano)**:
-            1. `df_final.parquet` - Dados completos com rateio por veículo e volume
+            1. `df_final.parquet` - Dados completos com rateio por veÃ­culo e volume
             2. `df_vol.parquet` - Dados de volume
-            3. `df_ke5z_group.parquet` - Dados agrupados (se aplicável)
+            3. `df_ke5z_group.parquet` - Dados agrupados (se aplicÃ¡vel)
             
-            **Consolidação do Histórico**:
-            1. Carrega histórico existente (se existir):
+            **ConsolidaÃ§Ã£o do HistÃ³rico**:
+            1. Carrega histÃ³rico existente (se existir):
                     - `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
                     - `dados/TC_Ext/historico_consolidado/df_vol_historico.parquet`
             2. Adiciona coluna `Ano` aos dados do ano atual
-            3. Concatena dados do ano atual com histórico existente
+            3. Concatena dados do ano atual com histÃ³rico existente
             4. Remove duplicatas (se houver)
-            5. Salva histórico atualizado:
+            5. Salva histÃ³rico atualizado:
                     - `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
                     - `dados/TC_Ext/historico_consolidado/df_vol_historico.parquet`
             
-            **IMPORTANTE**: O histórico é sempre **concatenado**, nunca substituído
+            **IMPORTANTE**: O histÃ³rico Ã© sempre **concatenado**, nunca substituÃ­do
             """)
         
         st.markdown("---")
         
-        # Seção 3: tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET
-        st.markdown("## 📈 NOTEBOOK tc_ext/notebooks/dados_BUD.ipynb - DADOS BUDGET {#dados-budget}")
+        # SeÃ§Ã£o 3: tc_ext/notebooks/dados_BUD.ipynb - Dados BUDGET
+        st.markdown("## ðŸ“ˆ NOTEBOOK tc_ext/notebooks/dados_BUD.ipynb - DADOS BUDGET {#dados-budget}")
         
-        st.markdown("### Diferenças Principais em Relação a tc_ext/notebooks/dados.ipynb")
+        st.markdown("### DiferenÃ§as Principais em RelaÃ§Ã£o a tc_ext/notebooks/dados.ipynb")
         
         diferencas_bud = {
             "Aspecto": [
                 "Guia de Dados Principais",
                 "Guia de Rateio",
                 "Guia de Volume",
-                "Pasta de Saída",
+                "Pasta de SaÃ­da",
                 "Sufixo dos Arquivos",
-                "Pasta de Histórico"
+                "Pasta de HistÃ³rico"
             ],
             "tc_ext/notebooks/dados.ipynb (REAL)": [
                 '"Sapiens"',
@@ -3755,40 +3756,40 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         st.dataframe(pd.DataFrame(diferencas_bud), use_container_width=True, hide_index=True)
         
-        st.markdown("### Processo Idêntico")
+        st.markdown("### Processo IdÃªntico")
         st.info("""
-        **IMPORTANTE**: O processo de processamento, merges, cálculos e consolidação
-        é **IDÊNTICO** ao `tc_ext/notebooks/dados.ipynb`. A única diferença são as guias lidas e os
-        caminhos de saída. Todas as transformações, relacionamentos e cálculos seguem
-        a mesma lógica.
+        **IMPORTANTE**: O processo de processamento, merges, cÃ¡lculos e consolidaÃ§Ã£o
+        Ã© **IDÃŠNTICO** ao `tc_ext/notebooks/dados.ipynb`. A Ãºnica diferenÃ§a sÃ£o as guias lidas e os
+        caminhos de saÃ­da. Todas as transformaÃ§Ãµes, relacionamentos e cÃ¡lculos seguem
+        a mesma lÃ³gica.
         """)
         
         st.markdown("---")
         
-        # Seção 4: Estrutura de Arquivos de Entrada
-        st.markdown("## 📁 ESTRUTURA DE ARQUIVOS DE ENTRADA {#estrutura-entrada}")
+        # SeÃ§Ã£o 4: Estrutura de Arquivos de Entrada
+        st.markdown("## ðŸ“ ESTRUTURA DE ARQUIVOS DE ENTRADA {#estrutura-entrada}")
         
-        st.markdown("### Arquivos Necessários")
+        st.markdown("### Arquivos NecessÃ¡rios")
         
-        with st.expander("📊 **Reporting fluxo anexo.xlsx**", expanded=False):
+        with st.expander("ðŸ“Š **Reporting fluxo anexo.xlsx**", expanded=False):
             st.markdown("""
-            **Localização**: `dados/TC_Ext/{ANO}/Reporting fluxo anexo.xlsx` ou raiz do projeto
+            **LocalizaÃ§Ã£o**: `dados/TC_Ext/{ANO}/Reporting fluxo anexo.xlsx` ou raiz do projeto
             
             **Guias Utilizadas (tc_ext/notebooks/dados.ipynb - REAL)**:
-            1. **"Sapiens"** (Célula 1)
-               - Cabeçalho: Linha 1
-               - Colunas: A até T (20 colunas)
+            1. **"Sapiens"** (CÃ©lula 1)
+               - CabeÃ§alho: Linha 1
+               - Colunas: A atÃ© T (20 colunas)
                - Dados: Custos reais executados
             
-            2. **"Rateio"** (Célula 3)
-               - Cabeçalho: Segunda linha (após linha de referência)
+            2. **"Rateio"** (CÃ©lula 3)
+               - CabeÃ§alho: Segunda linha (apÃ³s linha de referÃªncia)
                - Colunas de meses: Janeiro a Dezembro
-               - Dados: Percentuais de rateio por Oficina, Veículo e Período
+               - Dados: Percentuais de rateio por Oficina, VeÃ­culo e PerÃ­odo
             
-            3. **"Volume"** (Célula 5)
-               - Cabeçalho: Linha 51
+            3. **"Volume"** (CÃ©lula 5)
+               - CabeÃ§alho: Linha 51
                - Colunas de meses: Janeiro a Dezembro
-               - Dados: Volumes por Oficina, Veículo e Período
+               - Dados: Volumes por Oficina, VeÃ­culo e PerÃ­odo
             
             **Guias Utilizadas (tc_ext/notebooks/dados_BUD.ipynb - BUDGET)**:
             1. **"Voz de custo BDG"** (equivalente a "Sapiens")
@@ -3796,44 +3797,44 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             3. **"Volume BDG"** (equivalente a "Volume")
             """)
         
-        with st.expander("📋 **Dados SAPIENS.xlsx**", expanded=False):
+        with st.expander("ðŸ“‹ **Dados SAPIENS.xlsx**", expanded=False):
             st.markdown("""
-            **Localização**: `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx` ou raiz do projeto
+            **LocalizaÃ§Ã£o**: `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx` ou raiz do projeto
             
             **Guias Utilizadas**:
             1. **"Base conso"**
                - Colunas: `Type 04` (renomeado para `Custo`), `Type 07` (renomeado para `Account`)
-               - Propósito: Mapear Account para tipo de custo (Variável/Fixo)
+               - PropÃ³sito: Mapear Account para tipo de custo (VariÃ¡vel/Fixo)
                - Chave de merge: `Account` (Type 07)
             
-            **Observação**: Este arquivo é usado tanto em `tc_ext/notebooks/dados.ipynb` quanto em `tc_ext/notebooks/dados_BUD.ipynb`
+            **ObservaÃ§Ã£o**: Este arquivo Ã© usado tanto em `tc_ext/notebooks/dados.ipynb` quanto em `tc_ext/notebooks/dados_BUD.ipynb`
             """)
         
         st.markdown("---")
         
-        # Seção 5: Relacionamentos e Merges
-        st.markdown("## 🔗 RELACIONAMENTOS E MERGES {#relacionamentos}")
+        # SeÃ§Ã£o 5: Relacionamentos e Merges
+        st.markdown("## ðŸ”— RELACIONAMENTOS E MERGES {#relacionamentos}")
         
         st.markdown("### Resumo de Todos os Merges")
         
         resumo_merges = {
             "Merge": [
-                "KE5Z ↔ Base Conso",
-                "KE5Z ↔ Rateio",
-                "KE5Z ↔ Volume",
-                "Histórico ↔ Ano Atual"
+                "KE5Z â†” Base Conso",
+                "KE5Z â†” Rateio",
+                "KE5Z â†” Volume",
+                "HistÃ³rico â†” Ano Atual"
             ],
             "Chave KE5Z": [
                 "Account (Type 07)",
-                "['Oficina', 'Período']",
-                "['Oficina', 'Período', 'Veículo']",
-                "N/A (concatenação)"
+                "['Oficina', 'PerÃ­odo']",
+                "['Oficina', 'PerÃ­odo', 'VeÃ­culo']",
+                "N/A (concatenaÃ§Ã£o)"
             ],
             "Chave Externa": [
                 "Account (Type 07)",
-                "['Oficina', 'Período']",
-                "['Oficina', 'Período', 'Veículo']",
-                "N/A (concatenação)"
+                "['Oficina', 'PerÃ­odo']",
+                "['Oficina', 'PerÃ­odo', 'VeÃ­culo']",
+                "N/A (concatenaÃ§Ã£o)"
             ],
             "Tipo": [
                 "left",
@@ -3842,10 +3843,10 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
                 "concat"
             ],
             "Resultado": [
-                "Coluna Custo (Variável/Fixo)",
-                "Colunas de rateio por veículo (CC21%, CC22%, etc.)",
+                "Coluna Custo (VariÃ¡vel/Fixo)",
+                "Colunas de rateio por veÃ­culo (CC21%, CC22%, etc.)",
                 "Coluna Volume",
-                "Histórico consolidado com todos os anos"
+                "HistÃ³rico consolidado com todos os anos"
             ]
         }
         
@@ -3853,7 +3854,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
         
         st.markdown("### Detalhamento dos Merges")
         
-        with st.expander("1. Merge KE5Z ↔ Base Conso (Custo)", expanded=False):
+        with st.expander("1. Merge KE5Z â†” Base Conso (Custo)", expanded=False):
             st.code("""
 # Leitura
 df_base_conso = pd.read_excel('Dados SAPIENS.xlsx', sheet_name='Base conso')
@@ -3866,72 +3867,72 @@ df_KE5Z = pd.merge(df_KE5Z, df_base_conso, on='Account', how='left')
             
             st.markdown("""
             **Resultado**: Adiciona coluna `Custo` ao `df_KE5Z`
-            - Valores: `"Variável"` ou `"Fixo"`
-            - Usado para cálculos de Flex Bud e análises de custos fixos vs variáveis
+            - Valores: `"VariÃ¡vel"` ou `"Fixo"`
+            - Usado para cÃ¡lculos de Flex Bud e anÃ¡lises de custos fixos vs variÃ¡veis
             """)
         
-        with st.expander("2. Merge KE5Z ↔ Rateio (Percentuais por Veículo)", expanded=False):
+        with st.expander("2. Merge KE5Z â†” Rateio (Percentuais por VeÃ­culo)", expanded=False):
             st.code("""
 # Processamento do Rateio
 df_rateio = pd.read_excel('Reporting fluxo anexo.xlsx', sheet_name='Rateio', header=None)
 # ... processamento com melt() ...
 df_pivot = df_rateio.pivot_table(
-        index=['Oficina', 'Período'],
-        columns='Veículo',
+        index=['Oficina', 'PerÃ­odo'],
+        columns='VeÃ­culo',
         values='Rateio',
         aggfunc='mean'
 ).reset_index()
 
-# Renomear colunas de veículos para adicionar %
+# Renomear colunas de veÃ­culos para adicionar %
 veiculos_cols = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
 rename_dict = {col: f"{col}%" for col in veiculos_cols}
 df_pivot = df_pivot.rename(columns=rename_dict)
 
 # Merge
-df_final = pd.merge(df_KE5Z, df_pivot, on=['Oficina', 'Período'], how='left')
+df_final = pd.merge(df_KE5Z, df_pivot, on=['Oficina', 'PerÃ­odo'], how='left')
             """, language="python")
             
             st.markdown("""
-            **Resultado**: Adiciona colunas de percentuais por veículo
+            **Resultado**: Adiciona colunas de percentuais por veÃ­culo
             - `CC21%`, `CC22%`, `CC24%`, `CC24 5L%`, `CC24 7L%`, `J516%`
             - Valores: Percentuais (0.0 a 1.0 ou 0% a 100%)
-            - Usado para calcular valores por veículo: `CC21 = CC21% * Valor`
+            - Usado para calcular valores por veÃ­culo: `CC21 = CC21% * Valor`
             """)
         
-        with st.expander("3. Merge df_final ↔ Volume", expanded=False):
+        with st.expander("3. Merge df_final â†” Volume", expanded=False):
             st.code("""
 # Processamento do Volume
 df_vol = pd.read_excel('Reporting fluxo anexo.xlsx', sheet_name='Volume', header=50)
 # ... processamento com melt() ...
-# Colunas finais: Oficina, Veículo, Período, Volume
+# Colunas finais: Oficina, VeÃ­culo, PerÃ­odo, Volume
 
 # Merge
-df_final = pd.merge(df_final, df_vol, on=['Oficina', 'Período', 'Veículo'], how='left')
+df_final = pd.merge(df_final, df_vol, on=['Oficina', 'PerÃ­odo', 'VeÃ­culo'], how='left')
 df_final['Volume'] = df_final['Volume'].fillna(0)
             """, language="python")
             
             st.markdown("""
             **Resultado**: Adiciona coluna `Volume` ao `df_final`
-            - Valores: Volumes numéricos por veículo
-            - Usado para cálculos de CPU (Custo por Unidade)
+            - Valores: Volumes numÃ©ricos por veÃ­culo
+            - Usado para cÃ¡lculos de CPU (Custo por Unidade)
             """)
         
         st.markdown("---")
         
-        # Seção 6: Colunas e Estrutura Final
-        st.markdown("## 📊 COLUNAS E ESTRUTURA FINAL {#colunas-finais}")
+        # SeÃ§Ã£o 6: Colunas e Estrutura Final
+        st.markdown("## ðŸ“Š COLUNAS E ESTRUTURA FINAL {#colunas-finais}")
         
         st.markdown("### Colunas do DataFrame Final (df_final.parquet)")
         
         colunas_finais = {
             "Coluna": [
-                "Mes", "Período", "Ano",
-                "Nºconta", "Centrocst", "Nºdoc.ref.", "Dt.lçto.",
+                "Mes", "PerÃ­odo", "Ano",
+                "NÂºconta", "Centrocst", "NÂºdoc.ref.", "Dt.lÃ§to.",
                 "Valor", "QTD", "Volume",
                 "Type 05", "Type 06", "Account", "Custo",
                 "USI", "Oficina",
                 "Doc.compra", "Texto breve",
-                "Fornecedor", "Material", "Usuário", "Fornec.", "Tipo",
+                "Fornecedor", "Material", "UsuÃ¡rio", "Fornec.", "Tipo",
                 "CC21", "CC22", "CC24", "CC24 5L", "CC24 7L", "J516",
                 "Soma_Percentuais"
             ],
@@ -3947,7 +3948,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "float64"
             ],
             "Origem": [
-                "Sapiens", "Sapiens", "Adicionado na consolidação",
+                "Sapiens", "Sapiens", "Adicionado na consolidaÃ§Ã£o",
                 "Sapiens", "Sapiens", "Sapiens", "Sapiens",
                 "Sapiens", "Sapiens", "Volume (merge)",
                 "Sapiens", "Sapiens", "Sapiens", "Base conso (merge)",
@@ -3957,16 +3958,16 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "Calculado (CC21% * Valor)", "Calculado", "Calculado", "Calculado", "Calculado", "Calculado",
                 "Calculado (soma dos %)"
             ],
-            "Descrição": [
-                "Mês numérico (1-12)", "Mês por extenso (Janeiro, etc.)", "Ano do registro",
-                "Código da conta contábil", "Centro de custo", "Número documento referência", "Data de lançamento",
-                "Valor monetário do custo", "Quantidade", "Volume do veículo",
-                "Classificação Type 05", "Classificação Type 06", "Account (Type 07)", "Tipo de custo (Variável/Fixo)",
-                "Unidade de negócio", "Nome da oficina",
-                "Documento de compra", "Descrição breve do material",
-                "Nome do fornecedor", "Código do material", "Usuário", "Código fornecedor", "Tipo de lançamento",
+            "DescriÃ§Ã£o": [
+                "MÃªs numÃ©rico (1-12)", "MÃªs por extenso (Janeiro, etc.)", "Ano do registro",
+                "CÃ³digo da conta contÃ¡bil", "Centro de custo", "NÃºmero documento referÃªncia", "Data de lanÃ§amento",
+                "Valor monetÃ¡rio do custo", "Quantidade", "Volume do veÃ­culo",
+                "ClassificaÃ§Ã£o Type 05", "ClassificaÃ§Ã£o Type 06", "Account (Type 07)", "Tipo de custo (VariÃ¡vel/Fixo)",
+                "Unidade de negÃ³cio", "Nome da oficina",
+                "Documento de compra", "DescriÃ§Ã£o breve do material",
+                "Nome do fornecedor", "CÃ³digo do material", "UsuÃ¡rio", "CÃ³digo fornecedor", "Tipo de lanÃ§amento",
                 "Valor rateado para CC21", "Valor rateado para CC22", "Valor rateado para CC24", "Valor rateado para CC24 5L", "Valor rateado para CC24 7L", "Valor rateado para J516",
-                "Soma de todos os percentuais (validação)"
+                "Soma de todos os percentuais (validaÃ§Ã£o)"
             ]
         }
         
@@ -3975,13 +3976,13 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         st.markdown("### Colunas do DataFrame de Volume (df_vol.parquet)")
         
         colunas_volume = {
-            "Coluna": ["Oficina", "Veículo", "Período", "Volume"],
+            "Coluna": ["Oficina", "VeÃ­culo", "PerÃ­odo", "Volume"],
             "Tipo": ["object", "object", "object", "float64"],
-            "Descrição": [
+            "DescriÃ§Ã£o": [
                 "Nome da oficina",
-                "Código do veículo (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)",
-                "Mês por extenso (Janeiro, Fevereiro, etc.)",
-                "Volume numérico do veículo no período"
+                "CÃ³digo do veÃ­culo (CC21, CC22, CC24, CC24 5L, CC24 7L, J516)",
+                "MÃªs por extenso (Janeiro, Fevereiro, etc.)",
+                "Volume numÃ©rico do veÃ­culo no perÃ­odo"
             ]
         }
         
@@ -3990,76 +3991,76 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         st.markdown("### Relacionamento entre Colunas")
         
         st.markdown("""
-        **Chaves Primárias para Merges**:
-        - `Account` (Type 07) → Merge com Base Conso
-        - `['Oficina', 'Período']` → Merge com Rateio
-        - `['Oficina', 'Período', 'Veículo']` → Merge com Volume
+        **Chaves PrimÃ¡rias para Merges**:
+        - `Account` (Type 07) â†’ Merge com Base Conso
+        - `['Oficina', 'PerÃ­odo']` â†’ Merge com Rateio
+        - `['Oficina', 'PerÃ­odo', 'VeÃ­culo']` â†’ Merge com Volume
         
         **Colunas Calculadas**:
-        - `CC21 = CC21% * Valor` (e similares para outros veículos)
+        - `CC21 = CC21% * Valor` (e similares para outros veÃ­culos)
         - `Soma_Percentuais = CC21% + CC22% + CC24% + CC24 5L% + CC24 7L% + J516%`
-        - `CPU = Valor / Volume` (calculado no app.py, não no notebook)
+        - `CPU = Valor / Volume` (calculado no app.py, nÃ£o no notebook)
         
-        **Normalizações Críticas**:
-        - `Período`: Sempre capitalizado (Janeiro, Fevereiro, etc.)
+        **NormalizaÃ§Ãµes CrÃ­ticas**:
+        - `PerÃ­odo`: Sempre capitalizado (Janeiro, Fevereiro, etc.)
         - `Account`: Mantido como string/object
-        - `Volume`: Sempre numérico (float64), NaN preenchido com 0
+        - `Volume`: Sempre numÃ©rico (float64), NaN preenchido com 0
         """)
         
         st.markdown("---")
         
-        # Seção 7: Consolidação do Histórico
-        st.markdown("## 📚 CONSOLIDAÇÃO DO HISTÓRICO {#consolidacao}")
+        # SeÃ§Ã£o 7: ConsolidaÃ§Ã£o do HistÃ³rico
+        st.markdown("## ðŸ“š CONSOLIDAÃ‡ÃƒO DO HISTÃ“RICO {#consolidacao}")
         
-        st.markdown("### Processo de Consolidação")
+        st.markdown("### Processo de ConsolidaÃ§Ã£o")
         
         st.markdown("""
-        **Objetivo**: Manter um histórico completo de todos os anos processados
+        **Objetivo**: Manter um histÃ³rico completo de todos os anos processados
         
         **Processo**:
-        1. **Verificar histórico existente**:
+        1. **Verificar histÃ³rico existente**:
               - Tenta carregar `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
-           - Se não existir, cria DataFrame vazio
+           - Se nÃ£o existir, cria DataFrame vazio
         
         2. **Adicionar coluna Ano**:
            - Adiciona `Ano = ANO_ATUAL` aos dados do ano atual
-           - Garante que cada registro tenha identificação do ano
+           - Garante que cada registro tenha identificaÃ§Ã£o do ano
         
-        3. **Concatenação**:
-           - Concatena dados do ano atual com histórico existente
+        3. **ConcatenaÃ§Ã£o**:
+           - Concatena dados do ano atual com histÃ³rico existente
            - Usa `pd.concat([df_historico, df_ano_atual], ignore_index=True)`
         
-        4. **Validação**:
-           - Verifica se `Volume` é sempre numérico
+        4. **ValidaÃ§Ã£o**:
+           - Verifica se `Volume` Ã© sempre numÃ©rico
            - Garante tipos de dados consistentes
         
         5. **Salvamento**:
-           - Salva histórico atualizado
-           - Mantém histórico sempre completo
+           - Salva histÃ³rico atualizado
+           - MantÃ©m histÃ³rico sempre completo
         
         **IMPORTANTE**: 
-        - O histórico é **sempre concatenado**, nunca substituído
-        - Permite análises multi-anos no dashboard
-        - O sistema prioriza o histórico consolidado para carregar dados
+        - O histÃ³rico Ã© **sempre concatenado**, nunca substituÃ­do
+        - Permite anÃ¡lises multi-anos no dashboard
+        - O sistema prioriza o histÃ³rico consolidado para carregar dados
         """)
         
-        st.markdown("### Estrutura do Histórico")
+        st.markdown("### Estrutura do HistÃ³rico")
         
         st.code("""
         dados/TC_Ext/historico_consolidado/
-        ├── df_final_historico.parquet      # Todos os anos de custos (REAL)
-        ├── df_vol_historico.parquet        # Todos os anos de volumes
-        ├── df_ke5z_historico.parquet       # Dados KE5Z agrupados
-        └── BUD/
-            ├── df_final_historico_BUD.parquet  # Todos os anos de custos (BUDGET)
-            ├── df_vol_historico_BUD.parquet    # Todos os anos de volumes (BUDGET)
-            └── df_ke5z_historico_BUD.parquet   # Dados KE5Z agrupados (BUDGET)
+        â”œâ”€â”€ df_final_historico.parquet      # Todos os anos de custos (REAL)
+        â”œâ”€â”€ df_vol_historico.parquet        # Todos os anos de volumes
+        â”œâ”€â”€ df_ke5z_historico.parquet       # Dados KE5Z agrupados
+        â””â”€â”€ BUD/
+            â”œâ”€â”€ df_final_historico_BUD.parquet  # Todos os anos de custos (BUDGET)
+            â”œâ”€â”€ df_vol_historico_BUD.parquet    # Todos os anos de volumes (BUDGET)
+            â””â”€â”€ df_ke5z_historico_BUD.parquet   # Dados KE5Z agrupados (BUDGET)
         """, language="text")
         
         st.markdown("---")
         
-        # Seção 8: Arquivos de Saída
-        st.markdown("## 💾 ARQUIVOS DE SAÍDA {#arquivos-saida}")
+        # SeÃ§Ã£o 8: Arquivos de SaÃ­da
+        st.markdown("## ðŸ’¾ ARQUIVOS DE SAÃDA {#arquivos-saida}")
         
         st.markdown("### Arquivos Gerados por tc_ext/notebooks/dados.ipynb (REAL)")
         
@@ -4072,7 +4073,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "df_vol_historico.parquet",
                 "df_ke5z_historico.parquet"
             ],
-            "Localização": [
+            "LocalizaÃ§Ã£o": [
                 "dados/TC_Ext/{ANO}/",
                 "dados/TC_Ext/{ANO}/",
                 "dados/TC_Ext/{ANO}/",
@@ -4080,21 +4081,21 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "dados/TC_Ext/historico_consolidado/",
                 "dados/TC_Ext/historico_consolidado/"
             ],
-            "Conteúdo": [
-                "Dados completos com rateio por veículo e volume",
-                "Dados de volume por Oficina, Veículo e Período",
+            "ConteÃºdo": [
+                "Dados completos com rateio por veÃ­culo e volume",
+                "Dados de volume por Oficina, VeÃ­culo e PerÃ­odo",
                 "Dados agrupados KE5Z",
-                "Histórico consolidado de todos os anos (REAL)",
-                "Histórico consolidado de volumes",
-                "Histórico consolidado KE5Z"
+                "HistÃ³rico consolidado de todos os anos (REAL)",
+                "HistÃ³rico consolidado de volumes",
+                "HistÃ³rico consolidado KE5Z"
             ],
             "Uso": [
                 "Dashboard principal (app.py)",
-                "Cálculos de CPU e análises de volume",
-                "Análises específicas",
-                "Análises multi-anos",
-                "Análises multi-anos de volume",
-                "Análises históricas KE5Z"
+                "CÃ¡lculos de CPU e anÃ¡lises de volume",
+                "AnÃ¡lises especÃ­ficas",
+                "AnÃ¡lises multi-anos",
+                "AnÃ¡lises multi-anos de volume",
+                "AnÃ¡lises histÃ³ricas KE5Z"
             ]
         }
         
@@ -4111,7 +4112,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "df_vol_historico_BUD.parquet",
                 "df_ke5z_historico_BUD.parquet"
             ],
-            "Localização": [
+            "LocalizaÃ§Ã£o": [
                 "dados/TC_Ext/{ANO}/BUD/",
                 "dados/TC_Ext/{ANO}/BUD/",
                 "dados/TC_Ext/{ANO}/BUD/",
@@ -4119,21 +4120,21 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                 "dados/TC_Ext/historico_consolidado/BUD/",
                 "dados/TC_Ext/historico_consolidado/BUD/"
             ],
-            "Conteúdo": [
-                "Dados de Budget com rateio por veículo e volume",
+            "ConteÃºdo": [
+                "Dados de Budget com rateio por veÃ­culo e volume",
                 "Dados de volume de Budget",
                 "Dados agrupados KE5Z (Budget)",
-                "Histórico consolidado de todos os anos (BUDGET)",
-                "Histórico consolidado de volumes (Budget)",
-                "Histórico consolidado KE5Z (Budget)"
+                "HistÃ³rico consolidado de todos os anos (BUDGET)",
+                "HistÃ³rico consolidado de volumes (Budget)",
+                "HistÃ³rico consolidado KE5Z (Budget)"
             ],
             "Uso": [
-                "Comparações Real vs Budget",
-                "Análises de volume Budget",
-                "Análises específicas Budget",
-                "Análises multi-anos Budget",
-                "Análises multi-anos de volume Budget",
-                "Análises históricas KE5Z Budget"
+                "ComparaÃ§Ãµes Real vs Budget",
+                "AnÃ¡lises de volume Budget",
+                "AnÃ¡lises especÃ­ficas Budget",
+                "AnÃ¡lises multi-anos Budget",
+                "AnÃ¡lises multi-anos de volume Budget",
+                "AnÃ¡lises histÃ³ricas KE5Z Budget"
             ]
         }
         
@@ -4141,92 +4142,92 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         st.markdown("---")
         
-        # Seção 9: Fluxo Completo
-        st.markdown("## 🔄 FLUXO COMPLETO {#fluxo-completo}")
+        # SeÃ§Ã£o 9: Fluxo Completo
+        st.markdown("## ðŸ”„ FLUXO COMPLETO {#fluxo-completo}")
         
         st.markdown("### Diagrama de Fluxo - tc_ext/notebooks/dados.ipynb")
         
         st.code("""
-        ┌─────────────────────────────────────┐
-        │  Configuração (Célula 0)           │
-        │  - Define ANO_ATUAL                 │
-        │  - Cria pastas                      │
-        │  - Verifica arquivos                │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Leitura SAPIENS (Célula 1)        │
-        │  - Reporting fluxo anexo.xlsx       │
-        │  - Guia "Sapiens"                   │
-        │  - Cria df_KE5Z                     │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Merge Base Conso (Célula 2)       │
-        │  - Dados SAPIENS.xlsx                │
-        │  - Guia "Base conso"                 │
-        │  - Adiciona coluna Custo             │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Processamento Rateio (Célula 3)   │
-        │  - Reporting fluxo anexo.xlsx         │
-        │  - Guia "Rateio"                     │
-        │  - Transforma meses em linhas         │
-        │  - Cria df (Oficina, Veículo,        │
-        │    Período, Rateio)                  │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Merge + Cálculo Veículos (Célula 4)│
-        │  - Merge KE5Z ↔ Rateio               │
-        │  - Pivot: Veículo → Colunas          │
-        │  - Calcula: CC21 = CC21% * Valor     │
-        │  - Cria df_final                     │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Processamento Volume (Célula 5)   │
-        │  - Reporting fluxo anexo.xlsx       │
-        │  - Guia "Volume"                     │
-        │  - Transforma meses em linhas         │
-        │  - Cria df_vol                       │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Merge Volume (Célula 6)           │
-        │  - Merge df_final ↔ df_vol           │
-        │  - Adiciona coluna Volume             │
-        └──────────────┬──────────────────────┘
-                       │
-                       ▼
-        ┌─────────────────────────────────────┐
-        │  Salvamento + Consolidação (Célula 7)│
-        │  - Salva df_final.parquet            │
-        │  - Salva df_vol.parquet               │
-        │  - Carrega histórico                  │
-        │  - Concatena com ano atual            │
-        │  - Salva histórico atualizado         │
-        └─────────────────────────────────────┘
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  ConfiguraÃ§Ã£o (CÃ©lula 0)           â”‚
+        â”‚  - Define ANO_ATUAL                 â”‚
+        â”‚  - Cria pastas                      â”‚
+        â”‚  - Verifica arquivos                â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Leitura SAPIENS (CÃ©lula 1)        â”‚
+        â”‚  - Reporting fluxo anexo.xlsx       â”‚
+        â”‚  - Guia "Sapiens"                   â”‚
+        â”‚  - Cria df_KE5Z                     â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Merge Base Conso (CÃ©lula 2)       â”‚
+        â”‚  - Dados SAPIENS.xlsx                â”‚
+        â”‚  - Guia "Base conso"                 â”‚
+        â”‚  - Adiciona coluna Custo             â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Processamento Rateio (CÃ©lula 3)   â”‚
+        â”‚  - Reporting fluxo anexo.xlsx         â”‚
+        â”‚  - Guia "Rateio"                     â”‚
+        â”‚  - Transforma meses em linhas         â”‚
+        â”‚  - Cria df (Oficina, VeÃ­culo,        â”‚
+        â”‚    PerÃ­odo, Rateio)                  â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Merge + CÃ¡lculo VeÃ­culos (CÃ©lula 4)â”‚
+        â”‚  - Merge KE5Z â†” Rateio               â”‚
+        â”‚  - Pivot: VeÃ­culo â†’ Colunas          â”‚
+        â”‚  - Calcula: CC21 = CC21% * Valor     â”‚
+        â”‚  - Cria df_final                     â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Processamento Volume (CÃ©lula 5)   â”‚
+        â”‚  - Reporting fluxo anexo.xlsx       â”‚
+        â”‚  - Guia "Volume"                     â”‚
+        â”‚  - Transforma meses em linhas         â”‚
+        â”‚  - Cria df_vol                       â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Merge Volume (CÃ©lula 6)           â”‚
+        â”‚  - Merge df_final â†” df_vol           â”‚
+        â”‚  - Adiciona coluna Volume             â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                       â”‚
+                       â–¼
+        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+        â”‚  Salvamento + ConsolidaÃ§Ã£o (CÃ©lula 7)â”‚
+        â”‚  - Salva df_final.parquet            â”‚
+        â”‚  - Salva df_vol.parquet               â”‚
+        â”‚  - Carrega histÃ³rico                  â”‚
+        â”‚  - Concatena com ano atual            â”‚
+        â”‚  - Salva histÃ³rico atualizado         â”‚
+        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
         """, language="text")
         
-        st.markdown("### Sequência de Operações Detalhada")
+        st.markdown("### SequÃªncia de OperaÃ§Ãµes Detalhada")
         
         operacoes_detalhadas = [
-            "**Célula 0**: Configuração - Define ano, cria pastas, verifica arquivos de entrada",
-            "**Célula 1**: Leitura SAPIENS - Lê guia 'Sapiens' (20 colunas), cria df_KE5Z com dados de custos",
-            "**Célula 2**: Merge Base Conso - Adiciona coluna 'Custo' (Variável/Fixo) usando Account como chave",
-            "**Célula 3**: Processamento Rateio - Lê guia 'Rateio', transforma meses em linhas (melt), cria df com Oficina, Veículo, Período, Rateio",
-            "**Célula 4**: Merge Rateio + Cálculo - Merge KE5Z ↔ Rateio, pivot de Veículo para colunas, calcula valores por veículo (CC21, CC22, etc.), cria df_final",
-            "**Célula 5**: Processamento Volume - Lê guia 'Volume' (header=50), transforma meses em linhas, cria df_vol com Oficina, Veículo, Período, Volume",
-            "**Célula 6**: Merge Volume - Merge df_final ↔ df_vol usando ['Oficina', 'Período', 'Veículo'], adiciona coluna Volume",
-            "**Célula 7**: Salvamento - Salva df_final.parquet, df_vol.parquet na pasta do ano, carrega histórico, concatena, salva histórico consolidado"
+            "**CÃ©lula 0**: ConfiguraÃ§Ã£o - Define ano, cria pastas, verifica arquivos de entrada",
+            "**CÃ©lula 1**: Leitura SAPIENS - LÃª guia 'Sapiens' (20 colunas), cria df_KE5Z com dados de custos",
+            "**CÃ©lula 2**: Merge Base Conso - Adiciona coluna 'Custo' (VariÃ¡vel/Fixo) usando Account como chave",
+            "**CÃ©lula 3**: Processamento Rateio - LÃª guia 'Rateio', transforma meses em linhas (melt), cria df com Oficina, VeÃ­culo, PerÃ­odo, Rateio",
+            "**CÃ©lula 4**: Merge Rateio + CÃ¡lculo - Merge KE5Z â†” Rateio, pivot de VeÃ­culo para colunas, calcula valores por veÃ­culo (CC21, CC22, etc.), cria df_final",
+            "**CÃ©lula 5**: Processamento Volume - LÃª guia 'Volume' (header=50), transforma meses em linhas, cria df_vol com Oficina, VeÃ­culo, PerÃ­odo, Volume",
+            "**CÃ©lula 6**: Merge Volume - Merge df_final â†” df_vol usando ['Oficina', 'PerÃ­odo', 'VeÃ­culo'], adiciona coluna Volume",
+            "**CÃ©lula 7**: Salvamento - Salva df_final.parquet, df_vol.parquet na pasta do ano, carrega histÃ³rico, concatena, salva histÃ³rico consolidado"
         ]
         
         for op in operacoes_detalhadas:
@@ -4234,40 +4235,40 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         st.markdown("---")
         
-        # Seção 10: Tratamento de Erros
-        st.markdown("## ⚠️ TRATAMENTO DE ERROS {#tratamento-erros}")
+        # SeÃ§Ã£o 10: Tratamento de Erros
+        st.markdown("## âš ï¸ TRATAMENTO DE ERROS {#tratamento-erros}")
         
-        st.markdown("### Erros Comuns e Soluções")
+        st.markdown("### Erros Comuns e SoluÃ§Ãµes")
         
-        with st.expander("1. Arquivo Não Encontrado", expanded=False):
+        with st.expander("1. Arquivo NÃ£o Encontrado", expanded=False):
             st.markdown("""
             **Sintoma**: `FileNotFoundError` ao tentar ler arquivo Excel
             
-            **Soluções**:
-            - Verificar se arquivo está em `dados/TC_Ext/{ANO}/` ou na raiz do projeto
+            **SoluÃ§Ãµes**:
+            - Verificar se arquivo estÃ¡ em `dados/TC_Ext/{ANO}/` ou na raiz do projeto
             - Verificar nomes exatos: `Dados SAPIENS.xlsx` e `Reporting fluxo anexo.xlsx`
             - O notebook tenta copiar da raiz para pasta do ano automaticamente
             """)
         
-        with st.expander("2. Guia Não Encontrada", expanded=False):
+        with st.expander("2. Guia NÃ£o Encontrada", expanded=False):
             st.markdown("""
             **Sintoma**: `ValueError: Worksheet named 'X' not found`
             
-            **Soluções**:
+            **SoluÃ§Ãµes**:
             - Verificar nomes exatos das guias (case-sensitive):
               - `tc_ext/notebooks/dados.ipynb`: "Sapiens", "Rateio", "Volume"
               - `tc_ext/notebooks/dados_BUD.ipynb`: "Voz de custo BDG", "Rateio BDG", "Volume BDG"
             - Verificar se guias existem no arquivo Excel
             """)
         
-        with st.expander("3. Coluna Não Encontrada Após Merge", expanded=False):
+        with st.expander("3. Coluna NÃ£o Encontrada ApÃ³s Merge", expanded=False):
             st.markdown("""
-            **Sintoma**: `KeyError: 'Coluna X'` após merge
+            **Sintoma**: `KeyError: 'Coluna X'` apÃ³s merge
             
-            **Soluções**:
+            **SoluÃ§Ãµes**:
             - Verificar se chaves de merge existem em ambos DataFrames
-            - Verificar normalização de `Período` (deve estar capitalizado)
-            - Verificar tipos de dados das chaves (devem ser compatíveis)
+            - Verificar normalizaÃ§Ã£o de `PerÃ­odo` (deve estar capitalizado)
+            - Verificar tipos de dados das chaves (devem ser compatÃ­veis)
             - Verificar se merge foi feito com chaves corretas
             """)
         
@@ -4275,62 +4276,62 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             st.markdown("""
             **Sintoma**: Coluna Volume com muitos NaN ou zeros
             
-            **Soluções**:
-            - Verificar se merge foi feito com chave composta correta: `['Oficina', 'Período', 'Veículo']`
-            - Verificar se dados de volume existem para a combinação Oficina+Período+Veículo
-            - Verificar normalização de `Período` (deve estar capitalizado em ambos DataFrames)
+            **SoluÃ§Ãµes**:
+            - Verificar se merge foi feito com chave composta correta: `['Oficina', 'PerÃ­odo', 'VeÃ­culo']`
+            - Verificar se dados de volume existem para a combinaÃ§Ã£o Oficina+PerÃ­odo+VeÃ­culo
+            - Verificar normalizaÃ§Ã£o de `PerÃ­odo` (deve estar capitalizado em ambos DataFrames)
             - O notebook preenche NaN com 0 automaticamente
             """)
         
-        with st.expander("5. Percentuais de Rateio Não Somam 100%", expanded=False):
+        with st.expander("5. Percentuais de Rateio NÃ£o Somam 100%", expanded=False):
             st.markdown("""
             **Sintoma**: `Soma_Percentuais` diferente de 1.0 (ou 100%)
             
-            **Soluções**:
-            - Verificar se todos os veículos estão incluídos no rateio
-            - Verificar se há veículos não mapeados
+            **SoluÃ§Ãµes**:
+            - Verificar se todos os veÃ­culos estÃ£o incluÃ­dos no rateio
+            - Verificar se hÃ¡ veÃ­culos nÃ£o mapeados
             - Verificar se pivot foi feito corretamente (aggfunc='mean')
-            - Validação: `Soma_Percentuais` deve estar próximo de 1.0
+            - ValidaÃ§Ã£o: `Soma_Percentuais` deve estar prÃ³ximo de 1.0
             """)
         
-        with st.expander("6. Histórico Não Atualizado", expanded=False):
+        with st.expander("6. HistÃ³rico NÃ£o Atualizado", expanded=False):
             st.markdown("""
-            **Sintoma**: Histórico não inclui dados do ano atual após processamento
+            **Sintoma**: HistÃ³rico nÃ£o inclui dados do ano atual apÃ³s processamento
             
-            **Soluções**:
+            **SoluÃ§Ãµes**:
             - Verificar se coluna `Ano` foi adicionada aos dados do ano atual
-            - Verificar se concatenação foi executada corretamente
-            - Verificar se arquivo de histórico foi salvo após concatenação
-            - Verificar permissões de escrita na pasta `dados/TC_Ext/historico_consolidado/`
+            - Verificar se concatenaÃ§Ã£o foi executada corretamente
+            - Verificar se arquivo de histÃ³rico foi salvo apÃ³s concatenaÃ§Ã£o
+            - Verificar permissÃµes de escrita na pasta `dados/TC_Ext/historico_consolidado/`
             """)
         
-        st.markdown("### Validações Implementadas")
+        st.markdown("### ValidaÃ§Ãµes Implementadas")
         
         st.markdown("""
-        **Validações Automáticas**:
-        1. **Validação de Arquivos**: Verifica existência antes de processar
-        2. **Validação de Colunas**: Verifica se colunas essenciais existem antes de merge
-        3. **Validação de Volume**: Garante que Volume seja sempre numérico
-        4. **Validação de Período**: Normaliza para formato capitalizado
-        5. **Validação de Histórico**: Verifica tipos de dados ao carregar histórico
-        6. **Validação de Soma**: Calcula `Soma_Percentuais` para validar rateios
+        **ValidaÃ§Ãµes AutomÃ¡ticas**:
+        1. **ValidaÃ§Ã£o de Arquivos**: Verifica existÃªncia antes de processar
+        2. **ValidaÃ§Ã£o de Colunas**: Verifica se colunas essenciais existem antes de merge
+        3. **ValidaÃ§Ã£o de Volume**: Garante que Volume seja sempre numÃ©rico
+        4. **ValidaÃ§Ã£o de PerÃ­odo**: Normaliza para formato capitalizado
+        5. **ValidaÃ§Ã£o de HistÃ³rico**: Verifica tipos de dados ao carregar histÃ³rico
+        6. **ValidaÃ§Ã£o de Soma**: Calcula `Soma_Percentuais` para validar rateios
         """)
         
         st.markdown("---")
         
-        # Seção 11: Checklist para Manutenção
-        st.markdown("## ✅ CHECKLIST PARA MANUTENÇÃO {#checklist}")
+        # SeÃ§Ã£o 11: Checklist para ManutenÃ§Ã£o
+        st.markdown("## âœ… CHECKLIST PARA MANUTENÃ‡ÃƒO {#checklist}")
         
         st.markdown("### Antes de Modificar os Notebooks")
         
         checklist_antes = [
-            "Verificar se estrutura de pastas está correta",
-            "Verificar se nomes de guias estão corretos",
-            "Verificar se chaves de merge estão corretas",
-            "Verificar se tipos de dados estão consistentes",
-            "Verificar se normalização de Período está funcionando",
-            "Verificar se cálculo de veículos está correto",
-            "Verificar se consolidação de histórico está funcionando"
+            "Verificar se estrutura de pastas estÃ¡ correta",
+            "Verificar se nomes de guias estÃ£o corretos",
+            "Verificar se chaves de merge estÃ£o corretas",
+            "Verificar se tipos de dados estÃ£o consistentes",
+            "Verificar se normalizaÃ§Ã£o de PerÃ­odo estÃ¡ funcionando",
+            "Verificar se cÃ¡lculo de veÃ­culos estÃ¡ correto",
+            "Verificar se consolidaÃ§Ã£o de histÃ³rico estÃ¡ funcionando"
         ]
         
         for item in checklist_antes:
@@ -4340,26 +4341,26 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         checklist_modificar = [
             "Manter mesma estrutura de chaves de merge",
-            "Manter normalização de Período (capitalizado)",
-            "Manter tipos de dados consistentes (Volume sempre numérico)",
-            "Manter lógica de cálculo de veículos (CC21 = CC21% * Valor)",
-            "Manter processo de consolidação de histórico (concatenação, não substituição)",
+            "Manter normalizaÃ§Ã£o de PerÃ­odo (capitalizado)",
+            "Manter tipos de dados consistentes (Volume sempre numÃ©rico)",
+            "Manter lÃ³gica de cÃ¡lculo de veÃ­culos (CC21 = CC21% * Valor)",
+            "Manter processo de consolidaÃ§Ã£o de histÃ³rico (concatenaÃ§Ã£o, nÃ£o substituiÃ§Ã£o)",
             "Testar com dados de um ano antes de processar todos",
-            "Validar que Volume não está sendo zerado incorretamente",
-            "Validar que Soma_Percentuais está próximo de 1.0"
+            "Validar que Volume nÃ£o estÃ¡ sendo zerado incorretamente",
+            "Validar que Soma_Percentuais estÃ¡ prÃ³ximo de 1.0"
         ]
         
         for item in checklist_modificar:
             st.markdown(f"- [ ] {item}")
         
-        st.markdown("### Após Modificar")
+        st.markdown("### ApÃ³s Modificar")
         
         checklist_depois = [
             "Verificar se arquivos Parquet foram gerados corretamente",
-            "Verificar se histórico foi atualizado",
-            "Verificar se Volume está presente e numérico",
-            "Verificar se colunas de veículos foram calculadas",
-            "Verificar se não há erros de tipo de dados",
+            "Verificar se histÃ³rico foi atualizado",
+            "Verificar se Volume estÃ¡ presente e numÃ©rico",
+            "Verificar se colunas de veÃ­culos foram calculadas",
+            "Verificar se nÃ£o hÃ¡ erros de tipo de dados",
             "Testar carregamento no app.py",
             "Validar que dados aparecem corretamente no dashboard"
         ]
@@ -4367,178 +4368,178 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         for item in checklist_depois:
             st.markdown(f"- [ ] {item}")
         
-        st.markdown("### Regras Críticas que NUNCA Devem Ser Alteradas")
+        st.markdown("### Regras CrÃ­ticas que NUNCA Devem Ser Alteradas")
         
         st.warning("""
-        **⚠️ ATENÇÃO**: As seguintes regras são CRÍTICAS e não devem ser alteradas sem
-        análise profunda, pois podem quebrar todo o sistema:
+        **âš ï¸ ATENÃ‡ÃƒO**: As seguintes regras sÃ£o CRÃTICAS e nÃ£o devem ser alteradas sem
+        anÃ¡lise profunda, pois podem quebrar todo o sistema:
         
-        1. **Chaves de Merge**: `['Oficina', 'Período']` para Rateio e `['Oficina', 'Período', 'Veículo']` para Volume
-        2. **Normalização de Período**: Sempre capitalizado (Janeiro, Fevereiro, etc.)
-        3. **Cálculo de Veículos**: `CC21 = CC21% * Valor` (e similares)
-        4. **Consolidação de Histórico**: Sempre concatenar, nunca substituir
-        5. **Tipo de Volume**: Sempre numérico (float64), nunca object
-        6. **Estrutura de Pastas (TC Ext)**: `dados/TC_Ext/{ANO}/` para ano específico, `dados/TC_Ext/historico_consolidado/` para histórico
+        1. **Chaves de Merge**: `['Oficina', 'PerÃ­odo']` para Rateio e `['Oficina', 'PerÃ­odo', 'VeÃ­culo']` para Volume
+        2. **NormalizaÃ§Ã£o de PerÃ­odo**: Sempre capitalizado (Janeiro, Fevereiro, etc.)
+        3. **CÃ¡lculo de VeÃ­culos**: `CC21 = CC21% * Valor` (e similares)
+        4. **ConsolidaÃ§Ã£o de HistÃ³rico**: Sempre concatenar, nunca substituir
+        5. **Tipo de Volume**: Sempre numÃ©rico (float64), nunca object
+        6. **Estrutura de Pastas (TC Ext)**: `dados/TC_Ext/{ANO}/` para ano especÃ­fico, `dados/TC_Ext/historico_consolidado/` para histÃ³rico
         7. **Sufixo BUD**: Arquivos de Budget sempre com sufixo `_BUD` e em pasta `BUD/`
         """)
         
         st.markdown("---")
         
-        # Seção Final: Notas Importantes
-        st.markdown("## 📝 NOTAS IMPORTANTES PARA IA")
+        # SeÃ§Ã£o Final: Notas Importantes
+        st.markdown("## ðŸ“ NOTAS IMPORTANTES PARA IA")
         
-        st.markdown("### Quando Fazer Manutenção")
+        st.markdown("### Quando Fazer ManutenÃ§Ã£o")
         
         st.markdown("""
-        **Faça manutenção quando**:
+        **FaÃ§a manutenÃ§Ã£o quando**:
         - Estrutura dos arquivos Excel de entrada mudar
         - Novas colunas forem adicionadas aos dados
-        - Novos veículos forem adicionados ao sistema
-        - Lógica de rateio mudar
+        - Novos veÃ­culos forem adicionados ao sistema
+        - LÃ³gica de rateio mudar
         - Estrutura de pastas precisar ser alterada
         
-        **NÃO faça manutenção quando**:
+        **NÃƒO faÃ§a manutenÃ§Ã£o quando**:
         - Apenas dados novos forem adicionados (processe normalmente)
         - Apenas valores mudarem (processe normalmente)
         - Apenas anos novos forem processados (processe normalmente)
         """)
         
-        st.markdown("### Como Fazer Manutenção Segura")
+        st.markdown("### Como Fazer ManutenÃ§Ã£o Segura")
         
         st.markdown("""
         1. **Sempre teste primeiro**: Processe um ano de teste antes de processar todos
-        2. **Mantenha backups**: Faça backup dos arquivos Parquet antes de modificar
-        3. **Valide resultados**: Verifique se Volume, valores por veículo e histórico estão corretos
-        4. **Documente mudanças**: Adicione comentários explicando alterações
-        5. **Mantenha consistência**: Se alterar `tc_ext/notebooks/dados.ipynb`, altere `tc_ext/notebooks/dados_BUD.ipynb` da mesma forma
+        2. **Mantenha backups**: FaÃ§a backup dos arquivos Parquet antes de modificar
+        3. **Valide resultados**: Verifique se Volume, valores por veÃ­culo e histÃ³rico estÃ£o corretos
+        4. **Documente mudanÃ§as**: Adicione comentÃ¡rios explicando alteraÃ§Ãµes
+        5. **Mantenha consistÃªncia**: Se alterar `tc_ext/notebooks/dados.ipynb`, altere `tc_ext/notebooks/dados_BUD.ipynb` da mesma forma
         6. **Valide merges**: Sempre verifique se chaves de merge existem antes de fazer merge
-        7. **Valide tipos**: Sempre verifique tipos de dados após transformações
+        7. **Valide tipos**: Sempre verifique tipos de dados apÃ³s transformaÃ§Ãµes
         """)
         
-        st.markdown("### Estrutura de Dependências")
+        st.markdown("### Estrutura de DependÃªncias")
         
         st.code("""
         tc_ext/notebooks/dados.ipynb depende de:
-        ├── Reporting fluxo anexo.xlsx
-        │   ├── Guia "Sapiens" (dados principais)
-        │   ├── Guia "Rateio" (percentuais por veículo)
-        │   └── Guia "Volume" (volumes por veículo)
-        └── Dados SAPIENS.xlsx
-            └── Guia "Base conso" (mapeamento Custo)
+        â”œâ”€â”€ Reporting fluxo anexo.xlsx
+        â”‚   â”œâ”€â”€ Guia "Sapiens" (dados principais)
+        â”‚   â”œâ”€â”€ Guia "Rateio" (percentuais por veÃ­culo)
+        â”‚   â””â”€â”€ Guia "Volume" (volumes por veÃ­culo)
+        â””â”€â”€ Dados SAPIENS.xlsx
+            â””â”€â”€ Guia "Base conso" (mapeamento Custo)
         
         tc_ext/notebooks/dados_BUD.ipynb depende de:
-        ├── Reporting fluxo anexo.xlsx
-        │   ├── Guia "Voz de custo BDG" (dados principais)
-        │   ├── Guia "Rateio BDG" (percentuais por veículo)
-        │   └── Guia "Volume BDG" (volumes por veículo)
-        └── Dados SAPIENS.xlsx
-            └── Guia "Base conso" (mapeamento Custo)
+        â”œâ”€â”€ Reporting fluxo anexo.xlsx
+        â”‚   â”œâ”€â”€ Guia "Voz de custo BDG" (dados principais)
+        â”‚   â”œâ”€â”€ Guia "Rateio BDG" (percentuais por veÃ­culo)
+        â”‚   â””â”€â”€ Guia "Volume BDG" (volumes por veÃ­culo)
+        â””â”€â”€ Dados SAPIENS.xlsx
+            â””â”€â”€ Guia "Base conso" (mapeamento Custo)
         """, language="text")
         
         st.markdown("---")
         
         st.success("""
-        **✅ Este guia contém todas as informações necessárias para fazer manutenção**
-        nos notebooks de extração sem quebrar o sistema. Sempre consulte este guia
-        antes de fazer alterações e siga o checklist de validação.
+        **âœ… Este guia contÃ©m todas as informaÃ§Ãµes necessÃ¡rias para fazer manutenÃ§Ã£o**
+        nos notebooks de extraÃ§Ã£o sem quebrar o sistema. Sempre consulte este guia
+        antes de fazer alteraÃ§Ãµes e siga o checklist de validaÃ§Ã£o.
         """)
     
     # ==========================================
-    # CAPÍTULO 2: FUNCIONAMENTO DA ATUALIZAÇÃO E EXTRAÇÃO
+    # CAPÃTULO 2: FUNCIONAMENTO DA ATUALIZAÃ‡ÃƒO E EXTRAÃ‡ÃƒO
     # ==========================================
     
-    with st.expander("🔄 **Capítulo 2: Funcionamento da Atualização e Extração**", expanded=False):
+    with st.expander("ðŸ”„ **CapÃ­tulo 2: Funcionamento da AtualizaÃ§Ã£o e ExtraÃ§Ã£o**", expanded=False):
         st.markdown("""
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin: 2rem 0; color: white;">
-            <h2 style="color: white; margin: 0;">🔄 Capítulo 2: Funcionamento da Atualização e Extração</h2>
+            <h2 style="color: white; margin: 0;">ðŸ”„ CapÃ­tulo 2: Funcionamento da AtualizaÃ§Ã£o e ExtraÃ§Ã£o</h2>
             <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-                Processo Completo de Atualização de Dados - Passo a Passo Detalhado
+                Processo Completo de AtualizaÃ§Ã£o de Dados - Passo a Passo Detalhado
             </p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Seção 1: Visão Geral do Processo de Atualização
-        st.markdown("## 🎯 VISÃO GERAL DO PROCESSO DE ATUALIZAÇÃO {#visao-atualizacao}")
+        # SeÃ§Ã£o 1: VisÃ£o Geral do Processo de AtualizaÃ§Ã£o
+        st.markdown("## ðŸŽ¯ VISÃƒO GERAL DO PROCESSO DE ATUALIZAÃ‡ÃƒO {#visao-atualizacao}")
         
         st.markdown("""
-        Este capítulo descreve **como funciona o processo completo de atualização de dados**,
-        desde a preparação dos arquivos até a execução do processamento. Entender este fluxo
-        é essencial para realizar atualizações corretamente, especialmente quando se trabalha
+        Este capÃ­tulo descreve **como funciona o processo completo de atualizaÃ§Ã£o de dados**,
+        desde a preparaÃ§Ã£o dos arquivos atÃ© a execuÃ§Ã£o do processamento. Entender este fluxo
+        Ã© essencial para realizar atualizaÃ§Ãµes corretamente, especialmente quando se trabalha
         com novos anos ou quando se precisa atualizar arquivos existentes.
         """)
         
         st.info("""
-        **💡 Importante**: O sistema foi projetado para ser flexível e permitir atualizações
-        de diferentes formas: através de upload direto na interface, colocando arquivos na
+        **ðŸ’¡ Importante**: O sistema foi projetado para ser flexÃ­vel e permitir atualizaÃ§Ãµes
+        de diferentes formas: atravÃ©s de upload direto na interface, colocando arquivos na
         raiz do projeto, ou organizando-os nas pastas do ano. O sistema busca automaticamente
         os arquivos na ordem de prioridade definida.
         """)
         
         st.markdown("---")
         
-        # Seção 2: Ordem Cronológica dos Eventos
-        st.markdown("## ⏱️ ORDEM CRONOLÓGICA DOS EVENTOS {#ordem-cronologica}")
+        # SeÃ§Ã£o 2: Ordem CronolÃ³gica dos Eventos
+        st.markdown("## â±ï¸ ORDEM CRONOLÃ“GICA DOS EVENTOS {#ordem-cronologica}")
         
-        st.markdown("### Sequência Completa do Processo")
+        st.markdown("### SequÃªncia Completa do Processo")
         
-        with st.expander("**1️⃣ Seleção do Ano e Tipo de Extração**", expanded=False):
+        with st.expander("**1ï¸âƒ£ SeleÃ§Ã£o do Ano e Tipo de ExtraÃ§Ã£o**", expanded=False):
             st.markdown("""
-            **Onde**: Página "5 - Extração de Dados" (Streamlit)
+            **Onde**: PÃ¡gina "5 - ExtraÃ§Ã£o de Dados" (Streamlit)
             
             **Processo**:
-            1. Usuário seleciona o **ano** que deseja processar (ex: 2024, 2025, 2026)
-            2. Usuário seleciona o **tipo de extração**:
-               - 📊 **Dados REAIS** (tc_ext/notebooks/dados.ipynb) - Processa custos reais executados
-               - 💰 **Dados BUDGET** (tc_ext/notebooks/dados_BUD.ipynb) - Processa dados de orçamento
-               - 🔄 **Ambos** - Processa REAIS e BUDGET sequencialmente
+            1. UsuÃ¡rio seleciona o **ano** que deseja processar (ex: 2024, 2025, 2026)
+            2. UsuÃ¡rio seleciona o **tipo de extraÃ§Ã£o**:
+               - ðŸ“Š **Dados REAIS** (tc_ext/notebooks/dados.ipynb) - Processa custos reais executados
+               - ðŸ’° **Dados BUDGET** (tc_ext/notebooks/dados_BUD.ipynb) - Processa dados de orÃ§amento
+               - ðŸ”„ **Ambos** - Processa REAIS e BUDGET sequencialmente
             
             **Resultado**: Sistema sabe qual ano processar e quais notebooks executar
             """)
         
-        with st.expander("**2️⃣ Verificação e Preparação de Arquivos**", expanded=False):
+        with st.expander("**2ï¸âƒ£ VerificaÃ§Ã£o e PreparaÃ§Ã£o de Arquivos**", expanded=False):
             st.markdown("""
-            **Onde**: Antes do processamento, na aba "Validação de Arquivos"
+            **Onde**: Antes do processamento, na aba "ValidaÃ§Ã£o de Arquivos"
             
             **Processo**:
-            1. Sistema verifica se os arquivos necessários já existem
-            2. Sistema mostra avisos se arquivos já existem (para evitar sobrescrita acidental)
-            3. Usuário pode fazer upload de arquivos diretamente na interface
+            1. Sistema verifica se os arquivos necessÃ¡rios jÃ¡ existem
+            2. Sistema mostra avisos se arquivos jÃ¡ existem (para evitar sobrescrita acidental)
+            3. UsuÃ¡rio pode fazer upload de arquivos diretamente na interface
             
-            **Arquivos Necessários para Dados REAIS**:
-            - `Dados SAPIENS.xlsx` - Base de dados SAPIENS com classificação de custos
+            **Arquivos NecessÃ¡rios para Dados REAIS**:
+            - `Dados SAPIENS.xlsx` - Base de dados SAPIENS com classificaÃ§Ã£o de custos
             - `Reporting fluxo anexo.xlsx` - Dados de custos, rateio e volumes
             
-            **Arquivos Necessários para Dados BUDGET**:
-            - `Dados SAPIENS.xlsx` - Base de dados SAPIENS (mesmo arquivo ou versão Budget)
+            **Arquivos NecessÃ¡rios para Dados BUDGET**:
+            - `Dados SAPIENS.xlsx` - Base de dados SAPIENS (mesmo arquivo ou versÃ£o Budget)
             - `Reporting fluxo anexo.xlsx` - Dados de Budget (guias "Voz de custo BDG", "Rateio BDG", "Volume BDG")
             """)
         
-        with st.expander("**3️⃣ Sistema de Upload de Arquivos (Opcional)**", expanded=False):
+        with st.expander("**3ï¸âƒ£ Sistema de Upload de Arquivos (Opcional)**", expanded=False):
             st.markdown("""
-            **Onde**: Aba "Validação de Arquivos" → Seção "📤 Upload de Arquivos"
+            **Onde**: Aba "ValidaÃ§Ã£o de Arquivos" â†’ SeÃ§Ã£o "ðŸ“¤ Upload de Arquivos"
             
             **Processo**:
-            1. Usuário clica em "Browse Files" para selecionar arquivo
-            2. **ANTES do upload**: Sistema verifica se arquivo já existe na pasta de destino
-               - Se existe: Mostra aviso ⚠️ informando que será sobrescrito
-               - Se não existe: Permite upload direto
-            3. Usuário seleciona arquivo do computador
-            4. **APÓS seleção**: Sistema verifica novamente se arquivo existe
-               - Se existe: Mostra aviso e botão "🔄 Confirmar Sobrescrita"
-               - Se não existe: Salva automaticamente
-            5. Arquivo é salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
-            6. Página recarrega automaticamente (`st.rerun()`) para atualizar status
+            1. UsuÃ¡rio clica em "Browse Files" para selecionar arquivo
+            2. **ANTES do upload**: Sistema verifica se arquivo jÃ¡ existe na pasta de destino
+               - Se existe: Mostra aviso âš ï¸ informando que serÃ¡ sobrescrito
+               - Se nÃ£o existe: Permite upload direto
+            3. UsuÃ¡rio seleciona arquivo do computador
+            4. **APÃ“S seleÃ§Ã£o**: Sistema verifica novamente se arquivo existe
+               - Se existe: Mostra aviso e botÃ£o "ðŸ”„ Confirmar Sobrescrita"
+               - Se nÃ£o existe: Salva automaticamente
+            5. Arquivo Ã© salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
+            6. PÃ¡gina recarrega automaticamente (`st.rerun()`) para atualizar status
             
             **Vantagens do Upload**:
-            - Não precisa colocar arquivos na raiz do projeto
-            - Arquivos são organizados automaticamente na pasta do ano
-            - Sistema cria a pasta do ano automaticamente se não existir
+            - NÃ£o precisa colocar arquivos na raiz do projeto
+            - Arquivos sÃ£o organizados automaticamente na pasta do ano
+            - Sistema cria a pasta do ano automaticamente se nÃ£o existir
             - Avisos preventivos evitam sobrescrita acidental
             """)
         
-        with st.expander("**4️⃣ Criação da Estrutura de Pastas**", expanded=False):
+        with st.expander("**4ï¸âƒ£ CriaÃ§Ã£o da Estrutura de Pastas**", expanded=False):
             st.markdown("""
-            **Onde**: Função `configurar_ano()` ou `configurar_ano_bud()` nos módulos Python
+            **Onde**: FunÃ§Ã£o `configurar_ano()` ou `configurar_ano_bud()` nos mÃ³dulos Python
             
             **Processo** (executado automaticamente ao iniciar processamento):
                 1. **Cria pasta do ano**: `dados/TC_Ext/{ANO}/`
@@ -4547,143 +4548,143 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             
                 2. **Para dados REAIS**: Cria apenas `dados/TC_Ext/{ANO}/`
             
-                3. **Para dados BUDGET**: Cria também `dados/TC_Ext/{ANO}/BUD/`
+                3. **Para dados BUDGET**: Cria tambÃ©m `dados/TC_Ext/{ANO}/BUD/`
                           - Estrutura: `dados/TC_Ext/2024/BUD/` para **outputs** de Budget
             
-            4. **Cria pastas de histórico** (se não existirem):
+            4. **Cria pastas de histÃ³rico** (se nÃ£o existirem):
                     - `dados/TC_Ext/historico_consolidado/` - Para dados REAIS
                     - `dados/TC_Ext/historico_consolidado/BUD/` - Para dados BUDGET
             
             **IMPORTANTE**: 
-            - Pastas são criadas automaticamente, mesmo que não existam
-            - Se a pasta já existe, não há problema (não sobrescreve)
-            - Sistema usa `os.makedirs(pasta, exist_ok=True)` para criar com segurança
+            - Pastas sÃ£o criadas automaticamente, mesmo que nÃ£o existam
+            - Se a pasta jÃ¡ existe, nÃ£o hÃ¡ problema (nÃ£o sobrescreve)
+            - Sistema usa `os.makedirs(pasta, exist_ok=True)` para criar com seguranÃ§a
             """)
         
-        with st.expander("**5️⃣ Sistema de Busca de Arquivos**", expanded=False):
+        with st.expander("**5ï¸âƒ£ Sistema de Busca de Arquivos**", expanded=False):
             st.markdown("""
-            **Onde**: Função `encontrar_arquivo()` nos módulos de processamento
+            **Onde**: FunÃ§Ã£o `encontrar_arquivo()` nos mÃ³dulos de processamento
             
-            **Ordem de Prioridade de Busca** (do mais prioritário ao menos prioritário):
+            **Ordem de Prioridade de Busca** (do mais prioritÃ¡rio ao menos prioritÃ¡rio):
             
             **Para Dados REAIS**:
-                1. **Primeira opção**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
+                1. **Primeira opÃ§Ã£o**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
                     - Exemplo: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
-               - **Esta é a pasta preferencial!** Arquivos aqui têm prioridade máxima
+               - **Esta Ã© a pasta preferencial!** Arquivos aqui tÃªm prioridade mÃ¡xima
             
-            2. **Segunda opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
+            2. **Segunda opÃ§Ã£o**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
                - Exemplo: `./Dados SAPIENS.xlsx`
-               - Usado quando arquivo não está na pasta do ano
+               - Usado quando arquivo nÃ£o estÃ¡ na pasta do ano
             
             **Para Dados BUDGET**:
-                1. **Primeira opção**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
+                1. **Primeira opÃ§Ã£o**: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
                     - Exemplo: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
 
-                2. **Segunda opção**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
+                2. **Segunda opÃ§Ã£o**: `./Nome_do_Arquivo.xlsx` (raiz do projeto)
 
                 *(Compatibilidade/legado)*: se existir arquivo em `dados/TC_Ext/{ANO}/BUD/`, ele pode ser **copiado** para `dados/TC_Ext/{ANO}/`.
             
             **Comportamento**:
             - Sistema busca na ordem acima e usa o **primeiro arquivo encontrado**
-            - Se arquivo não for encontrado em nenhum local, sistema retorna erro
-            - Se arquivo for encontrado na raiz, pode ser copiado para pasta do ano (dependendo da configuração)
+            - Se arquivo nÃ£o for encontrado em nenhum local, sistema retorna erro
+            - Se arquivo for encontrado na raiz, pode ser copiado para pasta do ano (dependendo da configuraÃ§Ã£o)
             
-            **Exemplo Prático - Processando 2026 pela primeira vez**:
+            **Exemplo PrÃ¡tico - Processando 2026 pela primeira vez**:
             ```
             1. Sistema cria: dados/TC_Ext/2026/
-            2. Sistema busca: dados/TC_Ext/2026/Dados SAPIENS.xlsx → ❌ Não encontrado
-            3. Sistema busca: ./Dados SAPIENS.xlsx → ✅ Encontrado na raiz
+            2. Sistema busca: dados/TC_Ext/2026/Dados SAPIENS.xlsx â†’ âŒ NÃ£o encontrado
+            3. Sistema busca: ./Dados SAPIENS.xlsx â†’ âœ… Encontrado na raiz
             4. Sistema usa: ./Dados SAPIENS.xlsx (da raiz)
-            5. Arquivos de saída são salvos em: dados/TC_Ext/2026/
+            5. Arquivos de saÃ­da sÃ£o salvos em: dados/TC_Ext/2026/
             ```
             """)
         
-        with st.expander("**6️⃣ Execução do Processamento**", expanded=False):
+        with st.expander("**6ï¸âƒ£ ExecuÃ§Ã£o do Processamento**", expanded=False):
             st.markdown("""
-            **Onde**: Aba "Executar Processamento" → Botões de execução
+            **Onde**: Aba "Executar Processamento" â†’ BotÃµes de execuÃ§Ã£o
             
             **Processo**:
-            1. Usuário clica em botão de execução:
-               - "🚀 Executar tc_ext/notebooks/dados.ipynb" (para REAIS)
-               - "🚀 Executar tc_ext/notebooks/dados_BUD.ipynb" (para BUDGET)
-               - "🚀 Executar Ambos" (para REAIS e BUDGET)
+            1. UsuÃ¡rio clica em botÃ£o de execuÃ§Ã£o:
+               - "ðŸš€ Executar tc_ext/notebooks/dados.ipynb" (para REAIS)
+               - "ðŸš€ Executar tc_ext/notebooks/dados_BUD.ipynb" (para BUDGET)
+               - "ðŸš€ Executar Ambos" (para REAIS e BUDGET)
             
-            2. Sistema chama função de processamento correspondente:
+            2. Sistema chama funÃ§Ã£o de processamento correspondente:
                - `processar_completo()` para dados REAIS
                - `processar_completo_bud()` para dados BUDGET
             
-            3. **Configuração inicial**:
+            3. **ConfiguraÃ§Ã£o inicial**:
                - Chama `configurar_ano()` ou `configurar_ano_bud()`
                - Cria estrutura de pastas
                - Busca arquivos usando `encontrar_arquivo()`
                - Valida se arquivos existem
             
             4. **Processamento dos dados**:
-               - Lê arquivos Excel das guias corretas
-               - Faz merges e transformações
-               - Calcula valores por veículo
+               - LÃª arquivos Excel das guias corretas
+               - Faz merges e transformaÃ§Ãµes
+               - Calcula valores por veÃ­culo
                - Processa volumes
             
             5. **Salvamento**:
                - Salva arquivos Parquet na pasta do ano (ou BUD/)
-               - Salva arquivos Excel intermediários (diagnósticos)
-               - Consolida histórico (concatena, não substitui)
+               - Salva arquivos Excel intermediÃ¡rios (diagnÃ³sticos)
+               - Consolida histÃ³rico (concatena, nÃ£o substitui)
             
-            6. **Feedback ao usuário**:
+            6. **Feedback ao usuÃ¡rio**:
                - Barra de progresso mostra status
                - Mensagens de log aparecem em tempo real
                - Mensagem de sucesso ao finalizar
             """)
         
-        with st.expander("**7️⃣ Consolidação do Histórico**", expanded=False):
+        with st.expander("**7ï¸âƒ£ ConsolidaÃ§Ã£o do HistÃ³rico**", expanded=False):
             st.markdown("""
-            **Onde**: Função `salvar_e_consolidar()` ou `salvar_e_consolidar_bud()`
+            **Onde**: FunÃ§Ã£o `salvar_e_consolidar()` ou `salvar_e_consolidar_bud()`
             
             **Processo**:
-            1. **Carrega histórico existente** (se existir):
+            1. **Carrega histÃ³rico existente** (se existir):
                     - Tenta carregar: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
-               - Se não existir, cria DataFrame vazio
+               - Se nÃ£o existir, cria DataFrame vazio
             
             2. **Adiciona coluna Ano aos dados atuais**:
                - Adiciona coluna `Ano` com valor do ano processado
                - Exemplo: Se processando 2026, todos os registros recebem `Ano = 2026`
             
             3. **Concatena dados**:
-               - Concatena dados do ano atual com histórico existente
+               - Concatena dados do ano atual com histÃ³rico existente
                - Usa `pd.concat([historico, dados_atuais])`
             
             4. **Remove duplicatas** (se houver):
                - Verifica e remove registros duplicados
             
             5. **Valida tipos de dados**:
-               - Garante que Volume é numérico (float64)
-               - Converte tipos se necessário
+               - Garante que Volume Ã© numÃ©rico (float64)
+               - Converte tipos se necessÃ¡rio
             
-            6. **Salva histórico atualizado**:
+            6. **Salva histÃ³rico atualizado**:
                     - Salva em: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
-               - **IMPORTANTE**: Histórico é sempre **concatenado**, nunca substituído
+               - **IMPORTANTE**: HistÃ³rico Ã© sempre **concatenado**, nunca substituÃ­do
             
-            **Resultado**: Histórico contém dados de todos os anos processados
+            **Resultado**: HistÃ³rico contÃ©m dados de todos os anos processados
             """)
         
         st.markdown("---")
         
-        # Seção 3: Sistema de Busca de Arquivos (Detalhado)
-        st.markdown("## 🔍 SISTEMA DE BUSCA DE ARQUIVOS {#busca-arquivos}")
+        # SeÃ§Ã£o 3: Sistema de Busca de Arquivos (Detalhado)
+        st.markdown("## ðŸ” SISTEMA DE BUSCA DE ARQUIVOS {#busca-arquivos}")
         
-        st.markdown("### Lógica de Busca Detalhada")
+        st.markdown("### LÃ³gica de Busca Detalhada")
         
         st.markdown("""
-        O sistema implementa uma **busca hierárquica** que prioriza arquivos organizados
+        O sistema implementa uma **busca hierÃ¡rquica** que prioriza arquivos organizados
         nas pastas do ano, mas permite flexibilidade ao buscar na raiz do projeto quando
-        necessário. Isso facilita o trabalho com novos anos sem precisar mover arquivos manualmente.
+        necessÃ¡rio. Isso facilita o trabalho com novos anos sem precisar mover arquivos manualmente.
         """)
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("""
-            **📊 Dados REAIS - Ordem de Busca:**
+            **ðŸ“Š Dados REAIS - Ordem de Busca:**
             
             1. `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx`
             2. `./Dados SAPIENS.xlsx` (raiz)
@@ -4694,7 +4695,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
         
         with col2:
             st.markdown("""
-            **💰 Dados BUDGET - Ordem de Busca:**
+            **ðŸ’° Dados BUDGET - Ordem de Busca:**
             
             1. `dados/TC_Ext/{ANO}/Dados SAPIENS.xlsx`
             2. `./Dados SAPIENS.xlsx` (raiz)
@@ -4703,241 +4704,241 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             2. `./Reporting fluxo anexo.xlsx` (raiz)
             """)
         
-        st.markdown("### Exemplos Práticos de Busca")
+        st.markdown("### Exemplos PrÃ¡ticos de Busca")
         
         with st.expander("**Exemplo 1: Processando 2024 (ano existente)**", expanded=False):
             st.markdown("""
-            **Cenário**: Pasta `dados/TC_Ext/2024/` já existe com arquivos
+            **CenÃ¡rio**: Pasta `dados/TC_Ext/2024/` jÃ¡ existe com arquivos
             
             **Busca de Dados SAPIENS.xlsx**:
-            1. ✅ Encontrado em: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
-            2. Sistema usa este arquivo (para na primeira opção)
+            1. âœ… Encontrado em: `dados/TC_Ext/2024/Dados SAPIENS.xlsx`
+            2. Sistema usa este arquivo (para na primeira opÃ§Ã£o)
             
-            **Resultado**: Arquivo da pasta do ano é usado (prioridade máxima)
+            **Resultado**: Arquivo da pasta do ano Ã© usado (prioridade mÃ¡xima)
             """)
         
         with st.expander("**Exemplo 2: Processando 2026 (ano novo)**", expanded=False):
             st.markdown("""
-            **Cenário**: Pasta `dados/TC_Ext/2026/` não existe ainda, arquivo está na raiz
+            **CenÃ¡rio**: Pasta `dados/TC_Ext/2026/` nÃ£o existe ainda, arquivo estÃ¡ na raiz
             
             **Busca de Dados SAPIENS.xlsx**:
-            1. ❌ Não encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx` (pasta não existe)
-            2. ✅ Encontrado em: `./Dados SAPIENS.xlsx` (raiz do projeto)
+            1. âŒ NÃ£o encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx` (pasta nÃ£o existe)
+            2. âœ… Encontrado em: `./Dados SAPIENS.xlsx` (raiz do projeto)
             3. Sistema usa arquivo da raiz
             
             **Resultado**: 
             - Sistema cria `dados/TC_Ext/2026/` automaticamente
-            - Arquivo da raiz é usado para processamento
-            - Arquivos de saída são salvos em `dados/TC_Ext/2026/`
-            - **Arquivo da raiz permanece na raiz** (não é movido automaticamente)
+            - Arquivo da raiz Ã© usado para processamento
+            - Arquivos de saÃ­da sÃ£o salvos em `dados/TC_Ext/2026/`
+            - **Arquivo da raiz permanece na raiz** (nÃ£o Ã© movido automaticamente)
             """)
         
         with st.expander("**Exemplo 3: Upload de Arquivo para 2026**", expanded=False):
             st.markdown("""
-            **Cenário**: Usuário faz upload de arquivo para ano 2026
+            **CenÃ¡rio**: UsuÃ¡rio faz upload de arquivo para ano 2026
             
             **Processo**:
-            1. Sistema cria `dados/TC_Ext/2026/` (se não existir)
-            2. Usuário faz upload de `Dados SAPIENS.xlsx`
-            3. Arquivo é salvo em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
+            1. Sistema cria `dados/TC_Ext/2026/` (se nÃ£o existir)
+            2. UsuÃ¡rio faz upload de `Dados SAPIENS.xlsx`
+            3. Arquivo Ã© salvo em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
             
-            **Próxima busca**:
-            1. ✅ Encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
-            2. Sistema usa este arquivo (prioridade máxima)
+            **PrÃ³xima busca**:
+            1. âœ… Encontrado em: `dados/TC_Ext/2026/Dados SAPIENS.xlsx`
+            2. Sistema usa este arquivo (prioridade mÃ¡xima)
             
             **Resultado**: Arquivo uploadado tem prioridade sobre arquivo da raiz
             """)
         
         st.markdown("---")
         
-        # Seção 4: Criação de Pastas e Estrutura
-        st.markdown("## 📁 CRIAÇÃO DE PASTAS E ESTRUTURA {#criacao-pastas}")
+        # SeÃ§Ã£o 4: CriaÃ§Ã£o de Pastas e Estrutura
+        st.markdown("## ðŸ“ CRIAÃ‡ÃƒO DE PASTAS E ESTRUTURA {#criacao-pastas}")
         
         st.markdown("### Estrutura Completa de Pastas")
         
         st.code("""
         dados/TC_Ext/
-        ├── 2024/                    # Ano 2024 (dados REAIS)
-        │   ├── Dados SAPIENS.xlsx
-        │   ├── Reporting fluxo anexo.xlsx
-        │   ├── df_final.parquet
-        │   ├── df_vol.parquet
-        │   ├── df_ke5z_group.parquet
-        │   └── BUD/                 # Dados BUDGET do ano 2024
-        │       ├── Dados SAPIENS.xlsx (opcional)
-        │       ├── Reporting fluxo anexo.xlsx (opcional)
-        │       ├── df_final_BUD.parquet
-        │       ├── df_vol_BUD.parquet
-        │       └── df_ke5z_group_BUD.parquet
-        │
-        ├── 2025/                    # Ano 2025
-        │   └── ...
-        │
-        ├── 2026/                    # Ano 2026 (novo ano)
-        │   └── ...                  # Criado automaticamente
-        │
-        └── historico_consolidado/   # Histórico de todos os anos
-            ├── df_final_historico.parquet
-            ├── df_vol_historico.parquet
-            └── BUD/
-                ├── df_final_historico_BUD.parquet
-                └── df_vol_historico_BUD.parquet
+        â”œâ”€â”€ 2024/                    # Ano 2024 (dados REAIS)
+        â”‚   â”œâ”€â”€ Dados SAPIENS.xlsx
+        â”‚   â”œâ”€â”€ Reporting fluxo anexo.xlsx
+        â”‚   â”œâ”€â”€ df_final.parquet
+        â”‚   â”œâ”€â”€ df_vol.parquet
+        â”‚   â”œâ”€â”€ df_ke5z_group.parquet
+        â”‚   â””â”€â”€ BUD/                 # Dados BUDGET do ano 2024
+        â”‚       â”œâ”€â”€ Dados SAPIENS.xlsx (opcional)
+        â”‚       â”œâ”€â”€ Reporting fluxo anexo.xlsx (opcional)
+        â”‚       â”œâ”€â”€ df_final_BUD.parquet
+        â”‚       â”œâ”€â”€ df_vol_BUD.parquet
+        â”‚       â””â”€â”€ df_ke5z_group_BUD.parquet
+        â”‚
+        â”œâ”€â”€ 2025/                    # Ano 2025
+        â”‚   â””â”€â”€ ...
+        â”‚
+        â”œâ”€â”€ 2026/                    # Ano 2026 (novo ano)
+        â”‚   â””â”€â”€ ...                  # Criado automaticamente
+        â”‚
+        â””â”€â”€ historico_consolidado/   # HistÃ³rico de todos os anos
+            â”œâ”€â”€ df_final_historico.parquet
+            â”œâ”€â”€ df_vol_historico.parquet
+            â””â”€â”€ BUD/
+                â”œâ”€â”€ df_final_historico_BUD.parquet
+                â””â”€â”€ df_vol_historico_BUD.parquet
         """, language="text")
         
-        st.markdown("### Quando as Pastas São Criadas")
+        st.markdown("### Quando as Pastas SÃ£o Criadas")
         
-        with st.expander("**Criação Automática**", expanded=False):
+        with st.expander("**CriaÃ§Ã£o AutomÃ¡tica**", expanded=False):
             st.markdown("""
-            **Momento**: Ao iniciar o processamento (função `configurar_ano()`)
+            **Momento**: Ao iniciar o processamento (funÃ§Ã£o `configurar_ano()`)
             
             **Pastas criadas automaticamente**:
             - `dados/TC_Ext/{ANO}/` - Sempre criada, mesmo que vazia
             - `dados/TC_Ext/{ANO}/BUD/` - Criada apenas para **outputs** do processamento BUDGET
-            - `dados/TC_Ext/historico_consolidado/` - Criada se não existir
-            - `dados/TC_Ext/historico_consolidado/BUD/` - Criada se não existir (para BUDGET)
+            - `dados/TC_Ext/historico_consolidado/` - Criada se nÃ£o existir
+            - `dados/TC_Ext/historico_consolidado/BUD/` - Criada se nÃ£o existir (para BUDGET)
             
             **Comando usado**: `os.makedirs(pasta, exist_ok=True)`
-            - `exist_ok=True` significa que não dá erro se pasta já existe
-            - Cria todas as pastas intermediárias automaticamente
+            - `exist_ok=True` significa que nÃ£o dÃ¡ erro se pasta jÃ¡ existe
+            - Cria todas as pastas intermediÃ¡rias automaticamente
             """)
         
-        with st.expander("**Criação via Upload**", expanded=False):
+        with st.expander("**CriaÃ§Ã£o via Upload**", expanded=False):
             st.markdown("""
-            **Momento**: Quando usuário faz upload de arquivo
+            **Momento**: Quando usuÃ¡rio faz upload de arquivo
             
             **Processo**:
-            1. Usuário seleciona arquivo para upload
+            1. UsuÃ¡rio seleciona arquivo para upload
             2. Sistema verifica se pasta `dados/TC_Ext/{ANO}/` existe
-            3. Se não existe: Cria automaticamente com `os.makedirs(pasta_ano, exist_ok=True)`
+            3. Se nÃ£o existe: Cria automaticamente com `os.makedirs(pasta_ano, exist_ok=True)`
             4. Salva arquivo em: `dados/TC_Ext/{ANO}/Nome_do_Arquivo.xlsx`
             
-            **Resultado**: Pasta do ano é criada antes mesmo do processamento
+            **Resultado**: Pasta do ano Ã© criada antes mesmo do processamento
             """)
         
         st.markdown("---")
         
-        # Seção 5: Sistema de Upload de Arquivos
-        st.markdown("## 📤 SISTEMA DE UPLOAD DE ARQUIVOS {#sistema-upload}")
+        # SeÃ§Ã£o 5: Sistema de Upload de Arquivos
+        st.markdown("## ðŸ“¤ SISTEMA DE UPLOAD DE ARQUIVOS {#sistema-upload}")
         
         st.markdown("### Funcionalidades do Upload")
         
         st.markdown("""
         O sistema de upload permite que arquivos sejam enviados diretamente pela interface
-        web, sem necessidade de colocá-los manualmente na raiz do projeto ou nas pastas.
-        Isso facilita especialmente o trabalho com novos anos ou atualizações de arquivos.
+        web, sem necessidade de colocÃ¡-los manualmente na raiz do projeto ou nas pastas.
+        Isso facilita especialmente o trabalho com novos anos ou atualizaÃ§Ãµes de arquivos.
         """)
         
         with st.expander("**Interface de Upload**", expanded=False):
             st.markdown("""
-            **Localização**: Página "5 - Extração de Dados" → Aba "Validação de Arquivos" → Seção "📤 Upload de Arquivos"
+            **LocalizaÃ§Ã£o**: PÃ¡gina "5 - ExtraÃ§Ã£o de Dados" â†’ Aba "ValidaÃ§Ã£o de Arquivos" â†’ SeÃ§Ã£o "ðŸ“¤ Upload de Arquivos"
             
             **Componentes**:
             - Uploaders separados por tipo de processamento (REAIS ou BUDGET)
             - Uploaders separados por arquivo (Dados SAPIENS.xlsx e Reporting fluxo anexo.xlsx)
-            - Avisos proativos mostrando se arquivo já existe
-            - Mensagens de confirmação após upload bem-sucedido
+            - Avisos proativos mostrando se arquivo jÃ¡ existe
+            - Mensagens de confirmaÃ§Ã£o apÃ³s upload bem-sucedido
             
             **Layout**: Dois uploaders lado a lado (colunas) para cada tipo de processamento
             """)
         
         with st.expander("**Fluxo Completo de Upload**", expanded=False):
             st.markdown("""
-            **Passo 1: Verificação Proativa**
-            - Ao carregar a página, sistema verifica se arquivos já existem
-            - Se existem: Mostra aviso ⚠️ acima do botão "Browse Files"
-            - Aviso informa: "O arquivo já existe e será sobrescrito se você fizer upload"
+            **Passo 1: VerificaÃ§Ã£o Proativa**
+            - Ao carregar a pÃ¡gina, sistema verifica se arquivos jÃ¡ existem
+            - Se existem: Mostra aviso âš ï¸ acima do botÃ£o "Browse Files"
+            - Aviso informa: "O arquivo jÃ¡ existe e serÃ¡ sobrescrito se vocÃª fizer upload"
             
-            **Passo 2: Seleção do Arquivo**
-            - Usuário clica em "Browse Files"
+            **Passo 2: SeleÃ§Ã£o do Arquivo**
+            - UsuÃ¡rio clica em "Browse Files"
             - Seleciona arquivo do computador
             - Sistema detecta que arquivo foi selecionado
             
-            **Passo 3: Verificação Pós-Seleção**
+            **Passo 3: VerificaÃ§Ã£o PÃ³s-SeleÃ§Ã£o**
             - Sistema verifica novamente se arquivo existe na pasta de destino
-            - Se existe: Mostra aviso adicional e botão "🔄 Confirmar Sobrescrita"
-            - Se não existe: Prossegue para salvamento automático
+            - Se existe: Mostra aviso adicional e botÃ£o "ðŸ”„ Confirmar Sobrescrita"
+            - Se nÃ£o existe: Prossegue para salvamento automÃ¡tico
             
-            **Passo 4: Confirmação (se necessário)**
-            - Se arquivo existe, usuário deve clicar em "🔄 Confirmar Sobrescrita"
-            - Botão só aparece se arquivo realmente existe
-            - Confirmação evita sobrescrita acidental
+            **Passo 4: ConfirmaÃ§Ã£o (se necessÃ¡rio)**
+            - Se arquivo existe, usuÃ¡rio deve clicar em "ðŸ”„ Confirmar Sobrescrita"
+            - BotÃ£o sÃ³ aparece se arquivo realmente existe
+            - ConfirmaÃ§Ã£o evita sobrescrita acidental
             
             **Passo 5: Salvamento**
-            - Arquivo é salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
-            - Pasta do ano é criada automaticamente se não existir
-            - Mensagem de sucesso é exibida
+            - Arquivo Ã© salvo em: `dados/TC_Ext/{ANO_SELECIONADO}/Nome_do_Arquivo.xlsx`
+            - Pasta do ano Ã© criada automaticamente se nÃ£o existir
+            - Mensagem de sucesso Ã© exibida
             
-            **Passo 6: Atualização Automática**
-            - Página recarrega automaticamente (`st.rerun()`)
-            - Status dos arquivos é atualizado
-            - Avisos são atualizados (se arquivo agora existe)
+            **Passo 6: AtualizaÃ§Ã£o AutomÃ¡tica**
+            - PÃ¡gina recarrega automaticamente (`st.rerun()`)
+            - Status dos arquivos Ã© atualizado
+            - Avisos sÃ£o atualizados (se arquivo agora existe)
             """)
         
         with st.expander("**Vantagens do Sistema de Upload**", expanded=False):
             st.markdown("""
-            ✅ **Organização Automática**: Arquivos são salvos na pasta correta automaticamente
+            âœ… **OrganizaÃ§Ã£o AutomÃ¡tica**: Arquivos sÃ£o salvos na pasta correta automaticamente
             
-            ✅ **Flexibilidade**: Não precisa colocar arquivos na raiz do projeto
+            âœ… **Flexibilidade**: NÃ£o precisa colocar arquivos na raiz do projeto
             
-            ✅ **Segurança**: Avisos preventivos evitam sobrescrita acidental
+            âœ… **SeguranÃ§a**: Avisos preventivos evitam sobrescrita acidental
             
-            ✅ **Facilidade**: Especialmente útil para novos anos (ex: 2026)
+            âœ… **Facilidade**: Especialmente Ãºtil para novos anos (ex: 2026)
             
-            ✅ **Rastreabilidade**: Mensagens claras mostram onde arquivo foi salvo
+            âœ… **Rastreabilidade**: Mensagens claras mostram onde arquivo foi salvo
             
-            ✅ **Validação**: Sistema verifica existência antes e depois do upload
+            âœ… **ValidaÃ§Ã£o**: Sistema verifica existÃªncia antes e depois do upload
             """)
         
         st.markdown("---")
         
-        # Seção 6: Processamento e Execução
-        st.markdown("## ⚙️ PROCESSAMENTO E EXECUÇÃO {#processamento-execucao}")
+        # SeÃ§Ã£o 6: Processamento e ExecuÃ§Ã£o
+        st.markdown("## âš™ï¸ PROCESSAMENTO E EXECUÃ‡ÃƒO {#processamento-execucao}")
         
-        st.markdown("### Fluxo de Execução Completo")
+        st.markdown("### Fluxo de ExecuÃ§Ã£o Completo")
         
         st.markdown("""
-        O processamento segue uma sequência bem definida, garantindo que todos os passos
+        O processamento segue uma sequÃªncia bem definida, garantindo que todos os passos
         sejam executados na ordem correta e que os dados sejam processados e salvos adequadamente.
         """)
         
-        with st.expander("**Fase 1: Preparação**", expanded=False):
+        with st.expander("**Fase 1: PreparaÃ§Ã£o**", expanded=False):
             st.markdown("""
-            1. **Configuração do Ano**:
+            1. **ConfiguraÃ§Ã£o do Ano**:
                - Chama `configurar_ano()` ou `configurar_ano_bud()`
                - Cria estrutura de pastas
-               - Define caminhos de entrada e saída
+               - Define caminhos de entrada e saÃ­da
             
             2. **Busca de Arquivos**:
                - Busca `Dados SAPIENS.xlsx` na ordem de prioridade
                - Busca `Reporting fluxo anexo.xlsx` na ordem de prioridade
                - Valida se arquivos foram encontrados
             
-            3. **Validação**:
-               - Verifica se todos os arquivos necessários existem
-               - Se faltar arquivo: Retorna erro ou aviso (dependendo da configuração)
+            3. **ValidaÃ§Ã£o**:
+               - Verifica se todos os arquivos necessÃ¡rios existem
+               - Se faltar arquivo: Retorna erro ou aviso (dependendo da configuraÃ§Ã£o)
             """)
         
-        with st.expander("**Fase 2: Leitura e Transformação**", expanded=False):
+        with st.expander("**Fase 2: Leitura e TransformaÃ§Ã£o**", expanded=False):
             st.markdown("""
             1. **Leitura dos Dados Principais**:
-               - Lê guia "Sapiens" ou "Voz de custo BDG" do Reporting fluxo anexo.xlsx
+               - LÃª guia "Sapiens" ou "Voz de custo BDG" do Reporting fluxo anexo.xlsx
                - Cria DataFrame inicial (`df_KE5Z`)
             
             2. **Merge com Base Conso**:
-               - Lê guia "Base conso" do Dados SAPIENS.xlsx
-               - Faz merge adicionando coluna `Custo` (Variável/Fixo)
+               - LÃª guia "Base conso" do Dados SAPIENS.xlsx
+               - Faz merge adicionando coluna `Custo` (VariÃ¡vel/Fixo)
             
             3. **Processamento de Rateio**:
-               - Lê guia "Rateio" ou "Rateio BDG"
+               - LÃª guia "Rateio" ou "Rateio BDG"
                - Transforma colunas de meses em linhas
-               - Cria DataFrame com percentuais de rateio por veículo
+               - Cria DataFrame com percentuais de rateio por veÃ­culo
             
-            4. **Merge e Cálculo por Veículo**:
+            4. **Merge e CÃ¡lculo por VeÃ­culo**:
                - Merge com dados principais
-               - Calcula valores por veículo (CC21, CC22, etc.)
+               - Calcula valores por veÃ­culo (CC21, CC22, etc.)
             
             5. **Processamento de Volume**:
-               - Lê guia "Volume" ou "Volume BDG"
+               - LÃª guia "Volume" ou "Volume BDG"
                - Transforma colunas de meses em linhas
                - Cria DataFrame com volumes
             
@@ -4945,502 +4946,502 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
                - Adiciona coluna Volume ao DataFrame principal
             """)
         
-        with st.expander("**Fase 3: Salvamento e Consolidação**", expanded=False):
+        with st.expander("**Fase 3: Salvamento e ConsolidaÃ§Ã£o**", expanded=False):
             st.markdown("""
             1. **Salvamento na Pasta do Ano**:
                - Salva `df_final.parquet` em `dados/TC_Ext/{ANO}/` (ou `BUD/`)
                - Salva `df_vol.parquet`
                - Salva `df_ke5z_group.parquet`
-               - Salva arquivos Excel intermediários (diagnósticos)
+               - Salva arquivos Excel intermediÃ¡rios (diagnÃ³sticos)
             
-            2. **Consolidação do Histórico**:
-               - Carrega histórico existente (se houver)
+            2. **ConsolidaÃ§Ã£o do HistÃ³rico**:
+               - Carrega histÃ³rico existente (se houver)
                - Adiciona coluna `Ano` aos dados atuais
-               - Concatena dados atuais com histórico
+               - Concatena dados atuais com histÃ³rico
                - Remove duplicatas
-               - Salva histórico atualizado
+               - Salva histÃ³rico atualizado
             
-            3. **Validação Final**:
+            3. **ValidaÃ§Ã£o Final**:
                - Verifica tipos de dados
                - Valida integridade dos arquivos salvos
             """)
         
         st.markdown("---")
         
-        # Seção 7: Cenários de Uso
-        st.markdown("## 📋 CENÁRIOS DE USO {#cenarios-uso}")
+        # SeÃ§Ã£o 7: CenÃ¡rios de Uso
+        st.markdown("## ðŸ“‹ CENÃRIOS DE USO {#cenarios-uso}")
         
-        st.markdown("### Casos Práticos Completos")
+        st.markdown("### Casos PrÃ¡ticos Completos")
         
-        with st.expander("**Cenário 1: Primeira Vez Processando um Novo Ano (ex: 2026)**", expanded=False):
+        with st.expander("**CenÃ¡rio 1: Primeira Vez Processando um Novo Ano (ex: 2026)**", expanded=False):
             st.markdown("""
-            **Situação**: Nunca processou dados de 2026, arquivos estão na raiz do projeto
+            **SituaÃ§Ã£o**: Nunca processou dados de 2026, arquivos estÃ£o na raiz do projeto
             
             **Passo a Passo**:
             
-            1. **Acessar página de extração**:
+            1. **Acessar pÃ¡gina de extraÃ§Ã£o**:
                - Selecionar ano: 2026
-               - Selecionar tipo: "📊 Dados REAIS" ou "🔄 Ambos"
+               - Selecionar tipo: "ðŸ“Š Dados REAIS" ou "ðŸ”„ Ambos"
             
-            2. **Opção A - Usar Upload** (Recomendado):
-               - Ir para aba "Validação de Arquivos"
-                    - Fazer upload de `Dados SAPIENS.xlsx` → Salvo em `dados/TC_Ext/2026/`
-                    - Fazer upload de `Reporting fluxo anexo.xlsx` → Salvo em `dados/TC_Ext/2026/`
+            2. **OpÃ§Ã£o A - Usar Upload** (Recomendado):
+               - Ir para aba "ValidaÃ§Ã£o de Arquivos"
+                    - Fazer upload de `Dados SAPIENS.xlsx` â†’ Salvo em `dados/TC_Ext/2026/`
+                    - Fazer upload de `Reporting fluxo anexo.xlsx` â†’ Salvo em `dados/TC_Ext/2026/`
             
-            3. **Opção B - Usar Arquivos da Raiz**:
+            3. **OpÃ§Ã£o B - Usar Arquivos da Raiz**:
                - Colocar arquivos na raiz do projeto
-               - Sistema buscará automaticamente na raiz se não encontrar na pasta do ano
+               - Sistema buscarÃ¡ automaticamente na raiz se nÃ£o encontrar na pasta do ano
             
             4. **Executar processamento**:
-               - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
+               - Clicar em "ðŸš€ Executar tc_ext/notebooks/dados.ipynb"
                     - Sistema cria `dados/TC_Ext/2026/` automaticamente
                - Sistema busca arquivos (encontra na raiz ou na pasta do ano)
                     - Processa e salva em `dados/TC_Ext/2026/`
-               - Consolida histórico
+               - Consolida histÃ³rico
             
             **Resultado**: 
                 - Pasta `dados/TC_Ext/2026/` criada com arquivos processados
-            - Histórico atualizado com dados de 2026
+            - HistÃ³rico atualizado com dados de 2026
             """)
         
-        with st.expander("**Cenário 2: Atualizar Arquivos de um Ano Existente**", expanded=False):
+        with st.expander("**CenÃ¡rio 2: Atualizar Arquivos de um Ano Existente**", expanded=False):
             st.markdown("""
-            **Situação**: Já processou 2024 antes, mas recebeu arquivos atualizados
+            **SituaÃ§Ã£o**: JÃ¡ processou 2024 antes, mas recebeu arquivos atualizados
             
             **Passo a Passo**:
             
-            1. **Acessar página de extração**:
+            1. **Acessar pÃ¡gina de extraÃ§Ã£o**:
                - Selecionar ano: 2024
-               - Selecionar tipo: "📊 Dados REAIS"
+               - Selecionar tipo: "ðŸ“Š Dados REAIS"
             
             2. **Verificar arquivos existentes**:
-               - Sistema mostra aviso: "⚠️ O arquivo já existe"
+               - Sistema mostra aviso: "âš ï¸ O arquivo jÃ¡ existe"
                - Aviso aparece antes mesmo de fazer upload
             
             3. **Fazer upload do arquivo atualizado**:
                - Selecionar arquivo atualizado
-               - Sistema mostra aviso: "Arquivo será sobrescrito"
-               - Clicar em "🔄 Confirmar Sobrescrita"
-               - Arquivo é salvo substituindo o anterior
+               - Sistema mostra aviso: "Arquivo serÃ¡ sobrescrito"
+               - Clicar em "ðŸ”„ Confirmar Sobrescrita"
+               - Arquivo Ã© salvo substituindo o anterior
             
             4. **Executar processamento**:
-               - Clicar em "🚀 Executar tc_ext/notebooks/dados.ipynb"
+               - Clicar em "ðŸš€ Executar tc_ext/notebooks/dados.ipynb"
                     - Sistema usa arquivo atualizado de `dados/TC_Ext/2024/`
                - Processa e atualiza arquivos Parquet
-               - Atualiza histórico (concatena, não substitui)
+               - Atualiza histÃ³rico (concatena, nÃ£o substitui)
             
             **Resultado**: 
             - Arquivos de 2024 atualizados
-            - Histórico contém versão mais recente
+            - HistÃ³rico contÃ©m versÃ£o mais recente
             """)
         
-        with st.expander("**Cenário 3: Processar Ambos (REAIS e BUDGET) para Novo Ano**", expanded=False):
+        with st.expander("**CenÃ¡rio 3: Processar Ambos (REAIS e BUDGET) para Novo Ano**", expanded=False):
             st.markdown("""
-            **Situação**: Processar dados REAIS e BUDGET de 2026 pela primeira vez
+            **SituaÃ§Ã£o**: Processar dados REAIS e BUDGET de 2026 pela primeira vez
             
             **Passo a Passo**:
             
             1. **Preparar arquivos REAIS**:
-                    - Upload de `Dados SAPIENS.xlsx` (REAIS) → `dados/TC_Ext/2026/`
-                    - Upload de `Reporting fluxo anexo.xlsx` (REAIS) → `dados/TC_Ext/2026/`
+                    - Upload de `Dados SAPIENS.xlsx` (REAIS) â†’ `dados/TC_Ext/2026/`
+                    - Upload de `Reporting fluxo anexo.xlsx` (REAIS) â†’ `dados/TC_Ext/2026/`
             
             2. **Preparar arquivos BUDGET** (se diferentes):
-                    - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/TC_Ext/2026/` (mesmo arquivo ou versão BUD)
-                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/TC_Ext/2026/` (com guias BDG)
+                    - Upload de `Dados SAPIENS.xlsx` (BUD) â†’ `dados/TC_Ext/2026/` (mesmo arquivo ou versÃ£o BUD)
+                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) â†’ `dados/TC_Ext/2026/` (com guias BDG)
             
             3. **Executar processamento**:
-               - Selecionar tipo: "🔄 Ambos"
-               - Clicar em "🚀 Executar Ambos"
-                    - Sistema processa REAIS primeiro → Salva em `dados/TC_Ext/2026/`
-                    - Sistema processa BUDGET depois → Salva em `dados/TC_Ext/2026/BUD/`
-               - Consolida ambos os históricos
+               - Selecionar tipo: "ðŸ”„ Ambos"
+               - Clicar em "ðŸš€ Executar Ambos"
+                    - Sistema processa REAIS primeiro â†’ Salva em `dados/TC_Ext/2026/`
+                    - Sistema processa BUDGET depois â†’ Salva em `dados/TC_Ext/2026/BUD/`
+               - Consolida ambos os histÃ³ricos
             
             **Resultado**: 
                 - Estrutura completa criada: `dados/TC_Ext/2026/` e `dados/TC_Ext/2026/BUD/`
-            - Históricos REAIS e BUDGET atualizados
+            - HistÃ³ricos REAIS e BUDGET atualizados
             """)
         
-        with st.expander("**Cenário 4: Processar Apenas BUDGET para Ano Existente**", expanded=False):
+        with st.expander("**CenÃ¡rio 4: Processar Apenas BUDGET para Ano Existente**", expanded=False):
             st.markdown("""
-            **Situação**: Já processou REAIS de 2024, agora quer processar BUDGET
+            **SituaÃ§Ã£o**: JÃ¡ processou REAIS de 2024, agora quer processar BUDGET
             
             **Passo a Passo**:
             
             1. **Preparar arquivos BUDGET**:
-                    - Upload de `Dados SAPIENS.xlsx` (BUD) → `dados/TC_Ext/2024/`
-                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) → `dados/TC_Ext/2024/`
+                    - Upload de `Dados SAPIENS.xlsx` (BUD) â†’ `dados/TC_Ext/2024/`
+                    - Upload de `Reporting fluxo anexo.xlsx` (BUD) â†’ `dados/TC_Ext/2024/`
             
             2. **Executar processamento BUDGET**:
-               - Selecionar tipo: "💰 Dados BUDGET"
-               - Clicar em "🚀 Executar tc_ext/notebooks/dados_BUD.ipynb"
+               - Selecionar tipo: "ðŸ’° Dados BUDGET"
+               - Clicar em "ðŸš€ Executar tc_ext/notebooks/dados_BUD.ipynb"
                     - Sistema cria `dados/TC_Ext/2024/BUD/` automaticamente
                     - Processa e salva em `dados/TC_Ext/2024/BUD/`
-               - Consolida histórico BUDGET
+               - Consolida histÃ³rico BUDGET
             
             **Resultado**: 
                 - Pasta `dados/TC_Ext/2024/BUD/` criada com dados de Budget
-            - Histórico BUDGET atualizado
+            - HistÃ³rico BUDGET atualizado
             - Dados REAIS permanecem inalterados
             """)
         
         st.markdown("---")
         
         st.success("""
-        **✅ Este capítulo descreve completamente o funcionamento do sistema de atualização**
-        e extração de dados. Use estas informações para realizar atualizações de forma
+        **âœ… Este capÃ­tulo descreve completamente o funcionamento do sistema de atualizaÃ§Ã£o**
+        e extraÃ§Ã£o de dados. Use estas informaÃ§Ãµes para realizar atualizaÃ§Ãµes de forma
         segura e eficiente, especialmente ao trabalhar com novos anos ou atualizar
         arquivos existentes.
         """)
 
 
 # ==========================================
-# SEÇÃO 5: GUIA DE BEST ESTIMATE
+# SEÃ‡ÃƒO 5: GUIA DE BEST ESTIMATE
 # ==========================================
-elif indice_selecionado == "🔮 Guia de Best Estimate":
-    st.header("🔮 Guia de Best Estimate — TC Ext + TC Veículos")
+elif indice_selecionado == "ðŸ”® Guia de Best Estimate":
+    st.header("ðŸ”® Guia de Best Estimate â€” TC Ext + TC VeÃ­culos")
 
-    with st.expander("🚗 **TC Veículos — Resumo operacional (Simulador + consumo na Home)**", expanded=False):
+    with st.expander("ðŸš— **TC VeÃ­culos â€” Resumo operacional (Simulador + consumo na Home)**", expanded=False):
         st.markdown("""
-        ### 🔮 O que é o Best Estimate (TC Veículos)
+        ### ðŸ”® O que Ã© o Best Estimate (TC VeÃ­culos)
 
-        O Best Estimate (BE) projeta custos futuros a partir da média histórica já realizada,
-        ajustada por premissas de **sensibilidade**, **inflação** e **volume**.
+        O Best Estimate (BE) projeta custos futuros a partir da mÃ©dia histÃ³rica jÃ¡ realizada,
+        ajustada por premissas de **sensibilidade**, **inflaÃ§Ã£o** e **volume**.
 
         **Onde configurar e gerar o Forecast:**
-        - Página Streamlit: `pages/2 - Best Estimate - Simulador.py`
-        - Lógica principal: `tc_principal/pages/best_estimate_simulador_tc.py`
+        - PÃ¡gina Streamlit: `pages/2 - Best Estimate - Simulador.py`
+        - LÃ³gica principal: `tc_principal/pages/best_estimate_simulador_tc.py`
 
         **Arquivos gerados:**
         - `dados/TC_Principal/Forecast/forecast_completo.parquet` (coluna `Tipo = 'BE'`)
         - `dados/TC_Principal/Forecast/premissas.json`
 
-        **Onde o Forecast é consumido/analisado:**
-        - `tc_principal/pages/home_tc.py` (tabs) — compara Real vs BE no layout da Home
+        **Onde o Forecast Ã© consumido/analisado:**
+        - `tc_principal/pages/home_tc.py` (tabs) â€” compara Real vs BE no layout da Home
 
-        **Pontos de atenção (operacional):**
-        - Se o Forecast parecer "não atualizar", confirme que o `forecast_completo.parquet` foi regravado.
-        - Se a granularidade por veículo depender de rateio, a função `ratear_be_por_veiculo()` (em `tc_principal/shared.py`)
-          é aplicada nos fluxos que exigem visão por veículo.
+        **Pontos de atenÃ§Ã£o (operacional):**
+        - Se o Forecast parecer "nÃ£o atualizar", confirme que o `forecast_completo.parquet` foi regravado.
+        - Se a granularidade por veÃ­culo depender de rateio, a funÃ§Ã£o `ratear_be_por_veiculo()` (em `tc_principal/shared.py`)
+          Ã© aplicada nos fluxos que exigem visÃ£o por veÃ­culo.
         """)
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-    <h2 style="color: white; margin: 0;">🔮 Documentação Completa do Best Estimate</h2>
+    <h2 style="color: white; margin: 0;">ðŸ”® DocumentaÃ§Ã£o Completa do Best Estimate</h2>
     <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Teoria, Cálculos, Estrutura e Funcionamento do Sistema de Previsão
+            Teoria, CÃ¡lculos, Estrutura e Funcionamento do Sistema de PrevisÃ£o
     </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Índice interno
-    st.markdown("## 📋 Índice do Guia")
+    # Ãndice interno
+    st.markdown("## ðŸ“‹ Ãndice do Guia")
     st.markdown("""
-    ### 📖 Capítulo 1: Teoria e Funcionamento do Best Estimate
-    1. [O que é Best Estimate?](#o-que-e-best-estimate)
+    ### ðŸ“– CapÃ­tulo 1: Teoria e Funcionamento do Best Estimate
+    1. [O que Ã© Best Estimate?](#o-que-e-best-estimate)
     2. [Teoria e Conceitos Fundamentais](#teoria-conceitos)
-    3. [Cálculo de Médias Históricas](#calculo-medias)
-    4. [Sensibilidade e Inflação](#sensibilidade-inflacao)
-    5. [Fórmulas e Lógica de Cálculo](#formulas-logica)
-    6. [Tipos de Custos: Fixo vs Variável](#tipos-custos)
-    7. [Volume e Proporções](#volume-proporcoes)
+    3. [CÃ¡lculo de MÃ©dias HistÃ³ricas](#calculo-medias)
+    4. [Sensibilidade e InflaÃ§Ã£o](#sensibilidade-inflacao)
+    5. [FÃ³rmulas e LÃ³gica de CÃ¡lculo](#formulas-logica)
+    6. [Tipos de Custos: Fixo vs VariÃ¡vel](#tipos-custos)
+    7. [Volume e ProporÃ§Ãµes](#volume-proporcoes)
     
-    ### 🔄 Capítulo 2: Estrutura, Atualização e Páginas
+    ### ðŸ”„ CapÃ­tulo 2: Estrutura, AtualizaÃ§Ã£o e PÃ¡ginas
     1. [Estrutura de Pastas do Forecast](#estrutura-forecast)
-    2. [Ordem Cronológica de Atualização](#ordem-cronologica-forecast)
-    3. [Página 2 - Best Estimate Simulador](#pagina-simulador)
-    4. [Página - Best Estimate (Análise)](#pagina-analise)
+    2. [Ordem CronolÃ³gica de AtualizaÃ§Ã£o](#ordem-cronologica-forecast)
+    3. [PÃ¡gina 2 - Best Estimate Simulador](#pagina-simulador)
+    4. [PÃ¡gina - Best Estimate (AnÃ¡lise)](#pagina-analise)
     5. [Fluxo de Dados e Processamento](#fluxo-dados-forecast)
     6. [Arquivos Gerados](#arquivos-gerados-forecast)
-    7. [Cenários de Uso](#cenarios-uso-forecast)
+    7. [CenÃ¡rios de Uso](#cenarios-uso-forecast)
     """)
     
     st.markdown("---")
     
     # ==========================================
-    # CAPÍTULO 1: TEORIA E FUNCIONAMENTO DO BEST ESTIMATE
+    # CAPÃTULO 1: TEORIA E FUNCIONAMENTO DO BEST ESTIMATE
     # ==========================================
     
-    with st.expander("📖 **Capítulo 1: Teoria e Funcionamento do Best Estimate**", expanded=False):
+    with st.expander("ðŸ“– **CapÃ­tulo 1: Teoria e Funcionamento do Best Estimate**", expanded=False):
         st.markdown("""
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin: 2rem 0; color: white;">
-            <h2 style="color: white; margin: 0;">📖 Capítulo 1: Teoria e Funcionamento do Best Estimate</h2>
+            <h2 style="color: white; margin: 0;">ðŸ“– CapÃ­tulo 1: Teoria e Funcionamento do Best Estimate</h2>
             <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-                Conceitos, Teoria e Cálculos do Sistema de Previsão de Custos
+                Conceitos, Teoria e CÃ¡lculos do Sistema de PrevisÃ£o de Custos
             </p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Seção 1: O que é Best Estimate?
-        st.markdown("## 🎯 O QUE É BEST ESTIMATE? {#o-que-e-best-estimate}")
+        # SeÃ§Ã£o 1: O que Ã© Best Estimate?
+        st.markdown("## ðŸŽ¯ O QUE Ã‰ BEST ESTIMATE? {#o-que-e-best-estimate}")
         
         st.markdown("""
-        ### Definição e Conceito
+        ### DefiniÃ§Ã£o e Conceito
         
-        **Best Estimate** (Melhor Estimativa) é uma metodologia de previsão de custos que combina:
-        - **Dados históricos** (médias de períodos anteriores)
-        - **Ajustes por sensibilidade** (resposta a variações de volume)
-        - **Ajustes por inflação** (correção monetária)
-        - **Classificação de custos** (Fixo vs Variável)
+        **Best Estimate** (Melhor Estimativa) Ã© uma metodologia de previsÃ£o de custos que combina:
+        - **Dados histÃ³ricos** (mÃ©dias de perÃ­odos anteriores)
+        - **Ajustes por sensibilidade** (resposta a variaÃ§Ãµes de volume)
+        - **Ajustes por inflaÃ§Ã£o** (correÃ§Ã£o monetÃ¡ria)
+        - **ClassificaÃ§Ã£o de custos** (Fixo vs VariÃ¡vel)
         
         **Objetivo Principal:**
-        Prever os custos futuros com base em padrões históricos, ajustados para refletir mudanças esperadas
-        em volume de produção e inflação, permitindo planejamento financeiro mais preciso.
+        Prever os custos futuros com base em padrÃµes histÃ³ricos, ajustados para refletir mudanÃ§as esperadas
+        em volume de produÃ§Ã£o e inflaÃ§Ã£o, permitindo planejamento financeiro mais preciso.
         
-        **Aplicação no SCI:**
-        O Best Estimate é usado para gerar previsões de custos para períodos futuros, permitindo comparações
-        entre o que foi planejado (Budget), o que realmente aconteceu (Real) e o que se espera que aconteça
+        **AplicaÃ§Ã£o no SCI:**
+        O Best Estimate Ã© usado para gerar previsÃµes de custos para perÃ­odos futuros, permitindo comparaÃ§Ãµes
+        entre o que foi planejado (Budget), o que realmente aconteceu (Real) e o que se espera que aconteÃ§a
         (Best Estimate/Forecast).
         """)
         
         st.info("""
-        **💡 Importante**: Best Estimate não é uma simples projeção linear. Ele considera a natureza dos custos
-        (fixos ou variáveis) e aplica sensibilidades diferentes para cada tipo, resultando em previsões mais
+        **ðŸ’¡ Importante**: Best Estimate nÃ£o Ã© uma simples projeÃ§Ã£o linear. Ele considera a natureza dos custos
+        (fixos ou variÃ¡veis) e aplica sensibilidades diferentes para cada tipo, resultando em previsÃµes mais
         realistas e acuradas.
         """)
         
         st.markdown("---")
         
-        # Seção 2: Teoria e Conceitos Fundamentais
-        st.markdown("## 📚 TEORIA E CONCEITOS FUNDAMENTAIS {#teoria-conceitos}")
+        # SeÃ§Ã£o 2: Teoria e Conceitos Fundamentais
+        st.markdown("## ðŸ“š TEORIA E CONCEITOS FUNDAMENTAIS {#teoria-conceitos}")
         
         st.markdown("""
-        ### Fundamentos Teóricos
+        ### Fundamentos TeÃ³ricos
         
-        **1. Princípio da Média Histórica:**
-        - O Best Estimate parte do pressuposto de que o comportamento histórico é um bom indicador do futuro
-        - Médias calculadas sobre períodos selecionados fornecem uma base sólida para previsões
-        - Períodos anômalos podem ser excluídos para melhorar a acurácia
+        **1. PrincÃ­pio da MÃ©dia HistÃ³rica:**
+        - O Best Estimate parte do pressuposto de que o comportamento histÃ³rico Ã© um bom indicador do futuro
+        - MÃ©dias calculadas sobre perÃ­odos selecionados fornecem uma base sÃ³lida para previsÃµes
+        - PerÃ­odos anÃ´malos podem ser excluÃ­dos para melhorar a acurÃ¡cia
         
-        **2. Princípio da Sensibilidade:**
-        - Custos **fixos** não variam com volume (sensibilidade = 0%)
-        - Custos **variáveis** variam proporcionalmente ao volume (sensibilidade = 100%)
-        - Sensibilidades intermediárias (0% < sensibilidade < 100%) representam custos semi-variáveis
+        **2. PrincÃ­pio da Sensibilidade:**
+        - Custos **fixos** nÃ£o variam com volume (sensibilidade = 0%)
+        - Custos **variÃ¡veis** variam proporcionalmente ao volume (sensibilidade = 100%)
+        - Sensibilidades intermediÃ¡rias (0% < sensibilidade < 100%) representam custos semi-variÃ¡veis
         
-        **3. Princípio da Inflação:**
-        - Inflação afeta todos os custos de forma uniforme
-        - É aplicada como um fator multiplicador sobre o custo ajustado por sensibilidade
-        - Permite correção monetária para períodos futuros
+        **3. PrincÃ­pio da InflaÃ§Ã£o:**
+        - InflaÃ§Ã£o afeta todos os custos de forma uniforme
+        - Ã‰ aplicada como um fator multiplicador sobre o custo ajustado por sensibilidade
+        - Permite correÃ§Ã£o monetÃ¡ria para perÃ­odos futuros
         
-        **4. Princípio da Proporcionalidade de Volume:**
-        - A variação de volume impacta diferentemente custos fixos e variáveis
-        - Custos fixos são "diluídos" quando o volume aumenta (CPU diminui)
-        - Custos variáveis aumentam proporcionalmente ao volume
+        **4. PrincÃ­pio da Proporcionalidade de Volume:**
+        - A variaÃ§Ã£o de volume impacta diferentemente custos fixos e variÃ¡veis
+        - Custos fixos sÃ£o "diluÃ­dos" quando o volume aumenta (CPU diminui)
+        - Custos variÃ¡veis aumentam proporcionalmente ao volume
         """)
         
         st.markdown("---")
         
-        # Seção 3: Cálculo de Médias Históricas
-        st.markdown("## 📊 CÁLCULO DE MÉDIAS HISTÓRICAS {#calculo-medias}")
+        # SeÃ§Ã£o 3: CÃ¡lculo de MÃ©dias HistÃ³ricas
+        st.markdown("## ðŸ“Š CÃLCULO DE MÃ‰DIAS HISTÃ“RICAS {#calculo-medias}")
         
         st.markdown("""
-        ### Processo de Cálculo de Médias
+        ### Processo de CÃ¡lculo de MÃ©dias
         
-        **Passo 1: Seleção de Períodos**
-        - O usuário seleciona quais períodos históricos serão usados para calcular a média
-        - Exemplo: Janeiro 2024, Fevereiro 2024, Março 2024
-        - Períodos podem ser excluídos se forem considerados anômalos
+        **Passo 1: SeleÃ§Ã£o de PerÃ­odos**
+        - O usuÃ¡rio seleciona quais perÃ­odos histÃ³ricos serÃ£o usados para calcular a mÃ©dia
+        - Exemplo: Janeiro 2024, Fevereiro 2024, MarÃ§o 2024
+        - PerÃ­odos podem ser excluÃ­dos se forem considerados anÃ´malos
         
         **Passo 2: Filtragem de Dados**
-        - Aplicam-se os mesmos filtros usados na análise (Oficina, Veículo, Type 05, Type 06, etc.)
-        - Garante que a média seja calculada sobre o mesmo contexto operacional
+        - Aplicam-se os mesmos filtros usados na anÃ¡lise (Oficina, VeÃ­culo, Type 05, Type 06, etc.)
+        - Garante que a mÃ©dia seja calculada sobre o mesmo contexto operacional
         
-        **Passo 3: Agrupamento e Agregação**
-        - Dados são agrupados por chaves únicas: `Oficina`, `Veículo`, `Tipo_Custo`, `Type 06`, etc.
-        - Para cada grupo, calcula-se a média dos valores históricos
-        - Fórmula: `Média_Histórica = Σ(Valores_Históricos) / Número_de_Períodos`
+        **Passo 3: Agrupamento e AgregaÃ§Ã£o**
+        - Dados sÃ£o agrupados por chaves Ãºnicas: `Oficina`, `VeÃ­culo`, `Tipo_Custo`, `Type 06`, etc.
+        - Para cada grupo, calcula-se a mÃ©dia dos valores histÃ³ricos
+        - FÃ³rmula: `MÃ©dia_HistÃ³rica = Î£(Valores_HistÃ³ricos) / NÃºmero_de_PerÃ­odos`
         
-        **Passo 4: Volume Médio Histórico**
-        - Calcula-se também o volume médio histórico para os mesmos períodos
-        - Usado para calcular proporções de volume futuro vs histórico
-        - Fórmula: `Volume_Médio_Histórico = Σ(Volumes_Históricos) / Número_de_Períodos`
+        **Passo 4: Volume MÃ©dio HistÃ³rico**
+        - Calcula-se tambÃ©m o volume mÃ©dio histÃ³rico para os mesmos perÃ­odos
+        - Usado para calcular proporÃ§Ãµes de volume futuro vs histÃ³rico
+        - FÃ³rmula: `Volume_MÃ©dio_HistÃ³rico = Î£(Volumes_HistÃ³ricos) / NÃºmero_de_PerÃ­odos`
         
-        **Exemplo Prático:**
+        **Exemplo PrÃ¡tico:**
         ```
-        Períodos selecionados: Janeiro 2024, Fevereiro 2024, Março 2024
+        PerÃ­odos selecionados: Janeiro 2024, Fevereiro 2024, MarÃ§o 2024
         
-        Para Oficina A, Veículo CC21, Type 06 "Material":
+        Para Oficina A, VeÃ­culo CC21, Type 06 "Material":
         - Janeiro 2024: R$ 10.000
         - Fevereiro 2024: R$ 12.000
-        - Março 2024: R$ 11.000
+        - MarÃ§o 2024: R$ 11.000
         
-        Média Histórica = (10.000 + 12.000 + 11.000) / 3 = R$ 11.000
+        MÃ©dia HistÃ³rica = (10.000 + 12.000 + 11.000) / 3 = R$ 11.000
         ```
         """)
         
-        with st.expander("**🔍 Detalhes Técnicos do Cálculo de Médias**", expanded=False):
+        with st.expander("**ðŸ” Detalhes TÃ©cnicos do CÃ¡lculo de MÃ©dias**", expanded=False):
             st.markdown("""
             **Agrupamento por Chaves:**
-            - O sistema agrupa dados por múltiplas dimensões simultaneamente
-            - Chaves padrão: `['Oficina', 'Veículo', 'Tipo_Custo', 'Type 06', ...]`
-            - Cada combinação única de chaves gera uma linha no forecast
+            - O sistema agrupa dados por mÃºltiplas dimensÃµes simultaneamente
+            - Chaves padrÃ£o: `['Oficina', 'VeÃ­culo', 'Tipo_Custo', 'Type 06', ...]`
+            - Cada combinaÃ§Ã£o Ãºnica de chaves gera uma linha no forecast
             
             **Tratamento de Dados Faltantes:**
-            - Se um período não tiver dados para uma combinação de chaves, ele é excluído do cálculo
-            - A média é calculada apenas sobre períodos com dados disponíveis
-            - Isso evita distorções por períodos incompletos
+            - Se um perÃ­odo nÃ£o tiver dados para uma combinaÃ§Ã£o de chaves, ele Ã© excluÃ­do do cÃ¡lculo
+            - A mÃ©dia Ã© calculada apenas sobre perÃ­odos com dados disponÃ­veis
+            - Isso evita distorÃ§Ãµes por perÃ­odos incompletos
             
-            **Normalização de Períodos:**
-            - Períodos são normalizados para comparação (ex: "Janeiro 2024" → "janeiro 2024")
-            - Permite comparação case-insensitive e tolerante a espaços
-            - Anos são extraídos dos períodos para filtragem adicional
+            **NormalizaÃ§Ã£o de PerÃ­odos:**
+            - PerÃ­odos sÃ£o normalizados para comparaÃ§Ã£o (ex: "Janeiro 2024" â†’ "janeiro 2024")
+            - Permite comparaÃ§Ã£o case-insensitive e tolerante a espaÃ§os
+            - Anos sÃ£o extraÃ­dos dos perÃ­odos para filtragem adicional
             """)
         
         st.markdown("---")
         
-        # Seção 4: Sensibilidade e Inflação
-        st.markdown("## ⚙️ SENSIBILIDADE E INFLAÇÃO {#sensibilidade-inflacao}")
+        # SeÃ§Ã£o 4: Sensibilidade e InflaÃ§Ã£o
+        st.markdown("## âš™ï¸ SENSIBILIDADE E INFLAÃ‡ÃƒO {#sensibilidade-inflacao}")
         
         st.markdown("""
         ### Sensibilidade ao Volume
         
         **Conceito:**
-        Sensibilidade mede o quanto um custo responde a variações no volume de produção.
+        Sensibilidade mede o quanto um custo responde a variaÃ§Ãµes no volume de produÃ§Ã£o.
         
         **Tipos de Sensibilidade:**
         
         **1. Sensibilidade Fixa (0%):**
         - Aplicada a custos **fixos**
-        - Independente da variação de volume, o custo permanece constante
-        - Exemplos: Aluguel, salários fixos, depreciação
-        - Fórmula: `Custo_Ajustado = Custo_Original` (sem alteração)
+        - Independente da variaÃ§Ã£o de volume, o custo permanece constante
+        - Exemplos: Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o
+        - FÃ³rmula: `Custo_Ajustado = Custo_Original` (sem alteraÃ§Ã£o)
         
-        **2. Sensibilidade Variável (100%):**
-        - Aplicada a custos **variáveis**
+        **2. Sensibilidade VariÃ¡vel (100%):**
+        - Aplicada a custos **variÃ¡veis**
         - Varia proporcionalmente ao volume
         - Se volume aumenta 10%, custo aumenta 10%
-        - Exemplos: Matéria-prima, energia variável, comissões
-        - Fórmula: `Custo_Ajustado = Custo_Original * (Volume_Novo / Volume_Histórico)`
+        - Exemplos: MatÃ©ria-prima, energia variÃ¡vel, comissÃµes
+        - FÃ³rmula: `Custo_Ajustado = Custo_Original * (Volume_Novo / Volume_HistÃ³rico)`
         
-        **3. Sensibilidades Intermediárias (0% < sensibilidade < 100%):**
-        - Aplicadas a custos **semi-variáveis**
-        - Resposta parcial a variações de volume
+        **3. Sensibilidades IntermediÃ¡rias (0% < sensibilidade < 100%):**
+        - Aplicadas a custos **semi-variÃ¡veis**
+        - Resposta parcial a variaÃ§Ãµes de volume
         - Exemplo: Se sensibilidade = 50% e volume aumenta 10%, custo aumenta 5%
-        - Fórmula: `Custo_Ajustado = Custo_Original * (1 + (Variação_Volume * Sensibilidade))`
+        - FÃ³rmula: `Custo_Ajustado = Custo_Original * (1 + (VariaÃ§Ã£o_Volume * Sensibilidade))`
         
         **4. Sensibilidade por Type 06:**
-        - Cada Type 06 pode ter sua própria sensibilidade específica
+        - Cada Type 06 pode ter sua prÃ³pria sensibilidade especÃ­fica
         - Permite ajustes finos por categoria de custo
-        - Sobrescreve a sensibilidade geral (Fixo/Variável) quando configurada
+        - Sobrescreve a sensibilidade geral (Fixo/VariÃ¡vel) quando configurada
         """)
         
         st.markdown("""
-        ### Inflação
+        ### InflaÃ§Ã£o
         
         **Conceito:**
-        Inflação é aplicada como um ajuste monetário uniforme sobre todos os custos, independente
-        de serem fixos ou variáveis.
+        InflaÃ§Ã£o Ã© aplicada como um ajuste monetÃ¡rio uniforme sobre todos os custos, independente
+        de serem fixos ou variÃ¡veis.
         
-        **Aplicação:**
-        - Inflação é configurada como percentual (ex: 5% ao ano)
-        - É aplicada após o ajuste por sensibilidade
-        - Fórmula: `Custo_Final = Custo_Ajustado_Sensibilidade * (1 + Inflação/100)`
+        **AplicaÃ§Ã£o:**
+        - InflaÃ§Ã£o Ã© configurada como percentual (ex: 5% ao ano)
+        - Ã‰ aplicada apÃ³s o ajuste por sensibilidade
+        - FÃ³rmula: `Custo_Final = Custo_Ajustado_Sensibilidade * (1 + InflaÃ§Ã£o/100)`
         
         **Exemplo:**
         ```
-        Custo médio histórico: R$ 10.000
-        Variação de volume: +10%
+        Custo mÃ©dio histÃ³rico: R$ 10.000
+        VariaÃ§Ã£o de volume: +10%
         Sensibilidade: 50%
-        Inflação: 5%
+        InflaÃ§Ã£o: 5%
         
         Passo 1: Ajuste por sensibilidade
-        Variação_ajustada = 10% * 50% = 5%
+        VariaÃ§Ã£o_ajustada = 10% * 50% = 5%
         Custo_ajustado = 10.000 * (1 + 0.05) = R$ 10.500
         
-        Passo 2: Aplicar inflação
+        Passo 2: Aplicar inflaÃ§Ã£o
         Custo_final = 10.500 * (1 + 0.05) = R$ 11.025
         ```
         """)
         
         st.markdown("---")
         
-        # Seção 5: Fórmulas e Lógica de Cálculo
-        st.markdown("## 🧮 FÓRMULAS E LÓGICA DE CÁLCULO {#formulas-logica}")
+        # SeÃ§Ã£o 5: FÃ³rmulas e LÃ³gica de CÃ¡lculo
+        st.markdown("## ðŸ§® FÃ“RMULAS E LÃ“GICA DE CÃLCULO {#formulas-logica}")
         
         st.markdown("""
-        ### Fórmula Completa do Best Estimate
+        ### FÃ³rmula Completa do Best Estimate
         
-        **Fórmula Geral (linha a linha):**
+        **FÃ³rmula Geral (linha a linha):**
         ```
-        Best_Estimate = Média_Histórica * Fator_Variação * Fator_Inflação
+        Best_Estimate = MÃ©dia_HistÃ³rica * Fator_VariaÃ§Ã£o * Fator_InflaÃ§Ã£o
         ```
         
         **Onde:**
-        - `Média_Histórica` = Média dos custos históricos para a combinação de chaves
-        - `Fator_Variação` = 1 + (Variação_Percentual_Volume * Sensibilidade)
-        - `Fator_Inflação` = 1 + (Inflação / 100)
+        - `MÃ©dia_HistÃ³rica` = MÃ©dia dos custos histÃ³ricos para a combinaÃ§Ã£o de chaves
+        - `Fator_VariaÃ§Ã£o` = 1 + (VariaÃ§Ã£o_Percentual_Volume * Sensibilidade)
+        - `Fator_InflaÃ§Ã£o` = 1 + (InflaÃ§Ã£o / 100)
         
-        **Cálculo Detalhado Passo a Passo:**
+        **CÃ¡lculo Detalhado Passo a Passo:**
         
-        **1. Calcular Proporção de Volume:**
+        **1. Calcular ProporÃ§Ã£o de Volume:**
         ```
-        proporção_volume = Volume_do_Mês_Futuro / Volume_Médio_Histórico
+        proporÃ§Ã£o_volume = Volume_do_MÃªs_Futuro / Volume_MÃ©dio_HistÃ³rico
         ```
         
-        **2. Calcular Variação Percentual:**
+        **2. Calcular VariaÃ§Ã£o Percentual:**
         ```
-        variação_percentual = proporção_volume - 1.0
+        variaÃ§Ã£o_percentual = proporÃ§Ã£o_volume - 1.0
         ```
-        - Se `variação_percentual > 0`: Volume aumentou
-        - Se `variação_percentual < 0`: Volume diminuiu
-        - Se `variação_percentual = 0`: Volume permaneceu igual
+        - Se `variaÃ§Ã£o_percentual > 0`: Volume aumentou
+        - Se `variaÃ§Ã£o_percentual < 0`: Volume diminuiu
+        - Se `variaÃ§Ã£o_percentual = 0`: Volume permaneceu igual
         
         **3. Aplicar Sensibilidade:**
         ```
-        variação_ajustada = variação_percentual * sensibilidade
+        variaÃ§Ã£o_ajustada = variaÃ§Ã£o_percentual * sensibilidade
         ```
-        - Para custos fixos: `sensibilidade = 0` → `variação_ajustada = 0`
-        - Para custos variáveis: `sensibilidade = 1.0` → `variação_ajustada = variação_percentual`
+        - Para custos fixos: `sensibilidade = 0` â†’ `variaÃ§Ã£o_ajustada = 0`
+        - Para custos variÃ¡veis: `sensibilidade = 1.0` â†’ `variaÃ§Ã£o_ajustada = variaÃ§Ã£o_percentual`
         
-        **4. Calcular Fator de Variação:**
+        **4. Calcular Fator de VariaÃ§Ã£o:**
         ```
-        fator_variação = 1.0 + variação_ajustada
+        fator_variaÃ§Ã£o = 1.0 + variaÃ§Ã£o_ajustada
         ```
         
-        **5. Calcular Fator de Inflação:**
+        **5. Calcular Fator de InflaÃ§Ã£o:**
         ```
-        fator_inflação = 1.0 + (inflação / 100.0)
+        fator_inflaÃ§Ã£o = 1.0 + (inflaÃ§Ã£o / 100.0)
         ```
         
         **6. Calcular Best Estimate Final:**
         ```
-        Best_Estimate = Média_Histórica * fator_variação * fator_inflação
+        Best_Estimate = MÃ©dia_HistÃ³rica * fator_variaÃ§Ã£o * fator_inflaÃ§Ã£o
         ```
         """)
         
-        with st.expander("**📐 Exemplo Completo de Cálculo**", expanded=False):
+        with st.expander("**ðŸ“ Exemplo Completo de CÃ¡lculo**", expanded=False):
             st.markdown("""
-            **Cenário:**
-            - Média histórica: R$ 10.000
-            - Volume médio histórico: 1.000 unidades
-            - Volume do mês futuro: 1.100 unidades
-            - Tipo de custo: Variável (sensibilidade = 100%)
-            - Inflação: 5%
+            **CenÃ¡rio:**
+            - MÃ©dia histÃ³rica: R$ 10.000
+            - Volume mÃ©dio histÃ³rico: 1.000 unidades
+            - Volume do mÃªs futuro: 1.100 unidades
+            - Tipo de custo: VariÃ¡vel (sensibilidade = 100%)
+            - InflaÃ§Ã£o: 5%
             
-            **Cálculo:**
+            **CÃ¡lculo:**
             
-            **Passo 1:** Proporção de volume
+            **Passo 1:** ProporÃ§Ã£o de volume
             ```
-            proporção = 1.100 / 1.000 = 1.1
+            proporÃ§Ã£o = 1.100 / 1.000 = 1.1
             ```
             
-            **Passo 2:** Variação percentual
+            **Passo 2:** VariaÃ§Ã£o percentual
             ```
-            variação = 1.1 - 1.0 = 0.1 (10% de aumento)
+            variaÃ§Ã£o = 1.1 - 1.0 = 0.1 (10% de aumento)
             ```
             
             **Passo 3:** Aplicar sensibilidade
             ```
-            variação_ajustada = 0.1 * 1.0 = 0.1 (10%)
+            variaÃ§Ã£o_ajustada = 0.1 * 1.0 = 0.1 (10%)
             ```
             
-            **Passo 4:** Fator de variação
+            **Passo 4:** Fator de variaÃ§Ã£o
             ```
-            fator_variação = 1.0 + 0.1 = 1.1
+            fator_variaÃ§Ã£o = 1.0 + 0.1 = 1.1
             ```
             
-            **Passo 5:** Fator de inflação
+            **Passo 5:** Fator de inflaÃ§Ã£o
             ```
-            fator_inflação = 1.0 + (5/100) = 1.05
+            fator_inflaÃ§Ã£o = 1.0 + (5/100) = 1.05
             ```
             
             **Passo 6:** Best Estimate
@@ -5448,1273 +5449,766 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             Best_Estimate = 10.000 * 1.1 * 1.05 = R$ 11.550
             ```
             
-            **Interpretação:**
-            O custo previsto é R$ 11.550, representando:
+            **InterpretaÃ§Ã£o:**
+            O custo previsto Ã© R$ 11.550, representando:
             - Aumento de 10% devido ao aumento de volume (de 1.000 para 1.100 unidades)
-            - Aumento adicional de 5% devido à inflação
-            - Total: 15.5% de aumento sobre a média histórica
+            - Aumento adicional de 5% devido Ã  inflaÃ§Ã£o
+            - Total: 15.5% de aumento sobre a mÃ©dia histÃ³rica
             """)
         
         st.markdown("---")
         
-        # Seção 6: Tipos de Custos
-        st.markdown("## 💰 TIPOS DE CUSTOS: FIXO VS VARIÁVEL {#tipos-custos}")
+        # SeÃ§Ã£o 6: Tipos de Custos
+        st.markdown("## ðŸ’° TIPOS DE CUSTOS: FIXO VS VARIÃVEL {#tipos-custos}")
         
         st.markdown("""
-        ### Classificação de Custos
+        ### ClassificaÃ§Ã£o de Custos
         
         **Custos Fixos:**
-        - **Características:** Não variam com o volume de produção
+        - **CaracterÃ­sticas:** NÃ£o variam com o volume de produÃ§Ã£o
         - **Sensibilidade:** 0% (zero por cento)
-        - **Exemplos:** Aluguel, salários fixos, depreciação, seguros
+        - **Exemplos:** Aluguel, salÃ¡rios fixos, depreciaÃ§Ã£o, seguros
         - **Comportamento no Best Estimate:**
-          - Média histórica é mantida (sem ajuste por volume)
-          - Apenas inflação é aplicada
-          - Fórmula: `Best_Estimate_Fixo = Média_Histórica_Fixo * (1 + Inflação/100)`
+          - MÃ©dia histÃ³rica Ã© mantida (sem ajuste por volume)
+          - Apenas inflaÃ§Ã£o Ã© aplicada
+          - FÃ³rmula: `Best_Estimate_Fixo = MÃ©dia_HistÃ³rica_Fixo * (1 + InflaÃ§Ã£o/100)`
         
-        **Custos Variáveis:**
-        - **Características:** Variam proporcionalmente ao volume de produção
+        **Custos VariÃ¡veis:**
+        - **CaracterÃ­sticas:** Variam proporcionalmente ao volume de produÃ§Ã£o
         - **Sensibilidade:** 100% (cem por cento)
-        - **Exemplos:** Matéria-prima, energia variável, comissões, peças de reposição
+        - **Exemplos:** MatÃ©ria-prima, energia variÃ¡vel, comissÃµes, peÃ§as de reposiÃ§Ã£o
         - **Comportamento no Best Estimate:**
-          - Média histórica é ajustada pela proporção de volume
-          - Inflação é aplicada sobre o valor ajustado
-          - Fórmula: `Best_Estimate_Variável = Média_Histórica_Variável * (Volume_Futuro/Volume_Histórico) * (1 + Inflação/100)`
+          - MÃ©dia histÃ³rica Ã© ajustada pela proporÃ§Ã£o de volume
+          - InflaÃ§Ã£o Ã© aplicada sobre o valor ajustado
+          - FÃ³rmula: `Best_Estimate_VariÃ¡vel = MÃ©dia_HistÃ³rica_VariÃ¡vel * (Volume_Futuro/Volume_HistÃ³rico) * (1 + InflaÃ§Ã£o/100)`
         
-        **Identificação no Sistema:**
-        - A coluna `Custo` (ou `Tipo_Custo`) contém os valores: `'Fixo'` ou `'Variável'`
-        - Esta classificação vem do merge com a Base Conso (Dados SAPIENS.xlsx)
-        - Cada linha de dados deve ter esta classificação para o cálculo correto
+        **IdentificaÃ§Ã£o no Sistema:**
+        - A coluna `Custo` (ou `Tipo_Custo`) contÃ©m os valores: `'Fixo'` ou `'VariÃ¡vel'`
+        - Esta classificaÃ§Ã£o vem do merge com a Base Conso (Dados SAPIENS.xlsx)
+        - Cada linha de dados deve ter esta classificaÃ§Ã£o para o cÃ¡lculo correto
         """)
         
         st.markdown("---")
         
-        # Seção 7: Volume e Proporções
-        st.markdown("## 📈 VOLUME E PROPORÇÕES {#volume-proporcoes}")
+        # SeÃ§Ã£o 7: Volume e ProporÃ§Ãµes
+        st.markdown("## ðŸ“ˆ VOLUME E PROPORÃ‡Ã•ES {#volume-proporcoes}")
         
         st.markdown("""
-        ### Importância do Volume no Best Estimate
+        ### ImportÃ¢ncia do Volume no Best Estimate
         
-        **Volume como Base de Cálculo:**
-        - O volume futuro é usado para calcular a proporção em relação ao volume histórico
-        - Esta proporção determina o ajuste aplicado aos custos variáveis
-        - Volume médio histórico é calculado sobre os mesmos períodos usados para a média de custos
+        **Volume como Base de CÃ¡lculo:**
+        - O volume futuro Ã© usado para calcular a proporÃ§Ã£o em relaÃ§Ã£o ao volume histÃ³rico
+        - Esta proporÃ§Ã£o determina o ajuste aplicado aos custos variÃ¡veis
+        - Volume mÃ©dio histÃ³rico Ã© calculado sobre os mesmos perÃ­odos usados para a mÃ©dia de custos
         
-        **Cálculo de Proporção:**
+        **CÃ¡lculo de ProporÃ§Ã£o:**
         ```
-        proporção = Volume_Mês_Futuro / Volume_Médio_Histórico
+        proporÃ§Ã£o = Volume_MÃªs_Futuro / Volume_MÃ©dio_HistÃ³rico
         ```
         
-        **Interpretação da Proporção:**
-        - `proporção > 1.0`: Volume futuro é maior que o histórico → Custos variáveis aumentam
-        - `proporção < 1.0`: Volume futuro é menor que o histórico → Custos variáveis diminuem
-        - `proporção = 1.0`: Volume futuro igual ao histórico → Sem ajuste por volume (apenas inflação)
+        **InterpretaÃ§Ã£o da ProporÃ§Ã£o:**
+        - `proporÃ§Ã£o > 1.0`: Volume futuro Ã© maior que o histÃ³rico â†’ Custos variÃ¡veis aumentam
+        - `proporÃ§Ã£o < 1.0`: Volume futuro Ã© menor que o histÃ³rico â†’ Custos variÃ¡veis diminuem
+        - `proporÃ§Ã£o = 1.0`: Volume futuro igual ao histÃ³rico â†’ Sem ajuste por volume (apenas inflaÃ§Ã£o)
         
         **Impacto nos Custos:**
-        - **Custos Fixos:** Não são afetados pela proporção (sensibilidade = 0%)
-        - **Custos Variáveis:** São multiplicados pela proporção (sensibilidade = 100%)
-        - **Custos Semi-Variáveis:** São multiplicados por `1 + (proporção - 1) * sensibilidade`
+        - **Custos Fixos:** NÃ£o sÃ£o afetados pela proporÃ§Ã£o (sensibilidade = 0%)
+        - **Custos VariÃ¡veis:** SÃ£o multiplicados pela proporÃ§Ã£o (sensibilidade = 100%)
+        - **Custos Semi-VariÃ¡veis:** SÃ£o multiplicados por `1 + (proporÃ§Ã£o - 1) * sensibilidade`
         """)
         
         st.success("""
-        **✅ Este capítulo descreve completamente a teoria e funcionamento do Best Estimate.**
-        Use estas informações para entender como as previsões são calculadas e como os parâmetros
-        (sensibilidade, inflação, períodos históricos) impactam os resultados.
+        **âœ… Este capÃ­tulo descreve completamente a teoria e funcionamento do Best Estimate.**
+        Use estas informaÃ§Ãµes para entender como as previsÃµes sÃ£o calculadas e como os parÃ¢metros
+        (sensibilidade, inflaÃ§Ã£o, perÃ­odos histÃ³ricos) impactam os resultados.
         """)
     
     # ==========================================
-    # CAPÍTULO 2: ESTRUTURA, ATUALIZAÇÃO E PÁGINAS
+    # CAPÃTULO 2: ESTRUTURA, ATUALIZAÃ‡ÃƒO E PÃGINAS
     # ==========================================
     
-    with st.expander("🔄 **Capítulo 2: Estrutura, Atualização e Páginas**", expanded=False):
+    with st.expander("ðŸ”„ **CapÃ­tulo 2: Estrutura, AtualizaÃ§Ã£o e PÃ¡ginas**", expanded=False):
         st.markdown("""
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin: 2rem 0; color: white;">
-            <h2 style="color: white; margin: 0;">🔄 Capítulo 2: Estrutura, Atualização e Páginas</h2>
+            <h2 style="color: white; margin: 0;">ðŸ”„ CapÃ­tulo 2: Estrutura, AtualizaÃ§Ã£o e PÃ¡ginas</h2>
             <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-                Estrutura de Pastas, Ordem de Atualização e Funcionalidades das Páginas
+                Estrutura de Pastas, Ordem de AtualizaÃ§Ã£o e Funcionalidades das PÃ¡ginas
             </p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Seção 1: Estrutura de Pastas do Forecast
-        st.markdown("## 📁 ESTRUTURA DE PASTAS DO FORECAST {#estrutura-forecast}")
+        # SeÃ§Ã£o 1: Estrutura de Pastas do Forecast
+        st.markdown("## ðŸ“ ESTRUTURA DE PASTAS DO FORECAST {#estrutura-forecast}")
         
         st.markdown("""
-        ### Organização da Pasta `dados/TC_Ext/Forecast/`
+        ### OrganizaÃ§Ã£o da Pasta `dados/TC_Ext/Forecast/`
         
-        A pasta `Forecast/` é criada automaticamente quando o Best Estimate é gerado e contém
-        os arquivos de previsão calculados pelo sistema.
+        A pasta `Forecast/` Ã© criada automaticamente quando o Best Estimate Ã© gerado e contÃ©m
+        os arquivos de previsÃ£o calculados pelo sistema.
         
         **Estrutura Completa:**
         ```
         dados/TC_Ext/
-        └── Forecast/                       # 🔮 Dados de Best Estimate/Forecast
-            ├── forecast_completo.parquet   # Forecast completo com todas as linhas
-            ├── forecast_historico.parquet  # Histórico de forecasts gerados
-            ├── forecast_previsao.parquet   # Previsões futuras
-            ├── df_final_historico_forecast.parquet  # Dados históricos filtrados para forecast
-            └── df_vol_historico.parquet    # Volumes históricos para cálculo
+        â””â”€â”€ Forecast/                       # ðŸ”® Dados de Best Estimate/Forecast
+            â”œâ”€â”€ forecast_completo.parquet   # Forecast completo com todas as linhas
+            â”œâ”€â”€ forecast_historico.parquet  # HistÃ³rico de forecasts gerados
+            â”œâ”€â”€ forecast_previsao.parquet   # PrevisÃµes futuras
+            â”œâ”€â”€ df_final_historico_forecast.parquet  # Dados histÃ³ricos filtrados para forecast
+            â””â”€â”€ df_vol_historico.parquet    # Volumes histÃ³ricos para cÃ¡lculo
         ```
         
-        **Características:**
-        - **Criação Automática:** A pasta é criada automaticamente se não existir
-        - **Substituição:** Arquivos são substituídos a cada geração (não concatenados)
-        - **Prioridade:** Sistema busca arquivos nesta pasta primeiro antes de usar histórico consolidado
-        - **Formato:** Todos os arquivos são Parquet para performance otimizada
+        **CaracterÃ­sticas:**
+        - **CriaÃ§Ã£o AutomÃ¡tica:** A pasta Ã© criada automaticamente se nÃ£o existir
+        - **SubstituiÃ§Ã£o:** Arquivos sÃ£o substituÃ­dos a cada geraÃ§Ã£o (nÃ£o concatenados)
+        - **Prioridade:** Sistema busca arquivos nesta pasta primeiro antes de usar histÃ³rico consolidado
+        - **Formato:** Todos os arquivos sÃ£o Parquet para performance otimizada
         """)
         
         st.markdown("---")
         
-        # Seção 2: Ordem Cronológica de Atualização
-        st.markdown("## ⏱️ ORDEM CRONOLÓGICA DE ATUALIZAÇÃO {#ordem-cronologica-forecast}")
+        # SeÃ§Ã£o 2: Ordem CronolÃ³gica de AtualizaÃ§Ã£o
+        st.markdown("## â±ï¸ ORDEM CRONOLÃ“GICA DE ATUALIZAÃ‡ÃƒO {#ordem-cronologica-forecast}")
         
-        st.markdown("### Sequência Completa do Processo")
+        st.markdown("### SequÃªncia Completa do Processo")
         
-        with st.expander("**1️⃣ Configuração de Parâmetros**", expanded=False):
+        with st.expander("**1ï¸âƒ£ ConfiguraÃ§Ã£o de ParÃ¢metros**", expanded=False):
             st.markdown("""
-            **Onde**: Página 2 (Simulador) ou Página 3 (Análise)
+            **Onde**: PÃ¡gina 2 (Simulador) ou PÃ¡gina 3 (AnÃ¡lise)
             
             **Processo**:
-            1. Usuário seleciona **períodos históricos** para calcular a média
-               - Exemplo: Janeiro 2024, Fevereiro 2024, Março 2024
-               - Períodos podem ser excluídos se anômalos
+            1. UsuÃ¡rio seleciona **perÃ­odos histÃ³ricos** para calcular a mÃ©dia
+               - Exemplo: Janeiro 2024, Fevereiro 2024, MarÃ§o 2024
+               - PerÃ­odos podem ser excluÃ­dos se anÃ´malos
             
-            2. Usuário configura **sensibilidades**:
+            2. UsuÃ¡rio configura **sensibilidades**:
                - Sensibilidade para custos fixos (geralmente 0%)
-               - Sensibilidade para custos variáveis (geralmente 100%)
-               - Sensibilidades específicas por Type 06 (opcional)
+               - Sensibilidade para custos variÃ¡veis (geralmente 100%)
+               - Sensibilidades especÃ­ficas por Type 06 (opcional)
             
-            3. Usuário configura **inflação**:
-               - Percentual de inflação anual (ex: 5%)
+            3. UsuÃ¡rio configura **inflaÃ§Ã£o**:
+               - Percentual de inflaÃ§Ã£o anual (ex: 5%)
                - Pode ser aplicada globalmente ou por Type 06
             
-            4. Usuário seleciona **períodos futuros** para forecast:
+            4. UsuÃ¡rio seleciona **perÃ­odos futuros** para forecast:
                - Exemplo: Abril 2024, Maio 2024, Junho 2024
-               - Volumes futuros são informados ou calculados
+               - Volumes futuros sÃ£o informados ou calculados
             
-            **Resultado**: Sistema tem todos os parâmetros necessários para calcular o forecast
+            **Resultado**: Sistema tem todos os parÃ¢metros necessÃ¡rios para calcular o forecast
             """)
         
-        with st.expander("**2️⃣ Carregamento de Dados Históricos**", expanded=False):
+        with st.expander("**2ï¸âƒ£ Carregamento de Dados HistÃ³ricos**", expanded=False):
             st.markdown("""
-            **Onde**: Função `load_data()` nas páginas 2 e 3
+            **Onde**: FunÃ§Ã£o `load_data()` nas pÃ¡ginas 2 e 3
             
             **Ordem de Prioridade de Busca**:
-                1. **Primeira opção**: `dados/TC_Ext/Forecast/forecast_completo.parquet`
-               - Se existir, pode ser usado como base (mas forecast é recalculado)
+                1. **Primeira opÃ§Ã£o**: `dados/TC_Ext/Forecast/forecast_completo.parquet`
+               - Se existir, pode ser usado como base (mas forecast Ã© recalculado)
             
-                2. **Segunda opção**: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
-               - **Fonte principal** de dados históricos
-               - Contém todos os anos consolidados
+                2. **Segunda opÃ§Ã£o**: `dados/TC_Ext/historico_consolidado/df_final_historico.parquet`
+               - **Fonte principal** de dados histÃ³ricos
+               - ContÃ©m todos os anos consolidados
             
-                3. **Terceira opção**: `dados/TC_Ext/{ANO}/df_final.parquet`
-               - Dados específicos do ano (se filtro de ano aplicado)
+                3. **Terceira opÃ§Ã£o**: `dados/TC_Ext/{ANO}/df_final.parquet`
+               - Dados especÃ­ficos do ano (se filtro de ano aplicado)
             
             **Processo**:
-            - Sistema carrega dados históricos completos
-            - Aplica filtros selecionados (Oficina, Veículo, Type 05, Type 06, etc.)
-            - Filtra pelos períodos selecionados para cálculo de média
-            - Remove períodos excluídos (meses_excluir_media)
+            - Sistema carrega dados histÃ³ricos completos
+            - Aplica filtros selecionados (Oficina, VeÃ­culo, Type 05, Type 06, etc.)
+            - Filtra pelos perÃ­odos selecionados para cÃ¡lculo de mÃ©dia
+            - Remove perÃ­odos excluÃ­dos (meses_excluir_media)
             """)
         
-        with st.expander("**3️⃣ Cálculo de Médias Históricas**", expanded=False):
+        with st.expander("**3ï¸âƒ£ CÃ¡lculo de MÃ©dias HistÃ³ricas**", expanded=False):
             st.markdown("""
-            **Onde**: Função `calcular_medias_forecast()` nas páginas 2 e 3
+            **Onde**: FunÃ§Ã£o `calcular_medias_forecast()` nas pÃ¡ginas 2 e 3
             
             **Processo**:
-            1. **Filtrar dados pelos períodos selecionados**:
-               - Apenas períodos marcados para média são considerados
-               - Períodos excluídos são removidos
+            1. **Filtrar dados pelos perÃ­odos selecionados**:
+               - Apenas perÃ­odos marcados para mÃ©dia sÃ£o considerados
+               - PerÃ­odos excluÃ­dos sÃ£o removidos
             
-            2. **Agrupar por chaves únicas**:
-               - Chaves: `['Oficina', 'Veículo', 'Tipo_Custo', 'Type 06', ...]`
-               - Cada combinação única gera uma linha no forecast
+            2. **Agrupar por chaves Ãºnicas**:
+               - Chaves: `['Oficina', 'VeÃ­culo', 'Tipo_Custo', 'Type 06', ...]`
+               - Cada combinaÃ§Ã£o Ãºnica gera uma linha no forecast
             
-            3. **Calcular média por grupo**:
-               - Soma dos valores históricos / número de períodos
+            3. **Calcular mÃ©dia por grupo**:
+               - Soma dos valores histÃ³ricos / nÃºmero de perÃ­odos
                - Usa coluna `Total` (nunca `Valor`)
             
-            4. **Calcular volume médio histórico**:
-               - Mesma lógica: agrupa e calcula média de volumes
-               - Usado para calcular proporções futuras
+            4. **Calcular volume mÃ©dio histÃ³rico**:
+               - Mesma lÃ³gica: agrupa e calcula mÃ©dia de volumes
+               - Usado para calcular proporÃ§Ãµes futuras
             
-            **Resultado**: DataFrame com médias históricas por combinação de chaves
+            **Resultado**: DataFrame com mÃ©dias histÃ³ricas por combinaÃ§Ã£o de chaves
             """)
         
-        with st.expander("**4️⃣ Cálculo do Forecast**", expanded=False):
+        with st.expander("**4ï¸âƒ£ CÃ¡lculo do Forecast**", expanded=False):
             st.markdown("""
-            **Onde**: Função `calcular_forecast_completo()` nas páginas 2 e 3
+            **Onde**: FunÃ§Ã£o `calcular_forecast_completo()` nas pÃ¡ginas 2 e 3
             
             **Processo (linha a linha)**:
             1. **Para cada linha do forecast**:
-               - Obtém média histórica da combinação de chaves
-               - Obtém volume do mês futuro
-               - Obtém volume médio histórico
+               - ObtÃ©m mÃ©dia histÃ³rica da combinaÃ§Ã£o de chaves
+               - ObtÃ©m volume do mÃªs futuro
+               - ObtÃ©m volume mÃ©dio histÃ³rico
             
-            2. **Calcula proporção de volume**:
+            2. **Calcula proporÃ§Ã£o de volume**:
                ```
-               proporção = Volume_Mês_Futuro / Volume_Médio_Histórico
+               proporÃ§Ã£o = Volume_MÃªs_Futuro / Volume_MÃ©dio_HistÃ³rico
                ```
             
-            3. **Calcula variação percentual**:
+            3. **Calcula variaÃ§Ã£o percentual**:
                ```
-               variação = proporção - 1.0
+               variaÃ§Ã£o = proporÃ§Ã£o - 1.0
                ```
             
             4. **Aplica sensibilidade**:
                - Se `Tipo_Custo == 'Fixo'`: usa `sensibilidade_fixo`
-               - Se `Tipo_Custo == 'Variável'`: usa `sensibilidade_variavel`
-               - Se modo Type 06: usa sensibilidade específica do Type 06
+               - Se `Tipo_Custo == 'VariÃ¡vel'`: usa `sensibilidade_variavel`
+               - Se modo Type 06: usa sensibilidade especÃ­fica do Type 06
                ```
-               variação_ajustada = variação * sensibilidade
+               variaÃ§Ã£o_ajustada = variaÃ§Ã£o * sensibilidade
                ```
             
             5. **Calcula forecast**:
                ```
-               fator_variação = 1.0 + variação_ajustada
-               fator_inflação = 1.0 + (inflação / 100.0)
-               forecast = Média_Histórica * fator_variação * fator_inflação
+               fator_variaÃ§Ã£o = 1.0 + variaÃ§Ã£o_ajustada
+               fator_inflaÃ§Ã£o = 1.0 + (inflaÃ§Ã£o / 100.0)
+               forecast = MÃ©dia_HistÃ³rica * fator_variaÃ§Ã£o * fator_inflaÃ§Ã£o
                ```
             
             **Resultado**: DataFrame completo com forecast linha a linha
             """)
         
-        with st.expander("**5️⃣ Salvamento dos Arquivos**", expanded=False):
+        with st.expander("**5ï¸âƒ£ Salvamento dos Arquivos**", expanded=False):
             st.markdown("""
-            **Onde**: Função de salvamento nas páginas 2 e 3
+            **Onde**: FunÃ§Ã£o de salvamento nas pÃ¡ginas 2 e 3
             
             **Processo**:
             1. **Verificar/Criar pasta Forecast**:
                     - Verifica se `dados/TC_Ext/Forecast/` existe
-               - Se não existe, cria automaticamente: `os.makedirs(pasta_forecast, exist_ok=True)`
+               - Se nÃ£o existe, cria automaticamente: `os.makedirs(pasta_forecast, exist_ok=True)`
             
             2. **Salvar forecast_completo.parquet**:
                - Arquivo principal com todas as linhas do forecast
-               - Substitui arquivo anterior (não concatena)
-               - Localização: `dados/TC_Ext/Forecast/forecast_completo.parquet`
+               - Substitui arquivo anterior (nÃ£o concatena)
+               - LocalizaÃ§Ã£o: `dados/TC_Ext/Forecast/forecast_completo.parquet`
             
-            3. **Salvar forecast_historico.parquet** (se aplicável):
-               - Histórico de forecasts gerados anteriormente
+            3. **Salvar forecast_historico.parquet** (se aplicÃ¡vel):
+               - HistÃ³rico de forecasts gerados anteriormente
                - Pode ser concatenado com novo forecast
             
-            4. **Salvar forecast_previsao.parquet** (se aplicável):
-               - Apenas previsões futuras (sem dados históricos)
+            4. **Salvar forecast_previsao.parquet** (se aplicÃ¡vel):
+               - Apenas previsÃµes futuras (sem dados histÃ³ricos)
             
             **IMPORTANTE**: 
-            - Arquivos são **substituídos** a cada geração (não concatenados como histórico)
-            - Cada geração cria um forecast novo baseado nas configurações atuais
-            - Arquivos antigos são sobrescritos
+            - Arquivos sÃ£o **substituÃ­dos** a cada geraÃ§Ã£o (nÃ£o concatenados como histÃ³rico)
+            - Cada geraÃ§Ã£o cria um forecast novo baseado nas configuraÃ§Ãµes atuais
+            - Arquivos antigos sÃ£o sobrescritos
             """)
         
         st.markdown("---")
         
-        # Seção 3: Página 2 - Best Estimate Simulador
-        st.markdown("## 🔮 PÁGINA 2 - BEST ESTIMATE SIMULADOR {#pagina-simulador}")
+        # SeÃ§Ã£o 3: PÃ¡gina 2 - Best Estimate Simulador
+        st.markdown("## ðŸ”® PÃGINA 2 - BEST ESTIMATE SIMULADOR {#pagina-simulador}")
         
         st.markdown("""
         ### Funcionalidades Principais
         
         **Objetivo:**
-        A página 2 (Best Estimate - Simulador) permite **simular e ajustar** parâmetros do forecast
-        em tempo real, visualizando o impacto das mudanças antes de salvar.
+        A pÃ¡gina 2 (Best Estimate - Simulador) permite **simular e ajustar** parÃ¢metros do forecast
+        em tempo real, visualizando o impacto das mudanÃ§as antes de salvar.
         
         **Funcionalidades:**
         
-        **1. Configuração Interativa de Parâmetros:**
-        - Seleção de períodos históricos para média (multiselect)
-        - Exclusão de meses específicos (multiselect)
-        - Configuração de sensibilidades (fixo, variável, Type 06)
-        - Configuração de inflação (global e por Type 06)
-        - Seleção de períodos futuros para forecast
+        **1. ConfiguraÃ§Ã£o Interativa de ParÃ¢metros:**
+        - SeleÃ§Ã£o de perÃ­odos histÃ³ricos para mÃ©dia (multiselect)
+        - ExclusÃ£o de meses especÃ­ficos (multiselect)
+        - ConfiguraÃ§Ã£o de sensibilidades (fixo, variÃ¡vel, Type 06)
+        - ConfiguraÃ§Ã£o de inflaÃ§Ã£o (global e por Type 06)
+        - SeleÃ§Ã£o de perÃ­odos futuros para forecast
         
-        **2. Visualização em Tempo Real:**
-        - Gráficos atualizados automaticamente ao alterar parâmetros
+        **2. VisualizaÃ§Ã£o em Tempo Real:**
+        - GrÃ¡ficos atualizados automaticamente ao alterar parÃ¢metros
         - Tabelas interativas mostrando valores linha a linha
-        - Comparação entre diferentes cenários
+        - ComparaÃ§Ã£o entre diferentes cenÃ¡rios
         
         **3. Ajustes de Volume:**
         - Permite ajustar volumes futuros manualmente
         - Visualiza impacto imediato nos custos previstos
-        - Suporta diferentes volumes por período
+        - Suporta diferentes volumes por perÃ­odo
         
         **4. Salvamento de Forecast:**
-        - Botão para salvar forecast calculado
+        - BotÃ£o para salvar forecast calculado
         - Salva em `dados/TC_Ext/Forecast/forecast_completo.parquet`
         - Substitui forecast anterior
         
-        **5. Análise de Sensibilidade:**
+        **5. AnÃ¡lise de Sensibilidade:**
         - Permite testar diferentes valores de sensibilidade
-        - Visualiza impacto de mudanças nos parâmetros
-        - Útil para cenários "what-if"
+        - Visualiza impacto de mudanÃ§as nos parÃ¢metros
+        - Ãštil para cenÃ¡rios "what-if"
         
-        **6. Custos Específicos (BE Manual):**
-        - Permite adicionar custos específicos com valores manuais
-        - Suporta dois tipos de aplicação:
-          - **Pontual**: Aplicado em meses específicos selecionados
-          - **Constante**: Aplicado a partir de um mês inicial em diante
-        - Rateio automático por veículo baseado em percentuais do arquivo de rateio
-        - Integração automática com Account (Type 07) para buscar Type 06, Type 05, Custo e USI
-        - Visualização e exclusão de custos específicos cadastrados
-        - Formatação numérica com separador de milhares (formato brasileiro)
-        - Tabela interativa com seleção múltipla para exclusão em lote
-        - Os custos específicos são marcados como "BE Manual" na coluna Tipo
+        **6. Custos EspecÃ­ficos (BE Manual):**
+        - Permite adicionar custos especÃ­ficos com valores manuais
+        - Suporta dois tipos de aplicaÃ§Ã£o:
+          - **Pontual**: Aplicado em meses especÃ­ficos selecionados
+          - **Constante**: Aplicado a partir de um mÃªs inicial em diante
+        - Rateio automÃ¡tico por veÃ­culo baseado em percentuais do arquivo de rateio
+        - IntegraÃ§Ã£o automÃ¡tica com Account (Type 07) para buscar Type 06, Type 05, Custo e USI
+        - VisualizaÃ§Ã£o e exclusÃ£o de custos especÃ­ficos cadastrados
+        - FormataÃ§Ã£o numÃ©rica com separador de milhares (formato brasileiro)
+        - Tabela interativa com seleÃ§Ã£o mÃºltipla para exclusÃ£o em lote
+        - Os custos especÃ­ficos sÃ£o marcados como "BE Manual" na coluna Tipo
         - Integrados automaticamente ao forecast final como linhas separadas
         
         **7. Nomenclatura Atualizada:**
         - Coluna "Tipo" agora usa "BE" para forecast normal
-        - Coluna "Tipo" usa "BE Manual" para custos específicos/manuais
-        - Título atualizado: "Best Estimate - Previsão de Custo Total"
-        - Compatibilidade automática com arquivos antigos (conversão de "Forecast" para "BE")
+        - Coluna "Tipo" usa "BE Manual" para custos especÃ­ficos/manuais
+        - TÃ­tulo atualizado: "Best Estimate - PrevisÃ£o de Custo Total"
+        - Compatibilidade automÃ¡tica com arquivos antigos (conversÃ£o de "Forecast" para "BE")
         """)
         
         st.markdown("---")
         
-        # Seção 3.1: Custos Específicos - Detalhamento
-        st.markdown("### 💰 Custos Específicos (BE Manual) - Detalhamento")
+        # SeÃ§Ã£o 3.1: Custos EspecÃ­ficos - Detalhamento
+        st.markdown("### ðŸ’° Custos EspecÃ­ficos (BE Manual) - Detalhamento")
         
         st.markdown("""
-        **Funcionalidade:** Permite adicionar custos específicos com valores manuais que são integrados ao forecast.
+        **Funcionalidade:** Permite adicionar custos especÃ­ficos com valores manuais que sÃ£o integrados ao forecast.
         
         **Como Funciona:**
         
-        **1. Adicionar Custo Específico:**
-        - Acesse a aba "➕ Adicionar Custo" na página 2
-        - Preencha os campos obrigatórios:
+        **1. Adicionar Custo EspecÃ­fico:**
+        - Acesse a aba "âž• Adicionar Custo" na pÃ¡gina 2
+        - Preencha os campos obrigatÃ³rios:
           - **Account (Type 07)**: Seleciona o Account e busca automaticamente Type 06, Type 05, Custo e USI
-          - **Oficina**: Seleciona a oficina (sem opção "Todos")
-          - **Veículo**: Seleciona veículo específico ou "Todos" para rateio automático
-          - **Período**: Seleciona o período (mês e ano)
-          - **Tipo de Aplicação**: 
+          - **Oficina**: Seleciona a oficina (sem opÃ§Ã£o "Todos")
+          - **VeÃ­culo**: Seleciona veÃ­culo especÃ­fico ou "Todos" para rateio automÃ¡tico
+          - **PerÃ­odo**: Seleciona o perÃ­odo (mÃªs e ano)
+          - **Tipo de AplicaÃ§Ã£o**: 
             - **Pontual**: Aplicado apenas nos meses selecionados
-            - **Constante**: Aplicado a partir do mês inicial em diante
+            - **Constante**: Aplicado a partir do mÃªs inicial em diante
           - **Valor Total**: Valor total do custo
-          - **Descrição**: Descrição opcional do custo
+          - **DescriÃ§Ã£o**: DescriÃ§Ã£o opcional do custo
         
-        **2. Rateio Automático:**
-        - Se "Todos" for selecionado para Veículo, o sistema busca automaticamente os percentuais de rateio do arquivo `Reporting fluxo anexo.xlsx` (aba "Rateio")
-        - O rateio é aplicado mês a mês conforme os percentuais do arquivo
-        - Se um veículo específico for selecionado, o rateio é 100% para aquele veículo
-        - O valor total é distribuído proporcionalmente entre os veículos
+        **2. Rateio AutomÃ¡tico:**
+        - Se "Todos" for selecionado para VeÃ­culo, o sistema busca automaticamente os percentuais de rateio do arquivo `Reporting fluxo anexo.xlsx` (aba "Rateio")
+        - O rateio Ã© aplicado mÃªs a mÃªs conforme os percentuais do arquivo
+        - Se um veÃ­culo especÃ­fico for selecionado, o rateio Ã© 100% para aquele veÃ­culo
+        - O valor total Ã© distribuÃ­do proporcionalmente entre os veÃ­culos
         
         **3. Visualizar Custos:**
-        - Acesse a aba "📋 Visualizar Custos"
+        - Acesse a aba "ðŸ“‹ Visualizar Custos"
         - Tabela interativa com todas as colunas do formato `df_final_historico_forecast.xlsx`
-        - Formatação numérica com 2 casas decimais e separador de milhares (formato brasileiro)
-        - Seleção múltipla com checkboxes para exclusão em lote
-        - Botão "🗑️ Deletar Selecionadas" para remover custos
+        - FormataÃ§Ã£o numÃ©rica com 2 casas decimais e separador de milhares (formato brasileiro)
+        - SeleÃ§Ã£o mÃºltipla com checkboxes para exclusÃ£o em lote
+        - BotÃ£o "ðŸ—‘ï¸ Deletar Selecionadas" para remover custos
         
-        **4. Integração com Forecast:**
-        - Os custos específicos são automaticamente incluídos no forecast final
+        **4. IntegraÃ§Ã£o com Forecast:**
+        - Os custos especÃ­ficos sÃ£o automaticamente incluÃ­dos no forecast final
         - Aparecem como linhas separadas com Tipo = "BE Manual"
-        - Não são somados ao forecast calculado, mas adicionados como linhas independentes
-        - Mantém o mesmo formato e estrutura do forecast normal
+        - NÃ£o sÃ£o somados ao forecast calculado, mas adicionados como linhas independentes
+        - MantÃ©m o mesmo formato e estrutura do forecast normal
         
-        **5. Persistência:**
-        - Os custos específicos são salvos em `dados/TC_Ext/Forecast/custos_especificos.parquet`
-        - São carregados automaticamente ao gerar o forecast
-        - Permanecem salvos até serem explicitamente excluídos
+        **5. PersistÃªncia:**
+        - Os custos especÃ­ficos sÃ£o salvos em `dados/TC_Ext/Forecast/custos_especificos.parquet`
+        - SÃ£o carregados automaticamente ao gerar o forecast
+        - Permanecem salvos atÃ© serem explicitamente excluÃ­dos
         
         **6. Formato de Dados:**
-        - Os custos específicos seguem exatamente o formato de `df_final_historico_forecast.xlsx`
-        - Colunas na ordem: Account, Ano, Centrocst, Custo, Fornec., Fornecedor, Mes, Oficina, Período, Soma_Percentuais, Tipo, Total, Type 05, Type 06, USI, Valor, Veículo
-        - Tipo sempre preenchido como "BE Manual" para identificação
+        - Os custos especÃ­ficos seguem exatamente o formato de `df_final_historico_forecast.xlsx`
+        - Colunas na ordem: Account, Ano, Centrocst, Custo, Fornec., Fornecedor, Mes, Oficina, PerÃ­odo, Soma_Percentuais, Tipo, Total, Type 05, Type 06, USI, Valor, VeÃ­culo
+        - Tipo sempre preenchido como "BE Manual" para identificaÃ§Ã£o
         """)
         
         st.markdown("---")
         
-        # Seção 4: Página - Best Estimate (Análise)
-        st.markdown("## 📊 PÁGINA - BEST ESTIMATE (ANÁLISE) {#pagina-analise}")
+        # SeÃ§Ã£o 4: PÃ¡gina - Best Estimate (AnÃ¡lise)
+        st.markdown("## ðŸ“Š PÃGINA - BEST ESTIMATE (ANÃLISE) {#pagina-analise}")
         
         st.markdown("""
         ### Funcionalidades Principais
         
         **Objetivo:**
-        A página **Best Estimate (Análise)** no menu **TC Ext** substitui a análise legacy e entrega:
+        A pÃ¡gina **Best Estimate (AnÃ¡lise)** no menu **TC Ext** substitui a anÃ¡lise legacy e entrega:
         - as **mesmas tabelas/visuais** da Home (TC Ext),
-        - porém alimentadas pelos **arquivos de Forecast** gerados pelo simulador.
+        - porÃ©m alimentadas pelos **arquivos de Forecast** gerados pelo simulador.
         
         **Funcionalidades:**
         
         **1. Fonte de dados (Forecast):**
-        - Lê `dados/TC_Ext/Forecast/forecast_completo.parquet` (custos) e `dados/TC_Ext/Forecast/df_vol_historico.parquet` (volume)
-        - Permite analisar previsões (BE) e histórico no mesmo layout
-        - Expander de diagnóstico mostra paths, mtimes e contagens
+        - LÃª `dados/TC_Ext/Forecast/forecast_completo.parquet` (custos) e `dados/TC_Ext/Forecast/df_vol_historico.parquet` (volume)
+        - Permite analisar previsÃµes (BE) e histÃ³rico no mesmo layout
+        - Expander de diagnÃ³stico mostra paths, mtimes e contagens
         
-        **2. Visualizações (mesma base da Home):**
-        - Gráficos e tabelas por período, oficina, veículo
-        - Mesmo padrão de filtros e formatação
-        - Sem “corte” de meses futuros quando houver Forecast
+        **2. VisualizaÃ§Ãµes (mesma base da Home):**
+        - GrÃ¡ficos e tabelas por perÃ­odo, oficina, veÃ­culo
+        - Mesmo padrÃ£o de filtros e formataÃ§Ã£o
+        - Sem â€œcorteâ€ de meses futuros quando houver Forecast
         
         **3. Tabelas detalhadas (com TOTAL coerente):**
-        - No modo CPU, totais são sempre `CPU = sum(Total) / sum(Volume)` (ponderado)
-        - Expander opcional “Volume por período” ajuda a explicar variações do TOTAL mês a mês
+        - No modo CPU, totais sÃ£o sempre `CPU = sum(Total) / sum(Volume)` (ponderado)
+        - Expander opcional â€œVolume por perÃ­odoâ€ ajuda a explicar variaÃ§Ãµes do TOTAL mÃªs a mÃªs
         
-        **4. Comparações:**
-        - Permite comparar BE vs histórico dentro do mesmo layout de análise
-        - Facilita validar premissas (sensibilidade/inflação) pela variação temporal
+        **4. ComparaÃ§Ãµes:**
+        - Permite comparar BE vs histÃ³rico dentro do mesmo layout de anÃ¡lise
+        - Facilita validar premissas (sensibilidade/inflaÃ§Ã£o) pela variaÃ§Ã£o temporal
         
-        **5. Integração com o simulador:**
+        **5. IntegraÃ§Ã£o com o simulador:**
         - O simulador gera/salva os arquivos em `dados/TC_Ext/Forecast/`
-        - A análise lê esses arquivos e atualiza as visualizações
+        - A anÃ¡lise lÃª esses arquivos e atualiza as visualizaÃ§Ãµes
         
-        **6. Modos de visualização:**
+        **6. Modos de visualizaÃ§Ã£o:**
         - **Custo Total:** Valores absolutos em R$
         - **CPU (Custo por Unidade):** Valores por unidade produzida
-        - Permite alternar entre modos para diferentes análises
+        - Permite alternar entre modos para diferentes anÃ¡lises
         """)
         
         st.markdown("---")
         
-        # Seção 5: Fluxo de Dados e Processamento
-        st.markdown("## 🔄 FLUXO DE DADOS E PROCESSAMENTO {#fluxo-dados-forecast}")
+        # SeÃ§Ã£o 5: Fluxo de Dados e Processamento
+        st.markdown("## ðŸ”„ FLUXO DE DADOS E PROCESSAMENTO {#fluxo-dados-forecast}")
         
         st.markdown("""
         ### Fluxo Completo de Dados
         
         **Diagrama de Fluxo:**
         ```
-        Dados Históricos (dados/TC_Ext/historico_consolidado/)
-                │
-                ├──> Carregamento (load_data)
-                │       │
-                │       ├──> Aplicar Filtros (Oficina, Veículo, etc.)
-                │       │
-                │       └──> Filtrar Períodos Selecionados
-                │
-                ├──> Cálculo de Médias (calcular_medias_forecast)
-                │       │
-                │       ├──> Agrupar por Chaves Únicas
-                │       │
-                │       ├──> Calcular Média de Custos
-                │       │
-                │       └──> Calcular Volume Médio Histórico
-                │
-                ├──> Cálculo de Forecast (calcular_forecast_completo)
-                │       │
-                │       ├──> Para cada linha:
-                │       │       ├──> Obter Média Histórica
-                │       │       ├──> Obter Volume Futuro
-                │       │       ├──> Calcular Proporção
-                │       │       ├──> Aplicar Sensibilidade
-                │       │       └──> Aplicar Inflação
-                │       │
-                │       └──> DataFrame Completo com Forecast
-                │
-                └──> Salvamento (dados/TC_Ext/Forecast/)
-                        │
-                        ├──> forecast_completo.parquet
-                        ├──> forecast_historico.parquet
-                        └──> forecast_previsao.parquet
+        Dados HistÃ³ricos (dados/TC_Ext/historico_consolidado/)
+                â”‚
+                â”œâ”€â”€> Carregamento (load_data)
+                â”‚       â”‚
+                â”‚       â”œâ”€â”€> Aplicar Filtros (Oficina, VeÃ­culo, etc.)
+                â”‚       â”‚
+                â”‚       â””â”€â”€> Filtrar PerÃ­odos Selecionados
+                â”‚
+                â”œâ”€â”€> CÃ¡lculo de MÃ©dias (calcular_medias_forecast)
+                â”‚       â”‚
+                â”‚       â”œâ”€â”€> Agrupar por Chaves Ãšnicas
+                â”‚       â”‚
+                â”‚       â”œâ”€â”€> Calcular MÃ©dia de Custos
+                â”‚       â”‚
+                â”‚       â””â”€â”€> Calcular Volume MÃ©dio HistÃ³rico
+                â”‚
+                â”œâ”€â”€> CÃ¡lculo de Forecast (calcular_forecast_completo)
+                â”‚       â”‚
+                â”‚       â”œâ”€â”€> Para cada linha:
+                â”‚       â”‚       â”œâ”€â”€> Obter MÃ©dia HistÃ³rica
+                â”‚       â”‚       â”œâ”€â”€> Obter Volume Futuro
+                â”‚       â”‚       â”œâ”€â”€> Calcular ProporÃ§Ã£o
+                â”‚       â”‚       â”œâ”€â”€> Aplicar Sensibilidade
+                â”‚       â”‚       â””â”€â”€> Aplicar InflaÃ§Ã£o
+                â”‚       â”‚
+                â”‚       â””â”€â”€> DataFrame Completo com Forecast
+                â”‚
+                â””â”€â”€> Salvamento (dados/TC_Ext/Forecast/)
+                        â”‚
+                        â”œâ”€â”€> forecast_completo.parquet
+                        â”œâ”€â”€> forecast_historico.parquet
+                        â””â”€â”€> forecast_previsao.parquet
         ```
         
-        **Características do Fluxo:**
-        - **Tempo Real:** Forecast é calculado em tempo real com configurações atuais
-        - **Não Persistente:** Configurações (sensibilidade, inflação) não são salvas, apenas o resultado
-        - **Substituição:** Cada geração substitui o forecast anterior
-        - **Independência:** Cada página pode gerar seu próprio forecast
+        **CaracterÃ­sticas do Fluxo:**
+        - **Tempo Real:** Forecast Ã© calculado em tempo real com configuraÃ§Ãµes atuais
+        - **NÃ£o Persistente:** ConfiguraÃ§Ãµes (sensibilidade, inflaÃ§Ã£o) nÃ£o sÃ£o salvas, apenas o resultado
+        - **SubstituiÃ§Ã£o:** Cada geraÃ§Ã£o substitui o forecast anterior
+        - **IndependÃªncia:** Cada pÃ¡gina pode gerar seu prÃ³prio forecast
         """)
         
         st.markdown("---")
         
-        # Seção 6: Arquivos Gerados
-        st.markdown("## 📄 ARQUIVOS GERADOS {#arquivos-gerados-forecast}")
+        # SeÃ§Ã£o 6: Arquivos Gerados
+        st.markdown("## ðŸ“„ ARQUIVOS GERADOS {#arquivos-gerados-forecast}")
         
         st.markdown("""
         ### Arquivos na Pasta `dados/TC_Ext/Forecast/`
         
         **1. forecast_completo.parquet**
-        - **Conteúdo**: Forecast completo com todas as linhas calculadas
-        - **Estrutura**: Mesmas colunas dos dados históricos + colunas de forecast
-        - **Uso**: Fonte principal para análises e visualizações
-        - **Atualização**: Substituído a cada geração de forecast
+        - **ConteÃºdo**: Forecast completo com todas as linhas calculadas
+        - **Estrutura**: Mesmas colunas dos dados histÃ³ricos + colunas de forecast
+        - **Uso**: Fonte principal para anÃ¡lises e visualizaÃ§Ãµes
+        - **AtualizaÃ§Ã£o**: SubstituÃ­do a cada geraÃ§Ã£o de forecast
         
         **2. forecast_historico.parquet**
-        - **Conteúdo**: Histórico de forecasts gerados anteriormente
-        - **Estrutura**: Similar ao forecast_completo, mas com múltiplos forecasts
-        - **Uso**: Análise de evolução de forecasts ao longo do tempo
-        - **Atualização**: Pode ser concatenado ou substituído (depende da implementação)
+        - **ConteÃºdo**: HistÃ³rico de forecasts gerados anteriormente
+        - **Estrutura**: Similar ao forecast_completo, mas com mÃºltiplos forecasts
+        - **Uso**: AnÃ¡lise de evoluÃ§Ã£o de forecasts ao longo do tempo
+        - **AtualizaÃ§Ã£o**: Pode ser concatenado ou substituÃ­do (depende da implementaÃ§Ã£o)
         
         **3. forecast_previsao.parquet**
-        - **Conteúdo**: Apenas previsões futuras (sem dados históricos)
-        - **Estrutura**: Apenas períodos futuros do forecast
-        - **Uso**: Análise focada apenas em previsões
-        - **Atualização**: Substituído a cada geração
+        - **ConteÃºdo**: Apenas previsÃµes futuras (sem dados histÃ³ricos)
+        - **Estrutura**: Apenas perÃ­odos futuros do forecast
+        - **Uso**: AnÃ¡lise focada apenas em previsÃµes
+        - **AtualizaÃ§Ã£o**: SubstituÃ­do a cada geraÃ§Ã£o
         
         **4. df_final_historico_forecast.parquet**
-        - **Conteúdo**: Dados históricos filtrados usados para calcular o forecast
-        - **Estrutura**: Dados históricos após aplicação de filtros e seleção de períodos
-        - **Uso**: Referência dos dados que foram usados para calcular a média
-        - **Atualização**: Gerado junto com o forecast
+        - **ConteÃºdo**: Dados histÃ³ricos filtrados usados para calcular o forecast
+        - **Estrutura**: Dados histÃ³ricos apÃ³s aplicaÃ§Ã£o de filtros e seleÃ§Ã£o de perÃ­odos
+        - **Uso**: ReferÃªncia dos dados que foram usados para calcular a mÃ©dia
+        - **AtualizaÃ§Ã£o**: Gerado junto com o forecast
         
         **5. df_vol_historico.parquet**
-        - **Conteúdo**: Volumes históricos usados para cálculo de proporções
-        - **Estrutura**: Volumes por período, oficina, veículo
-        - **Uso**: Cálculo de volume médio histórico e proporções
-        - **Atualização**: Pode ser copiado do histórico consolidado ou gerado
+        - **ConteÃºdo**: Volumes histÃ³ricos usados para cÃ¡lculo de proporÃ§Ãµes
+        - **Estrutura**: Volumes por perÃ­odo, oficina, veÃ­culo
+        - **Uso**: CÃ¡lculo de volume mÃ©dio histÃ³rico e proporÃ§Ãµes
+        - **AtualizaÃ§Ã£o**: Pode ser copiado do histÃ³rico consolidado ou gerado
         
         **6. custos_especificos.parquet**
-        - **Conteúdo**: Custos específicos cadastrados manualmente (BE Manual)
+        - **ConteÃºdo**: Custos especÃ­ficos cadastrados manualmente (BE Manual)
         - **Estrutura**: Mesmo formato de `df_final_historico_forecast.xlsx` com coluna Tipo = "BE Manual"
-        - **Uso**: Armazena custos específicos que são integrados ao forecast final
-        - **Atualização**: Criado/modificado ao adicionar ou excluir custos específicos
-        - **Localização**: `dados/TC_Ext/Forecast/custos_especificos.parquet`
+        - **Uso**: Armazena custos especÃ­ficos que sÃ£o integrados ao forecast final
+        - **AtualizaÃ§Ã£o**: Criado/modificado ao adicionar ou excluir custos especÃ­ficos
+        - **LocalizaÃ§Ã£o**: `dados/TC_Ext/Forecast/custos_especificos.parquet`
         """)
         
         st.markdown("---")
         
-        # Seção 6.1: Nomenclatura e Tipos
-        st.markdown("### 🏷️ Nomenclatura e Tipos de Dados")
+        # SeÃ§Ã£o 6.1: Nomenclatura e Tipos
+        st.markdown("### ðŸ·ï¸ Nomenclatura e Tipos de Dados")
         
         st.markdown("""
         **Coluna "Tipo" no Forecast:**
         
         O sistema utiliza a coluna "Tipo" para identificar diferentes tipos de dados no forecast:
         
-        - **"Histórico"**: Dados históricos reais (não previstos)
+        - **"HistÃ³rico"**: Dados histÃ³ricos reais (nÃ£o previstos)
         - **"BE"**: Best Estimate - Forecast calculado automaticamente pelo sistema
-        - **"BE Manual"**: Best Estimate Manual - Custos específicos adicionados manualmente
+        - **"BE Manual"**: Best Estimate Manual - Custos especÃ­ficos adicionados manualmente
         
         **Compatibilidade:**
-        - Arquivos antigos com "Forecast" são automaticamente convertidos para "BE" ao carregar
-        - Isso garante compatibilidade com versões anteriores do sistema
+        - Arquivos antigos com "Forecast" sÃ£o automaticamente convertidos para "BE" ao carregar
+        - Isso garante compatibilidade com versÃµes anteriores do sistema
         
-        **Filtros e Separação:**
-        - O sistema separa automaticamente histórico, BE e BE Manual ao gerar arquivos
-        - `forecast_historico.parquet`: Apenas dados históricos
-        - `forecast_previsao.parquet`: Apenas BE e BE Manual (previsões)
+        **Filtros e SeparaÃ§Ã£o:**
+        - O sistema separa automaticamente histÃ³rico, BE e BE Manual ao gerar arquivos
+        - `forecast_historico.parquet`: Apenas dados histÃ³ricos
+        - `forecast_previsao.parquet`: Apenas BE e BE Manual (previsÃµes)
         - `df_final_historico_forecast.parquet`: Consolidado com todos os tipos
         """)
         
         st.markdown("---")
         
-        # Seção 7: Cenários de Uso
-        st.markdown("## 📋 CENÁRIOS DE USO {#cenarios-uso-forecast}")
+        # SeÃ§Ã£o 7: CenÃ¡rios de Uso
+        st.markdown("## ðŸ“‹ CENÃRIOS DE USO {#cenarios-uso-forecast}")
         
-        st.markdown("### Casos Práticos Completos")
+        st.markdown("### Casos PrÃ¡ticos Completos")
         
-        with st.expander("**Cenário 1: Gerar Forecast pela Primeira Vez**", expanded=False):
+        with st.expander("**CenÃ¡rio 1: Gerar Forecast pela Primeira Vez**", expanded=False):
             st.markdown("""
-            **Situação**: Nunca gerou forecast, precisa criar previsões para próximos meses
+            **SituaÃ§Ã£o**: Nunca gerou forecast, precisa criar previsÃµes para prÃ³ximos meses
             
             **Passo a Passo**:
             
-            1. **Acessar Página 2 (Simulador)**:
-               - Selecionar períodos históricos (ex: últimos 3 meses)
-               - Configurar sensibilidades (Fixo: 0%, Variável: 100%)
-               - Configurar inflação (ex: 5%)
-               - Selecionar períodos futuros (ex: próximos 6 meses)
+            1. **Acessar PÃ¡gina 2 (Simulador)**:
+               - Selecionar perÃ­odos histÃ³ricos (ex: Ãºltimos 3 meses)
+               - Configurar sensibilidades (Fixo: 0%, VariÃ¡vel: 100%)
+               - Configurar inflaÃ§Ã£o (ex: 5%)
+               - Selecionar perÃ­odos futuros (ex: prÃ³ximos 6 meses)
             
             2. **Informar Volumes Futuros**:
-               - Inserir volumes esperados para cada período futuro
+               - Inserir volumes esperados para cada perÃ­odo futuro
                - Ou usar volumes projetados automaticamente
             
             3. **Visualizar Resultados**:
-               - Verificar gráficos e tabelas
-               - Ajustar parâmetros se necessário
+               - Verificar grÃ¡ficos e tabelas
+               - Ajustar parÃ¢metros se necessÃ¡rio
             
             4. **Salvar Forecast**:
                - Clicar em "Salvar Forecast"
                     - Sistema cria `dados/TC_Ext/Forecast/` automaticamente
                - Salva `forecast_completo.parquet`
             
-            5. **Analisar na Página 3**:
-               - Acessar Página 3 (Análise)
+            5. **Analisar na PÃ¡gina 3**:
+               - Acessar PÃ¡gina 3 (AnÃ¡lise)
                - Carregar forecast gerado
-               - Visualizar análises detalhadas
+               - Visualizar anÃ¡lises detalhadas
             
             **Resultado**: 
             - Pasta `dados/TC_Ext/Forecast/` criada com forecast completo
-            - Forecast disponível para análises e comparações
+            - Forecast disponÃ­vel para anÃ¡lises e comparaÃ§Ãµes
             """)
         
-        with st.expander("**Cenário 2: Atualizar Forecast com Novos Dados**", expanded=False):
+        with st.expander("**CenÃ¡rio 2: Atualizar Forecast com Novos Dados**", expanded=False):
             st.markdown("""
-            **Situação**: Já existe forecast, mas novos dados históricos foram adicionados
+            **SituaÃ§Ã£o**: JÃ¡ existe forecast, mas novos dados histÃ³ricos foram adicionados
             
             **Passo a Passo**:
             
-            1. **Atualizar Dados Históricos** (se necessário):
-               - Executar extração de dados (Página 5) para incluir novos períodos
-               - Histórico consolidado é atualizado automaticamente
+            1. **Atualizar Dados HistÃ³ricos** (se necessÃ¡rio):
+               - Executar extraÃ§Ã£o de dados (PÃ¡gina 5) para incluir novos perÃ­odos
+               - HistÃ³rico consolidado Ã© atualizado automaticamente
             
-            2. **Acessar Página 2 ou 3**:
-               - Selecionar novos períodos históricos (incluindo os mais recentes)
-               - Manter ou ajustar sensibilidades e inflação
+            2. **Acessar PÃ¡gina 2 ou 3**:
+               - Selecionar novos perÃ­odos histÃ³ricos (incluindo os mais recentes)
+               - Manter ou ajustar sensibilidades e inflaÃ§Ã£o
             
             3. **Gerar Novo Forecast**:
                - Clicar em "Gerar Forecast" ou "Salvar Forecast"
                - Sistema recalcula com dados atualizados
             
-            4. **Forecast Anterior é Substituído**:
-               - `forecast_completo.parquet` é sobrescrito
+            4. **Forecast Anterior Ã© SubstituÃ­do**:
+               - `forecast_completo.parquet` Ã© sobrescrito
                - Novo forecast reflete dados mais recentes
             
             **Resultado**: 
             - Forecast atualizado com dados mais recentes
-            - Previsões mais acuradas baseadas em histórico expandido
+            - PrevisÃµes mais acuradas baseadas em histÃ³rico expandido
             """)
         
-        with st.expander("**Cenário 3: Testar Diferentes Cenários (What-If)**", expanded=False):
+        with st.expander("**CenÃ¡rio 3: Testar Diferentes CenÃ¡rios (What-If)**", expanded=False):
             st.markdown("""
-            **Situação**: Quer testar impacto de diferentes volumes ou inflações
+            **SituaÃ§Ã£o**: Quer testar impacto de diferentes volumes ou inflaÃ§Ãµes
             
             **Passo a Passo**:
             
-            1. **Acessar Página 2 (Simulador)**:
-               - Configurar parâmetros base (sensibilidades, períodos históricos)
+            1. **Acessar PÃ¡gina 2 (Simulador)**:
+               - Configurar parÃ¢metros base (sensibilidades, perÃ­odos histÃ³ricos)
             
-            2. **Testar Cenário 1**:
+            2. **Testar CenÃ¡rio 1**:
                - Ajustar volumes futuros (ex: +10%)
                - Visualizar impacto nos custos
-               - **NÃO salvar** (apenas visualizar)
+               - **NÃƒO salvar** (apenas visualizar)
             
-            3. **Testar Cenário 2**:
+            3. **Testar CenÃ¡rio 2**:
                - Ajustar volumes futuros (ex: -5%)
                - Visualizar impacto
-               - Comparar com Cenário 1
+               - Comparar com CenÃ¡rio 1
             
-            4. **Testar Diferentes Inflações**:
-               - Alterar percentual de inflação
+            4. **Testar Diferentes InflaÃ§Ãµes**:
+               - Alterar percentual de inflaÃ§Ã£o
                - Ver impacto em todos os custos
-               - Comparar cenários
+               - Comparar cenÃ¡rios
             
-            5. **Salvar Cenário Escolhido**:
-               - Após decidir qual cenário usar
-               - Configurar parâmetros finais
+            5. **Salvar CenÃ¡rio Escolhido**:
+               - ApÃ³s decidir qual cenÃ¡rio usar
+               - Configurar parÃ¢metros finais
                - Salvar forecast
             
             **Resultado**: 
-            - Múltiplos cenários testados sem salvar
-            - Forecast final salvo com cenário escolhido
+            - MÃºltiplos cenÃ¡rios testados sem salvar
+            - Forecast final salvo com cenÃ¡rio escolhido
             """)
         
-        with st.expander("**Cenário 4: Análise Detalhada de Forecast Gerado**", expanded=False):
+        with st.expander("**CenÃ¡rio 4: AnÃ¡lise Detalhada de Forecast Gerado**", expanded=False):
             st.markdown("""
-            **Situação**: Forecast já foi gerado, precisa de análises detalhadas
+            **SituaÃ§Ã£o**: Forecast jÃ¡ foi gerado, precisa de anÃ¡lises detalhadas
             
             **Passo a Passo**:
             
-            1. **Acessar Página 3 (Análise)**:
+            1. **Acessar PÃ¡gina 3 (AnÃ¡lise)**:
                - Sistema carrega `forecast_completo.parquet` automaticamente
-               - Mostra data de última atualização
+               - Mostra data de Ãºltima atualizaÃ§Ã£o
             
             2. **Aplicar Filtros**:
-               - Filtrar por Oficina, Veículo, Type 05, Type 06, etc.
-               - Selecionar períodos específicos
+               - Filtrar por Oficina, VeÃ­culo, Type 05, Type 06, etc.
+               - Selecionar perÃ­odos especÃ­ficos
             
-            3. **Visualizar Gráficos**:
-               - Gráficos de linha mostrando evolução
-               - Gráficos de barras comparando períodos
-               - Identificar tendências e padrões
+            3. **Visualizar GrÃ¡ficos**:
+               - GrÃ¡ficos de linha mostrando evoluÃ§Ã£o
+               - GrÃ¡ficos de barras comparando perÃ­odos
+               - Identificar tendÃªncias e padrÃµes
             
             4. **Analisar Tabelas**:
-               - Tabelas hierárquicas com drill-down
+               - Tabelas hierÃ¡rquicas com drill-down
                - Detalhamento linha a linha
                - Identificar maiores custos previstos
             
             5. **Exportar para Excel**:
-               - Exportar tabelas para análise externa
+               - Exportar tabelas para anÃ¡lise externa
                - Compartilhar resultados com equipe
             
             **Resultado**: 
-            - Análises detalhadas do forecast
-            - Insights para tomada de decisão
-            - Documentação dos resultados
+            - AnÃ¡lises detalhadas do forecast
+            - Insights para tomada de decisÃ£o
+            - DocumentaÃ§Ã£o dos resultados
             """)
         
         st.markdown("---")
         
         st.success("""
-        **✅ Este capítulo descreve completamente a estrutura, atualização e funcionamento**
-        das páginas de Best Estimate. Use estas informações para entender como o sistema
-        organiza os dados, processa os forecasts e como cada página contribui para o processo.
+        **âœ… Este capÃ­tulo descreve completamente a estrutura, atualizaÃ§Ã£o e funcionamento**
+        das pÃ¡ginas de Best Estimate. Use estas informaÃ§Ãµes para entender como o sistema
+        organiza os dados, processa os forecasts e como cada pÃ¡gina contribui para o processo.
         """)
 
 # ==========================================
-# SEÇÃO 6: APRESENTAÇÃO VISUAL
+# SEÃ‡ÃƒO 6: APRESENTAÃ‡ÃƒO VISUAL
 # ==========================================
-elif indice_selecionado == "📊 Apresentação Visual":
-    st.header("📊 Apresentação Visual - 5 Minutos")
-    
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-        <h2 style="color: white; margin: 0;">📊 Apresentação Visual do Stellantis Cost Intelligence (SCI)</h2>
-        <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Apresentação completa de 5 minutos — dois módulos (TC Extendido e TC Veículos) com slides visuais
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab_roteiro, tab_slides = st.tabs(["🎤 Roteiro (5 min)", "🧩 Slides (Markdown)"])
-
-    with tab_roteiro:
-        st.subheader("🎤 Roteiro sugerido (objetivo: clareza em 5 minutos)")
-        st.markdown(
-            """
-            **0:00–0:30 — O que é o Stellantis Cost Intelligence (SCI)**
-            - Plataforma de dashboards para decisão estratégica em custos de manufatura.
-            - Dois módulos complementares: **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo).
-            - Funcionalidades compartilhadas: Waterfall, Best Estimate, Extração, Multi-moeda.
-
-            ---
-
-            **0:30–1:30 — 📊 TC Extendido**
-            - Análise de **custo total agregado** e **CPU** (Custo por Unidade) — linhas secundárias.
-            - Coluna principal: `Total`. Dois modos: Custo Total ↔ CPU (`sum(Total)/sum(Volume)`).
-            - Filtros: Ano, Período, Oficina, Veículo, USI, Type 05/06, Account, filtros avançados.
-            - Regra crítica: CPU **nunca** é somada/mediada — sempre razão ponderada.
-            - Flex Budget: fixo inalterado; variável escala por `Vol_Real / Vol_BUD`.
-
-            ---
-
-            **1:30–3:00 — 🚗 TC Veículos**
-- Análise de **custo do Fluxo Principal (Custo FP) por veículo** — cadeia completa.
-- Cadeia: Despesa Primária − Custo FA = **Custo FP**; D&A Dedicado → FP sem Dedicada.
-            - **Rateio por veículo**: proporcional ao tempo de produção na oficina.
-            - 6 tabs: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo Produção, Dados Detalhados.
-            - Seleção de veículo específico aciona rateio; "Todos" mostra consolidado.
-
-            ---
-
-            **3:00–4:30 — 🔗 Funcionalidades compartilhadas**
-            - **Waterfall**: decompõe variações entre períodos (efeito volume vs efeito custo via Flex BUD).
-            - **Best Estimate**: Simulador (sensibilidade + inflação + volume → Forecast) + Análise (Home com dados projetados).
-              - Fórmula: `BE = Média × (1 + Var_Volume × Sensib) × (1 + Inflação)`.
-              - Cores: roxo escuro = Histórico, roxo claro = BE.
-            - Multi-moeda (BRL/USD/EUR), exportação Excel formatada, versionamento automático.
-
-            ---
-
-            **4:30–5:00 — Encerramento**
-            - Benefícios: horas → segundos, zero erros manuais, cenários "what-if".
-            - Equipe: Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus.
-            """
-        )
-        st.info(
-            "💡 **Dica**: se perguntarem sobre variações de TOTAL em CPU por mês, abra o expander "
-            "'Volume por período' para mostrar que a diferença vem do denominador (volume)."
-        )
-
-    with tab_slides:
-        st.markdown(
-            """
-            Cada slide abaixo pode ser expandido individualmente.
-            O conteúdo segue o mesmo roteiro de 5 minutos.
-            """
-        )
-
-        # ── SLIDE 0 ──
-        with st.expander("👥 Slide 0 — Equipe e Introdução", expanded=True):
-            st.markdown("""
-### 📊 Stellantis Cost Intelligence (SCI) — Sistema de Análise de Custos de Manufatura
-
-**Equipe:**
-- 👨‍💻 **Hudson Cardin** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💻 **Lauro Paiva** — Full-Stack Developer (interface + lógica + cálculos)
-- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
-
----
-
-**Objetivo:**
-Transformar dados brutos de custo industrial (Excel / SAPIENS) em **insights acionáveis** para a tomada de decisão, por meio de dashboards interativos que permitem:
-
-- Comparar **Real vs Budget** com ajuste por volume (Flex Budget)
-- Decompor variações entre períodos via **Waterfall**
-- Projetar cenários futuros com **Best Estimate** (sensibilidade, inflação, volume)
-- Exportar análises em **Excel formatado** com multi-moeda (BRL / USD / EUR)
-
-O sistema é composto por dois módulos complementares — **TC Extendido** (visão agregada) e **TC Veículos** (visão por modelo) — detalhados nos slides seguintes.
-            """)
-
-        # ── SLIDE 1 ──
-        with st.expander("📌 Slide 1 — O que é o SCI  *(0:00 – 0:30)*"):
-            st.markdown("""
-**Stellantis Cost Intelligence (SCI)** — Dois módulos complementares em um único sistema de dashboards para decisão estratégica em custos de manufatura.
-
-| Módulo | Visão | Coluna de custo | Modo de exibição |
-|--------|-------|-----------------|------------------|
-| **📊 TC Extendido** | Agregada por oficina, período e veículo | `Total` | Custo Total ↔ CPU |
-| **🚗 TC Veículos** | Detalhada por modelo de veículo | `Custo FP` | Cadeia FA → FP → D&A |
-
-**Funcionalidades compartilhadas:** Waterfall · Best Estimate · Extração de Dados · Multi-moeda · Exportação Excel
-
-**🎯 Objetivo:**
-Transformar dados brutos (Excel / SAPIENS) em insights acionáveis — comparar Real vs Budget, decompor variações e projetar cenários futuros com Best Estimate.
-            """)
-
-        # ── SLIDE 2 ──
-        with st.expander("📊 Slide 2 — TC Extendido  *(0:30 – 1:30)*"):
-            st.markdown("""
-**Propósito:** Análise de custo total agregado e CPU (Custo por Unidade) por período, oficina e veículo — visão de linhas secundárias.
-
-**Coluna principal:** `Total`
-
-**Dois modos de visualização:**
-- 💰 **Custo Total** — `sum(Total)`, soma direta
-- 📏 **CPU** — `sum(Total) / sum(Volume)`, razão ponderada
-
-> ⚠️ **Regra crítica:** CPU nunca é somada ou mediada — sempre recalculada como razão ponderada.
-
----
-
-**Filtros disponíveis:**
-- *Básicos:* Ano · Período · Oficina · Veículo · USI
-- *Custo:* Type 05 · Type 06 · Account · Fornecedor
-- *Avançados:* Type 07 · Material · Pedido · Ordem · Origem
-
----
-
-**Flex Budget (TC Ext):**
-- *Custo Fixo:* Flex = Budget fixo (inalterado)
-- *Custo Variável:* Flex = Budget variável × (Volume Real / Volume Budget)
-- 🎯 Permite isolar: a variação veio do volume ou do custo?
-
----
-
-**Dados:** `dados/TC_Ext/{ano}/` · Parquets: `df_final.parquet`, `df_vol.parquet`
-            """)
-
-        # ── SLIDE 3 ──
-        with st.expander("🚗 Slide 3 — TC Veículos  *(1:30 – 3:00)*"):
-            st.markdown("""
-**Propósito:** Análise detalhada do custo do Fluxo Principal (Custo FP) por veículo, com cadeia completa de custos e rateio proporcional ao tempo de produção.
-
-**Coluna principal:** `Custo FP`
-
-**Cadeia de custos:**
-- Despesa Primária − Custo FA (Fluxo Anexo) = **Custo FP** (Fluxo Principal)
-- D&A Dedicado = parcela atribuída diretamente ao veículo
-- FP sem Dedicada = Custo FP − D&A Dedicado
-
----
-
-**Rateio proporcional ao tempo de produção:**
-
-1. `Percentual(v,o) = Tempo_Veíc(v,o) / Σ Tempo_Veíc(v,o)`
-2. `Custo_Rateado(v,o) = FP_sem_Dedicada(o) × Percentual(v,o)`
-3. `Custo_FP_Veíc(v,o) = Custo_Rateado(v,o) + D&A_Dedicado(v,o)`
-
-**Exemplo:**
-- Oficina Pintura — Veículo A: 40 min, Veículo B: 60 min
-- % Veíc A = 40%, % Veíc B = 60%
-- FP sem Dedicada = R$ 100.000 → Rateio A = R$ 40.000, Rateio B = R$ 60.000
-
-> Veículo = "Todos" → consolidado (sem rateio) · Veículo específico → dados rateados
-
----
-
-**6 Tabs da Home TC Veículos:**
-
-| Tab | Conteúdo |
-|-----|----------|
-| 🚗 TC Veículos | KPIs resumo + Custo FP × Flex BUD por período |
-| 📊 Análise Flex | Fixo/Variável com hierarquia Type 05 → Account |
-| 📈 Volume | Budget vs Realizado por período e por veículo |
-| 🏢 Custos por Oficina | Custo FP e Rateio FA por oficina |
-| ⏱️ Tempo Produção | Tempo Veículo vs Tempo FA por oficina |
-| 📋 Dados Detalhados | Tabelas exportáveis de Real e Budget |
-
----
-
-**Dados:** `dados/TC_Principal/{ano}/` · Budget em `BUD/` · Parquets: `df_principal`, `df_veiculos_custo_fp`, `df_vol_veiculos_actual`, `df_tempo_veiculos`, `df_dea_dedicado`, `df_volume_fa`
-
-**Filtros:** Oficina · Veículo (ativa rateio) · Type 05/06 · Account · Custo (Fixo/Variável)
-            """)
-
-        # ── SLIDE 4 ──
-        with st.expander("🔗 Slide 4 — Funcionalidades Compartilhadas  *(3:00 – 4:30)*"):
-            st.markdown("""
-**📈 Waterfall — "O que mudou entre dois períodos?"**
-- Compara dois períodos e decompõe a variação
-- O Flex Budget separa: *efeito Volume* vs *efeito Custo*
-- TC Ext: coluna `Total` · TC Veículos: cadeia Desp Primária → Redis → FA → D&A → FP
-
----
-
-**🔮 Best Estimate — Projeções inteligentes**
-
-*Simulador:* define premissas e gera Forecast
-
-| Premissa | Descrição |
-|----------|-----------|
-| **Sensibilidade** | O quanto o custo responde ao volume (0% = fixo, 100% = variável) |
-| **Inflação** | % de reajuste sobre **todos** os custos (fixos e variáveis) |
-| **Volume** | Produção projetada por veículo/mês |
-
-**Fórmula:** `BE = Média_Histórica × (1 + Var_Volume × Sensib) × (1 + Inflação)`
-
-- Fixo: sensibilidade = 0% → sem ajuste de volume
-- Variável: sensibilidade = 100% → escala com volume
-- Inflação aplicada **após** sensibilidade, a **todos** os custos
-
-*Análise:* layout da Home com dados de Forecast
-- 🟣 Roxo escuro (`#4C1D95`) = meses Históricos
-- 🟣 Roxo claro (`#C4B5FD`) = meses Best Estimate
-
-**Saída:** `dados/*/Forecast/forecast_completo.parquet`
-
----
-
-**🌐 Recursos transversais:**
-- 🔄 **Multi-moeda** — R$ · USD · EUR (câmbio em SQLite)
-- 📊 **Fator de escala** — Nenhum · K (÷1.000) · M (÷1.000.000) — nunca em CPU
-- 📤 **Exportação Excel** — downloads formatados com filtros aplicados
-- 🔄 **Versionamento** — automático, incrementa quando páginas mudam
-- ⚡ **Cache inteligente** — TTL + otimização de tipos
-- 📚 **Documentação** — página única e integrada no sistema
-            """)
-
-        # ── SLIDE 5 ──
-        with st.expander("📐 Slide 5 — Comparativo TC Ext vs TC Veículos"):
-            st.markdown("""
-| Aspecto | 📊 TC Extendido | 🚗 TC Veículos |
-|---------|----------------|----------------|
-| **Visão** | Agregada | Detalhada por veículo |
-| **Coluna de custo** | `Total` | `Custo FP` (cadeia) |
-| **Modo de exibição** | Custo Total ↔ CPU | Custo FP + cadeia |
-| **Rateio** | Não há | Proporcional (tempo) |
-| **Volume** | Simples | Por veículo + FA |
-| **Pasta de dados** | `dados/TC_Ext/` | `dados/TC_Principal/` |
-| **Filtros avançados** | Material, Pedido, Ordem, Origem… | Type 05/06, Account, Custo Fixo/Var |
-| **Tabs na Home** | Consolidada | 6 tabs especializadas |
-| **Flex Budget** | Total | Cadeia completa |
-| **Waterfall** | Coluna Total | Cadeia FA → FP → D&A |
-
-**Compartilhado:** Waterfall · Best Estimate · Extração · Export · Multi-moeda · Cache · Versionamento · Documentação
-            """)
-
-        # ── SLIDE 6 ──
-        with st.expander("🏗️ Slide 6 — Arquitetura Técnica"):
-            st.markdown("""
-**Estrutura modular:**
-- `app.py` — Portal / Router (`st.navigation`)
-  - `tc_ext/` — TC Extendido (home_ext, be_analise, normalizacao, metricas)
-  - `tc_principal/` — TC Veículos (home_tc, waterfall_tc, be_simulador, be_analise, extracao, shared)
-  - `tc_core/` — Camada compartilhada (paths, moeda, câmbio SQLite, UI)
-  - `pages/` — Páginas compartilhadas (Waterfall, Simulador, Extração, Documentação)
-
----
-
-**Fluxo de dados:**
-1. **Entrada** — Excel (SAPIENS/Reporting)
-2. **Processamento** — Notebooks Python (ETL automatizado)
-3. **Armazenamento** — Parquet (70% menos memória)
-4. **Visualização** — Dashboard Streamlit interativo
-
----
-
-**Stack tecnológico:**
-- 🐍 Python 3.13 — Linguagem principal
-- 🌐 Streamlit — Interface web interativa
-- 🐼 Pandas — Processamento de dados
-- 📦 Parquet — Armazenamento otimizado
-- 📊 Plotly / Altair — Visualizações interativas
-- 🗃️ SQLite — Câmbio persistido
-            """)
-
-        # ── SLIDE 7 ──
-        with st.expander("🗺️ Slide 7 — Estrutura de Pages (Navegação)"):
-            st.markdown("""
-**Fonte de verdade:** `app.py` (dict `PAGES` via `st.navigation`)
-
-**Grupos e Pages (como aparece no menu lateral):**
-
-- 🚗 **TC Veículos** (`tc_principal/pages/`)
-    - **Home (TC Veículos)** → `tc_principal/pages/home_tc.py` (`url_path="tc"`)
-    - **Waterfall** → `tc_principal/pages/waterfall_tc.py` (`url_path="tc-waterfall"`)
-    - **Best Estimate (Simulador)** → `tc_principal/pages/best_estimate_simulador_tc.py` (`url_path="tc-best-estimate-simulador"`)
-    - **Extração de Dados** → `tc_principal/pages/extracao_dados_tc.py` (`url_path="tc-extracao"`)
-    - **Debug de Cálculos** → `tc_principal/pages/debug_calculos_tc.py` (`url_path="tc-debug"`)
-
-- 📊 **TC Ext (Linhas Secundárias)**
-    - **Home (TC Ext)** → `tc_ext/pages/home_ext.py` (`url_path="tc-ext"`)
-    - **Waterfall** → `pages/1 - Waterfall.py` (`url_path="tc-ext-waterfall"`)
-    - **Best Estimate (Simulador)** → `pages/2 - Best Estimate - Simulador.py` (`url_path="tc-ext-best-estimate-simulador"`)
-    - **Extração de Dados** → `pages/5 - Extração de Dados.py` (`url_path="tc-ext-extracao"`)
-
-- 📚 **Documentação**
-    - **Documentação (Projeto)** → `pages/6 - Documentacao.py` (`url_path="documentacao"`)
-
-- 🤖 **TC Copilot**
-    - **TC Copilot** → `tc_copilot/pages/home_copilot.py` (`url_path="tc-copilot"`)
-
-**Leitura rápida:** a UI do TC Veículos fica em `tc_principal/pages/` e o TC Ext
-tem estrutura parecida (home em `tc_ext/pages/` + wrappers em `pages/`).
-            """)
-
-        # ── SLIDE 8 ──
-        with st.expander("🚗 Slide 8 — Home (TC Veículos)"):
-            st.markdown("""
-**O que é:** dashboard principal do **TC Veículos** (visão executiva + análise em tabs).
-
-**Onde fica:** `tc_principal/pages/home_tc.py` · `url_path="tc"`
-
-**Entradas (dados):**
-- Real/Budget (parquets) em `dados/TC_Principal/{ANO}/...`
-- Consolidados em `dados/TC_Principal/historico_consolidado/...`
-- Forecast (quando existir) em `dados/TC_Principal/Forecast/forecast_completo.parquet`
-
-**O que a página entrega (visual e funcional):**
-- ✅ **KPIs de leitura rápida** (ex.: Custo Total, CPU, Volume, Real vs Budget/Flex, deltas)
-- ✅ **Gráficos por período** para identificar picos/quebras e direcionar o drill-down
-- ✅ **Tabs de análise** (ex.: visão geral do TC, Flex, Volume, Custos por Oficina, Tempo de Produção, Dados Detalhados)
-
-**Cálculos e regras que aparecem na prática:**
-- **Agregação antes do CPU**: primeiro soma custos/volumes, depois calcula $CPU = \\frac{Custo}{Volume}$
-- **Comparativos**: Real vs Budget/Flex BUD por período (inclui deltas e sinalização de variação)
-- **Quebra por dimensões**: oficina/conta/type (conforme disponibilidade no dataset)
-
-**Quando usar:** para responder “como estamos no mês/ano?” e escolher o próximo passo (Waterfall para explicar variação, Debug para validar divergência).
-            """)
-
-        # ── SLIDE 9 ──
-        with st.expander("🚗 Slide 9 — Waterfall (TC Veículos)"):
-            st.markdown("""
-**O que é:** página para explicar **por que o valor mudou**, decompondo a variação em contribuições.
-
-**Onde fica:** `tc_principal/pages/waterfall_tc.py` · `url_path="tc-waterfall"`
-
-**Entradas (dados):**
-- Real/Budget em `dados/TC_Principal/{ANO}/...`
-- Forecast (quando necessário) em `dados/TC_Principal/Forecast/forecast_completo.parquet`
-
-**O que a página entrega:**
-- ✅ **Waterfall/Decomposição** da variação (por período e/ou dimensões disponíveis)
-- ✅ **Ranking de drivers**: quem mais contribuiu para aumento/redução
-- ✅ **Leitura em Custo Total ou CPU** (quando aplicável)
-
-**Cálculo (ideia central):**
-- Variação base: $\\Delta = Valor_{final} - Valor_{inicial}$
-- O gráfico distribui $\\Delta$ em contribuições por categoria (ex.: oficina, conta, veículo), mantendo soma consistente.
-
-**Regras que impactam o resultado:**
-- Pode **mesclar Real + Forecast (BE)** para completar períodos sem Real.
-- Em modo **CPU**, depende de volume consistente (por isso aparece/usa volume histórico/forecast quando necessário).
-
-**Quando usar:** quando a Home mostra um desvio e você precisa explicar “o que puxou para cima/baixo”.
-            """)
-
-        # ── SLIDE 10 ──
-        with st.expander("🚗 Slide 10 — Best Estimate (Simulador) (TC Veículos)"):
-            st.markdown("""
-**O que é:** simulador de premissas para gerar **Best Estimate (Forecast)** e testar cenários “what‑if”.
-
-**Onde fica:** `tc_principal/pages/best_estimate_simulador_tc.py` · `url_path="tc-best-estimate-simulador"`
-
-**Entradas (premissas):**
-- **Sensibilidade ao volume** (impacto de volume em custos)
-- **Inflação (%)**
-- **Volume projetado** (por período e/ou veículo, conforme disponível)
-
-**O que a página entrega:**
-- ✅ **Recalcula custos projetados** (custos fixos/variáveis) com as premissas
-- ✅ **Gera arquivos de Forecast** para alimentar análises futuras
-- ✅ **Permite comparar impacto** em Custo Total e CPU (dependendo do cenário)
-
-**Cálculos (visão simplificada):**
-- Ajuste por volume/sensibilidade (quando custo é sensível a volume)
-- Aplicação de inflação sobre custos ajustados
-- Derivação de CPU quando houver volume: $CPU = \frac{Custo}{Volume}$
-
-**Saídas (pasta Forecast):**
-- `dados/TC_Principal/Forecast/forecast_historico.parquet`
-- `dados/TC_Principal/Forecast/forecast_previsao.parquet`
-- `dados/TC_Principal/Forecast/df_principal_historico_forecast.parquet`
-- `dados/TC_Principal/Forecast/df_vol_historico.parquet` (+ `df_vol_historico.xlsx`)
-
-**Quando usar:** para simular projeções e depois analisar o BE na Home/Waterfall (meses sem Real).
-            """)
-
-        # ── SLIDE 11 ──
-        with st.expander("🚗 Slide 11 — Extração de Dados (TC Veículos)"):
-            st.markdown("""
-**O que é:** pipeline “de entrada” do TC Veículos: upload, validação e geração de parquets.
-
-**Onde fica:** `tc_principal/pages/extracao_dados_tc.py` · `url_path="tc-extracao"`
-
-**O que o usuário faz:**
-- 📤 Faz upload do Excel fonte (Real/Budget)
-- ✅ Executa **pré‑validações** (abas, colunas obrigatórias, tipos e consistência)
-- ⚙️ Processa e grava os datasets padronizados
-
-**O que a página entrega:**
-- ✅ **Parquets canônicos** para o app (Real/Budget)
-- ✅ **Consolidação** para histórico (base para gráficos e comparativos)
-
-**Cálculos/regras típicas do processamento:**
-- Normalização de colunas e categorias (contratos de dados)
-- Tratamento de duplicidades/linhas inválidas (quando aplicável)
-- Preparação para métricas: custo agregado, volume agregado e bases para CPU
-
-**Saídas (arquivos):**
-- Parquets em `dados/TC_Principal/{ANO}/` (e `dados/TC_Principal/{ANO}/BUD/`)
-- Consolidados em `dados/TC_Principal/historico_consolidado/`
-
-**Quando usar:** sempre que entrar um novo mês/ano, ou quando o Excel fonte mudar.
-            """)
-
-        # ── SLIDE 12 ──
-        with st.expander("🚗 Slide 12 — Debug de Cálculos (TC Veículos)"):
-            st.markdown("""
-**O que é:** auditoria do TC Veículos para explicar/validar divergências de números.
-
-**Onde fica:** `tc_principal/pages/debug_calculos_tc.py` · `url_path="tc-debug"`
-
-**Entradas (dados):**
-- Parquets em `dados/TC_Principal/{ANO}/...`
-
-**O que a página entrega:**
-- ✅ **Checklist de integridade** (arquivos esperados, colunas, nulos, tipos)
-- ✅ **Validações de cálculo** (pontos críticos que mais geram divergência)
-- ✅ **Diagnóstico orientado** para achar onde o número “quebrou” (dados, regra ou visualização)
-
-**Validações/cálculos mais comuns aqui:**
-- CPU calculado após agregação: $CPU = \\frac{\\sum Custo}{\\sum Volume}$
-- Consistência de volume (por período e por veículo)
-- Conciliação de totals (Real/Budget/Flex) e checagens de rateio
-
-**Quando usar:** quando um KPI/gráfico não bater com o Excel, ou para auditar a geração do mês.
-            """)
-
-        # ── SLIDE 13 ──
-        with st.expander("🤖 Slide 13 — TC Copilot"):
-            st.markdown("""
-**O que é:** assistente de análise do TC Veículos (perguntas, síntese e geração de conteúdo).
-
-**Onde fica:** `tc_copilot/pages/home_copilot.py` · `url_path="tc-copilot"`
-
-**O que o Copilot entrega:**
-- ✅ **Perguntas e respostas** com base nos dados do TC Veículos (contexto por ano/mês)
-- ✅ **Resumo orientado a decisão** (tendências, principais drivers e pontos de atenção)
-- ✅ **Relatório** por período (organização por capítulos/etapas, com controle de status)
-
-**Como é a tela (tabs):**
-- 💬 **Chatbot** — consulta e explicação dos números
-- 📄 **Relatório Veic.** — criação/gestão do relatório mensal
-- ⚙️ **Configuração** — habilitar/desabilitar, API key, modelo e idioma
-
-**Pré‑requisitos:**
-- Configurar API key na aba **⚙️ Configuração** (para respostas inteligentes)
-- Ter dados em `dados/TC_Principal/` para listar anos/meses e dar contexto
-            """)
-
-        # ── SLIDE 14 ──
-        with st.expander("📈 Slide 14 — Resultados e Equipe  *(4:30 – 5:00)*"):
-            st.markdown("""
-**Resultados (impacto na prática):**
-- ⚡ **Tempo** — processamento e consolidação de bases em minutos/segundos (sem trabalho manual)
-- ✅ **Confiabilidade** — regras padronizadas (CPU pós-agregação, rateio, cadeia de custos) com validações
-- 🔎 **Auditabilidade** — rastreio de divergências com página de debug e documentação interna
-- 📊 **Decisão** — comparativos Real/Budget/Flex, leitura por período e visão por veículo
-- 🔮 **Forecast** — Best Estimate com premissas explícitas e geração de arquivos de forecast
-- 🧩 **Escala e manutenção** — inclusão de novos anos/períodos com estrutura de dados consistente
-
-**Entregáveis do SCI (o que fica pronto para uso):**
-- Dashboards (TC Veículos e TC Ext) com KPIs e gráficos consolidados
-- Arquivos canônicos em `dados/` (Histórico + Forecast) para reuso e auditoria
-- Rotina de extração e reprocessamento para atualização mensal
-
-**Como medir o sucesso (indicadores simples):**
-- ⏱️ Tempo para fechar/analisar o mês
-- 🧾 Nº de divergências vs. Excel (e tempo para explicar/corrigir)
-- 🔁 Nº de reprocessamentos necessários até “bater” o número
-
-**Equipe:**
-- 👨‍💻 **Hudson Cardin** — Desenvolvimento (UI, lógica e cálculos)
-- 👨‍💻 **Lauro Paiva** — Desenvolvimento (UI, lógica e cálculos)
-- 👨‍💼 **Frederico Cesar de Jesus** — Tech Advisor (Manufacturing Finance Controller, Stellantis)
-            """)
-
-        # ── FAQ ──
-        with st.expander("❓ Perguntas Frequentes"):
-            st.markdown("""
-**Qual a diferença entre TC Ext e TC Veículos?**
-TC Ext analisa custo total agregado (com CPU). TC Veículos detalha o custo por modelo de veículo, com cadeia de custos (FA→FP→D&A) e rateio por tempo de produção.
-
-**Como funciona o rateio por veículo?**
-O custo FP sem Dedicada é distribuído proporcionalmente ao tempo de produção de cada veículo na oficina. D&A Dedicado é somado diretamente ao veículo.
-
-**A inflação só se aplica a custos fixos?**
-Não. A inflação se aplica a **todos** os custos (fixos e variáveis), após o ajuste por sensibilidade.
-
-**Quanto tempo leva processar novos dados?**
-Menos de 1 minuto para um ano completo.
-
-**Os dados ficam na nuvem?**
-Não. Todos os dados ficam no servidor local, sem envio externo.
-            """)
+elif indice_selecionado == "ðŸ“Š ApresentaÃ§Ã£o Visual":
+    st.header("ðŸ“Š ApresentaÃ§Ã£o Visual - 5 Minutos")
+    render_presentation_section(str(versao_atual), data_atualizacao)
 
 # ==========================================
-# SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO
+# SEÃ‡ÃƒO 7: CHATBOT DE DOCUMENTAÃ‡ÃƒO
 # ==========================================
-elif indice_selecionado == "💬 Chatbot de Documentação":
-    st.header("💬 Chatbot de Documentação")
+elif indice_selecionado == "ðŸ’¬ Chatbot de DocumentaÃ§Ã£o":
+    st.header("ðŸ’¬ Chatbot de DocumentaÃ§Ã£o")
     
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
-        <h2 style="color: white; margin: 0;">💬 Assistente Virtual de Documentação</h2>
+        <h2 style="color: white; margin: 0;">ðŸ’¬ Assistente Virtual de DocumentaÃ§Ã£o</h2>
         <p style="color: #f0f0f0; margin: 0.5rem 0 0 0;">
-            Faça perguntas sobre o sistema e receba respostas baseadas na documentação completa
+            FaÃ§a perguntas sobre o sistema e receba respostas baseadas na documentaÃ§Ã£o completa
         </p>
     </div>
     """, unsafe_allow_html=True)
     
     # Importar chatbot
     try:
-        # Adicionar diretório raiz ao path para importar chatbot
+        # Adicionar diretÃ³rio raiz ao path para importar chatbot
         import sys
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if base_path not in sys.path:
             sys.path.insert(0, base_path)
         from chatbot_documentacao import responder_pergunta
         
-        # Inicializar histórico de conversa
+        # Inicializar histÃ³rico de conversa
         if 'historico_chat' not in st.session_state:
             st.session_state.historico_chat = []
         
-        # Exibir histórico
-        st.subheader("💬 Conversa")
+        # Exibir histÃ³rico
+        st.subheader("ðŸ’¬ Conversa")
         
         if st.session_state.historico_chat:
             for i, (pergunta, resposta, score) in enumerate(st.session_state.historico_chat):
-                with st.expander(f"❓ {pergunta[:50]}...", expanded=False):
+                with st.expander(f"â“ {pergunta[:50]}...", expanded=False):
                     st.markdown(f"**Pergunta:** {pergunta}")
                     st.markdown(f"**Resposta:**")
                     st.markdown(resposta)
                     if score > 0:
-                        st.caption(f"Relevância: {score:.0%}")
+                        st.caption(f"RelevÃ¢ncia: {score:.0%}")
         else:
-            st.info("💡 Faça sua primeira pergunta abaixo para começar!")
+            st.info("ðŸ’¡ FaÃ§a sua primeira pergunta abaixo para comeÃ§ar!")
         
         st.markdown("---")
         
         # Campo de entrada
-        st.subheader("📝 Faça uma Pergunta")
+        st.subheader("ðŸ“ FaÃ§a uma Pergunta")
         
         pergunta = st.text_input(
             "Digite sua pergunta sobre o sistema:",
-            placeholder="Ex: Como funciona o Best Estimate? O que é Flex Bud? Como processar dados?",
+            placeholder="Ex: Como funciona o Best Estimate? O que Ã© Flex Bud? Como processar dados?",
             key="input_pergunta"
         )
         
         col1, col2 = st.columns([1, 4])
         
         with col1:
-            botao_perguntar = st.button("🔍 Buscar Resposta", type="primary", use_container_width=True)
+            botao_perguntar = st.button("ðŸ” Buscar Resposta", type="primary", use_container_width=True)
         
         with col2:
-            botao_limpar = st.button("🗑️ Limpar Histórico", use_container_width=True)
+            botao_limpar = st.button("ðŸ—‘ï¸ Limpar HistÃ³rico", use_container_width=True)
         
         if botao_limpar:
             st.session_state.historico_chat = []
             st.rerun()
         
         if botao_perguntar and pergunta:
-            with st.spinner("🔍 Buscando na documentação..."):
+            with st.spinner("ðŸ” Buscando na documentaÃ§Ã£o..."):
                 resultado = responder_pergunta(pergunta)
                 
                 if resultado['resposta']:
-                    # Adicionar ao histórico
+                    # Adicionar ao histÃ³rico
                     st.session_state.historico_chat.append((
                         pergunta,
                         resultado['resposta'],
@@ -6722,48 +6216,48 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
                     ))
                     
                     # Exibir resposta
-                    st.success("✅ Resposta encontrada!")
+                    st.success("âœ… Resposta encontrada!")
                     st.markdown("**Resposta:**")
                     st.markdown(resultado['resposta'])
                     
                     if resultado['score'] > 0:
-                        st.caption(f"📊 Relevância da resposta: {resultado['score']:.0%}")
+                        st.caption(f"ðŸ“Š RelevÃ¢ncia da resposta: {resultado['score']:.0%}")
                     
                     # Exibir segmentos adicionais se houver
                     if resultado['segmentos_encontrados']:
                         st.markdown("---")
-                        st.subheader("📚 Informações Adicionais")
+                        st.subheader("ðŸ“š InformaÃ§Ãµes Adicionais")
                         for i, segmento in enumerate(resultado['segmentos_encontrados'], 1):
-                            with st.expander(f"Informação adicional {i}", expanded=False):
+                            with st.expander(f"InformaÃ§Ã£o adicional {i}", expanded=False):
                                 st.markdown(segmento)
                     
                     st.rerun()
         
-        # Sugestões de perguntas
+        # SugestÃµes de perguntas
         st.markdown("---")
-        st.subheader("💡 Perguntas Sugeridas")
+        st.subheader("ðŸ’¡ Perguntas Sugeridas")
         
         perguntas_sugeridas = [
-            "O que é o Stellantis Cost Intelligence (SCI)?",
+            "O que Ã© o Stellantis Cost Intelligence (SCI)?",
             "Como funciona o Best Estimate?",
-            "O que é Flex Bud?",
-            "Como funciona o rateio por veículo?",
-            "Qual a diferença entre TC Ext e TC Veículos?",
+            "O que Ã© Flex Bud?",
+            "Como funciona o rateio por veÃ­culo?",
+            "Qual a diferenÃ§a entre TC Ext e TC VeÃ­culos?",
             "Como funciona a sensibilidade no simulador?",
-            "O que é CPU (Custo por Unidade)?",
+            "O que Ã© CPU (Custo por Unidade)?",
             "Como funciona o Waterfall?",
         ]
         
         cols = st.columns(2)
         for i, pergunta_sugerida in enumerate(perguntas_sugeridas):
             with cols[i % 2]:
-                if st.button(f"❓ {pergunta_sugerida}", key=f"sug_{i}", use_container_width=True):
+                if st.button(f"â“ {pergunta_sugerida}", key=f"sug_{i}", use_container_width=True):
                     # Processar pergunta sugerida diretamente
-                    with st.spinner("🔍 Buscando na documentação..."):
+                    with st.spinner("ðŸ” Buscando na documentaÃ§Ã£o..."):
                         resultado = responder_pergunta(pergunta_sugerida)
                         
                         if resultado['resposta']:
-                            # Adicionar ao histórico
+                            # Adicionar ao histÃ³rico
                             st.session_state.historico_chat.append((
                                 pergunta_sugerida,
                                 resultado['resposta'],
@@ -6772,25 +6266,25 @@ elif indice_selecionado == "💬 Chatbot de Documentação":
                             st.rerun()
         
     except ImportError as e:
-        st.error(f"❌ Erro ao importar módulo de chatbot: {str(e)}")
-        st.info("💡 Certifique-se de que o arquivo chatbot_documentacao.py existe na raiz do projeto.")
+        st.error(f"âŒ Erro ao importar mÃ³dulo de chatbot: {str(e)}")
+        st.info("ðŸ’¡ Certifique-se de que o arquivo chatbot_documentacao.py existe na raiz do projeto.")
     except Exception as e:
-        st.error(f"❌ Erro no chatbot: {str(e)}")
+        st.error(f"âŒ Erro no chatbot: {str(e)}")
         import traceback
         st.code(traceback.format_exc())
 
 # ==========================================
-# SEÇÃO 8: SISTEMA DE ALERTAS
+# SEÃ‡ÃƒO 8: SISTEMA DE ALERTAS
 # ==========================================
-elif indice_selecionado == "🔔 Sistema de Alertas":
-    st.header("🔔 Sistema de Alertas")
+elif indice_selecionado == "ðŸ”” Sistema de Alertas":
+    st.header("ðŸ”” Sistema de Alertas")
 
     st.markdown(
         """
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); border-radius: 10px; margin-bottom: 1.25rem; color: white;">
-            <h2 style="color: white; margin: 0;">🔔 Central de Alertas (TC Veículos)</h2>
+            <h2 style="color: white; margin: 0;">ðŸ”” Central de Alertas (TC VeÃ­culos)</h2>
             <p style="color: #fff; opacity: 0.92; margin: 0.5rem 0 0 0;">
-                Monitoramento automático de desvios relevantes no TC Veículos — com ranking consolidado e notificações.
+                Monitoramento automÃ¡tico de desvios relevantes no TC VeÃ­culos â€” com ranking consolidado e notificaÃ§Ãµes.
             </p>
         </div>
         """,
@@ -6799,140 +6293,214 @@ elif indice_selecionado == "🔔 Sistema de Alertas":
 
     st.markdown(
         """
-### ✅ Objetivo
-Detectar rapidamente **anomalias / perdas** no custo do TC Veículos, priorizando o que mais impacta o resultado.
+### âœ… Objetivo
+Detectar rapidamente **anomalias / perdas** no custo do TC VeÃ­culos, priorizando o que mais impacta o resultado.
 
-O sistema gera um **ranking hierárquico**:
-**Type 05 → Type 06 → Account → Oficinas** (com texto breve quando disponível).
+O sistema gera um **ranking hierÃ¡rquico**:
+**Type 05 â†’ Type 06 â†’ Account â†’ Oficinas** (com texto breve quando disponÃ­vel).
 
-### 📍 Onde fica no app
-No menu lateral do SCI existem duas páginas:
-- **Central de Alertas → Monitoramento** (`alertas/alert_ui.py`)
-- **Central de Alertas → Configuração de Alertas** (`alertas/alert_config_ui.py`)
+### ðŸ“ Onde fica no app
+No menu lateral do SCI existem duas pÃ¡ginas:
+- **Central de Alertas â†’ Monitoramento** (`alertas/alert_ui.py`)
+- **Central de Alertas â†’ ConfiguraÃ§Ã£o de Alertas** (`alertas/alert_config_ui.py`)
 
-### 🔎 O que o alerta compara
+### ðŸ”Ž O que o alerta compara
 O motor suporta dois modos:
-1. **Budget Flex × Real** *(principal)*
-2. **Mês × Mês Anterior** *(secundário)*
+1. **Budget Flex Ã— Real** *(principal)*
+2. **MÃªs Ã— MÃªs Anterior** *(secundÃ¡rio)*
 
-> Observação: no modo **Budget Flex × Real**, o “esperado” vem do cálculo de Flex BUD detalhado (reuso da base do TC Veículos).
+> ObservaÃ§Ã£o: no modo **Budget Flex Ã— Real**, o â€œesperadoâ€ vem do cÃ¡lculo de Flex BUD detalhado (reuso da base do TC VeÃ­culos).
         """
     )
 
-    with st.expander("🧠 Como o motor funciona (visão geral)", expanded=False):
+    with st.expander("ðŸ§  Como o motor funciona (visÃ£o geral)", expanded=False):
         st.markdown(
             """
-**Fonte de dados (TC Veículos):** parquets consolidados em `dados/TC_Principal/historico_consolidado/`.
+**Fonte de dados (TC VeÃ­culos):** parquets consolidados em `dados/TC_Principal/historico_consolidado/`.
 
-**Etapas (alto nível):**
+**Etapas (alto nÃ­vel):**
 1. Carrega Real, Volume Real, Budget e Volume Budget
-2. Calcula Flex BUD detalhado com dimensões (Oficina / Type 05 / Type 06 / Account)
+2. Calcula Flex BUD detalhado com dimensÃµes (Oficina / Type 05 / Type 06 / Account)
 3. Aplica filtros da regra (Oficina, Type 05, Type 06, Account)
 4. Calcula **Real vs Esperado** e ranqueia os **Top N Type 06** com maior perda
-5. Consolida em um **card único** (drill-down hierárquico)
+5. Consolida em um **card Ãºnico** (drill-down hierÃ¡rquico)
 
-**Severidade (padrão):** classificada por desvio percentual absoluto:
-- **Crítico:** ≥ 15%
-- **Moderado:** ≥ 5%
+**Severidade (padrÃ£o):** classificada por desvio percentual absoluto:
+- **CrÃ­tico:** â‰¥ 15%
+- **Moderado:** â‰¥ 5%
 - **Informativo:** < 5%
+
+**Base tÃ©cnica principal:** `alertas/alert_engine.py`
+
+**FunÃ§Ãµes mais importantes:**
+- `calcular_ranking_consolidado()` â€” monta o card hierÃ¡rquico Ãºnico usado no monitoramento e nas notificaÃ§Ãµes.
+- `gerar_tabela_validacao()` â€” gera a conferÃªncia `Type 05 / Type 06 / Account / Flex BUD / Real / Delta / % Delta`.
+- `evaluate_rule()` e `evaluate_all_rules()` â€” avaliam regras ativas e retornam a estrutura final do alerta.
             """
         )
 
-    with st.expander("⚙️ Configuração de regras", expanded=False):
+    with st.expander("âš™ï¸ ConfiguraÃ§Ã£o de regras", expanded=False):
         st.markdown(
             """
-Em **Configuração de Alertas**, é possível criar regras com:
-- **Ano** e **modo de comparação**
+Em **ConfiguraÃ§Ã£o de Alertas**, Ã© possÃ­vel criar regras com:
+- **Ano** e **modo de comparaÃ§Ã£o**
 - **Top N** (quantos Type 06 destacar)
 - **Moeda** (BRL / EUR / USD)
 - Filtros opcionais em cascata: **Type 05**, **Type 06**, **Account**
 - Filtro opcional de **Oficinas** (vazio = todas)
 
 Cada regra pode ser **ativada/desativada** e removida.
+
+**ObservaÃ§Ã£o importante:** hoje o SCI trabalha principalmente com **disparo manual ou pÃ³s-processamento**. A regra continua armazenando metadados de agenda por compatibilidade, mas o fluxo operacional atual privilegia o acionamento quando a base jÃ¡ foi processada e estÃ¡ pronta para leitura.
             """
         )
 
-    with st.expander("📨 Notificações (E-mail / Teams)", expanded=False):
+    with st.expander("ðŸ“Š Tabela de validaÃ§Ã£o", expanded=False):
+        st.markdown(
+            """
+Essa tabela existe para permitir **auditoria rÃ¡pida do cÃ¡lculo** antes ou depois do envio do alerta.
+
+**Colunas principais:**
+- `Type 05`
+- `Type 06`
+- `Account`
+- `Flex BUD`
+- `Flex BUD P`
+- `Real`
+- `Real - Flex BUD P`
+- `% Delta`
+
+**Como interpretar:**
+- `Flex BUD` = valor esperado integral
+- `Flex BUD P` = valor esperado proporcional ao perÃ­odo corrente
+- `Real - Flex BUD P` = desvio monetÃ¡rio principal
+- `% Delta` = desvio percentual relativo ao esperado proporcional
+
+**Melhoria recente do sistema:**
+- o preenchimento de `Type 05` passou a ser preservado a partir do `flex_detalhado` e, quando necessÃ¡rio, complementado por mapeamento controlado com base em `Type 06 + Account`, evitando linhas vazias na validaÃ§Ã£o.
+
+**Uso prÃ¡tico:**
+- conferir se a perda identificada no card bate com a linha detalhada
+- validar se a regra/filtro aplicado estÃ¡ trazendo o universo correto
+- apoiar explicaÃ§Ã£o de desvio antes de acionar stakeholders
+            """
+        )
+
+    with st.expander("ðŸ“¨ NotificaÃ§Ãµes (E-mail / Teams)", expanded=False):
         st.markdown(
             """
 O sistema pode enviar o ranking consolidado para:
-- **E-mail (SMTP)** — padrão configurado para Office365
-- **Microsoft Teams (Webhook)**
+- **E-mail (Microsoft Graph / OAuth2)** â€” com autenticaÃ§Ã£o MSAL
+- **Microsoft Teams (Webhook)** â€” com card hierÃ¡rquico formatado
 
-Também existe a opção de manter apenas o uso **interno no app** (sem envio).
+TambÃ©m existe a opÃ§Ã£o de manter apenas o uso **interno no app** (sem envio).
 
-Na aba **🧪 Testar Envio**, dá para validar rapidamente se o SMTP/Webhook estão corretos.
+Na aba **ðŸ§ª Testar Envio**, dÃ¡ para validar rapidamente se o Graph/Webhook estÃ£o corretos.
+
+**Teams:**
+- envia card consolidado com Ã¡rvore visual por `Type 05 -> Type 06 -> Account -> Oficina`
+- inclui barra textual de representatividade do desvio total
+- mantÃ©m legibilidade prÃ³xima da visualizaÃ§Ã£o interna do SCI
+
+**E-mail:**
+- usa HTML estruturado com ranking consolidado
+- pode incluir a tabela de validaÃ§Ã£o junto do alerta
+- autenticaÃ§Ã£o moderna via Microsoft Graph quando configurada
             """
         )
 
-    with st.expander("⏰ Agendamento diário automático", expanded=False):
+    with st.expander("â–¶ï¸ Fluxo operacional atual", expanded=False):
         st.markdown(
             """
-É possível habilitar o envio diário automático em um horário fixo.
+O fluxo hoje foi simplificado para ficar mais aderente ao uso real do SCI:
 
-**Importante:** o agendamento roda dentro do processo do app (APScheduler). Ou seja:
-- o SCI precisa estar **em execução** para o job disparar;
-- em ambientes onde o app é encerrado (PC desligado / sessão finalizada), o job não executa.
+- o usuÃ¡rio pode clicar em **Verificar agora** para gerar o ranking consolidado
+- o usuÃ¡rio pode clicar em **Disparar alertas ativos** para forÃ§ar o envio manual
+- o processamento de dados pode acionar a avaliaÃ§Ã£o dos alertas ao final da atualizaÃ§Ã£o da base
+
+**Por que isso Ã© melhor:**
+- reduz dependÃªncia de app aberto em um horÃ¡rio fixo
+- garante que o alerta roda sobre a base mais recente
+- deixa a operaÃ§Ã£o mais previsÃ­vel para fechamento e acompanhamento mensal
             """
         )
 
-    with st.expander("🗂️ Persistência e auditoria", expanded=False):
+    with st.expander("ðŸ—‚ï¸ PersistÃªncia e auditoria", expanded=False):
         st.markdown(
             """
-As configurações e o histórico ficam salvos em JSON no pacote `alertas/`:
-- `alertas/alert_rules.json` — regras + canais de notificação + agenda
-- `alertas/alert_log.json` — histórico de execuções (quando e o que foi enviado)
+As configuraÃ§Ãµes e o histÃ³rico ficam salvos em JSON no pacote `alertas/`:
+- `alertas/alert_rules.json` â€” regras + canais de notificaÃ§Ã£o + agenda
+- `alertas/alert_log.json` â€” histÃ³rico de execuÃ§Ãµes (quando e o que foi enviado)
 
-O histórico pode ser consultado na aba **📜 Histórico** da página de configuração.
+O histÃ³rico pode ser consultado na aba **ðŸ“œ HistÃ³rico** da pÃ¡gina de configuraÃ§Ã£o.
+            """
+        )
+
+    with st.expander("ðŸ§© O que o usuÃ¡rio enxerga no monitoramento", expanded=False):
+        st.markdown(
+            """
+Na pÃ¡gina de monitoramento, o SCI mostra um **card consolidado** em vez de vÃ¡rios alertas soltos.
+
+**Estrutura do card:**
+- agrupamento por `Type 05`
+- detalhamento por `Type 06`
+- drill-down atÃ© `Account` e `Oficina`
+- `Texto breve` em lowercase para leitura mais limpa
+- barra com percentual de participaÃ§Ã£o no **desvio total** do card
+
+**Resultado para o usuÃ¡rio:**
+- mais fÃ¡cil priorizar o que mais pesa no problema
+- mais fÃ¡cil explicar o desvio para a operaÃ§Ã£o
+- mais fÃ¡cil validar antes de enviar Teams/e-mail
             """
         )
 
 # ==========================================
 # ==========================================
-# SEÇÃO: GUIA DE BUILD (EXE)
+# SEÃ‡ÃƒO: GUIA DE BUILD (EXE)
 # ==========================================
-elif indice_selecionado == "📦 Guia de Build (EXE)":
-    st.header("📦 Guia de Build (EXE)")
+elif indice_selecionado == "ðŸ“¦ Guia de Build (EXE)":
+    st.header("ðŸ“¦ Guia de Build (EXE)")
 
-    st.header("📦 Guia de Build — Empacotamento como Executável Windows")
+    st.header("ðŸ“¦ Guia de Build â€” Empacotamento como ExecutÃ¡vel Windows")
 
     st.info(
         "Atualizado em 20/02/2026: este projeto gera EXE Windows usando `streamlit-desktop-app` "
         "(que internamente usa PyInstaller) e empacota o runtime em `_internal/`. "
         "Este passo a passo foi escrito para ser reusado em outro projeto e para uma LLM conseguir "
-        "reconstruir o mesmo método com alta fidelidade."
+        "reconstruir o mesmo mÃ©todo com alta fidelidade."
     )
 
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; border-radius: 10px; margin-bottom: 16px; color: white;">
-        <h2 style="color: white; margin: 0;">📦 SCI — Guia de Empacotamento (EXE)</h2>
-        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (mesmo conteúdo do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
+        <h2 style="color: white; margin: 0;">ðŸ“¦ SCI â€” Guia de Empacotamento (EXE)</h2>
+        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (mesmo conteÃºdo do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("0) Visão geral (método)", expanded=False):
+    with st.expander("0) VisÃ£o geral (mÃ©todo)", expanded=False):
         st.markdown("""
-        **Objetivo:** gerar um executável Windows do Streamlit que abre como *desktop app*, sem depender do repositório.
+        **Objetivo:** gerar um executÃ¡vel Windows do Streamlit que abre como *desktop app*, sem depender do repositÃ³rio.
 
-        **Método adotado (o mesmo padrão do projeto referência):**
+        **MÃ©todo adotado (o mesmo padrÃ£o do projeto referÃªncia):**
         - `streamlit-desktop-app build app.py --name <NOME>`
-        - Pós-build: copiar `dados/`, módulos/páginas e scripts `.py` avulsos para `dist/<NOME>/_internal/`
+        - PÃ³s-build: copiar `dados/`, mÃ³dulos/pÃ¡ginas e scripts `.py` avulsos para `dist/<NOME>/_internal/`
 
-        **Observação importante (AgGrid / st_aggrid):**
-        - As páginas do Streamlit (multipage) são carregadas em *runtime*.
-        - Isso pode fazer o empacotador **não incluir automaticamente** dependências importadas apenas nessas páginas.
-        - Solução robusta adotada no SCI: pós-build, copiar o pacote `st_aggrid` do `.venv` para dentro do `_internal/`.
+        **ObservaÃ§Ã£o importante (AgGrid / st_aggrid):**
+        - As pÃ¡ginas do Streamlit (multipage) sÃ£o carregadas em *runtime*.
+        - Isso pode fazer o empacotador **nÃ£o incluir automaticamente** dependÃªncias importadas apenas nessas pÃ¡ginas.
+        - SoluÃ§Ã£o robusta adotada no SCI: pÃ³s-build, copiar o pacote `st_aggrid` do `.venv` para dentro do `_internal/`.
 
         **Por que isso evita bugs no EXE:**
-        - No executável, o caminho “real” do código empacotado é `sys._MEIPASS` (pasta `_internal/`).
-        - Qualquer lógica de `sys.path` baseada em `dirname(__file__)` precisa considerar `sys._MEIPASS`.
+        - No executÃ¡vel, o caminho â€œrealâ€ do cÃ³digo empacotado Ã© `sys._MEIPASS` (pasta `_internal/`).
+        - Qualquer lÃ³gica de `sys.path` baseada em `dirname(__file__)` precisa considerar `sys._MEIPASS`.
         """)
 
-    with st.expander("1) Pré-requisitos (ambiente)", expanded=False):
+    with st.expander("1) PrÃ©-requisitos (ambiente)", expanded=False):
         st.markdown("""
         - Windows 10/11
-        - Python (mesma versão usada no projeto, preferencialmente) + `venv`
-        - Dependências do projeto instaladas (`pip install -r requirements.txt`)
+        - Python (mesma versÃ£o usada no projeto, preferencialmente) + `venv`
+        - DependÃªncias do projeto instaladas (`pip install -r requirements.txt`)
         """)
 
     with st.expander("2) Bibliotecas e ferramentas usadas", expanded=False):
@@ -6949,10 +6517,10 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
         **Framework:**
         - `streamlit`
 
-        > Observação: no nosso caso, o build falha se existir BOM (U+FEFF) no começo do `app.py`.
+        > ObservaÃ§Ã£o: no nosso caso, o build falha se existir BOM (U+FEFF) no comeÃ§o do `app.py`.
         """)
 
-    with st.expander("3) Passo crítico: remover BOM (U+FEFF) do app.py", expanded=False):
+    with st.expander("3) Passo crÃ­tico: remover BOM (U+FEFF) do app.py", expanded=False):
         st.markdown("""
         Se o build acusar:
         `SyntaxError: invalid non-printable character U+FEFF`
@@ -6968,31 +6536,31 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
             language="powershell",
         )
 
-    with st.expander("4) Construção do build (comando oficial)", expanded=False):
+    with st.expander("4) ConstruÃ§Ã£o do build (comando oficial)", expanded=False):
         st.markdown("""
         Na raiz do projeto (mesma pasta do `app.py`), execute:
         """)
         st.code("streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence", language="powershell")
         st.markdown("""
-        Depois disso, o diretório `dist/Stellantis-Cost-Intelligence/` deve existir.
+        Depois disso, o diretÃ³rio `dist/Stellantis-Cost-Intelligence/` deve existir.
 
-        > Nota: o `streamlit-desktop-app` **não aceita** `--hidden-import` no CLI.
-        > Para garantir dependências de páginas carregadas em runtime (ex.: `st_aggrid`), use o `build_exe.bat`.
+        > Nota: o `streamlit-desktop-app` **nÃ£o aceita** `--hidden-import` no CLI.
+        > Para garantir dependÃªncias de pÃ¡ginas carregadas em runtime (ex.: `st_aggrid`), use o `build_exe.bat`.
         """)
 
-    with st.expander("5) Pós-build obrigatório: copiar recursos para _internal/", expanded=False):
+    with st.expander("5) PÃ³s-build obrigatÃ³rio: copiar recursos para _internal/", expanded=False):
         st.markdown("""
-        O runtime do EXE lê tudo de dentro de `dist/<NOME>/_internal/`.
+        O runtime do EXE lÃª tudo de dentro de `dist/<NOME>/_internal/`.
 
-        No SCI, nós copiamos para `_internal/`:
-        - `dados/` (parquets, históricos)
+        No SCI, nÃ³s copiamos para `_internal/`:
+        - `dados/` (parquets, histÃ³ricos)
         - `pages/`, `tc_core/`, `tc_principal/`, `tc_ext/`, `.streamlit/`
-        - scripts `.py` avulsos que são importados em runtime (extração, exports, versionamento)
-        - JSONs e imagens necessárias
+        - scripts `.py` avulsos que sÃ£o importados em runtime (extraÃ§Ã£o, exports, versionamento)
+        - JSONs e imagens necessÃ¡rias
 
         **AgGrid (streamlit-aggrid):**
-        - Sintoma quando não incluído: `módulo 'st_aggrid' não encontrado` e o sistema entra em fallback.
-        - Correção aplicada no SCI: copiar `st_aggrid/` e `streamlit_aggrid-*.dist-info/` do `.venv` para dentro do `_internal/`.
+        - Sintoma quando nÃ£o incluÃ­do: `mÃ³dulo 'st_aggrid' nÃ£o encontrado` e o sistema entra em fallback.
+        - CorreÃ§Ã£o aplicada no SCI: copiar `st_aggrid/` e `streamlit_aggrid-*.dist-info/` do `.venv` para dentro do `_internal/`.
 
         Exemplo (PowerShell):
         """)
@@ -7007,25 +6575,25 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
         **Script oficial:** `build_exe.bat` (na raiz) automatiza isso.
         """)
 
-    with st.expander("9) O que NÃO fazer (armadilha do .spec)", expanded=False):
+    with st.expander("9) O que NÃƒO fazer (armadilha do .spec)", expanded=False):
         st.markdown("""
         Evite tentar rodar `pyinstaller` manualmente a partir do `.spec` gerado automaticamente pelo `streamlit-desktop-app`.
 
-        **Por quê?** Esse `.spec` costuma referenciar um script temporário em `%TEMP%` (ex.: `tmp_xxx.py`).
+        **Por quÃª?** Esse `.spec` costuma referenciar um script temporÃ¡rio em `%TEMP%` (ex.: `tmp_xxx.py`).
         Depois do build, esse arquivo pode ser apagado, e o rebuild falha com:
         - `ERROR: script 'C:\\Users\\...\\AppData\\Local\\Temp\\tmp_XXXX.py' not found`
 
-        **Solução adotada:** não rebuildar via `.spec`; em vez disso, fazer pós-build (cópias) para `_internal/`.
+        **SoluÃ§Ã£o adotada:** nÃ£o rebuildar via `.spec`; em vez disso, fazer pÃ³s-build (cÃ³pias) para `_internal/`.
         """)
 
     with st.expander("6) Armadilha comum no EXE: sys.path e _MEIPASS", expanded=False):
         st.markdown("""
-        **Sintoma:** no EXE, algumas telas funcionam, mas módulos avulsos (ex.: `processamento_dados_veiculos.py`) “somem”.
+        **Sintoma:** no EXE, algumas telas funcionam, mas mÃ³dulos avulsos (ex.: `processamento_dados_veiculos.py`) â€œsomemâ€.
 
-        **Causa:** páginas faziam `sys.path.insert(0, dirname(dirname(dirname(__file__))))`.
-        No EXE isso aponta para a pasta do `.exe`, não para `_internal/`.
+        **Causa:** pÃ¡ginas faziam `sys.path.insert(0, dirname(dirname(dirname(__file__))))`.
+        No EXE isso aponta para a pasta do `.exe`, nÃ£o para `_internal/`.
 
-        **Correção padrão (reutilizável):**
+        **CorreÃ§Ã£o padrÃ£o (reutilizÃ¡vel):**
         """)
         st.code(
             "import sys\n"
@@ -7039,11 +6607,11 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
             language="python",
         )
 
-    with st.expander("7) Validação (checklist)", expanded=False):
+    with st.expander("7) ValidaÃ§Ã£o (checklist)", expanded=False):
         st.markdown("""
         - Abrir: `dist\\Stellantis-Cost-Intelligence\\Stellantis-Cost-Intelligence.exe`
         - Confirmar que o app abre (janela desktop) e/ou responde em `http://localhost:8501`
-        - Testar uma extração (Budget e Real) e confirmar geração dos parquets por veículo:
+        - Testar uma extraÃ§Ã£o (Budget e Real) e confirmar geraÃ§Ã£o dos parquets por veÃ­culo:
           - `df_veiculos_custo_fp.parquet`
           - `df_veiculos_cpu.parquet`
         """
@@ -7060,408 +6628,408 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
                 st.markdown(_ler_arquivo_texto_cacheado(guia_path, guia_mtime))
             else:
                 st.warning(
-                    "GUIA_EXECUTAVEL.md não foi encontrado. "
-                    "No modo executável, ele deve estar dentro de _internal/. "
-                    "Recrie o executável usando build_exe.bat."
+                    "GUIA_EXECUTAVEL.md nÃ£o foi encontrado. "
+                    "No modo executÃ¡vel, ele deve estar dentro de _internal/. "
+                    "Recrie o executÃ¡vel usando build_exe.bat."
                 )
         except Exception as e:
             st.error(f"Erro ao carregar GUIA_EXECUTAVEL.md: {e}")
 
 # ==========================================
 # ==========================================
-# SEÇÃO: PRÓXIMOS PASSOS
+# SEÃ‡ÃƒO: PRÃ“XIMOS PASSOS
 # ==========================================
-elif indice_selecionado == "🚀 Próximos Passos":
-    st.header("🚀 Próximos Passos — TC Copilot")
+elif indice_selecionado == "ðŸš€ PrÃ³ximos Passos":
+    st.header("ðŸš€ PrÃ³ximos Passos â€” TC Copilot")
 
     st.markdown("""
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-        <h2 style="color: white; margin: 0;">🚀 Próximos Passos — TC Copilot</h2>
-        <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">Visão completa, escopo funcional, plano técnico e roadmap</p>
+        <h2 style="color: white; margin: 0;">ðŸš€ PrÃ³ximos Passos â€” TC Copilot</h2>
+        <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">VisÃ£o completa, escopo funcional, plano tÃ©cnico e roadmap</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    Este documento apresenta a **visão completa**, o **escopo funcional**, o **plano técnico**,
-    o **processo corporativo** para obter acesso à API de IA da Stellantis, e o **roadmap** necessário
-    para desenvolver o **Agente de Inteligência Artificial do TC Veículos** — uma evolução estratégica
-    que permitirá análises automáticas, resumos diários, identificação de variações e comentários
+    Este documento apresenta a **visÃ£o completa**, o **escopo funcional**, o **plano tÃ©cnico**,
+    o **processo corporativo** para obter acesso Ã  API de IA da Stellantis, e o **roadmap** necessÃ¡rio
+    para desenvolver o **Agente de InteligÃªncia Artificial do TC VeÃ­culos** â€” uma evoluÃ§Ã£o estratÃ©gica
+    que permitirÃ¡ anÃ¡lises automÃ¡ticas, resumos diÃ¡rios, identificaÃ§Ã£o de variaÃ§Ãµes e comentÃ¡rios
     inteligentes sobre o desempenho das oficinas e dos modelos.
     """)
 
     # ------------------------------------------------------------------
-    # 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)
+    # 0) Como conseguir acesso Ã  API de LLM da Stellantis (GENAI Gateway)
     # ------------------------------------------------------------------
-    with st.expander("🟦 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)", expanded=False):
+    with st.expander("ðŸŸ¦ 0) Como conseguir acesso Ã  API de LLM da Stellantis (GENAI Gateway)", expanded=False):
         st.markdown("""
-        Antes de iniciar o desenvolvimento do agente, é **obrigatório** seguir o processo corporativo
-        da Stellantis para obter acesso à API oficial **GENAI Gateway**, que conecta os modelos de
+        Antes de iniciar o desenvolvimento do agente, Ã© **obrigatÃ³rio** seguir o processo corporativo
+        da Stellantis para obter acesso Ã  API oficial **GENAI Gateway**, que conecta os modelos de
         LLMs usados internamente (GPT, Llama, Mistral, Cohere etc.).
 
         ---
 
-        #### 0.1 – O que é o GENAI Gateway
+        #### 0.1 â€“ O que Ã© o GENAI Gateway
 
         A Stellantis disponibiliza uma plataforma corporativa de IA generativa chamada:
 
-        ✔️ **GENAI Platform / GENAI Gateway**
+        âœ”ï¸ **GENAI Platform / GENAI Gateway**
 
         Ela oferece:
         - Acesso seguro a modelos LLM empresariais
-        - Suporte a **GPT‑4**, **Llama 3**, **Mistral**, **Cohere**, **Bedrock**, **Azure OpenAI**
-        - Funções de:
+        - Suporte a **GPTâ€‘4**, **Llama 3**, **Mistral**, **Cohere**, **Bedrock**, **Azure OpenAI**
+        - FunÃ§Ãµes de:
           - Embeddings
-          - Vetorizações
+          - VetorizaÃ§Ãµes
           - Vector Store (OpenSearch)
-          - Criação de workspaces
-          - Upload de documentos da área
+          - CriaÃ§Ã£o de workspaces
+          - Upload de documentos da Ã¡rea
           - Agentes customizados internos
 
-        Toda comunicação é feita via API corporativa utilizando:
+        Toda comunicaÃ§Ã£o Ã© feita via API corporativa utilizando:
         - **OAuth2** (PingFederate)
         - **mTLS** (certificado digital cliente)
         - **GraphQL**
 
-        > 🔒 Esta é a **única forma segura e aprovada** de usar LLMs dentro da Stellantis.
+        > ðŸ”’ Esta Ã© a **Ãºnica forma segura e aprovada** de usar LLMs dentro da Stellantis.
 
         ---
 
-        #### 0.2 – Passo a Passo Oficial para Obter Acesso
+        #### 0.2 â€“ Passo a Passo Oficial para Obter Acesso
 
-        **Passo 1 — Submeter o caso de uso no Brightidea (AI Use Case Factory)**
+        **Passo 1 â€” Submeter o caso de uso no Brightidea (AI Use Case Factory)**
 
         Registrar a iniciativa no portal corporativo informando:
-        - Descrição do problema
+        - DescriÃ§Ã£o do problema
         - Caso de uso
         - Valor financeiro estimado
         - Impacto esperado
         - Unidade envolvida
-        - Benefícios gerados
+        - BenefÃ­cios gerados
 
-        **Passo 2 — Avaliação pelo GenAI Ambassador**
+        **Passo 2 â€” AvaliaÃ§Ã£o pelo GenAI Ambassador**
 
-        Após o envio no Brightidea, um GenAI Ambassador fará:
-        - Avaliação técnica inicial
-        - Validação do alinhamento estratégico
-        - Análise de riscos
-        - Triagem de viabilidade de implementação
+        ApÃ³s o envio no Brightidea, um GenAI Ambassador farÃ¡:
+        - AvaliaÃ§Ã£o tÃ©cnica inicial
+        - ValidaÃ§Ã£o do alinhamento estratÃ©gico
+        - AnÃ¡lise de riscos
+        - Triagem de viabilidade de implementaÃ§Ã£o
 
-        **Passo 3 — Passar pelo EA Gate (Enterprise Architecture Gate)**
+        **Passo 3 â€” Passar pelo EA Gate (Enterprise Architecture Gate)**
 
-        Existem duas aprovações possíveis:
-        - **EA Gate 1** → libera uso da API para testes / POC
-        - **EA Gate 2** → libera uso em produção
+        Existem duas aprovaÃ§Ãµes possÃ­veis:
+        - **EA Gate 1** â†’ libera uso da API para testes / POC
+        - **EA Gate 2** â†’ libera uso em produÃ§Ã£o
 
-        A arquitetura revisa: segurança, alinhamento com políticas corporativas, aderência à plataforma GENAI, impacto em dados e estruturas internas.
+        A arquitetura revisa: seguranÃ§a, alinhamento com polÃ­ticas corporativas, aderÃªncia Ã  plataforma GENAI, impacto em dados e estruturas internas.
 
-        **Passo 4 — Solicitar credenciais PingFederate (OAuth2)**
+        **Passo 4 â€” Solicitar credenciais PingFederate (OAuth2)**
 
         A API exige: `client_id`, `client_secret`, endpoint do PingFederate.
-        Sem isso, nenhuma chamada à API será aceita.
+        Sem isso, nenhuma chamada Ã  API serÃ¡ aceita.
 
-        **Passo 5 — Solicitar certificado mTLS (dupla autenticação)**
+        **Passo 5 â€” Solicitar certificado mTLS (dupla autenticaÃ§Ã£o)**
 
-        É necessário gerar:
+        Ã‰ necessÃ¡rio gerar:
         - Certificado digital cliente
         - Chave privada
         - Registro no CMP da Stellantis
 
-        Esse certificado deve ser enviado em todas as requisições API junto com o token OAuth2.
+        Esse certificado deve ser enviado em todas as requisiÃ§Ãµes API junto com o token OAuth2.
 
-        **Passo 6 — (Se necessário) solicitar conta cloud corporativa**
+        **Passo 6 â€” (Se necessÃ¡rio) solicitar conta cloud corporativa**
 
         Dependendo da complexidade, pode ser solicitado pela TI uma conta AWS/Azure para:
         - Hospedar seu agente
         - Armazenar documentos corporativos
         - Gerenciar o vector store
 
-        **Passo 7 — Testar no GENAI Playground e StellAI Lab**
+        **Passo 7 â€” Testar no GENAI Playground e StellAI Lab**
 
-        Antes da integração:
-        - **GENAI Playground** → testes de prompts
-        - **StellAI Lab** → testes avançados e prototipagem de agentes
+        Antes da integraÃ§Ã£o:
+        - **GENAI Playground** â†’ testes de prompts
+        - **StellAI Lab** â†’ testes avanÃ§ados e prototipagem de agentes
 
-        **Passo 8 — Integrar o TC Veículos ao GENAI Gateway**
+        **Passo 8 â€” Integrar o TC VeÃ­culos ao GENAI Gateway**
 
-        Após aprovação e credenciais liberadas:
+        ApÃ³s aprovaÃ§Ã£o e credenciais liberadas:
         - Conectar ao endpoint GraphQL
         - Configurar tokens e certificados
         - Acionar modelos de IA
         - Criar embeddings e vector store
-        - Integrar com parquets e tabelas do TC Veículos
+        - Integrar com parquets e tabelas do TC VeÃ­culos
         """)
 
     # ------------------------------------------------------------------
-    # 1) Visão Geral do Agente de IA
+    # 1) VisÃ£o Geral do Agente de IA
     # ------------------------------------------------------------------
-    with st.expander("🟦 1) Visão Geral do Agente de IA", expanded=False):
+    with st.expander("ðŸŸ¦ 1) VisÃ£o Geral do Agente de IA", expanded=False):
         st.markdown("""
-        O **TC Copilot** será uma camada inteligente dentro do projeto, responsável por:
+        O **TC Copilot** serÃ¡ uma camada inteligente dentro do projeto, responsÃ¡vel por:
 
-        - Responder perguntas sobre dados do TC Veículos
-        - Gerar resumos diários automáticos
-        - Identificar as maiores variações por oficina e modelo
-        - Apontar deltas relevantes e tendências
-        - Analisar **Budget × Real × Best Estimate (BE)**
+        - Responder perguntas sobre dados do TC VeÃ­culos
+        - Gerar resumos diÃ¡rios automÃ¡ticos
+        - Identificar as maiores variaÃ§Ãµes por oficina e modelo
+        - Apontar deltas relevantes e tendÃªncias
+        - Analisar **Budget Ã— Real Ã— Best Estimate (BE)**
         - Explicar desvios de FP, FA, CPU, Flex Budget e Rateios
         - Detectar anomalias de custo
-        - Gerar comentários e insights automáticos para diretoria
+        - Gerar comentÃ¡rios e insights automÃ¡ticos para diretoria
 
-        O agente será capaz de entender tanto perguntas simples quanto análises profundas.
+        O agente serÃ¡ capaz de entender tanto perguntas simples quanto anÃ¡lises profundas.
 
-        > **Exemplo:** *"Explique os principais impactos do mês e destaque qual oficina teve o maior desvio."*
+        > **Exemplo:** *"Explique os principais impactos do mÃªs e destaque qual oficina teve o maior desvio."*
         """)
 
     # ------------------------------------------------------------------
-    # 2) O que o Agente será capaz de fazer
+    # 2) O que o Agente serÃ¡ capaz de fazer
     # ------------------------------------------------------------------
-    with st.expander("🟦 2) O que o Agente será capaz de fazer", expanded=False):
+    with st.expander("ðŸŸ¦ 2) O que o Agente serÃ¡ capaz de fazer", expanded=False):
         st.markdown("""
-        #### ✔ Perguntas sobre dados
+        #### âœ” Perguntas sobre dados
         - Qual oficina teve maior aumento no FP?
         - Qual modelo apresentou maior CPU?
-        - Onde aconteceu o maior desvio do Real × Budget?
+        - Onde aconteceu o maior desvio do Real Ã— Budget?
 
-        #### ✔ Resumos automáticos
-        - Resumo diário consolidado
+        #### âœ” Resumos automÃ¡ticos
+        - Resumo diÃ¡rio consolidado
         - Resumo semanal de performance
-        - Comentário executivo do mês
+        - ComentÃ¡rio executivo do mÃªs
 
-        #### ✔ Insights automáticos
-        - Identificação de anomalias
-        - Tendências por oficina
+        #### âœ” Insights automÃ¡ticos
+        - IdentificaÃ§Ã£o de anomalias
+        - TendÃªncias por oficina
         - Comportamento por modelo
         - Drivers principais de aumento de custo
 
-        #### ✔ Suporte operacional
-        - Comparação entre plantas
-        - Explicações de rateio
-        - Análises de volume × custo
+        #### âœ” Suporte operacional
+        - ComparaÃ§Ã£o entre plantas
+        - ExplicaÃ§Ãµes de rateio
+        - AnÃ¡lises de volume Ã— custo
         """)
 
     # ------------------------------------------------------------------
-    # 3) Como o Agente irá funcionar tecnicamente
+    # 3) Como o Agente irÃ¡ funcionar tecnicamente
     # ------------------------------------------------------------------
-    with st.expander("🟦 3) Como o Agente irá funcionar tecnicamente", expanded=False):
+    with st.expander("ðŸŸ¦ 3) Como o Agente irÃ¡ funcionar tecnicamente", expanded=False):
         st.markdown("""
-        O agente será composto por **três camadas**:
+        O agente serÃ¡ composto por **trÃªs camadas**:
 
-        #### 3.1 – Base de Conhecimento
+        #### 3.1 â€“ Base de Conhecimento
         Alimentada com:
-        - Parquets do TC Veículos e TC Ext
+        - Parquets do TC VeÃ­culos e TC Ext
         - Tabelas consolidadas de FA, FP, CPU
         - BE, Budget, Real
         - Flex Budget
         - Tabelas de debug
         - Dados por oficina e modelo
 
-        Esses dados serão indexados no **vector store** da plataforma GENAI.
+        Esses dados serÃ£o indexados no **vector store** da plataforma GENAI.
 
-        #### 3.2 – LLM Corporativo Stellantis
-        O agente irá usar:
-        - GPT‑4 corporativo
+        #### 3.2 â€“ LLM Corporativo Stellantis
+        O agente irÃ¡ usar:
+        - GPTâ€‘4 corporativo
         - Llama 3
         - Mistral
         - Cohere
         - Ou qualquer modelo disponibilizado
 
-        Através do **GENAI Gateway**.
+        AtravÃ©s do **GENAI Gateway**.
 
-        #### 3.3 – Camada de raciocínio
-        O agente executará:
+        #### 3.3 â€“ Camada de raciocÃ­nio
+        O agente executarÃ¡:
         1. Recebe a pergunta
         2. Entende qual dado procurar
         3. Busca no vector store
-        4. Faz cálculos (CPU, FP, FA, BE etc)
+        4. Faz cÃ¡lculos (CPU, FP, FA, BE etc)
         5. Gera resposta estruturada
         """)
 
     # ------------------------------------------------------------------
     # 4) Checklist para acessar a API GENAI
     # ------------------------------------------------------------------
-    with st.expander("🟦 4) Checklist para acessar a API GENAI", expanded=False):
+    with st.expander("ðŸŸ¦ 4) Checklist para acessar a API GENAI", expanded=False):
         st.markdown("""
         - [ ] Enviar caso no Brightidea
-        - [ ] Passar pela avaliação do GenAI Ambassador
+        - [ ] Passar pela avaliaÃ§Ã£o do GenAI Ambassador
         - [ ] Ser aprovado no EA Gate
         - [ ] Solicitar credenciais PingFederate
         - [ ] Solicitar certificado mTLS
         - [ ] Integrar com GENAI Playground
-        - [ ] Criar account cloud se necessário
+        - [ ] Criar account cloud se necessÃ¡rio
         - [ ] Construir workspace e knowledge base
         - [ ] Conectar o sistema ao GENAI Gateway
         """)
 
     # ------------------------------------------------------------------
-    # 5) Diagrama de Alto Nível
+    # 5) Diagrama de Alto NÃ­vel
     # ------------------------------------------------------------------
-    with st.expander("🟦 5) Diagrama de Alto Nível", expanded=False):
+    with st.expander("ðŸŸ¦ 5) Diagrama de Alto NÃ­vel", expanded=False):
         st.markdown("""
         ```
-        Usuário
-           ↓
-        SCI (Stellantis Cost Intelligence) – Pergunta
-           ↓
+        UsuÃ¡rio
+           â†“
+        SCI (Stellantis Cost Intelligence) â€“ Pergunta
+           â†“
         TC Copilot (Agente de IA)
-           ↓
-        GENAI Gateway – LLM Corporativo
-           ↓
+           â†“
+        GENAI Gateway â€“ LLM Corporativo
+           â†“
         Vector Store + Embeddings (parquets do TC)
-           ↓
-        Raciocínio do Agente
-           ↓
+           â†“
+        RaciocÃ­nio do Agente
+           â†“
         Resposta Inteligente
         ```
         """)
 
     # ------------------------------------------------------------------
-    # 6) Roadmap de Implementação
+    # 6) Roadmap de ImplementaÃ§Ã£o
     # ------------------------------------------------------------------
-    with st.expander("🟦 6) Roadmap de Implementação", expanded=False):
+    with st.expander("ðŸŸ¦ 6) Roadmap de ImplementaÃ§Ã£o", expanded=False):
         st.markdown("""
-        #### Fase 1 – Preparação dos dados
+        #### Fase 1 â€“ PreparaÃ§Ã£o dos dados
         - Consolidar parquets
         - Organizar base de conhecimento
-        - Documentar variáveis e métricas
+        - Documentar variÃ¡veis e mÃ©tricas
 
-        #### Fase 2 – Integração GENAI
+        #### Fase 2 â€“ IntegraÃ§Ã£o GENAI
         - Obter credenciais
-        - Criar chamada básica via GraphQL
+        - Criar chamada bÃ¡sica via GraphQL
         - Criar embeddings da base interna
 
-        #### Fase 3 – Construção das habilidades
+        #### Fase 3 â€“ ConstruÃ§Ã£o das habilidades
         - Perguntas operacionais
-        - Resumos automáticos
-        - Análise por oficina
-        - Identificação de anomalias
+        - Resumos automÃ¡ticos
+        - AnÃ¡lise por oficina
+        - IdentificaÃ§Ã£o de anomalias
 
-        #### Fase 4 – Produção
+        #### Fase 4 â€“ ProduÃ§Ã£o
         - Teste interno
-        - Validação com diretoria
+        - ValidaÃ§Ã£o com diretoria
         - Logs e auditoria
-        - Publicação final
+        - PublicaÃ§Ã£o final
         """)
 
     # ------------------------------------------------------------------
     # 7) Exemplos de perguntas
     # ------------------------------------------------------------------
-    with st.expander("🟦 7) Exemplos de perguntas que o Agente poderá responder", expanded=False):
+    with st.expander("ðŸŸ¦ 7) Exemplos de perguntas que o Agente poderÃ¡ responder", expanded=False):
         st.markdown("""
-        - *"Resumo diário do Real × Budget."*
+        - *"Resumo diÃ¡rio do Real Ã— Budget."*
         - *"Quem puxou o delta de FP da oficina BS?"*
-        - *"Qual modelo teve maior CPU no mês?"*
-        - *"Faça um comentário executivo do mês."*
-        - *"Mostre as oficinas com maior variação de FA."*
+        - *"Qual modelo teve maior CPU no mÃªs?"*
+        - *"FaÃ§a um comentÃ¡rio executivo do mÃªs."*
+        - *"Mostre as oficinas com maior variaÃ§Ã£o de FA."*
         """)
 
     # ------------------------------------------------------------------
-    # 8) Considerações de Segurança
+    # 8) ConsideraÃ§Ãµes de SeguranÃ§a
     # ------------------------------------------------------------------
-    with st.expander("🟦 8) Considerações de Segurança", expanded=False):
+    with st.expander("ðŸŸ¦ 8) ConsideraÃ§Ãµes de SeguranÃ§a", expanded=False):
         st.markdown("""
-        - 🔒 Nenhum dado sai da Stellantis
-        - 🔐 Toda comunicação usa **mTLS + PingFederate**
-        - ✅ A API GENAI é homologada pela TI
-        - 📂 O agente só acessa dados internos do TC
-        - 📋 Logs de auditoria são mantidos
+        - ðŸ”’ Nenhum dado sai da Stellantis
+        - ðŸ” Toda comunicaÃ§Ã£o usa **mTLS + PingFederate**
+        - âœ… A API GENAI Ã© homologada pela TI
+        - ðŸ“‚ O agente sÃ³ acessa dados internos do TC
+        - ðŸ“‹ Logs de auditoria sÃ£o mantidos
         """)
 
     # ------------------------------------------------------------------
-    # 9) Conclusão Executiva
+    # 9) ConclusÃ£o Executiva
     # ------------------------------------------------------------------
-    with st.expander("🟦 9) Conclusão Executiva", expanded=False):
+    with st.expander("ðŸŸ¦ 9) ConclusÃ£o Executiva", expanded=False):
         st.markdown("""
-        O **TC Copilot** é um avanço estratégico que:
+        O **TC Copilot** Ã© um avanÃ§o estratÃ©gico que:
 
-        - ✅ Aumenta a eficiência do time
-        - ✅ Reduz retrabalhos técnicos
-        - ✅ Acelera análises complexas
-        - ✅ Melhora a qualidade das explicações executivas
-        - ✅ Fortalece governança e transparência
-        - ✅ Suporta tomadas de decisão críticas
+        - âœ… Aumenta a eficiÃªncia do time
+        - âœ… Reduz retrabalhos tÃ©cnicos
+        - âœ… Acelera anÃ¡lises complexas
+        - âœ… Melhora a qualidade das explicaÃ§Ãµes executivas
+        - âœ… Fortalece governanÃ§a e transparÃªncia
+        - âœ… Suporta tomadas de decisÃ£o crÃ­ticas
 
-        O projeto está alinhado com a **estratégia global de IA da Stellantis** e utiliza as
-        tecnologias oficiais aprovadas, garantindo **segurança, escalabilidade e compliance**.
+        O projeto estÃ¡ alinhado com a **estratÃ©gia global de IA da Stellantis** e utiliza as
+        tecnologias oficiais aprovadas, garantindo **seguranÃ§a, escalabilidade e compliance**.
         """)
 
     # ------------------------------------------------------------------
-    # 10) Preenchimento do formulário Brightidea
+    # 10) Preenchimento do formulÃ¡rio Brightidea
     # ------------------------------------------------------------------
-    with st.expander("🟦 10) Preenchimento do Formulário Brightidea (AI Use Case Factory)", expanded=False):
+    with st.expander("ðŸŸ¦ 10) Preenchimento do FormulÃ¡rio Brightidea (AI Use Case Factory)", expanded=False):
         st.markdown("""
-        Formulário oficial:
+        FormulÃ¡rio oficial:
 
-        👉 [https://stellantis.brightidea.com/AIUseCaseFactory](https://stellantis.brightidea.com/AIUseCaseFactory)
+        ðŸ‘‰ [https://stellantis.brightidea.com/AIUseCaseFactory](https://stellantis.brightidea.com/AIUseCaseFactory)
 
         **RESPOSTAS COMPLETAS E PRONTAS PARA O BRIGHTIDEA (AI USE CASE FACTORY)**
 
-        **Caso de Uso:** Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos)
+        **Caso de Uso:** Stellantis Cost Intelligence (SCI â€” plataforma interna de inteligÃªncia de custos)
 
-        **Slogan:** A evolução da controladoria industrial
+        **Slogan:** A evoluÃ§Ã£o da controladoria industrial
 
         ---
 
-        #### 📌 1) Descrição do caso de uso (função do usuário, problema, contexto)
-        **Função do principal usuário:**
-        Analistas, especialistas e gestores de Controladoria Industrial, Controlling, Custos de Manufatura, FP&A (Financial Planning & Analysis — Planejamento e Análise Financeira), e equipes de performance fabril das plantas da Stellantis.
+        #### ðŸ“Œ 1) DescriÃ§Ã£o do caso de uso (funÃ§Ã£o do usuÃ¡rio, problema, contexto)
+        **FunÃ§Ã£o do principal usuÃ¡rio:**
+        Analistas, especialistas e gestores de Controladoria Industrial, Controlling, Custos de Manufatura, FP&A (Financial Planning & Analysis â€” Planejamento e AnÃ¡lise Financeira), e equipes de performance fabril das plantas da Stellantis.
 
         **Problema a ser resolvido:**
-        Hoje, análises de custo industrial (FP (Fluxo Principal), FA (Fluxo Auxiliar), Redis (receitas internas/redistribuições do processo), CPU (Custo Por Unidade), Budget (orçado), Real (realizado), BE (Best Estimate — melhor estimativa/forecast) e Flex (Flex Budget — orçamento flexível)) exigem muito esforço manual para consolidação, interpretação, validação e elaboração de comentários executivos. Isso atrasa a tomada de decisão, gera retrabalho e produz inconsistências entre plantas.
+        Hoje, anÃ¡lises de custo industrial (FP (Fluxo Principal), FA (Fluxo Auxiliar), Redis (receitas internas/redistribuiÃ§Ãµes do processo), CPU (Custo Por Unidade), Budget (orÃ§ado), Real (realizado), BE (Best Estimate â€” melhor estimativa/forecast) e Flex (Flex Budget â€” orÃ§amento flexÃ­vel)) exigem muito esforÃ§o manual para consolidaÃ§Ã£o, interpretaÃ§Ã£o, validaÃ§Ã£o e elaboraÃ§Ã£o de comentÃ¡rios executivos. Isso atrasa a tomada de decisÃ£o, gera retrabalho e produz inconsistÃªncias entre plantas.
 
-        O sistema Stellantis Cost Intelligence (SCI) já automatiza cálculos e consolida dados (módulo TC Veículos), mas não interpreta os resultados. A equipe precisa diariamente:
+        O sistema Stellantis Cost Intelligence (SCI) jÃ¡ automatiza cÃ¡lculos e consolida dados (mÃ³dulo TC VeÃ­culos), mas nÃ£o interpreta os resultados. A equipe precisa diariamente:
         - analisar desvios
         - identificar impactos
         - gerar resumos
-        - explicar variações por oficina
+        - explicar variaÃ§Ãµes por oficina
         - comentar principais movimentos
-        - detectar comportamentos anômalos
+        - detectar comportamentos anÃ´malos
 
-        Tudo isso ainda é manual.
+        Tudo isso ainda Ã© manual.
 
-        **Contexto de negócios:**
-        O projeto Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos) propõe criar um Agente de IA (Inteligência Artificial) integrado ao TC Veículos, usando o GENAI Gateway (Gateway corporativo de IA Generativa), capaz de interpretar dados internos automaticamente e fornecer:
-        - análises instantâneas
-        - explicações sobre variações
-        - comentários executivos
-        - identificação automática de anomalias
-        - insights sobre oficinas/modelos mais críticos
-        - resumos diários de performance
-        - suporte à gestão industrial e financeira
+        **Contexto de negÃ³cios:**
+        O projeto Stellantis Cost Intelligence (SCI â€” plataforma interna de inteligÃªncia de custos) propÃµe criar um Agente de IA (InteligÃªncia Artificial) integrado ao TC VeÃ­culos, usando o GENAI Gateway (Gateway corporativo de IA Generativa), capaz de interpretar dados internos automaticamente e fornecer:
+        - anÃ¡lises instantÃ¢neas
+        - explicaÃ§Ãµes sobre variaÃ§Ãµes
+        - comentÃ¡rios executivos
+        - identificaÃ§Ã£o automÃ¡tica de anomalias
+        - insights sobre oficinas/modelos mais crÃ­ticos
+        - resumos diÃ¡rios de performance
+        - suporte Ã  gestÃ£o industrial e financeira
 
-        Isso reduz retrabalho, padroniza análises e aumenta velocidade na tomada de decisão.
+        Isso reduz retrabalho, padroniza anÃ¡lises e aumenta velocidade na tomada de decisÃ£o.
 
-        #### 📌 2) Categoria de Recursos de IA
-        **Seleção:** Busca de Conhecimento – Recuperação, Adaptação e Reformulação de Informações
+        #### ðŸ“Œ 2) Categoria de Recursos de IA
+        **SeleÃ§Ã£o:** Busca de Conhecimento â€“ RecuperaÃ§Ã£o, AdaptaÃ§Ã£o e ReformulaÃ§Ã£o de InformaÃ§Ãµes
 
-        **Motivo:** o agente analisará bases internas (parquets, tabelas, cálculos do TC (Transformation Cost — custo de transformação)) e gerará análises contextualizadas.
-        Também envolve interpretação de dados estruturados → mas a função principal é entender e explicar, não prever.
+        **Motivo:** o agente analisarÃ¡ bases internas (parquets, tabelas, cÃ¡lculos do TC (Transformation Cost â€” custo de transformaÃ§Ã£o)) e gerarÃ¡ anÃ¡lises contextualizadas.
+        TambÃ©m envolve interpretaÃ§Ã£o de dados estruturados â†’ mas a funÃ§Ã£o principal Ã© entender e explicar, nÃ£o prever.
 
-        #### 📌 3) Domínio de Negócios
-        **Seleção:** Manufacturing / Industrial Finance / Controladoria Industrial
+        #### ðŸ“Œ 3) DomÃ­nio de NegÃ³cios
+        **SeleÃ§Ã£o:** Manufacturing / Industrial Finance / Controladoria Industrial
 
-        #### 📌 4) Escala regional do caso de uso
-        **Seleção:** Múltiplas regiões (América do Sul e outras regiões futuramente).
-        O processo de controladoria industrial é similar entre plantas LATAM (Latin America — América Latina), podendo escalar para EU (Europe — Europa) e NA (North America — América do Norte) facilmente.
+        #### ðŸ“Œ 4) Escala regional do caso de uso
+        **SeleÃ§Ã£o:** MÃºltiplas regiÃµes (AmÃ©rica do Sul e outras regiÃµes futuramente).
+        O processo de controladoria industrial Ã© similar entre plantas LATAM (Latin America â€” AmÃ©rica Latina), podendo escalar para EU (Europe â€” Europa) e NA (North America â€” AmÃ©rica do Norte) facilmente.
 
-        #### 📌 5) Marcas que podem se beneficiar
-        **Seleção:** Todas as marcas Stellantis.
-        Processo de custo fabril é transversal (Fiat, Peugeot, Citroën, Jeep, RAM, etc).
+        #### ðŸ“Œ 5) Marcas que podem se beneficiar
+        **SeleÃ§Ã£o:** Todas as marcas Stellantis.
+        Processo de custo fabril Ã© transversal (Fiat, Peugeot, CitroÃ«n, Jeep, RAM, etc).
 
-        #### 📌 6) Redução anual estimada de custos
-        **Seleção:** 100–500 mil €/ano
+        #### ðŸ“Œ 6) ReduÃ§Ã£o anual estimada de custos
+        **SeleÃ§Ã£o:** 100â€“500 mil â‚¬/ano
 
-        **Justificativa prática:**
-        - redução do tempo de análise manual
-        - eliminação de retrabalho
-        - padronização de explicações
-        - velocidade de diagnóstico
-        - apoio direto à tomada de decisão fabril
+        **Justificativa prÃ¡tica:**
+        - reduÃ§Ã£o do tempo de anÃ¡lise manual
+        - eliminaÃ§Ã£o de retrabalho
+        - padronizaÃ§Ã£o de explicaÃ§Ãµes
+        - velocidade de diagnÃ³stico
+        - apoio direto Ã  tomada de decisÃ£o fabril
 
-        #### 📌 7) Receita anual estimada
-        **Seleção:** Não aplicável
+        #### ðŸ“Œ 7) Receita anual estimada
+        **SeleÃ§Ã£o:** NÃ£o aplicÃ¡vel
 
-        #### 📌 8) Pessoas impactadas
-        **Seleção:** 50 a 100 usuários
+        #### ðŸ“Œ 8) Pessoas impactadas
+        **SeleÃ§Ã£o:** 50 a 100 usuÃ¡rios
 
         Inclui:
         - times de controladoria fabril
@@ -7471,92 +7039,93 @@ elif indice_selecionado == "🚀 Próximos Passos":
         - diretoria de manufatura
         - controllers regionais
 
-        #### 📌 9) Como isso cria valor / modelo de negócio
-        O SCI cria um mecanismo contínuo de geração de valor, pois:
-        - substitui análises manuais repetitivas
-        - reduz tempo de elaboração de comentários executivos
+        #### ðŸ“Œ 9) Como isso cria valor / modelo de negÃ³cio
+        O SCI cria um mecanismo contÃ­nuo de geraÃ§Ã£o de valor, pois:
+        - substitui anÃ¡lises manuais repetitivas
+        - reduz tempo de elaboraÃ§Ã£o de comentÃ¡rios executivos
         - detecta problemas antecipadamente
-        - evita inconsistências entre plantas
-        - amplia governança e padronização
-        - acelera a tomada de decisão
-        - facilita comparações entre modelos e oficinas
-        - disponibiliza inteligência financeira 24/7
+        - evita inconsistÃªncias entre plantas
+        - amplia governanÃ§a e padronizaÃ§Ã£o
+        - acelera a tomada de decisÃ£o
+        - facilita comparaÃ§Ãµes entre modelos e oficinas
+        - disponibiliza inteligÃªncia financeira 24/7
 
-        **Medições claras de valor:**
+        **MediÃ§Ãµes claras de valor:**
         - horas de retrabalho eliminadas
-        - velocidade para fechar custos diários/mensais
-        - quantidade de análises automatizadas
-        - número de alertas antecipados por anomalias detectadas
+        - velocidade para fechar custos diÃ¡rios/mensais
+        - quantidade de anÃ¡lises automatizadas
+        - nÃºmero de alertas antecipados por anomalias detectadas
         - produtividade do time de controladoria
 
-        #### 📌 10) Disponibilidade dos dados
-        **Seleção:** Tenho muitos dados de boa qualidade prontos para uso.
+        #### ðŸ“Œ 10) Disponibilidade dos dados
+        **SeleÃ§Ã£o:** Tenho muitos dados de boa qualidade prontos para uso.
 
         **Justificativa:**
-        O sistema Stellantis Cost Intelligence (SCI) já contém:
+        O sistema Stellantis Cost Intelligence (SCI) jÃ¡ contÃ©m:
         - parquets consolidados
         - tabelas tratadas (FP, FA, Redis, CPU, BE, Flex)
         - dados padronizados por oficina e modelo
         - tabelas auxiliares (debug, massa, rateios, percentuais)
         - banco de dados estruturado em Python
 
-        Tudo já está higienizado e pronto para indexação via GENAI (IA Generativa).
+        Tudo jÃ¡ estÃ¡ higienizado e pronto para indexaÃ§Ã£o via GENAI (IA Generativa).
 
-        #### 📌 11) Tipo de dados
-        **Selecione TODOS os aplicáveis:**
-        - ✔ Texto plano (CSV, parquet, etc.)
-        - ✔ Documentos (documentação técnica do sistema, PDF, notas internas)
-        - ✔ Dados estruturados (tabelas, parquets, bancos internos)
+        #### ðŸ“Œ 11) Tipo de dados
+        **Selecione TODOS os aplicÃ¡veis:**
+        - âœ” Texto plano (CSV, parquet, etc.)
+        - âœ” Documentos (documentaÃ§Ã£o tÃ©cnica do sistema, PDF, notas internas)
+        - âœ” Dados estruturados (tabelas, parquets, bancos internos)
 
-        #### 📌 12) Qualidade dos dados
-        **Seleção:** Precisa, consistente e confiável para tomada de decisão.
+        #### ðŸ“Œ 12) Qualidade dos dados
+        **SeleÃ§Ã£o:** Precisa, consistente e confiÃ¡vel para tomada de decisÃ£o.
 
-        **Motivo:** O processo do TC Veículos já foi padronizado e validado internamente.
+        **Motivo:** O processo do TC VeÃ­culos jÃ¡ foi padronizado e validado internamente.
 
-        #### 📌 13) Recursos / expertise necessários
-        - Engenheiros de dados (para ingestão inicial do vector store (base vetorial))
-        - Suporte GENAI COE (Center of Excellence — Centro de Excelência de IA Generativa) (para mTLS (mutual TLS — TLS mútuo) + OAuth2 (OAuth 2.0 — protocolo de autorização) via PingFederate)
-        - Desenvolvedor Python (integração TC (Transformation Cost) × GENAI (IA Generativa))
-        - Especialista de controladoria (validação dos insights)
+        #### ðŸ“Œ 13) Recursos / expertise necessÃ¡rios
+        - Engenheiros de dados (para ingestÃ£o inicial do vector store (base vetorial))
+        - Suporte GENAI COE (Center of Excellence â€” Centro de ExcelÃªncia de IA Generativa) (para mTLS (mutual TLS â€” TLS mÃºtuo) + OAuth2 (OAuth 2.0 â€” protocolo de autorizaÃ§Ã£o) via PingFederate)
+        - Desenvolvedor Python (integraÃ§Ã£o TC (Transformation Cost) Ã— GENAI (IA Generativa))
+        - Especialista de controladoria (validaÃ§Ã£o dos insights)
 
-        #### 📌 14) Soluções concorrentes
-        Não existe solução semelhante dentro da Stellantis.
-        Processos atuais são manuais e fragmentados.
+        #### ðŸ“Œ 14) SoluÃ§Ãµes concorrentes
+        NÃ£o existe soluÃ§Ã£o semelhante dentro da Stellantis.
+        Processos atuais sÃ£o manuais e fragmentados.
 
-        #### 📌 15) Prazos desejados
-        POC (Proof of Concept — prova de conceito) após aprovação — sem data rígida.
-        Pode acompanhar calendário de FECHAMENTO MENSAL e BE.
+        #### ðŸ“Œ 15) Prazos desejados
+        POC (Proof of Concept â€” prova de conceito) apÃ³s aprovaÃ§Ã£o â€” sem data rÃ­gida.
+        Pode acompanhar calendÃ¡rio de FECHAMENTO MENSAL e BE.
 
-        #### 📌 16) Tags
+        #### ðŸ“Œ 16) Tags
         cost-control, industrial-finance, manufacturing, genai, tc-veiculos, scicontroller, insights
 
-        #### 📌 17) Patrocinador de Negócio
-        Seu gestor ou diretor da área de Controlling/Manufatura (preencher com o nome interno).
+        #### ðŸ“Œ 17) Patrocinador de NegÃ³cio
+        Seu gestor ou diretor da Ã¡rea de Controlling/Manufatura (preencher com o nome interno).
 
-        #### 📌 18) Líder de TIC (se conhecido)
-        Colocar o responsável de TI/IS (Tecnologia da Informação / Information Systems — Sistemas de Informação) local da planta ou região.
+        #### ðŸ“Œ 18) LÃ­der de TIC (se conhecido)
+        Colocar o responsÃ¡vel de TI/IS (Tecnologia da InformaÃ§Ã£o / Information Systems â€” Sistemas de InformaÃ§Ã£o) local da planta ou regiÃ£o.
 
-        #### 📌 19) Já houve alguma ação?
-        Sim — desenvolvimento do Stellantis Cost Intelligence (SCI) (módulo TC Veículos), consolidação dos dados, definição do caso de uso e preparação para integração ao GENAI Gateway.
+        #### ðŸ“Œ 19) JÃ¡ houve alguma aÃ§Ã£o?
+        Sim â€” desenvolvimento do Stellantis Cost Intelligence (SCI) (mÃ³dulo TC VeÃ­culos), consolidaÃ§Ã£o dos dados, definiÃ§Ã£o do caso de uso e preparaÃ§Ã£o para integraÃ§Ã£o ao GENAI Gateway.
 
-        #### 📌 20) LLM alvo
-        GPT‑4 / GPT‑5.2 (Azure OpenAI via GENAI Gateway (Gateway corporativo de IA Generativa))
+        #### ðŸ“Œ 20) LLM alvo
+        GPTâ€‘4 / GPTâ€‘5.2 (Azure OpenAI via GENAI Gateway (Gateway corporativo de IA Generativa))
 
-        #### 📌 21) Plataforma alvo
+        #### ðŸ“Œ 21) Plataforma alvo
         Azure (Microsoft)
 
-        Melhor integração com Python, Streamlit e GENAI Gateway.
+        Melhor integraÃ§Ã£o com Python, Streamlit e GENAI Gateway.
         """)
 
-# Rodapé
+# RodapÃ©
 st.markdown("---")
 mes_atual = obter_mes_atual()
 ano_atual = datetime.now().year
 versao_atual = obter_versao_atual()
 st.markdown(f"""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual}
+    ðŸ“š Stellantis Cost Intelligence (SCI) | VersÃ£o {versao_atual} | {mes_atual} {ano_atual}
     <br>
     <small>Desenvolvido por Hudson Cardin, Lauro Paiva e Frederico Cesar de Jesus</small>
 </div>
 """, unsafe_allow_html=True)
+

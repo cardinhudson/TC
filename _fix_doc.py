@@ -1,4 +1,4 @@
-"""Fix apresentacao visual roteiro section."""
+﻿"""Fix apresentacao visual roteiro section."""
 with open(r'pages/6 - Documentacao.py', 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
@@ -20,7 +20,7 @@ if start_line and end_line:
         '            """\n',
         '            **0:00\u20130:30 \u2014 Contexto**\n',
         '            - O que \u00e9 o Portal TC e seu objetivo: decis\u00e3o r\u00e1pida com dados de custo/volume.\n',
-        '            - Dois m\u00f3dulos: **TC Extendido** (agregado) e **TC Ve\u00edculos** (rateado por modelo).\n',
+        '            - Dois m\u00f3dulos: **TC Estendido** (agregado) e **TC Ve\u00edculos** (rateado por modelo).\n',
         '\n',
         '            **0:30\u20131:15 \u2014 TC Ext (Home)**\n',
         '            - Mostrar filtros (Ano/Per\u00edodo/Oficina/Ve\u00edculo) e altern\u00e2ncia **Custo Total \u2194 CPU**.\n',
@@ -55,3 +55,4 @@ if start_line and end_line:
     with open(r'pages/6 - Documentacao.py', 'w', encoding='utf-8') as f:
         f.writelines(lines)
     print('Roteiro updated successfully')
+
