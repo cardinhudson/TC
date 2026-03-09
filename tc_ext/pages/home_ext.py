@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime
 import plotly.graph_objects as go
 from versionamento import obter_versao_atual, verificar_mudancas_paginas
-from tc_principal.ui_components import render_sidebar_global
+from tc_principal.ui_components import render_sidebar_global, render_inline_summary_metrics
 
 # Camada core (refatoração incremental): helpers compartilhados, sem depender de app.py
 from tc_core.data.paths import (
@@ -663,6 +663,40 @@ cfg = render_sidebar_global(
     'home_ext',
     incluir_todos=True,
     descobrir_anos_fn=listar_anos_disponiveis,
+)
+
+st.markdown(
+    """
+    <style>
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] > div[role="radiogroup"] {
+        flex-wrap: wrap !important;
+        gap: 0.35rem !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] label,
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] label p,
+    section[data-testid="stSidebar"] div[data-testid="stNumberInput"] label,
+    section[data-testid="stSidebar"] div[data-testid="stNumberInput"] label p,
+    section[data-testid="stSidebar"] div[data-testid="stSelectbox"] label,
+    section[data-testid="stSidebar"] div[data-testid="stMultiSelect"] label,
+    section[data-testid="stSidebar"] button,
+    section[data-testid="stSidebar"] button p,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong,
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+        text-overflow: clip !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stNumberInput"],
+    section[data-testid="stSidebar"] div[data-testid="stSelectbox"],
+    section[data-testid="stSidebar"] div[data-testid="stMultiSelect"],
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] {
+        overflow: visible !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 ano_selecionado = cfg['ano']
@@ -6321,7 +6355,6 @@ if is_main_page:
                                                                         # Só exibir se houver dados após filtrar
                                                                         if len(df_type06_filtrado) > 0:
                                                                             with st.expander(f"📑 Type 06: {type06} - Total: {total_type06_formatado}", expanded=expandir_flex):
-                                                                                st.caption(f"Total do Type 06: {moeda_simbolo} {total_type06_formatado}")
                                                                                 # Criar uma única tabela com todas as Accounts
                                                                                 # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                                 colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
@@ -6396,8 +6429,18 @@ if is_main_page:
                                                                                 
                                                                                 linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_para_resumo_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                                 
-                                                                                # Exibir caixas de resumo
-                                                                                exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                                render_inline_summary_metrics(
+                                                                                    linha_resumo,
+                                                                                    ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                                                                    currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                                                                    ratio_columns={'Total / Flex Bud'},
+                                                                                    number_prefix=f"{moeda_simbolo} ",
+                                                                                    number_suffix=(
+                                                                                        ' K' if fator_conversao == 'K (milhares)'
+                                                                                        else ' M' if fator_conversao == 'M (Milhões)'
+                                                                                        else ''
+                                                                                    ),
+                                                                                )
                                                                                 
                                                                                 # Exibir tabela com resumo (todas as Accounts em uma única tabela)
                                                                                 html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
@@ -6484,8 +6527,18 @@ if is_main_page:
                                                                                 
                                                                                 linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_para_resumo_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                                 
-                                                                                # Exibir caixas de resumo
-                                                                                exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                                render_inline_summary_metrics(
+                                                                                    linha_resumo,
+                                                                                    ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                                                                    currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                                                                    ratio_columns={'Total / Flex Bud'},
+                                                                                    number_prefix=f"{moeda_simbolo} ",
+                                                                                    number_suffix=(
+                                                                                        ' K' if fator_conversao == 'K (milhares)'
+                                                                                        else ' M' if fator_conversao == 'M (Milhões)'
+                                                                                        else ''
+                                                                                    ),
+                                                                                )
                                                                                 
                                                                                 # Exibir tabela com resumo
                                                                                 html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
@@ -6835,9 +6888,6 @@ if is_main_page:
                                                                     f"📑 Type 06: {type06} - Total: {total_type06_formatado}",
                                                                     expanded=expandir_flex,
                                                                 ):
-                                                                    st.caption(
-                                                                        f"Total do Type 06: {moeda_simbolo} {total_type06_formatado}"
-                                                                    )
                                                                     # Criar uma única tabela com todas as Accounts
                                                                     # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                     colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
@@ -6884,8 +6934,18 @@ if is_main_page:
                                                                     # Calcular linha de resumo (usar dados filtrados)
                                                                     linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                     
-                                                                    # Exibir caixas de resumo
-                                                                    exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                    render_inline_summary_metrics(
+                                                                        linha_resumo,
+                                                                        ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                                                        currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                                                        ratio_columns={'Total / Flex Bud'},
+                                                                        number_prefix=f"{moeda_simbolo} ",
+                                                                        number_suffix=(
+                                                                            ' K' if fator_conversao == 'K (milhares)'
+                                                                            else ' M' if fator_conversao == 'M (Milhões)'
+                                                                            else ''
+                                                                        ),
+                                                                    )
                                                                     
                                                                     # Exibir tabela com resumo (todas as Accounts em uma única tabela)
                                                                     html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)
@@ -6909,7 +6969,6 @@ if is_main_page:
                                                             # Só exibir se houver dados após filtrar
                                                             if len(df_type06_filtrado) > 0:
                                                                 with st.expander(f"📑 Type 06: {type06} - Total: {total_type06_formatado}", expanded=expandir_flex):
-                                                                    st.caption(f"Total do Type 06: {moeda_simbolo} {total_type06_formatado}")
                                                                     # Criar tabela para este Type 06
                                                                     # Usar colunas dinâmicas (pode ter colunas por período ou colunas padrão)
                                                                     colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
@@ -6951,8 +7010,18 @@ if is_main_page:
                                                                     # Calcular linha de resumo (usar dados filtrados)
                                                                     linha_resumo, linha_resumo_formatado = calcular_resumo_tabela_flex(df_type06_filtrado, tipo_visualizacao, moeda_simbolo, fator_conversao)
                                                                     
-                                                                    # Exibir caixas de resumo
-                                                                    exibir_caixas_resumo(linha_resumo, linha_resumo_formatado, tipo_visualizacao)
+                                                                    render_inline_summary_metrics(
+                                                                        linha_resumo,
+                                                                        ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                                                        currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                                                        ratio_columns={'Total / Flex Bud'},
+                                                                        number_prefix=f"{moeda_simbolo} ",
+                                                                        number_suffix=(
+                                                                            ' K' if fator_conversao == 'K (milhares)'
+                                                                            else ' M' if fator_conversao == 'M (Milhões)'
+                                                                            else ''
+                                                                        ),
+                                                                    )
                                                                     
                                                                     # Exibir tabela com resumo
                                                                     html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado)

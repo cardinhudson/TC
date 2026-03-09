@@ -54,6 +54,7 @@ from tc_principal.shared import (
     load_volume_bud, load_volume_actual,
     load_custo_fp_veiculo, load_custo_fp_veiculo_real,
     descobrir_anos_tc_principal,
+    load_tc_sapiens,
     calcular_flex_budget, normalizar_periodo, ordenar_por_mes,
     mask_custo_fixo, aplicar_fator_df, converter_moeda_df,
     COLUNAS_MONETARIAS,
@@ -61,7 +62,7 @@ from tc_principal.shared import (
     ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
 )
 from tc_principal.ui_components import (
-    injetar_css_global, render_header, render_sidebar_global,
+    injetar_css_global, render_header, render_sidebar_global, render_inline_summary_metrics,
 )
 
 # ── Helpers de carregamento para o Waterfall TC Veículos ─────────────
@@ -151,6 +152,135 @@ def _load_tc_veiculos_budget_volume(ano_sel):
     else:
         df = load_volume_bud(int(ano_sel))
         return df if df is not None else pd.DataFrame()
+
+
+def _load_tc_veiculos_sapiens(ano_sel):
+    """Carrega o parquet detalhado do Sapiens para um ano ou para todos."""
+    if ano_sel == "Todos":
+        frames = []
+        for ano in descobrir_anos_tc_principal():
+            df = load_tc_sapiens(ano)
+            if df is not None and not df.empty:
+                frames.append(df)
+        if frames:
+            return pd.concat(frames, ignore_index=True)
+        return pd.DataFrame()
+
+    df = load_tc_sapiens(int(ano_sel))
+    return df if df is not None else pd.DataFrame()
+
+
+def _sanitize_filter_key(texto):
+    return ''.join(ch.lower() if ch.isalnum() else '_' for ch in str(texto))
+
+
+def _apply_local_filters_sapiens(df_sapiens_base, key_prefix):
+    """Aplica filtros locais amplos no expander do Sapiens sem depender do recorte do waterfall."""
+    if df_sapiens_base is None or df_sapiens_base.empty:
+        return pd.DataFrame()
+
+    filtros_relevantes = [
+        ('Ano', '📆 Ano'),
+        ('Período', '📅 Período'),
+        ('Oficina', '🏭 Oficina'),
+        ('USI', '🏗️ USI'),
+        ('Veículo', '🚗 Veículo'),
+        ('Centrocst', '🏢 Centro cst'),
+        ('Nºconta', '🔢 Conta contábil'),
+        ('Type 05', '📂 Type 05'),
+        ('Type 06', '🧩 Type 06'),
+        ('Account', '🗂️ Account'),
+        ('Fornecedor', '🏷️ Fornecedor'),
+        ('Fornec.', '🏷️ Fornec.'),
+        ('Tipo', '📝 Tipo'),
+        ('Usuário', '👤 Usuário'),
+        ('Material', '📦 Material'),
+        ('Dt.lçto.', '🗓️ Data lançamento'),
+        ('Texto breve', '💬 Texto breve'),
+    ]
+    colunas_disponiveis = [item for item in filtros_relevantes if item[0] in df_sapiens_base.columns]
+    filtros_aplicados = []
+
+    for start in range(0, len(colunas_disponiveis), 4):
+        chunk = colunas_disponiveis[start:start + 4]
+        cols_ui = st.columns(len(chunk))
+        for idx, (coluna, label) in enumerate(chunk):
+            valores = [str(v) for v in df_sapiens_base[coluna].dropna().astype(str).unique().tolist() if str(v).strip()]
+            valores = sorted(valores)
+            key_slug = _sanitize_filter_key(coluna)
+            with cols_ui[idx]:
+                if len(valores) <= 200:
+                    selecionados = st.multiselect(
+                        label,
+                        valores,
+                        default=[],
+                        key=f"{key_prefix}_{key_slug}_multiselect",
+                    )
+                    if selecionados:
+                        filtros_aplicados.append((coluna, 'isin', selecionados))
+                else:
+                    termo = st.text_input(
+                        f"{label} contém",
+                        key=f"{key_prefix}_{key_slug}_contains",
+                    ).strip()
+                    if termo:
+                        filtros_aplicados.append((coluna, 'contains', termo))
+
+    df_filtrado = df_sapiens_base.copy()
+    for coluna, tipo_filtro, valor in filtros_aplicados:
+        serie = df_filtrado[coluna].astype(str)
+        if tipo_filtro == 'isin':
+            df_filtrado = df_filtrado[serie.isin([str(v) for v in valor])].copy()
+        elif tipo_filtro == 'contains':
+            df_filtrado = df_filtrado[
+                serie.str.contains(str(valor), case=False, na=False, regex=False)
+            ].copy()
+
+    return df_filtrado
+
+
+def _render_sapiens_table_waterfall(df_sapiens_base, ano_label, key_prefix):
+    """Renderiza a tabela detalhada do Sapiens com filtros locais expandidos."""
+    if df_sapiens_base is None or df_sapiens_base.empty:
+        st.info(
+            "ℹ️ Dados Sapiens detalhados não disponíveis para o ano selecionado. "
+            "Execute o processamento Real na página Extração de Dados, se necessário."
+        )
+        return
+
+    with st.expander("📑 Tabela Sapiens — Todas as Colunas", expanded=False):
+        st.caption("Use os filtros abaixo para refinar a tabela Sapiens sem depender do recorte do Waterfall.")
+        df_sap_filt = _apply_local_filters_sapiens(df_sapiens_base, key_prefix)
+
+        st.caption(f"📊 {len(df_sap_filt):,} linhas × {len(df_sap_filt.columns)} colunas")
+        if df_sap_filt.empty:
+            st.warning("⚠️ Nenhuma linha encontrada com os filtros locais selecionados.")
+        st.dataframe(df_sap_filt, use_container_width=True, height=500)
+
+        if st.button(
+            "📥 Baixar Sapiens Detalhado (Excel)",
+            key=f"{key_prefix}_download",
+            use_container_width=True,
+        ):
+            with st.spinner("Gerando arquivo…"):
+                try:
+                    downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+                    os.makedirs(downloads, exist_ok=True)
+                    fname = f"TC_Sapiens_Detalhado_{ano_label}.xlsx"
+                    fpath = os.path.join(downloads, fname)
+                    with pd.ExcelWriter(fpath, engine='openpyxl') as writer:
+                        df_sap_filt.to_excel(writer, index=False, sheet_name='Sapiens')
+                    st.success(f"✅ Arquivo salvo em: {fpath}")
+                except Exception as exc:
+                    st.error(f"❌ Erro ao gerar Excel: {exc}")
+
+
+def _render_sapiens_section_waterfall(ano_label, key_prefix):
+    """Exibe a seção Sapiens no Waterfall sem recortar previamente os dados."""
+    st.markdown("---")
+    st.markdown("## 📑 Dados Sapiens Detalhados")
+    df_sapiens_base = _load_tc_veiculos_sapiens(ano_label)
+    _render_sapiens_table_waterfall(df_sapiens_base, ano_label, key_prefix)
 
 # ═══════════════════════════════════════════════════════════════
 #  UI: CSS + Header + Sidebar global
@@ -2343,9 +2473,25 @@ else:
                                         with col_vol2:
                                             st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Mês 2 ({nome_periodo_final_display}):</strong> {volume_m2_formatado}</div>", unsafe_allow_html=True)
                                         st.markdown("<br>", unsafe_allow_html=True)
+
                                     
                                     # Criar estrutura hierárquica
                                     if modo_tabela_flex_waterfall_tc == "Fixo/Variável":
+                                        expand_state_key = 'waterfall_tc_real_expand_all'
+                                        if expand_state_key not in st.session_state:
+                                            st.session_state[expand_state_key] = False
+
+                                        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                        with ctrl_col1:
+                                            if st.button('Expandir tudo', key='waterfall_tc_real_expandir'):
+                                                st.session_state[expand_state_key] = True
+                                        with ctrl_col2:
+                                            if st.button('Recolher tudo', key='waterfall_tc_real_recolher'):
+                                                st.session_state[expand_state_key] = False
+                                        with ctrl_col3:
+                                            st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+
+                                        expandir_waterfall_real = st.session_state[expand_state_key]
                                         for custo in ['Fixo', 'Variável']:
                                             df_custo = df_tabela_flex_waterfall_tc[df_tabela_flex_waterfall_tc['Custo'] == custo].copy()
                                             
@@ -2355,7 +2501,7 @@ else:
                                                 
                                                 # Não exibir se o total for zero
                                                 if total_custo != 0 and pd.notna(total_custo):
-                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=expandir_waterfall_real):
                                                         # Nível 2: Type 05
                                                         if 'Type 05' in df_custo.columns:
                                                             for type05 in sorted(df_custo['Type 05'].dropna().unique()):
@@ -2367,7 +2513,7 @@ else:
                                                                     
                                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
                                                                     # A filtragem de linhas zeradas já é feita dentro do loop do Type 06
-                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_real):
                                                                         # Nível 3: Type 06
                                                                         if 'Type 06' in df_type05.columns:
                                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -2473,23 +2619,12 @@ else:
                                                                                                         valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
                                                                                                         linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                                         
-                                                                                                        # Exibir resumo e tabela usando ordem explícita
-                                                                                                        ordem_colunas_waterfall_tc = [
-                                                                                                            'Mês 1',
-                                                                                                            'Flex Mês 1 - Mês 1',
-                                                                                                            'Flex Mês 1',
-                                                                                                            'Mês 2 - Flex Mês 1',
-                                                                                                            'Mês 2',
-                                                                                                            '% Mês 2/Flex Mês 1'
-                                                                                                        ]
-                                                                                                        num_colunas = min(len(ordem_colunas_waterfall_tc), 6)
-                                                                                                        if num_colunas > 0:
-                                                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall_tc[:num_colunas]):
-                                                                                                                if col_nome in linha_resumo_formatado_type06:
-                                                                                                                    with cols[idx]:
-                                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                                        render_inline_summary_metrics(
+                                                                                                            linha_resumo_type06,
+                                                                                                            ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1'],
+                                                                                                            percent_columns={'% Mês 2/Flex Mês 1'},
+                                                                                                            percent_input='percent',
+                                                                                                        )
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
                                                                                         else:
@@ -2567,23 +2702,12 @@ else:
                                                                                                         valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
                                                                                                         linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
                                                                                                         
-                                                                                                        # Exibir resumo usando ordem explícita
-                                                                                                        ordem_colunas_waterfall_tc = [
-                                                                                                            'Mês 1',
-                                                                                                            'Flex Mês 1 - Mês 1',
-                                                                                                            'Flex Mês 1',
-                                                                                                            'Mês 2 - Flex Mês 1',
-                                                                                                            'Mês 2',
-                                                                                                            '% Mês 2/Flex Mês 1'
-                                                                                                        ]
-                                                                                                        num_colunas = min(len(ordem_colunas_waterfall_tc), 6)
-                                                                                                        if num_colunas > 0:
-                                                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                                                            for idx, col_nome in enumerate(ordem_colunas_waterfall_tc[:num_colunas]):
-                                                                                                                if col_nome in linha_resumo_formatado_type06:
-                                                                                                                    with cols[idx]:
-                                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                                        render_inline_summary_metrics(
+                                                                                                            linha_resumo_type06,
+                                                                                                            ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1'],
+                                                                                                            percent_columns={'% Mês 2/Flex Mês 1'},
+                                                                                                            percent_input='percent',
+                                                                                                        )
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
                                                                                             else:
@@ -2713,7 +2837,7 @@ else:
                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                     
                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_real):
                                                         # Nível 2: Type 06
                                                         if 'Type 06' in df_type05.columns:
                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -2844,6 +2968,11 @@ else:
                                     st.error(f"❌ Erro ao gerar tabela: {str(e)}")
                                     import traceback
                                     st.code(traceback.format_exc())
+
+                                _render_sapiens_section_waterfall(
+                                    ano_selecionado,
+                                    "waterfall_real_sapiens",
+                                )
                             else:
                                 st.info("ℹ️ A tabela requer dados com coluna 'Custo' (Fixo/Variável).")
                         else:
@@ -4163,6 +4292,21 @@ else:
                                         
                                     # Criar estrutura hierárquica com expanders
                                     if modo_tabela == "Fixo/Variável":
+                                        expand_state_key = 'waterfall_tc_budget_expand_all'
+                                        if expand_state_key not in st.session_state:
+                                            st.session_state[expand_state_key] = False
+
+                                        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                        with ctrl_col1:
+                                            if st.button('Expandir tudo', key='waterfall_tc_budget_expandir'):
+                                                st.session_state[expand_state_key] = True
+                                        with ctrl_col2:
+                                            if st.button('Recolher tudo', key='waterfall_tc_budget_recolher'):
+                                                st.session_state[expand_state_key] = False
+                                        with ctrl_col3:
+                                            st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+
+                                        expandir_waterfall_budget = st.session_state[expand_state_key]
                                         for custo in ['Fixo', 'Variável']:
                                             df_custo = df_tabela_total_agrupado[df_tabela_total_agrupado['Custo'] == custo].copy()
                                                 
@@ -4173,7 +4317,7 @@ else:
                                                     
                                                 # Mostrar se há valor real OU budget (não ignorar categorias só com budget)
                                                 if (abs(total_custo) > 0.0001 or abs(total_bud_custo) > 0.0001) and pd.notna(total_custo):
-                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=expandir_waterfall_budget):
                                                         # Nível 2: Type 05
                                                         if 'Type 05' in df_custo.columns:
                                                             for type05 in sorted(df_custo['Type 05'].dropna().unique()):
@@ -4184,7 +4328,7 @@ else:
                                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                                         
                                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_budget):
                                                                         # Nível 3: Type 06
                                                                         if 'Type 06' in df_type05.columns:
                                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -4284,16 +4428,16 @@ else:
                                                                                                             
                                                                                                         linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
                                                                                                             
-                                                                                                        # Exibir resumo e tabela
-                                                                                                        ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
-                                                                                                        num_colunas = min(len(ordem_colunas), 6)
-                                                                                                        if num_colunas > 0:
-                                                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                                                            for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
-                                                                                                                if col_nome in linha_resumo_formatado_type06:
-                                                                                                                    with cols[idx]:
-                                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                                        render_inline_summary_metrics(
+                                                                                                            linha_resumo_type06,
+                                                                                                            ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud'],
+                                                                                                            ratio_columns={'Total / Flex Bud'},
+                                                                                                            number_suffix=(
+                                                                                                                ' K' if fator_conversao == 'K (milhares)'
+                                                                                                                else ' M' if fator_conversao == 'M (Milhões)'
+                                                                                                                else ''
+                                                                                                            ),
+                                                                                                        )
                                                                                                             
                                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                                         st.markdown(html_table, unsafe_allow_html=True)
@@ -4345,7 +4489,7 @@ else:
                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                         
                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_budget):
                                                         # Nível 2: Type 06
                                                         if 'Type 06' in df_type05.columns:
                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -4447,22 +4591,27 @@ else:
                                                                                             
                                                                                         linha_resumo_formatado_type06['Total / Flex Bud'] = formatar_ratio_com_barra(linha_resumo_type06['Total / Flex Bud'])
                                                                                             
-                                                                                        # Exibir resumo e tabela
-                                                                                        ordem_colunas = ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud']
-                                                                                        num_colunas = min(len(ordem_colunas), 6)
-                                                                                        if num_colunas > 0:
-                                                                                            cols = st.columns(num_colunas, gap="small")
-                                                                                            for idx, col_nome in enumerate(ordem_colunas[:num_colunas]):
-                                                                                                if col_nome in linha_resumo_formatado_type06:
-                                                                                                    with cols[idx]:
-                                                                                                        valor_formatado = linha_resumo_formatado_type06.get(col_nome, '-')
-                                                                                                        st.markdown(f"<div style='font-size: 0.75rem;'><strong>{col_nome}</strong><br>{valor_formatado}</div>", unsafe_allow_html=True)
+                                                                                        render_inline_summary_metrics(
+                                                                                            linha_resumo_type06,
+                                                                                            ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Custo FP', 'Total / Flex Bud'],
+                                                                                            ratio_columns={'Total / Flex Bud'},
+                                                                                            number_suffix=(
+                                                                                                ' K' if fator_conversao == 'K (milhares)'
+                                                                                                else ' M' if fator_conversao == 'M (Milhões)'
+                                                                                                else ''
+                                                                                            ),
+                                                                                        )
                                                                                             
                                                                                         html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
                                                                                         st.markdown(html_table, unsafe_allow_html=True)
                                         else:
                                             # Sem Type 05: não exibir nada (não deve acontecer)
                                             st.info("ℹ️ Dados sem estrutura hierárquica (Type 05).")
+
+                    _render_sapiens_section_waterfall(
+                        ano_selecionado,
+                        "waterfall_budget_sapiens",
+                    )
                             
             except Exception as e:
                 st.error(f"❌ Erro ao gerar tabela Budget: {str(e)}")

@@ -8,7 +8,11 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from versionamento import obter_versao_atual
-from tc_principal.ui_components import render_sidebar_global
+from tc_principal.ui_components import (
+    injetar_css_global,
+    render_header,
+    render_sidebar_global,
+)
 
 # Diretório raiz do projeto
 if hasattr(sys, '_MEIPASS'):
@@ -47,14 +51,6 @@ def _fix_mojibake_cols(df: pd.DataFrame) -> pd.DataFrame:
     if 'Custo' in df.columns:
         df['Custo'] = df['Custo'].replace({f"Vari\ufffdvel": "Variável"})
     return df
-
-# Configuração da página
-st.set_page_config(
-    page_title="Best Estimate - Simulador",
-    page_icon="🔮",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Função para obter mês atual em português
 def obter_mes_atual():
@@ -104,62 +100,8 @@ def obter_data_atualizacao_dados():
     except Exception:
         return None
 
-# Cabeçalho compacto com data de atualização
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
-data_atualizacao = obter_data_atualizacao_dados()
-
-# Montar textos do cabeçalho
-texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
-texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
-
-st.markdown(f"""
-<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
-    <div style='flex: 1;'>{texto_esquerda}</div>
-    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# CSS para customização
-st.markdown("""
-    <style>
-        .block-container {
-            padding-top: 0.8rem !important;
-            padding-bottom: 0.4rem !important;
-        }
-        hr {
-            display: none !important;
-            margin: 0 !important;
-        }
-        /* Reduzir títulos em 20% e evitar quebra de linha */
-        h1 {
-            /* Reduzido de 3rem para 2.4rem (20%) */
-            font-size: 2.4rem !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            margin-bottom: 0.2rem !important;
-        }
-        h2 {
-            /* Reduzido de 2rem para 1.6rem (20%) */
-            font-size: 1.6rem !important;
-            margin-bottom: 0.2rem !important;
-        }
-        h3 {
-            /* Reduzido de 1.6rem para 1.28rem (20%) */
-            font-size: 1.28rem !important;
-            margin-bottom: 0.2rem !important;
-        }
-        /* Estilos para botões: reduzir fonte e aproximar */
-        .stButton > button {
-            font-size: 0.85rem !important;
-            padding: 0.4rem 1rem !important;
-            margin-bottom: 0.3rem !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+injetar_css_global()
+render_header()
 
 # Título
 st.title("🔮 Best Estimate - Simulador")

@@ -153,6 +153,110 @@ def render_kpi_spacer() -> None:
     st.markdown("<div class='tc-kpi-spacer'></div>", unsafe_allow_html=True)
 
 
+def render_summary_cards(
+    summary_values: dict,
+    ordered_columns: list[str],
+    *,
+    currency_columns=None,
+    ratio_columns=None,
+    percent_columns=None,
+    number_prefix: str = "",
+    number_suffix: str = "",
+    decimals: int = 2,
+    percent_input: str = "decimal",
+) -> None:
+    """Renderiza cards compactos de resumo acima das tabelas.
+
+    `ratio_columns` usa `formatar_ratio_com_barra` assumindo valores decimais.
+    `percent_columns` usa a mesma barra, aceitando valores em decimal ou em percentual.
+    """
+    if not ordered_columns:
+        return
+
+    currency_columns = set(currency_columns or [])
+    ratio_columns = set(ratio_columns or [])
+    percent_columns = set(percent_columns or [])
+    cols = st.columns(len(ordered_columns), gap="small")
+
+    for idx, col_name in enumerate(ordered_columns):
+        raw_value = summary_values.get(col_name)
+        formatted_value = "-"
+
+        if col_name in ratio_columns:
+            ratio_value = raw_value if isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value) else 0
+            formatted_value = formatar_ratio_com_barra(float(ratio_value))
+        elif col_name in percent_columns:
+            percent_value = raw_value if isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value) else 0
+            percent_value = float(percent_value)
+            if percent_input == "percent":
+                percent_value = percent_value / 100
+            formatted_value = formatar_ratio_com_barra(percent_value)
+        elif isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value):
+            formatted_number = f"{float(raw_value):,.{decimals}f}"
+            if col_name in currency_columns:
+                formatted_value = f"{number_prefix}{formatted_number}{number_suffix}"
+            else:
+                formatted_value = formatted_number
+
+        with cols[idx]:
+            st.markdown(
+                f"""
+                <div class="tc-kpi-card">
+                    <div class="tc-kpi-label">{col_name}</div>
+                    <div class="tc-kpi-value">{formatted_value}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_inline_summary_metrics(
+    summary_values: dict,
+    ordered_columns: list[str],
+    *,
+    currency_columns=None,
+    ratio_columns=None,
+    percent_columns=None,
+    number_prefix: str = "",
+    number_suffix: str = "",
+    decimals: int = 2,
+    percent_input: str = "decimal",
+) -> None:
+    """Renderiza métricas compactas em uma única linha por coluna."""
+    if not ordered_columns:
+        return
+
+    currency_columns = set(currency_columns or [])
+    ratio_columns = set(ratio_columns or [])
+    percent_columns = set(percent_columns or [])
+    cols = st.columns(len(ordered_columns), gap="small")
+
+    for idx, col_name in enumerate(ordered_columns):
+        raw_value = summary_values.get(col_name)
+        formatted_value = "-"
+
+        if col_name in ratio_columns:
+            ratio_value = 0 if pd.isna(raw_value) else float(raw_value)
+            formatted_value = formatar_ratio_com_barra(ratio_value)
+        elif col_name in percent_columns:
+            percent_value = 0 if pd.isna(raw_value) else float(raw_value)
+            if percent_input == "percent":
+                percent_value = percent_value / 100
+            formatted_value = formatar_ratio_com_barra(percent_value)
+        elif isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value):
+            formatted_number = f"{float(raw_value):,.{decimals}f}"
+            if col_name in currency_columns:
+                formatted_value = f"{number_prefix}{formatted_number}{number_suffix}"
+            else:
+                formatted_value = formatted_number
+
+        with cols[idx]:
+            st.markdown(
+                f"<div style='font-size:0.78rem; line-height:1.2; white-space:nowrap;'><strong>{col_name}:</strong> {formatted_value}</div>",
+                unsafe_allow_html=True,
+            )
+
+
 # ═══════════════════════════════════════════════════════════════
 #  HEADER / BANNER
 # ═══════════════════════════════════════════════════════════════

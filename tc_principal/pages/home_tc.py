@@ -45,7 +45,7 @@ from tc_principal.ui_components import (
     injetar_css_global, render_header,
     render_sidebar_global, render_sidebar_filters, aplicar_filtros,
     criar_tabela_html, render_kpi, render_kpi_spacer,
-    formatar_ratio_com_barra, criar_tabela_html_flex,
+    formatar_ratio_com_barra, criar_tabela_html_flex, render_inline_summary_metrics,
 )
 from processamento_dados_veiculos import executar_conferencias
 
@@ -1359,7 +1359,25 @@ def render():
                                         f"📑 Type 06: {type06} - Total: {t06_fmt}",
                                         expanded=expandir_flex,
                                     ):
-                                        st.caption(f"Total do Type 06: {t06_fmt}")
+                                        summary_values = {
+                                            'BUD': df_type06['BUD'].sum(),
+                                            'Flex Bud - BUD': df_type06['Flex Bud - BUD'].sum(),
+                                            'Flex BUD': df_type06['Flex BUD'].sum(),
+                                            'Total - Flex Bud': df_type06['Total - Flex Bud'].sum(),
+                                            'Total': df_type06['Total'].sum(),
+                                            'Total / Flex Bud': (
+                                                df_type06['Total'].sum() / df_type06['Flex BUD'].sum()
+                                                if df_type06['Flex BUD'].sum() != 0 else 0
+                                            ),
+                                        }
+                                        render_inline_summary_metrics(
+                                            summary_values,
+                                            ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                            currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                            ratio_columns={'Total / Flex Bud'},
+                                            number_prefix=f"{simbolo} ",
+                                            number_suffix=sufixo,
+                                        )
                                         html_tabela = criar_tabela_html_flex(
                                             df_tabela, simbolo, sufixo
                                         )
@@ -1519,7 +1537,25 @@ def render():
                                 f"📑 Type 06: {type06} - Total: {t06_fmt}",
                                 expanded=expandir_flex,
                             ):
-                                st.caption(f"Total do Type 06: {t06_fmt}")
+                                summary_values = {
+                                    'BUD': df_type06['BUD'].sum(),
+                                    'Flex Bud - BUD': df_type06['Flex Bud - BUD'].sum(),
+                                    'Flex BUD': df_type06['Flex BUD'].sum(),
+                                    'Total - Flex Bud': df_type06['Total - Flex Bud'].sum(),
+                                    'Total': df_type06['Total'].sum(),
+                                    'Total / Flex Bud': (
+                                        df_type06['Total'].sum() / df_type06['Flex BUD'].sum()
+                                        if df_type06['Flex BUD'].sum() != 0 else 0
+                                    ),
+                                }
+                                render_inline_summary_metrics(
+                                    summary_values,
+                                    ['BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total', 'Total / Flex Bud'],
+                                    currency_columns={'BUD', 'Flex Bud - BUD', 'Flex BUD', 'Total - Flex Bud', 'Total'},
+                                    ratio_columns={'Total / Flex Bud'},
+                                    number_prefix=f"{simbolo} ",
+                                    number_suffix=sufixo,
+                                )
                                 html_tabela = criar_tabela_html_flex(
                                     df_tabela, simbolo, sufixo
                                 )
