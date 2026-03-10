@@ -37,10 +37,28 @@ def injetar_css_global():
     """Injeta CSS global padronizado (idêntico ao TC Ext)."""
     st.markdown("""
     <style>
+    /* ── Layout mais compacto ── */
+    .block-container {
+        padding-top: 0.65rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.35rem !important;
+    }
+
     /* ── Títulos reduzidos 20% ── */
     h1 { font-size: 2.4rem !important; }
     h2 { font-size: 1.6rem !important; }
     h3 { font-size: 1.28rem !important; }
+    h1, h2, h3 {
+        margin-bottom: 0.2rem !important;
+    }
+
+    /* ── Separadores menos intrusivos ── */
+    hr {
+        margin: 0.18rem 0 !important;
+        opacity: 0.22 !important;
+    }
 
     /* ── Botões compactos ── */
     .stButton > button {
@@ -97,7 +115,7 @@ def injetar_css_global():
     div[data-testid="stMetric"] {
         border: 1px solid rgba(250, 250, 250, 0.1);
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 10px 14px;
     }
     div[data-testid="stMetric"] label {
         font-size: 0.75rem !important;

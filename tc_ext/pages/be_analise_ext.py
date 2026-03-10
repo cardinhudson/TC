@@ -263,6 +263,17 @@ st.markdown(f"""
 # CSS para reduzir títulos em 20% e evitar quebra de linha
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 0.7rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.35rem !important;
+        }
+        hr {
+            margin: 0.18rem 0 !important;
+            opacity: 0.2 !important;
+        }
         h1 {
             /* Reduzido de 3rem para 2.4rem (20%) */
             font-size: 2.4rem !important;

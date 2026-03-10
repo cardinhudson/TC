@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -44,6 +45,26 @@ def wait_for_server(host: str, port: int, max_wait_seconds: int = 90) -> bool:
     return False
 
 
+def wait_for_streamlit_http_ready(base_url: str, max_wait_seconds: int = 30) -> bool:
+    """Aguarda o endpoint HTTP de health do Streamlit responder com sucesso."""
+    start = time.time()
+    health_urls = [
+        f"{base_url}/_stcore/health",
+        f"{base_url}/healthz",
+        base_url,
+    ]
+    while time.time() - start < max_wait_seconds:
+        for url in health_urls:
+            try:
+                with urllib.request.urlopen(url, timeout=2) as response:
+                    if 200 <= getattr(response, "status", 200) < 500:
+                        return True
+            except Exception:
+                continue
+        time.sleep(0.5)
+    return False
+
+
 def _mostrar_erro_e_logar(titulo: str, mensagem: str) -> None:
     """Mostra caixa de diálogo de erro e grava em SCI_error.log."""
     try:
@@ -55,6 +76,18 @@ def _mostrar_erro_e_logar(titulo: str, mensagem: str) -> None:
             f.write(f"\n{'='*60}\n")
             f.write(f"[{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] {titulo}\n")
             f.write(f"{mensagem}\n")
+    except Exception:
+        pass
+
+
+def _log_startup_event(message: str) -> None:
+    """Registra eventos simples de startup para comparar tempo entre versões."""
+    try:
+        exe_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+        log_path = exe_dir / "SCI_startup.log"
+        with open(log_path, "a", encoding="utf-8") as f:
+            import datetime
+            f.write(f"[{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] {message}\n")
     except Exception:
         pass
 
@@ -169,11 +202,40 @@ def _touch_file(path: Path) -> None:
     """Lê um trecho do arquivo para antecipar IO/extracao do bundle."""
     try:
         size = path.stat().st_size
-        bytes_to_read = size if size <= 2_000_000 else min(size, 512_000)
         with path.open("rb") as handle:
-            handle.read(bytes_to_read)
+            if size <= 2_000_000:
+                handle.read()
+                return
+
+            # Aquecer cabeçalho/início do arquivo traz mais benefício para parquet/json.
+            handle.read(min(size, 2_000_000))
+
+            # Para arquivos maiores, tocar também o fim melhora a extração/cache local.
+            if size > 8_000_000:
+                tail_size = min(1_000_000, size)
+                handle.seek(max(0, size - tail_size))
+                handle.read(tail_size)
     except Exception:
         pass
+
+
+def _open_url_in_default_browser(url: str) -> bool:
+    """Abre a URL no navegador padrão com fallbacks para Windows."""
+    try:
+        import webbrowser
+
+        if webbrowser.open(url, new=2, autoraise=True):
+            return True
+    except Exception:
+        pass
+
+    if os.name == "nt":
+        try:
+            subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
+            return True
+        except Exception:
+            return False
+    return False
 
 
 def _prewarm_bundle(base_dir: Path) -> None:
@@ -189,8 +251,10 @@ def _prewarm_bundle(base_dir: Path) -> None:
 def main() -> None:
     server_process: subprocess.Popen | None = None
     try:
+        started_at = time.perf_counter()
         is_frozen = getattr(sys, "frozen", False)
         base_dir = _get_runtime_dir()
+        _log_startup_event("launcher: inicio")
 
         if is_frozen:
             os.chdir(base_dir)
@@ -204,12 +268,19 @@ def main() -> None:
         os.environ["STREAMLIT_BROWSER_GATHERUSAGESTATS"] = "false"
 
         if is_frozen:
+            warmup_started = time.perf_counter()
             _prewarm_bundle(base_dir)
+            _log_startup_event(
+                f"launcher: warmup concluido em {time.perf_counter() - warmup_started:.2f}s"
+            )
 
         # Iniciar servidor Streamlit em subprocesso separado para evitar erros
         # de signal() fora da main thread do interpretador.
         server_process = _start_streamlit_subprocess(base_dir)
         atexit.register(_stop_process, server_process)
+        _log_startup_event("launcher: subprocesso do streamlit iniciado")
+
+        server_url = "http://127.0.0.1:8501"
 
         # Aguardar servidor ficar pronto
         if not wait_for_server("127.0.0.1", 8501, max_wait_seconds=90):
@@ -226,26 +297,33 @@ def main() -> None:
             )
             sys.exit(1)
 
-        # ─── Tentar abrir com pywebview (app desktop) ───────────────────────
-        try:
-            import webview
+        _log_startup_event(
+            f"launcher: porta pronta em {time.perf_counter() - started_at:.2f}s"
+        )
 
-            window = webview.create_window(
-                title="Stellantis Cost Intelligence",
-                url="http://127.0.0.1:8501",
-                width=1400,
-                height=900,
-                resizable=True,
+        if server_process and server_process.poll() is not None:
+            _mostrar_erro_e_logar(
+                "Stellantis Cost Intelligence",
+                f"Servidor Streamlit encerrou prematuramente com código {server_process.returncode}."
+            )
+            sys.exit(1)
+
+        # Porta aberta não garante que o front-end terminou a inicialização.
+        wait_for_streamlit_http_ready(server_url, max_wait_seconds=30)
+        time.sleep(0.8)
+        _log_startup_event(
+            f"launcher: http pronto em {time.perf_counter() - started_at:.2f}s"
+        )
+
+        # ─── Fluxo principal: abrir no navegador padrão ─────────────────────
+        try:
+            opened_in_browser = _open_url_in_default_browser(server_url)
+            if not opened_in_browser:
+                raise RuntimeError("Falha ao abrir no navegador padrão")
+            _log_startup_event(
+                f"launcher: navegador aberto em {time.perf_counter() - started_at:.2f}s"
             )
 
-            webview.start()
-            _stop_process(server_process)
-
-        except ImportError:
-            # pywebview não disponível - usar navegador padrão
-            import webbrowser
-            webbrowser.open("http://127.0.0.1:8501")
-            # Manter processo vivo
             try:
                 while server_process and server_process.poll() is None:
                     time.sleep(1)
@@ -253,6 +331,33 @@ def main() -> None:
                 pass
             finally:
                 _stop_process(server_process)
+
+        except Exception:
+            # Fallback opcional: janela desktop via pywebview, se disponível.
+            try:
+                import webview
+
+                webview.create_window(
+                    title="Stellantis Cost Intelligence",
+                    url=server_url,
+                    width=1400,
+                    height=900,
+                    resizable=True,
+                )
+                webview.start()
+                _log_startup_event(
+                    f"launcher: fallback pywebview aberto em {time.perf_counter() - started_at:.2f}s"
+                )
+                _stop_process(server_process)
+            except Exception as browser_exc:
+                _stop_process(server_process)
+                _mostrar_erro_e_logar(
+                    "Stellantis Cost Intelligence",
+                    "Nao foi possivel abrir a interface automaticamente.\n\n"
+                    f"Acesse manualmente: {server_url}\n\n"
+                    f"Detalhe: {browser_exc}"
+                )
+                sys.exit(1)
 
     except Exception as e:
         import traceback

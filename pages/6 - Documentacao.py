@@ -92,6 +92,17 @@ st.markdown(f"""
 # CSS para melhorar visualização
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 0.7rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.38rem !important;
+        }
+        hr {
+            margin: 0.18rem 0 !important;
+            opacity: 0.16 !important;
+        }
         h1 {
             white-space: nowrap !important;
             overflow: hidden !important;

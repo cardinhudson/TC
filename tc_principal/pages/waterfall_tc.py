@@ -93,6 +93,8 @@ def _enrich_with_vehicle(df_main, df_veic):
         return df_veic
     return df_main
 
+
+@st.cache_data(ttl=7200, max_entries=12, show_spinner=False)
 def _load_tc_veiculos_real(ano_sel):
     """Carrega dados Real do TC Veículos com coluna Veículo."""
     if ano_sel == "Todos":
@@ -108,6 +110,8 @@ def _load_tc_veiculos_real(ano_sel):
         df = _enrich_with_vehicle(load_principal_real(int(ano_sel)), load_custo_fp_veiculo_real(int(ano_sel)))
         return df if df is not None else pd.DataFrame()
 
+
+@st.cache_data(ttl=7200, max_entries=12, show_spinner=False)
 def _load_tc_veiculos_budget(ano_sel):
     """Carrega dados Budget do TC Veículos com coluna Veículo."""
     if ano_sel == "Todos":
@@ -123,6 +127,8 @@ def _load_tc_veiculos_budget(ano_sel):
         df = _enrich_with_vehicle(load_principal(int(ano_sel)), load_custo_fp_veiculo(int(ano_sel)))
         return df if df is not None else pd.DataFrame()
 
+
+@st.cache_data(ttl=7200, max_entries=12, show_spinner=False)
 def _load_tc_veiculos_volume(ano_sel):
     """Carrega dados de volume Real do TC Veículos."""
     if ano_sel == "Todos":
@@ -138,6 +144,8 @@ def _load_tc_veiculos_volume(ano_sel):
         df = load_volume_actual(int(ano_sel))
         return df if df is not None else pd.DataFrame()
 
+
+@st.cache_data(ttl=7200, max_entries=12, show_spinner=False)
 def _load_tc_veiculos_budget_volume(ano_sel):
     """Carrega dados de volume Budget do TC Veículos."""
     if ano_sel == "Todos":
@@ -154,6 +162,7 @@ def _load_tc_veiculos_budget_volume(ano_sel):
         return df if df is not None else pd.DataFrame()
 
 
+@st.cache_data(ttl=7200, max_entries=12, show_spinner=False)
 def _load_tc_veiculos_sapiens(ano_sel):
     """Carrega o parquet detalhado do Sapiens para um ano ou para todos."""
     if ano_sel == "Todos":
@@ -281,6 +290,638 @@ def _render_sapiens_section_waterfall(ano_label, key_prefix):
     st.markdown("## 📑 Dados Sapiens Detalhados")
     df_sapiens_base = _load_tc_veiculos_sapiens(ano_label)
     _render_sapiens_table_waterfall(df_sapiens_base, ano_label, key_prefix)
+
+
+def _build_selected_period_pairs(*frames):
+    pares = []
+    for df in frames:
+        if df is None or df.empty or 'Período' not in df.columns:
+            continue
+        cols = ['Período']
+        if 'Ano' in df.columns:
+            cols.insert(0, 'Ano')
+        pares.append(df[cols].copy())
+
+    if not pares:
+        return pd.DataFrame()
+
+    df_pares = pd.concat(pares, ignore_index=True).drop_duplicates()
+    if 'Ano' in df_pares.columns:
+        df_pares['Ano'] = df_pares['Ano'].astype(str)
+    df_pares['Período'] = df_pares['Período'].astype(str)
+    return df_pares
+
+
+def _filter_df_by_period_pairs(df_base, df_pairs):
+    if df_base is None or df_base.empty or df_pairs is None or df_pairs.empty:
+        return df_base
+
+    if 'Período' not in df_base.columns:
+        return df_base
+
+    df_out = df_base.copy()
+    if 'Ano' in df_pairs.columns and 'Ano' in df_out.columns:
+        df_out['Ano'] = df_out['Ano'].astype(str)
+        df_out['Período'] = df_out['Período'].astype(str)
+        return df_out.merge(df_pairs[['Ano', 'Período']], on=['Ano', 'Período'], how='inner')
+
+    pares_periodo = df_pairs['Período'].astype(str).unique().tolist()
+    return df_out[df_out['Período'].astype(str).isin(pares_periodo)].copy()
+
+
+def _apply_session_filters_to_sapiens_tc(df_base):
+    if df_base is None or df_base.empty:
+        return pd.DataFrame()
+
+    df_out = df_base.copy()
+
+    filtros_multiselect = [
+        ('Oficina', 'filtro_oficina_waterfall_tc', True),
+        ('Veículo', 'filtro_veiculo_waterfall_tc', True),
+        ('USI', 'filtro_usi_waterfall_tc', True),
+        ('Nºconta', 'filtro_conta_contabil_waterfall_tc', False),
+        ('Type 05', 'filtro_Type 05_waterfall_tc', True),
+        ('Type 06', 'filtro_Type 06_waterfall_tc', True),
+        ('Account', 'filtro_Account_waterfall_tc', True),
+        ('Fornecedor', 'filtro_Fornecedor_waterfall_tc', True),
+        ('Fornec.', 'filtro_Fornec._waterfall_tc', True),
+        ('Tipo', 'filtro_Tipo_waterfall_tc', True),
+        ('Usuário', 'filtro_avancado_Usuário_waterfall_tc', True),
+        ('Material', 'filtro_avancado_Material_waterfall_tc', True),
+        ('Dt.lçto.', 'filtro_avancado_Dt.lçto._waterfall_tc', True),
+        ('Texto breve', 'filtro_avancado_Texto breve_waterfall_tc', True),
+    ]
+
+    for coluna, state_key, aceitar_todos in filtros_multiselect:
+        selecionados = st.session_state.get(state_key)
+        if coluna not in df_out.columns or not selecionados:
+            continue
+        selecionados = [str(v) for v in selecionados if str(v).strip()]
+        if not selecionados:
+            continue
+        if aceitar_todos and 'Todos' in selecionados:
+            continue
+        df_out = df_out[df_out[coluna].astype(str).isin(selecionados)].copy()
+
+    centro_sel = st.session_state.get('filtro_centro_cst_waterfall_tc', 'Todos')
+    if 'Centrocst' in df_out.columns and centro_sel and str(centro_sel) != 'Todos':
+        df_out = df_out[df_out['Centrocst'].astype(str) == str(centro_sel)].copy()
+
+    return df_out
+
+
+def _build_office_waterfall_figure(
+    df_m1,
+    df_m2,
+    df_vol_m1,
+    df_vol_m2,
+    total_inicial,
+    total_final,
+    label_inicial,
+    label_final,
+    label_flex,
+    tipo_visualizacao,
+    moeda_simbolo,
+    fator_conversao,
+    value_column,
+    flex_delta_override=None,
+):
+    def _normalize_oficina_label(valor):
+        texto = str(valor).strip() if pd.notna(valor) else ''
+        return texto if texto else 'Sem Oficina'
+
+    def _wrap_office_label(valor, max_chars=14):
+        texto = _normalize_oficina_label(valor)
+        if len(texto) <= max_chars:
+            return texto
+        partes = texto.split()
+        linhas = []
+        atual = ''
+        for parte in partes:
+            candidato = f'{atual} {parte}'.strip()
+            if atual and len(candidato) > max_chars:
+                linhas.append(atual)
+                atual = parte
+            else:
+                atual = candidato
+        if atual:
+            linhas.append(atual)
+        return '<br>'.join(linhas[:3])
+
+    def _volume_total(df_vol):
+        if df_vol is None or df_vol.empty or 'Volume' not in df_vol.columns:
+            return 0.0
+        return float(pd.to_numeric(df_vol['Volume'], errors='coerce').fillna(0).sum())
+
+    def _series_real():
+        custo_m1 = df_m1.groupby('Oficina')[value_column].sum()
+        custo_m2 = df_m2.groupby('Oficina')[value_column].sum()
+        idx = custo_m1.index.union(custo_m2.index)
+
+        def _volume_por_oficina(df_vol):
+            if df_vol is None or df_vol.empty or 'Oficina' not in df_vol.columns or 'Volume' not in df_vol.columns:
+                return pd.Series(dtype=float)
+            return df_vol.groupby('Oficina')['Volume'].sum()
+
+        vol_m1 = _volume_por_oficina(df_vol_m1).reindex(idx, fill_value=0)
+        vol_m2 = _volume_por_oficina(df_vol_m2).reindex(idx, fill_value=0)
+        custo_m1 = custo_m1.reindex(idx, fill_value=0)
+        custo_m2 = custo_m2.reindex(idx, fill_value=0)
+
+        volume_total_m1 = float(vol_m1.sum())
+        volume_total_m2 = float(vol_m2.sum())
+        ratio_global = volume_total_m2 / volume_total_m1 if volume_total_m1 else 1.0
+
+        # Calcular flex em CUSTO TOTAL por oficina (não em CPU)
+        flex_custo_por_ofc = {}
+        for oficina in idx.tolist():
+            df_ofi_m1 = df_m1[df_m1['Oficina'].astype(str) == str(oficina)].copy()
+            if df_ofi_m1.empty:
+                flex_custo_por_ofc[oficina] = 0.0
+                continue
+
+            vol_ofi_m1 = float(vol_m1.get(oficina, 0.0))
+            vol_ofi_m2 = float(vol_m2.get(oficina, 0.0))
+            ratio_ofi = vol_ofi_m2 / vol_ofi_m1 if vol_ofi_m1 else ratio_global
+
+            if 'Custo' in df_ofi_m1.columns:
+                fixo = df_ofi_m1[df_ofi_m1['Custo'] == 'Fixo'][value_column].sum()
+                variavel = df_ofi_m1[df_ofi_m1['Custo'] == 'Variável'][value_column].sum()
+            else:
+                fixo = 0.0
+                variavel = df_ofi_m1[value_column].sum()
+
+            flex_custo_por_ofc[oficina] = float(fixo + (variavel * ratio_ofi))
+
+        if 'Custo' in df_m1.columns:
+            fixo_total = float(df_m1[df_m1['Custo'] == 'Fixo'][value_column].sum())
+            variavel_total = float(df_m1[df_m1['Custo'] == 'Variável'][value_column].sum())
+        else:
+            fixo_total = 0.0
+            variavel_total = float(df_m1[value_column].sum())
+
+        flex_total_custo = fixo_total + (variavel_total * ratio_global)
+        if tipo_visualizacao == 'CPU (Custo por Unidade)':
+            flex_total = flex_total_custo / volume_total_m2 if volume_total_m2 else 0.0
+        else:
+            flex_total = flex_total_custo
+        flex_delta = float(flex_total - total_inicial)
+
+        # Calcular delta (contribuição) por oficina
+        # No modo CPU, calcular contribuição como (custo_m2 - flex_custo) / volume_total
+        # Isso garante que sum(delta_ofc) = (total_m2 - flex_total) / volume_total_m2
+        if tipo_visualizacao == 'CPU (Custo por Unidade)':
+            delta = pd.Series({
+                oficina: float((custo_m2.get(oficina, 0.0) - flex_custo_por_ofc.get(oficina, 0.0)) / volume_total_m2)
+                if volume_total_m2 else 0.0
+                for oficina in idx.tolist()
+            }).sort_values(key=lambda serie: serie.abs(), ascending=False)
+        else:
+            delta = pd.Series({
+                oficina: float(custo_m2.get(oficina, 0.0) - flex_custo_por_ofc.get(oficina, 0.0))
+                for oficina in idx.tolist()
+            }).sort_values(key=lambda serie: serie.abs(), ascending=False)
+
+        office_labels = [str(oficina) for oficina in delta.index.tolist()]
+        office_values = [float(valor) for valor in delta.tolist()]
+
+        return office_labels, office_values, flex_delta
+
+    def _series_budget():
+        group_cols = ['Oficina']
+        if 'Custo' in df_m1.columns or 'Custo' in df_m2.columns:
+            group_cols.append('Custo')
+
+        df_budget_local = df_m1.copy()
+        df_real_local = df_m2.copy()
+        for _df in (df_budget_local, df_real_local):
+            _df['Oficina'] = _df['Oficina'].apply(_normalize_oficina_label)
+            for _col in group_cols:
+                if _col not in _df.columns:
+                    _df[_col] = '(Nao informado)'
+                serie = _df[_col]
+                if pd.api.types.is_categorical_dtype(serie):
+                    if '(Nao informado)' not in serie.cat.categories:
+                        serie = serie.cat.add_categories(['(Nao informado)'])
+                    _df[_col] = serie.fillna('(Nao informado)')
+                else:
+                    _df[_col] = serie.fillna('(Nao informado)')
+
+        df_budget_grouped = df_budget_local.groupby(group_cols)[value_column].sum().reset_index()
+        df_budget_grouped = df_budget_grouped.rename(columns={value_column: 'BUD'})
+        df_real_grouped = df_real_local.groupby(group_cols)[value_column].sum().reset_index()
+        df_real_grouped = df_real_grouped.rename(columns={value_column: 'Total'})
+
+        df_merge = df_real_grouped.merge(df_budget_grouped, on=group_cols, how='outer')
+        df_merge['BUD'] = pd.to_numeric(df_merge['BUD'], errors='coerce').fillna(0)
+        df_merge['Total'] = pd.to_numeric(df_merge['Total'], errors='coerce').fillna(0)
+
+        volume_budget = _volume_total(df_vol_m1)
+        volume_real = _volume_total(df_vol_m2)
+        base_budget = volume_budget if volume_budget > 0 else 1.0
+        base_real = volume_real if volume_real > 0 else 1.0
+        proporcao_volume = (volume_real / base_budget) if base_budget else 1.0
+        proporcao_volume = proporcao_volume if pd.notna(proporcao_volume) else 1.0
+
+        custo_norm = df_merge['Custo'].astype(str).str.strip().str.lower() if 'Custo' in df_merge.columns else pd.Series('', index=df_merge.index)
+        is_fixo = custo_norm == 'fixo'
+        df_merge['Flex BUD'] = df_merge['BUD'].where(is_fixo, 0) + (df_merge['BUD'] * proporcao_volume).where(~is_fixo, 0)
+
+        if tipo_visualizacao == 'CPU (Custo por Unidade)':
+            df_merge['Flex BUD'] = df_merge['Flex BUD'] / base_real
+            df_merge['BUD'] = df_merge['BUD'] / base_budget
+            df_merge['Total'] = df_merge['Total'] / base_real
+
+        df_merge['Flex Bud - BUD'] = df_merge['Flex BUD'] - df_merge['BUD']
+        df_merge['Total - Flex Bud'] = df_merge['Total'] - df_merge['Flex BUD']
+
+        df_grouped = df_merge.groupby('Oficina', dropna=False).agg({
+            'Flex Bud - BUD': 'sum',
+            'Total - Flex Bud': 'sum',
+        }).reset_index()
+        df_grouped = df_grouped.sort_values('Total - Flex Bud', key=lambda serie: serie.abs(), ascending=False)
+
+        office_labels = [
+            _normalize_oficina_label(oficina)
+            for oficina in df_grouped['Oficina'].tolist()
+        ]
+        office_values = [
+            float(pd.to_numeric(valor, errors='coerce'))
+            for valor in df_grouped['Total - Flex Bud'].tolist()
+        ]
+
+        flex_delta = float(pd.to_numeric(df_grouped['Flex Bud - BUD'], errors='coerce').fillna(0).sum())
+        return office_labels, office_values, flex_delta
+
+    if (
+        df_m1 is None or df_m1.empty or df_m2 is None or df_m2.empty or
+        'Oficina' not in df_m1.columns or 'Oficina' not in df_m2.columns or
+        value_column not in df_m1.columns or value_column not in df_m2.columns
+    ):
+        return None
+
+    df_m1 = df_m1.copy()
+    df_m2 = df_m2.copy()
+    if df_vol_m1 is not None and not df_vol_m1.empty and 'Oficina' in df_vol_m1.columns:
+        df_vol_m1 = df_vol_m1.copy()
+        df_vol_m1['Oficina'] = df_vol_m1['Oficina'].apply(_normalize_oficina_label)
+    if df_vol_m2 is not None and not df_vol_m2.empty and 'Oficina' in df_vol_m2.columns:
+        df_vol_m2 = df_vol_m2.copy()
+        df_vol_m2['Oficina'] = df_vol_m2['Oficina'].apply(_normalize_oficina_label)
+    df_m1['Oficina'] = df_m1['Oficina'].apply(_normalize_oficina_label)
+    df_m2['Oficina'] = df_m2['Oficina'].apply(_normalize_oficina_label)
+
+    if str(label_flex) == 'Flex Bud - BUD':
+        office_labels, office_values, flex_delta = _series_budget()
+    else:
+        office_labels, office_values, flex_delta = _series_real()
+
+    if flex_delta_override is not None:
+        flex_delta = float(flex_delta_override)
+
+    office_count = len(office_labels)
+    tick_angle = -90 if office_count > 18 else (-55 if office_count > 10 else -38)
+    tick_size = 7 if office_count > 18 else (8 if office_count > 10 else 9)
+    bottom_margin = 155 if office_count > 18 else (120 if office_count > 10 else 95)
+
+    labels = [str(label_inicial)]
+    values = [float(total_inicial)]
+    measures = ['absolute']
+
+    if abs(flex_delta) > 1e-10:
+        labels.append(str(label_flex))
+        values.append(float(flex_delta))
+        measures.append('relative')
+
+    labels.extend(office_labels)
+    values.extend(office_values)
+    measures.extend(['relative'] * len(office_values))
+    labels.append(str(label_final))
+    values.append(float(total_final))
+    measures.append('total')
+
+    tick_labels = []
+    office_set = set(office_labels)
+    for label in labels:
+        if label in office_set:
+            wrapped = _wrap_office_label(label)
+            tick_labels.append(wrapped)
+        else:
+            tick_labels.append(str(label))
+
+    sufixo = ''
+    if fator_conversao == 'K (milhares)':
+        sufixo = ' K'
+    elif fator_conversao == 'M (Milhões)':
+        sufixo = ' M'
+
+    hover_texts = []
+    acumulado = float(total_inicial)
+    for label, value, measure in zip(labels, values, measures):
+        if measure == 'absolute':
+            acumulado = float(value)
+            tipo_barra = 'Inicial'
+        elif measure == 'total':
+            acumulado = float(value)
+            tipo_barra = 'Final'
+        else:
+            acumulado += float(value)
+            tipo_barra = 'Impacto por oficina'
+        hover_texts.append(
+            '<br>'.join([
+                f'<b>{label}</b>',
+                f'Tipo: {tipo_barra}',
+                f'Valor: {moeda_simbolo} {value:,.2f}{sufixo}',
+                f'Acumulado: {moeda_simbolo} {acumulado:,.2f}{sufixo}',
+            ])
+        )
+
+    cor_verde = '#1e8449'
+    cor_vermelha = '#ff5733'
+    cor_azul = '#1e6ba8'
+    cor_amarela = '#ffd700'
+
+    annotations = []
+    acumulado_labels = 0.0
+    for label, value, measure in zip(labels, values, measures):
+        if measure == 'absolute':
+            acumulado_labels = float(value)
+            y_pos = float(value)
+            cor_texto = cor_azul
+            texto = f'{value:,.1f}{sufixo}'
+            yshift = 12
+        elif measure == 'total':
+            acumulado_labels = float(value)
+            y_pos = float(value)
+            cor_texto = cor_azul
+            texto = f'{value:,.1f}{sufixo}'
+            yshift = 12 if value >= 0 else -12
+        else:
+            acumulado_labels += float(value)
+            y_pos = acumulado_labels if value >= 0 else acumulado_labels - float(value)
+            cor_texto = cor_amarela if label == str(label_flex) else (cor_vermelha if value >= 0 else cor_verde)
+            texto = f'{value:+,.1f}{sufixo}'
+            yshift = 12 if value >= 0 else -12
+
+        annotations.append(dict(
+            x=label,
+            y=y_pos,
+            text=texto,
+            showarrow=False,
+            font=dict(color=cor_texto, size=9),
+            xref='x',
+            yref='y',
+            yshift=yshift,
+        ))
+
+    fig = go.Figure(
+        go.Waterfall(
+            orientation='v',
+            measure=measures,
+            x=labels,
+            y=values,
+            decreasing={'marker': {'color': cor_verde}},
+            increasing={'marker': {'color': cor_vermelha}},
+            totals={'marker': {'color': cor_azul}},
+            connector={'line': {'color': 'rgba(120,120,120,0.18)'}},
+            hovertext=hover_texts,
+            hovertemplate='%{hovertext}<extra></extra>',
+            textposition='none',
+            cliponaxis=False,
+        )
+    )
+
+    if str(label_flex) in labels:
+        idx_flex = labels.index(str(label_flex))
+        valor_flex = float(values[idx_flex])
+        cumulative_base = float(total_inicial)
+        for i in range(1, idx_flex):
+            cumulative_base += float(values[i])
+        base_flex = cumulative_base if valor_flex >= 0 else cumulative_base + valor_flex
+        fig.add_trace(go.Bar(
+            x=[str(label_flex)],
+            y=[abs(valor_flex)],
+            base=[base_flex],
+            marker_color=cor_amarela,
+            marker_line=dict(width=2, color=cor_amarela),
+            opacity=1.0,
+            showlegend=False,
+            textposition='none',
+            width=0.82,
+            hoverinfo='skip',
+        ))
+
+    fig.update_layout(
+        height=380,
+        margin=dict(l=30, r=20, t=18, b=bottom_margin),
+        showlegend=False,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=10),
+        barmode='overlay',
+        annotations=annotations,
+    )
+    fig.update_xaxes(
+        tickangle=tick_angle,
+        showgrid=False,
+        tickmode='array',
+        tickvals=labels,
+        ticktext=tick_labels,
+        categoryorder='array',
+        categoryarray=labels,
+        tickfont=dict(size=tick_size),
+        automargin=True,
+    )
+    fig.update_yaxes(showgrid=False, zeroline=True, zerolinecolor='rgba(120,120,120,0.25)')
+    return fig
+
+
+def _prepare_sapiens_minimal_table_tc(
+    ano_label,
+    df_pairs,
+    key_prefix,
+    tipo_visualizacao,
+    fator_conversao,
+    moeda_codigo,
+    taxas_cambio,
+):
+    df_detail = _load_tc_veiculos_sapiens(ano_label)
+    df_detail = _apply_session_filters_to_sapiens_tc(df_detail)
+    df_detail = _filter_df_by_period_pairs(df_detail, df_pairs)
+
+    if df_detail is None or df_detail.empty:
+        return pd.DataFrame(), None
+
+    office_col, account_col = st.columns(2)
+    oficinas_opcoes = sorted(df_detail['Oficina'].dropna().astype(str).unique().tolist()) if 'Oficina' in df_detail.columns else []
+    accounts_opcoes = sorted(df_detail['Account'].dropna().astype(str).unique().tolist()) if 'Account' in df_detail.columns else []
+
+    oficinas_sel = office_col.multiselect('Oficina', oficinas_opcoes, key=f'{key_prefix}_office_filter') if oficinas_opcoes else []
+    accounts_sel = account_col.multiselect('Account', accounts_opcoes, key=f'{key_prefix}_account_filter') if accounts_opcoes else []
+
+    if oficinas_sel and 'Oficina' in df_detail.columns:
+        df_detail = df_detail[df_detail['Oficina'].astype(str).isin(oficinas_sel)].copy()
+    if accounts_sel and 'Account' in df_detail.columns:
+        df_detail = df_detail[df_detail['Account'].astype(str).isin(accounts_sel)].copy()
+
+    valor_col = None
+    for candidata in ['Despesa Primaria', 'Custo FP', 'Total']:
+        if candidata in df_detail.columns:
+            valor_col = candidata
+            break
+
+    if valor_col and tipo_visualizacao == 'Custo Total':
+        if fator_conversao and fator_conversao != 'Nenhum':
+            if fator_conversao == 'K (milhares)':
+                df_detail[valor_col] = pd.to_numeric(df_detail[valor_col], errors='coerce') / 1000
+            elif fator_conversao == 'M (Milhões)':
+                df_detail[valor_col] = pd.to_numeric(df_detail[valor_col], errors='coerce') / 1000000
+        if moeda_codigo != 'BRL':
+            df_detail = converter_coluna_moeda(df_detail, valor_col, moeda_codigo, taxas_cambio)
+
+    colunas_base = [
+        ('Oficina', 'Ofic.'),
+        ('Account', 'Acct'),
+        ('Centrocst', 'CCst'),
+        ('Texto breve', 'Texto'),
+    ]
+    if valor_col:
+        nome_valor = 'Desp. Prim.' if valor_col == 'Despesa Primaria' else valor_col
+        colunas_base.append((valor_col, nome_valor))
+
+    colunas_existentes = [col for col, _ in colunas_base if col in df_detail.columns]
+    if not colunas_existentes:
+        return pd.DataFrame(), valor_col
+
+    df_show = df_detail[colunas_existentes].copy()
+    if 'Texto breve' in df_show.columns:
+        df_show['Texto breve'] = df_show['Texto breve'].astype(str).str.strip().str.lower().str.slice(0, 96)
+    if valor_col and valor_col in df_show.columns:
+        df_show[valor_col] = pd.to_numeric(df_show[valor_col], errors='coerce').fillna(0)
+        df_show = df_show.sort_values(valor_col, ascending=False)
+
+    rename_map = {orig: novo for orig, novo in colunas_base if orig in df_show.columns}
+    return df_show.rename(columns=rename_map), valor_col
+
+
+def _render_minimal_text_table_tc(df_show, valor_col=None):
+    import html
+
+    if df_show is None or df_show.empty:
+        return
+
+    col_styles = {}
+    total_cols = max(len(df_show.columns), 1)
+    for col in df_show.columns:
+        if col == 'Texto':
+            col_styles[col] = 'width:46%;min-width:260px;max-width:420px;'
+        elif valor_col and col == valor_col:
+            col_styles[col] = 'width:14%;min-width:92px;max-width:120px;'
+        else:
+            col_styles[col] = f'width:{max(10, int(40 / total_cols))}%;min-width:78px;'
+
+    rows = []
+    for _, row in df_show.head(150).iterrows():
+        cells = []
+        for col in df_show.columns:
+            value = row[col]
+            if pd.isna(value):
+                text = ''
+            elif valor_col and col == valor_col and pd.api.types.is_number(value):
+                text = f'{float(value):,.2f}'
+            else:
+                text = str(value)
+            align = 'right' if valor_col and col == valor_col else 'left'
+            weight = '600' if valor_col and col == valor_col else '400'
+            extra_style = col_styles.get(col, '')
+            cell_text_style = 'text-transform:none;' if col == 'Texto' else ''
+            cells.append(
+                f"<td style='padding:4px 6px;border-bottom:1px solid rgba(120,120,120,0.10);text-align:{align};font-weight:{weight};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:1px;font-size:0.74rem;{extra_style}{cell_text_style}'>{html.escape(text)}</td>"
+            )
+        rows.append('<tr>' + ''.join(cells) + '</tr>')
+
+    header_cells = ''.join(
+        f"<th style='position:sticky;top:0;z-index:2;padding:5px 6px;border-bottom:1px solid rgba(120,120,120,0.18);text-align:{'right' if valor_col and col == valor_col else 'left'};font-size:0.68rem;font-weight:600;color:rgba(90,90,90,0.96);letter-spacing:0.02em;text-transform:uppercase;background:rgba(248,249,251,0.98);backdrop-filter:blur(2px);{col_styles.get(col, '')}'>{html.escape(str(col))}</th>"
+        for col in df_show.columns
+    )
+    table_html = (
+        "<div style='max-height:340px;overflow:auto;border:1px solid rgba(120,120,120,0.12);border-radius:10px;'>"
+        "<table style='width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:0.74rem;line-height:1.1;background:transparent'>"
+        f"<thead><tr>{header_cells}</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table></div>"
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
+def _render_post_waterfall_panel_tc(
+    ano_label,
+    df_m1,
+    df_m2,
+    df_vol_m1,
+    df_vol_m2,
+    total_inicial,
+    total_final,
+    label_inicial,
+    label_final,
+    label_flex,
+    tipo_visualizacao,
+    moeda_simbolo,
+    fator_conversao,
+    moeda_codigo,
+    taxas_cambio,
+    value_column,
+    key_prefix,
+    flex_delta_override=None,
+):
+    st.markdown("#### 🧭 Ganho e Perda por Oficina")
+    col_chart, col_table = st.columns([1.15, 0.85], gap='small')
+
+    with col_chart:
+        fig_oficinas = _build_office_waterfall_figure(
+            df_m1=df_m1,
+            df_m2=df_m2,
+            df_vol_m1=df_vol_m1,
+            df_vol_m2=df_vol_m2,
+            total_inicial=total_inicial,
+            total_final=total_final,
+            label_inicial=label_inicial,
+            label_final=label_final,
+            label_flex=label_flex,
+            tipo_visualizacao=tipo_visualizacao,
+            moeda_simbolo=moeda_simbolo,
+            fator_conversao=fator_conversao,
+            value_column=value_column,
+            flex_delta_override=flex_delta_override,
+        )
+        st.markdown("<div style='margin-bottom:60px;'><h5 style='margin:0;'>🏭 Waterfall por Oficina</h5></div>", unsafe_allow_html=True)
+        if fig_oficinas is None:
+            st.info('Nao ha dados suficientes por oficina para montar o grafico neste recorte.')
+        else:
+            plotly_chart_safe(fig_oficinas, use_container_width=True)
+            st.caption('Vermelho indica aumento de custo; verde indica ganho/queda de custo.')
+
+    with col_table:
+        st.markdown('##### 📄 Detalhe Sapiens')
+        df_pairs = _build_selected_period_pairs(df_m1, df_m2)
+        df_show, valor_col = _prepare_sapiens_minimal_table_tc(
+            ano_label=ano_label,
+            df_pairs=df_pairs,
+            key_prefix=key_prefix,
+            tipo_visualizacao=tipo_visualizacao,
+            fator_conversao=fator_conversao,
+            moeda_codigo=moeda_codigo,
+            taxas_cambio=taxas_cambio,
+        )
+        if df_show.empty:
+            st.info('Nao ha linhas detalhadas do Sapiens para o recorte atual.')
+        else:
+            qtd_total = len(df_show)
+            st.caption(f'{qtd_total:,} linhas detalhadas no recorte atual.')
+            valor_col_renamed = 'Desp. Prim.' if valor_col == 'Despesa Primaria' else valor_col
+            _render_minimal_text_table_tc(df_show, valor_col=valor_col_renamed)
+            if qtd_total > 150:
+                st.caption('Exibindo as 150 linhas com maior despesa primaria.')
 
 # ═══════════════════════════════════════════════════════════════
 #  UI: CSS + Header + Sidebar global
@@ -417,7 +1058,7 @@ df_budget = _load_tc_veiculos_budget(ano_selecionado)
 df_budget_vol = _load_tc_veiculos_budget_volume(ano_selecionado)
 
 # Função auxiliar para obter opções de filtro
-@st.cache_data(ttl=1800, max_entries=5)
+@st.cache_data(ttl=7200, max_entries=20, show_spinner=False)
 def get_filter_options(df, column_name):
     """Obtém opções de filtro com cache"""
     if column_name in df.columns:
@@ -427,27 +1068,32 @@ def get_filter_options(df, column_name):
         return ["Todos"] + opcoes
     return ["Todos"]
 
+
+def _apply_display_transforms_waterfall(df_base, tipo_visualizacao, fator_conversao, moeda_codigo, taxas_cambio):
+    """Aplica fator de conversão e moeda apenas ao recorte final usado na tela."""
+    if df_base is None or df_base.empty or 'Custo FP' not in df_base.columns:
+        return df_base
+
+    df_out = df_base.copy()
+
+    # Não converter para K/M quando o modo está em CPU.
+    if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+        if fator_conversao == "K (milhares)":
+            df_out['Custo FP'] = df_out['Custo FP'] / 1000
+        elif fator_conversao == "M (Milhões)":
+            df_out['Custo FP'] = df_out['Custo FP'] / 1000000
+
+    # Em CPU e em Custo Total a moeda precisa refletir o dataset exibido.
+    if moeda_codigo != "BRL":
+        df_out = converter_coluna_moeda(df_out, 'Custo FP', moeda_codigo, taxas_cambio)
+
+    return df_out
+
 # Ordem dos meses para ordenação cronológica
 ORDEM_MESES = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
 ]
-
-# Aplicar fator de conversão nas colunas Total (antes de qualquer processamento)
-# 🔧 CORREÇÃO CRÍTICA: NÃO aplicar fator de conversão quando está em modo CPU
-if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
-    if fator_conversao == "K (milhares)":
-        if 'Custo FP' in df_total.columns:
-            df_total['Custo FP'] = df_total['Custo FP'] / 1000
-    elif fator_conversao == "M (Milhões)":
-        if 'Custo FP' in df_total.columns:
-            df_total['Custo FP'] = df_total['Custo FP'] / 1000000
-
-# Aplicar conversão de moeda DEPOIS do fator de conversão
-# IMPORTANTE: Aplicar conversão em AMBOS os modos (Custo Total e CPU)
-# No modo CPU, o Total convertido será usado para calcular CPU = Total convertido / Volume
-if moeda_codigo != "BRL" and 'Custo FP' in df_total.columns:
-    df_total = converter_coluna_moeda(df_total, 'Custo FP', moeda_codigo, taxas_cambio)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔍 Filtros**")
@@ -685,6 +1331,15 @@ with st.sidebar.expander("🔍 Filtros Avançados"):
                         df_filtrado[col_name].astype(str).isin(selecionadas)
                     ].copy()
 
+# Aplicar transformações caras apenas depois do funil completo de filtros.
+df_filtrado = _apply_display_transforms_waterfall(
+    df_filtrado,
+    tipo_visualizacao,
+    fator_conversao,
+    moeda_codigo,
+    taxas_cambio,
+)
+
 # Resumo na sidebar
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Resumo**")
@@ -698,12 +1353,8 @@ if 'Custo FP' in df_filtrado.columns:
     total_sum = df_filtrado['Custo FP'].sum()
     st.sidebar.write(f"**Total:** {moeda_simbolo} {total_sum:,.2f}")
 
-# IMPORTANTE: df_filtrado é uma cópia de df_total que JÁ TEM a conversão de moeda aplicada (linha 342)
-# NÃO aplicar conversão novamente aqui para evitar duplicação
-
 # Preparar dados para visualização
-# IMPORTANTE: df_visualizacao é uma cópia de df_filtrado que JÁ TEM a conversão de moeda aplicada
-# NÃO aplicar conversão novamente aqui para evitar duplicação
+# IMPORTANTE: df_visualizacao já nasce do recorte final convertido.
 df_visualizacao = df_filtrado.copy()
 
 # ========== CÓDIGO DO TAB5 (adaptado) ==========
@@ -1124,7 +1775,15 @@ else:
                             df_temp = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
                     # Obter dimensões de categoria disponíveis
-                    dims_cat = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise.columns]
+                    dims_base_real = [
+                        "Type 05", "Type 06", "Type 07", "Oficina",
+                        "Veículo", "Custo", "Account", "Texto breve"
+                    ]
+                    colunas_real_disponiveis = set(df_analise.columns) & set(df_temp.columns)
+                    dims_cat = [
+                        c for c in dims_base_real
+                        if c in colunas_real_disponiveis
+                    ]
                     
                     if not dims_cat:
                         st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
@@ -1150,7 +1809,12 @@ else:
                                 key="oficina_inline_waterfall_tc_real"
                             )
                         
-                        # Aplicar filtro de oficina inline
+                        # ═══ IMPORTANTE: Salvar cópia ANTES do filtro de oficina para o painel inferior ═══
+                        # O painel por oficina precisa de TODOS os dados, sem filtro de oficina
+                        df_analise_painel_base = df_analise.copy()
+                        df_vol_filtrado_painel_base = df_vol_filtrado.copy() if df_vol_filtrado is not None else None
+                        
+                        # Aplicar filtro de oficina inline (apenas para o gráfico principal)
                         if 'Oficina' in df_analise.columns and oficina_inline_sel_tc_real and "Todos" not in oficina_inline_sel_tc_real:
                             df_analise = df_analise[df_analise['Oficina'].astype(str).isin(oficina_inline_sel_tc_real)].copy()
                             if 'Oficina' in df_temp.columns:
@@ -1365,6 +2029,18 @@ else:
                         _veiculo_info = f" para veículo '{escopo_veiculo_real}'" if escopo_veiculo_real != 'Todos (TC Total)' else ''
                         st.warning(f"⚠️ Não há dados suficientes{_veiculo_info}. Sem dados em: {', '.join(_msg_vazio)}.")
                     else:
+                        if chosen_dim_waterfall_tc not in df_m1.columns or chosen_dim_waterfall_tc not in df_m2.columns:
+                            st.warning(
+                                f"⚠️ A dimensão '{chosen_dim_waterfall_tc}' não está disponível no Real para este recorte. "
+                                "Usando '(Não informado)' como agrupador."
+                            )
+                            if chosen_dim_waterfall_tc not in df_m1.columns:
+                                df_m1 = df_m1.copy()
+                                df_m1[chosen_dim_waterfall_tc] = "(Não informado)"
+                            if chosen_dim_waterfall_tc not in df_m2.columns:
+                                df_m2 = df_m2.copy()
+                                df_m2[chosen_dim_waterfall_tc] = "(Não informado)"
+
                         # Calcular totais por dimensão selecionada
                         # IMPORTANTE: No modo CPU, usar volumes do df_volume (não do df_m1/df_m2)
                         if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Custo FP' in df_m1.columns:
@@ -2148,37 +2824,90 @@ else:
                         # Exibir gráfico
                         plotly_chart_safe(fig, use_container_width=True)
                         
-                        # Exibir informações resumidas
-                        st.markdown("---")
-                        st.markdown("""
-                            <style>
-                            [data-testid="stMetricValue"] {
-                                font-size: 0.8rem !important;
-                            }
-                            [data-testid="stMetricLabel"] {
-                                font-size: 0.7rem !important;
-                            }
-                            [data-testid="stMetricDelta"] {
-                                font-size: 0.7rem !important;
-                            }
-                            </style>
-                        """, unsafe_allow_html=True)
-                        col1, col2, col3, col4 = st.columns(4)
-                        # Calcular variação total
-                        # No modo CPU, usar bud (BUD em CPU), no modo Custo Total usar total_m1_all
-                        valor_inicial_para_change = bud if tipo_visualizacao == "CPU (Custo por Unidade)" else total_m1_all
-                        change_all = total_m2_all - valor_inicial_para_change
+                        # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
+                        # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline
+                        if 'df_analise_painel_base' in locals() and df_analise_painel_base is not None:
+                            # Filtrar por período usando a base sem filtro de oficina
+                            if modo_comparacao == "Mês a Mês":
+                                if col_mes_waterfall_tc:
+                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)].copy()
+                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)].copy()
+                                else:
+                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_inicial)].copy()
+                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_final)].copy()
+                            elif modo_comparacao == "Ano a Ano":
+                                df_m1_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)].copy()
+                                df_m2_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_final)].copy()
+                            elif modo_comparacao == "Semestre":
+                                meses_semestre_panel = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                                                        2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
+                                df_m1_panel = df_analise_painel_base[
+                                    (df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)) &
+                                    (df_analise_painel_base['Período'].isin(meses_semestre_panel.get(semestre_inicial, [])))
+                                ].copy()
+                                df_m2_panel = df_analise_painel_base[
+                                    (df_analise_painel_base['Ano'].astype(str) == str(ano_final)) &
+                                    (df_analise_painel_base['Período'].isin(meses_semestre_panel.get(semestre_final, [])))
+                                ].copy()
+                            elif modo_comparacao == "Quarter":
+                                meses_trimestre_panel = {1: ['Janeiro', 'Fevereiro', 'Março'], 2: ['Abril', 'Maio', 'Junho'],
+                                                         3: ['Julho', 'Agosto', 'Setembro'], 4: ['Outubro', 'Novembro', 'Dezembro']}
+                                df_m1_panel = df_analise_painel_base[
+                                    (df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)) &
+                                    (df_analise_painel_base['Período'].isin(meses_trimestre_panel.get(trimestre_inicial, [])))
+                                ].copy()
+                                df_m2_panel = df_analise_painel_base[
+                                    (df_analise_painel_base['Ano'].astype(str) == str(ano_final)) &
+                                    (df_analise_painel_base['Período'].isin(meses_trimestre_panel.get(trimestre_final, [])))
+                                ].copy()
+                            else:
+                                df_m1_panel = df_m1.copy()
+                                df_m2_panel = df_m2.copy()
+                            
+                            # Volumes para o painel (sem filtro de oficina)
+                            if 'df_vol_filtrado_painel_base' in locals() and df_vol_filtrado_painel_base is not None:
+                                if modo_comparacao == "Mês a Mês":
+                                    if col_mes_waterfall_tc:
+                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)].copy()
+                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)].copy()
+                                    else:
+                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_inicial)].copy()
+                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_final)].copy()
+                                elif modo_comparacao == "Ano a Ano":
+                                    df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_inicial)].copy()
+                                    df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_final)].copy()
+                                else:
+                                    df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                                    df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                            else:
+                                df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                                df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                        else:
+                            df_m1_panel = df_m1.copy()
+                            df_m2_panel = df_m2.copy()
+                            df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                            df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
                         
-                        with col1:
-                            st.metric("Período Inicial", mes_inicial, f"{total_m1_all:,.2f}")
-                        with col2:
-                            st.metric("Período Final", mes_final, f"{total_m2_all:,.2f}")
-                        with col3:
-                            # Calcular percentual usando o valor inicial correto
-                            percentual_change = (change_all / valor_inicial_para_change * 100) if valor_inicial_para_change != 0 else 0
-                            st.metric("Variação Total", f"{change_all:,.2f}", f"{percentual_change:.1f}%")
-                        with col4:
-                            st.metric("Categorias", len(labels_cats), "")
+                        _render_post_waterfall_panel_tc(
+                            ano_label=ano_selecionado,
+                            df_m1=df_m1_panel,
+                            df_m2=df_m2_panel,
+                            df_vol_m1=df_vol_m1_panel,
+                            df_vol_m2=df_vol_m2_panel,
+                            total_inicial=total_m1_all,
+                            total_final=total_m2_all,
+                            label_inicial=mes_inicial,
+                            label_final=mes_final,
+                            label_flex='Flex Mês 1 - Mês 1',
+                            tipo_visualizacao=tipo_visualizacao,
+                            moeda_simbolo=moeda_simbolo,
+                            fator_conversao=fator_conversao,
+                            moeda_codigo=moeda_codigo,
+                            taxas_cambio=taxas_cambio,
+                            value_column=col_valor,
+                            key_prefix='wf_tc_real',
+                            flex_delta_override=flex_volume_delta,
+                        )
                         
                         # ==========================================
                         # TABELA: Análise Flex Bud por Categoria (usando mês inicial como base)
@@ -2474,6 +3203,9 @@ else:
                                             st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Mês 2 ({nome_periodo_final_display}):</strong> {volume_m2_formatado}</div>", unsafe_allow_html=True)
                                         st.markdown("<br>", unsafe_allow_html=True)
 
+                                    # Linha de separação e espaçamento entre Resumo Geral e controles da tabela
+                                    st.markdown("---")
+                                    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
                                     
                                     # Criar estrutura hierárquica
                                     if modo_tabela_flex_waterfall_tc == "Fixo/Variável":
@@ -3133,7 +3865,17 @@ else:
                                 st.warning("⚠️ Nenhum período selecionado.")
                                 
                             # Obter dimensões de categoria disponíveis
-                            dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
+                            dims_base_budget = [
+                                "Type 05", "Type 06", "Type 07", "Oficina",
+                                "Veículo", "Custo", "Account", "Texto breve"
+                            ]
+                            colunas_budget_disponiveis = set(df_analise_budget.columns)
+                            if df_budget is not None and not df_budget.empty:
+                                colunas_budget_disponiveis &= set(df_budget.columns)
+                            dims_cat_budget = [
+                                c for c in dims_base_budget
+                                if c in colunas_budget_disponiveis
+                            ]
                                 
                             if not dims_cat_budget:
                                 st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
@@ -3159,7 +3901,10 @@ else:
                                         key="oficina_inline_waterfall_tc_budget"
                                     )
                                     
-                                # Aplicar filtro de oficina inline
+                                # ═══ IMPORTANTE: Salvar cópia ANTES do filtro de oficina para o painel inferior ═══
+                                df_analise_budget_painel_base = df_analise_budget.copy()
+                                
+                                # Aplicar filtro de oficina inline (apenas para o gráfico principal)
                                 if 'Oficina' in df_analise_budget.columns and oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
                                     df_analise_budget = df_analise_budget[df_analise_budget['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
                                     
@@ -3430,7 +4175,11 @@ else:
                                     else:
                                         df_budget_filtrado = _df
                                     
-                                # Aplicar filtro inline de Oficina ao Budget (mesmo filtro usado no Real)
+                                # ═══ IMPORTANTE: Salvar cópia ANTES do filtro de oficina para o painel inferior ═══
+                                df_budget_filtrado_painel_base = df_budget_filtrado.copy()
+                                df_budget_vol_filtrado_painel_base = df_budget_vol_filtrado.copy() if df_budget_vol_filtrado is not None else None
+                                
+                                # Aplicar filtro inline de Oficina ao Budget (apenas para o gráfico principal)
                                 if oficina_inline_sel_tc_bud and "Todos" not in oficina_inline_sel_tc_bud:
                                     if 'Oficina' in df_budget_filtrado.columns:
                                         df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
@@ -3552,13 +4301,30 @@ else:
                                 else:
                                     # df_budget_periodo já foi criado acima, apenas usar
                                         
-                                    # Agrupar dados reais pela dimensão selecionada (sem Período, pois já está filtrado)
+                                    # Agrupar dados reais e budget usando a mesma estrutura de chaves.
                                     colunas_agrupamento = [chosen_dim_budget]
-                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_real_periodo.columns:
+                                    if 'Custo' != chosen_dim_budget and (
+                                        'Custo' in df_real_periodo.columns or 'Custo' in df_budget_periodo.columns
+                                    ):
                                         colunas_agrupamento.append('Custo')
                                     for _extra_col in ['Type 05', 'Type 06']:
-                                        if _extra_col != chosen_dim_budget and _extra_col in df_real_periodo.columns:
+                                        if _extra_col != chosen_dim_budget and (
+                                            _extra_col in df_real_periodo.columns or _extra_col in df_budget_periodo.columns
+                                        ):
                                             colunas_agrupamento.insert(0, _extra_col)
+
+                                    # Remover duplicidades preservando a ordem.
+                                    colunas_agrupamento = list(dict.fromkeys(colunas_agrupamento))
+
+                                    df_real_periodo = df_real_periodo.copy()
+                                    df_budget_periodo = df_budget_periodo.copy() if df_budget_periodo is not None else pd.DataFrame()
+
+                                    # Garantir que ambos os lados possuam as mesmas colunas de agrupamento.
+                                    for _col in colunas_agrupamento:
+                                        if _col not in df_real_periodo.columns:
+                                            df_real_periodo[_col] = "(Não informado)"
+                                        if df_budget_periodo is not None and _col not in df_budget_periodo.columns:
+                                            df_budget_periodo[_col] = "(Não informado)"
                                         
                                     # IMPORTANTE: df_real_periodo já vem de df_analise_budget que é uma cópia de df_filtrado_waterfall_tc
                                     # que tem a conversão de moeda aplicada. NÃO aplicar conversão novamente aqui para evitar duplicação
@@ -3577,19 +4343,21 @@ else:
                                         
                                     df_real_agrupado = df_real_periodo.groupby(colunas_agrupamento)['Custo FP'].sum().reset_index()
                                         
-                                    # Agrupar dados de budget pela dimensão selecionada
-                                    colunas_agrupamento_budget = [chosen_dim_budget]
-                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_budget_periodo.columns:
-                                        colunas_agrupamento_budget.append('Custo')
-                                    for _extra_col in ['Type 05', 'Type 06']:
-                                        if _extra_col != chosen_dim_budget and _extra_col in df_budget_periodo.columns:
-                                            colunas_agrupamento_budget.insert(0, _extra_col)
+                                    # Agrupar dados de budget pela mesma estrutura usada no Real.
+                                    colunas_agrupamento_budget = colunas_agrupamento.copy()
                                         
                                     # Agrupar dados de budget por Account (sem Período, pois já está filtrado)
                                     # IMPORTANTE: Sempre usar df_budget_periodo que já foi filtrado pelos períodos selecionados
                                     # IMPORTANTE: df_budget_periodo já vem de df_budget_work que tem a conversão de moeda aplicada (linha 2743)
                                     # NÃO aplicar conversão novamente aqui para evitar duplicação
                                     if df_budget_periodo is not None and len(df_budget_periodo) > 0:
+                                        if chosen_dim_budget not in df_budget_periodo.columns:
+                                            st.warning(
+                                                f"⚠️ A dimensão '{chosen_dim_budget}' não está disponível no Budget para este recorte. "
+                                                "Usando '(Não informado)' como agrupador no Budget."
+                                            )
+                                            df_budget_periodo[chosen_dim_budget] = "(Não informado)"
+
                                         # 🔒 Não perder linhas com chaves nulas: groupby descarta NaN.
                                         for _col in colunas_agrupamento_budget:
                                             if _col in df_budget_periodo.columns:
@@ -4107,52 +4875,87 @@ else:
                                         
                                     # Exibir gráfico
                                     plotly_chart_safe(fig, use_container_width=True)
-                                        
-                                    # Exibir resumo (mesmo formato da tab Real)
-                                    st.markdown("---")
-                                    col1, col2, col3, col4 = st.columns(4)
-                                        
-                                    # Calcular valores para o resumo
-                                    valor_inicial_budget = bud_total  # BUD (valor inicial)
-                                    valor_final_budget = total_real  # Total (valor final)
-                                    variacao_total_budget = total_real - bud_total  # Total - BUD
-                                        
-                                    # Calcular percentual de variação
-                                    percentual_change_budget = (variacao_total_budget / bud_total * 100) if bud_total != 0 else 0
-                                        
-                                    # Formatar valores conforme tipo de visualização
-                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                        valor_inicial_formatado = f"{valor_inicial_budget:,.2f}"
-                                        valor_final_formatado = f"{valor_final_budget:,.2f}"
-                                        variacao_formatado = f"{variacao_total_budget:,.2f}"
-                                    else:
-                                        sufixo = ""
-                                        if fator_conversao:
-                                            if fator_conversao == "K (milhares)":
-                                                sufixo = " K"
-                                            elif fator_conversao == "M (Milhões)":
-                                                sufixo = " M"
-                                        valor_inicial_formatado = f"{valor_inicial_budget:,.2f}{sufixo}"
-                                        valor_final_formatado = f"{valor_final_budget:,.2f}{sufixo}"
-                                        variacao_formatado = f"{variacao_total_budget:,.2f}{sufixo}"
-                                        
-                                    # Formatar período selecionado para exibição
-                                    if periodos_selecionados_budget:
-                                        if len(periodos_selecionados_budget) == 1:
-                                            periodo_display = str(periodos_selecionados_budget[0])
+                                    
+                                    # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
+                                    # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline
+                                    if 'df_budget_filtrado_painel_base' in locals() and df_budget_filtrado_painel_base is not None:
+                                        # Filtrar pelos períodos usando a base sem filtro de oficina
+                                        if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                            periodos_str_panel = [str(p) for p in periodos_selecionados_budget]
+                                            import re
+                                            sel_tem_ano_panel = any(re.search(r"\b20\d{2}\b", str(p)) for p in periodos_selecionados_budget)
+                                            
+                                            if sel_tem_ano_panel:
+                                                # Extrair meses e anos
+                                                meses_panel = []
+                                                anos_panel = []
+                                                for p in periodos_str_panel:
+                                                    match = re.match(r"(.+?)\s+(20\d{2})", p)
+                                                    if match:
+                                                        meses_panel.append(match.group(1).strip())
+                                                        anos_panel.append(int(match.group(2)))
+                                                
+                                                if meses_panel and anos_panel:
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base[
+                                                        df_budget_filtrado_painel_base['Período'].astype(str).str.strip().isin(meses_panel) &
+                                                        df_budget_filtrado_painel_base['Ano'].isin(anos_panel)
+                                                    ].copy()
+                                                else:
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
+                                            else:
+                                                if 'Período' in df_budget_filtrado_painel_base.columns:
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base[
+                                                        df_budget_filtrado_painel_base['Período'].astype(str).str.strip().isin(periodos_str_panel)
+                                                    ].copy()
+                                                else:
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
                                         else:
-                                            periodo_display = f"{len(periodos_selecionados_budget)} períodos"
-                                    else:
-                                        periodo_display = "N/A"
+                                            df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
                                         
-                                    with col1:
-                                        st.metric("BUD", periodo_display, valor_inicial_formatado)
-                                    with col2:
-                                        st.metric("Total", periodo_display, valor_final_formatado)
-                                    with col3:
-                                        st.metric("Variação Total", variacao_formatado, f"{percentual_change_budget:.1f}%")
-                                    with col4:
-                                        st.metric("Categorias", len(labels_cats), "")
+                                        # Real para painel (mesma lógica)
+                                        if 'df_analise_budget_painel_base' in locals() and df_analise_budget_painel_base is not None:
+                                            if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget_painel_base.columns:
+                                                df_real_periodo_panel = df_analise_budget_painel_base[
+                                                    df_analise_budget_painel_base['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])
+                                                ].copy()
+                                            elif 'Período' in df_analise_budget_painel_base.columns:
+                                                df_real_periodo_panel = df_analise_budget_painel_base[
+                                                    df_analise_budget_painel_base['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])
+                                                ].copy()
+                                            else:
+                                                df_real_periodo_panel = df_analise_budget_painel_base.copy()
+                                        else:
+                                            df_real_periodo_panel = df_real_periodo.copy()
+                                        
+                                        # Volumes para painel
+                                        df_budget_vol_periodo_panel = df_budget_vol_filtrado_painel_base.copy() if df_budget_vol_filtrado_painel_base is not None else None
+                                        df_volume_real_filtrado_panel = df_volume_real_filtrado.copy() if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
+                                    else:
+                                        df_budget_periodo_panel = df_budget_periodo.copy() if df_budget_periodo is not None else pd.DataFrame()
+                                        df_real_periodo_panel = df_real_periodo.copy()
+                                        df_budget_vol_periodo_panel = df_budget_vol_periodo.copy() if 'df_budget_vol_periodo' in locals() and df_budget_vol_periodo is not None else None
+                                        df_volume_real_filtrado_panel = df_volume_real_filtrado.copy() if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
+                                    
+                                    _render_post_waterfall_panel_tc(
+                                        ano_label=ano_selecionado,
+                                        df_m1=df_budget_periodo_panel,
+                                        df_m2=df_real_periodo_panel,
+                                        df_vol_m1=df_budget_vol_periodo_panel,
+                                        df_vol_m2=df_volume_real_filtrado_panel,
+                                        total_inicial=bud_total,
+                                        total_final=total_real,
+                                        label_inicial='BUD',
+                                        label_final='Total',
+                                        label_flex='Flex Bud - BUD',
+                                        tipo_visualizacao=tipo_visualizacao,
+                                        moeda_simbolo=moeda_simbolo,
+                                        fator_conversao=fator_conversao,
+                                        moeda_codigo=moeda_codigo,
+                                        taxas_cambio=taxas_cambio,
+                                        value_column='Custo FP',
+                                        key_prefix='wf_tc_budget',
+                                        flex_delta_override=flex_bud_menos_bud,
+                                    )
                                         
                                     st.markdown("---")
                                         
@@ -4279,6 +5082,14 @@ else:
                                     except (ValueError, TypeError):
                                         volume_real_val = 0.0
                                         volume_budget_val = 0.0
+
+                                    if periodos_selecionados_budget:
+                                        if len(periodos_selecionados_budget) == 1:
+                                            periodo_display = str(periodos_selecionados_budget[0])
+                                        else:
+                                            periodo_display = f"{len(periodos_selecionados_budget)} períodos"
+                                    else:
+                                        periodo_display = "N/A"
                                         
                                     volume_real_formatado = f"{volume_real_val:,.0f}"
                                     volume_budget_formatado = f"{volume_budget_val:,.0f}"
@@ -4289,6 +5100,10 @@ else:
                                     with col_vol_real:
                                         st.markdown(f"<div style='font-size: 0.75rem;'><strong>Volume Real ({periodo_display}):</strong> {volume_real_formatado}</div>", unsafe_allow_html=True)
                                     st.markdown("<br>", unsafe_allow_html=True)
+                                    
+                                    # Linha de separação e espaçamento entre Resumo Geral e controles da tabela
+                                    st.markdown("---")
+                                    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
                                         
                                     # Criar estrutura hierárquica com expanders
                                     if modo_tabela == "Fixo/Variável":

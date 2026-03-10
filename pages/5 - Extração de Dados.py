@@ -119,6 +119,17 @@ def obter_data_atualizacao_dados():
 # CSS para reduzir fonte das configurações da sidebar
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 0.65rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.35rem !important;
+        }
+        hr {
+            margin: 0.18rem 0 !important;
+            opacity: 0.2 !important;
+        }
         /* Reduzir fonte do header da sidebar */
         .css-1d391kg h3 {
             font-size: 0.9rem !important;
