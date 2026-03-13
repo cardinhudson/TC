@@ -68,7 +68,7 @@ _FREQUENCY_LABELS = {
 _CSS = """
 <style>
 .block-container {
-    padding-top: 0.85rem !important;
+    padding-top: 4rem !important;
     padding-bottom: 0.5rem !important;
 }
 hr {

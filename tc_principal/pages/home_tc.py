@@ -14,7 +14,6 @@ else:
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
@@ -22,6 +21,9 @@ import json
 import unicodedata
 import hashlib
 from datetime import datetime
+from tc_core.utils.portabilidade import get_data_root
+
+_DATA_ROOT = str(get_data_root())
 
 from tc_principal.shared import (
     ORDEM_MESES, CORES_VEICULOS, COLUNAS_MONETARIAS,
@@ -49,8 +51,13 @@ from tc_principal.ui_components import (
 )
 from processamento_dados_veiculos import executar_conferencias
 
-# Desabilitar limite de linhas do Altair (nível de módulo, uma única vez)
-alt.data_transformers.disable_max_rows()
+_ALTAIR_IMPORT_ERROR = None
+try:
+    import altair as alt
+    alt.data_transformers.disable_max_rows()
+except Exception as exc:
+    alt = None
+    _ALTAIR_IMPORT_ERROR = exc
 
 # Dicionário de meses em português
 meses_pt = {
@@ -405,6 +412,16 @@ def _preparar_flex(df_flex, tem_ano, tipo, ordem_per):
 
 def render():
     """Renderiza a página Home do TC Veículos."""
+
+    if alt is None:
+        st.error(
+            "❌ O Altair não pôde ser carregado nesta execução do executável.\n\n"
+            f"Detalhe: {_ALTAIR_IMPORT_ERROR}"
+        )
+        st.info(
+            "💡 Copie a pasta completa do executável para um diretório local e gere um novo build se o problema persistir."
+        )
+        return
 
     injetar_css_global()
     render_header()
@@ -1356,7 +1373,7 @@ def render():
                                     t06_fmt = f"{simbolo} {t06_total:,.2f}{sufixo}"
 
                                     with st.expander(
-                                        f"📑 Type 06: {type06} - Total: {t06_fmt}",
+                                        f"🔹 Type 06: {type06} — Total: {t06_fmt}",
                                         expanded=expandir_flex,
                                     ):
                                         summary_values = {
@@ -1534,7 +1551,7 @@ def render():
                             t06_fmt = f"{simbolo} {t06_total:,.2f}{sufixo}"
 
                             with st.expander(
-                                f"📑 Type 06: {type06} - Total: {t06_fmt}",
+                                f"🔹 Type 06: {type06} — Total: {t06_fmt}",
                                 expanded=expandir_flex,
                             ):
                                 summary_values = {
@@ -2019,7 +2036,7 @@ def render():
             """, unsafe_allow_html=True)
 
             # Caminho do Excel
-            _excel_path_val = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'Reporting veículos.xlsx')
+            _excel_path_val = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'Reporting veículos.xlsx')
 
             if not os.path.exists(_excel_path_val):
                 st.warning(f"⚠️ Arquivo Excel não encontrado: `{_excel_path_val}`")

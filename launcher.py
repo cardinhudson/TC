@@ -9,7 +9,10 @@ Em dev, use normalmente:  streamlit run app.py
 from __future__ import annotations
 
 import atexit
+import hashlib
+import importlib
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -17,6 +20,201 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+
+def _looks_like_synced_path(path: Path) -> bool:
+    """Detecta caminhos com alta chance de sincronização em nuvem."""
+    text = str(path).lower()
+    markers = [
+        "onedrive",
+        "sharepoint",
+        "partagei",
+        "stellantis",
+        "geib",
+    ]
+    return any(marker in text for marker in markers)
+
+
+def _get_exe_dir() -> Path:
+    """Retorna a pasta do executável ou do script em dev."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def _is_local_runtime_active() -> bool:
+    """Evita relançamentos em loop quando já estamos rodando do cache local."""
+    return os.environ.get("SCI_LOCAL_RUNTIME_ACTIVE") == "1"
+
+
+def _shared_data_root_from_bundle(base_dir: Path) -> Path:
+    """Dados continuam apontando para a origem compartilhada do bundle."""
+    return base_dir / "dados"
+
+
+def _file_signature(path: Path) -> str:
+    """Gera assinatura simples para invalidar cache quando o build muda."""
+    try:
+        stat = path.stat()
+        return f"{stat.st_size}:{stat.st_mtime_ns}"
+    except Exception:
+        return "missing"
+
+
+def _runtime_artifact_issues(base_dir: Path) -> list[str]:
+    """Valida artefatos bundled essenciais para o EXE."""
+    issues: list[str] = []
+
+    altair_schema = base_dir / "altair" / "vegalite" / "v5" / "schema" / "vega-lite-schema.json"
+    if not altair_schema.exists():
+        issues.append(f"Altair schema ausente: {altair_schema}")
+
+    draft3_schema = base_dir / "jsonschema_specifications" / "schemas" / "draft3" / "metaschema.json"
+    if not draft3_schema.exists():
+        issues.append(f"JSON Schema draft3 ausente: {draft3_schema}")
+
+    numpy_core = base_dir / "numpy" / "_core"
+    numpy_libs = base_dir / "numpy.libs"
+    if not numpy_core.exists():
+        issues.append(f"Diretorio NumPy _core ausente: {numpy_core}")
+    if not numpy_libs.exists():
+        issues.append(f"Diretorio numpy.libs ausente: {numpy_libs}")
+
+    return issues
+
+
+def _runtime_cache_dir(source_exe_dir: Path) -> Path:
+    """Calcula a pasta de cache local do runtime para uma origem compartilhada."""
+    local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    source_exe = source_exe_dir / Path(sys.executable).name
+    signature_parts = [
+        str(source_exe_dir),
+        _file_signature(source_exe),
+        _file_signature(source_exe_dir / "_internal" / "versao.json"),
+        _file_signature(source_exe_dir / "_internal" / "altair" / "vegalite" / "v5" / "schema" / "vega-lite-schema.json"),
+        _file_signature(source_exe_dir / "_internal" / "jsonschema_specifications" / "schemas" / "draft3" / "metaschema.json"),
+    ]
+    digest = hashlib.sha1("|".join(signature_parts).encode("utf-8")).hexdigest()[:12]
+    return local_app_data / "SCI" / "runtime" / digest
+
+
+def _copy_runtime_tree(source_dir: Path, target_dir: Path) -> None:
+    """Espelha a pasta do executável para cache local."""
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    shutil.copytree(source_dir, target_dir)
+
+
+def _ensure_local_runtime_copy(source_exe_dir: Path) -> Path:
+    """Garante que existe uma cópia local atualizada do runtime."""
+    target_dir = _runtime_cache_dir(source_exe_dir)
+    source_exe = source_exe_dir / Path(sys.executable).name
+    target_exe = target_dir / source_exe.name
+    source_base_dir = source_exe_dir / "_internal"
+    target_base_dir = target_dir / "_internal"
+
+    needs_refresh = True
+    if target_exe.exists():
+        try:
+            needs_refresh = source_exe.stat().st_mtime > target_exe.stat().st_mtime
+        except Exception:
+            needs_refresh = True
+
+    if not needs_refresh and _runtime_artifact_issues(target_base_dir):
+        needs_refresh = True
+
+    # Nao propaga um runtime de origem incompleto para o cache local.
+    source_issues = _runtime_artifact_issues(source_base_dir)
+    if source_issues:
+        raise RuntimeError("Origem compartilhada com artefatos ausentes: " + "; ".join(source_issues))
+
+    if needs_refresh:
+        _copy_runtime_tree(source_exe_dir, target_dir)
+
+    target_issues = _runtime_artifact_issues(target_base_dir)
+    if target_issues:
+        raise RuntimeError("Cache local incompleto apos copia: " + "; ".join(target_issues))
+
+    return target_exe
+
+
+def _relaunch_from_local_runtime(source_exe_dir: Path, base_dir: Path) -> bool:
+    """Relaunch do EXE a partir de cache local, mantendo dados no compartilhado."""
+    if not getattr(sys, "frozen", False) or _is_local_runtime_active():
+        return False
+    if not _looks_like_synced_path(source_exe_dir):
+        return False
+
+    try:
+        target_exe = _ensure_local_runtime_copy(source_exe_dir)
+    except Exception as exc:
+        _mostrar_erro_e_logar(
+            "Stellantis Cost Intelligence - Runtime Local",
+            "Nao foi possivel preparar o runtime local do executavel.\n\n"
+            f"Detalhe: {exc}"
+        )
+        return False
+
+    env = os.environ.copy()
+    env["SCI_LOCAL_RUNTIME_ACTIVE"] = "1"
+    env["SCI_SHARED_DATA_ROOT"] = str(_shared_data_root_from_bundle(base_dir))
+    env["SCI_SHARED_SOURCE_DIR"] = str(source_exe_dir)
+
+    kwargs = {
+        "cwd": str(target_exe.parent),
+        "env": env,
+    }
+    if os.name == "nt":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+    subprocess.Popen([str(target_exe), *sys.argv[1:]], **kwargs)
+    return True
+
+
+def _critical_import_issues() -> list[str]:
+    """Tenta importar dependências críticas para detectar falhas cedo."""
+    issues: list[str] = []
+    for mod_name in ("numpy", "pandas", "altair", "pyarrow"):
+        try:
+            importlib.import_module(mod_name)
+        except Exception as exc:
+            issues.append(f"Falha ao importar {mod_name}: {exc}")
+
+    try:
+        importlib.import_module("pyarrow.parquet")
+    except Exception as exc:
+        issues.append(f"Falha ao importar pyarrow.parquet: {exc}")
+    return issues
+
+
+def _run_preflight_checks(base_dir: Path) -> None:
+    """Executa verificações de portabilidade antes de subir o Streamlit."""
+    if not getattr(sys, "frozen", False):
+        return
+
+    exe_dir = _get_exe_dir()
+    issues = _runtime_artifact_issues(base_dir)
+    issues.extend(_critical_import_issues())
+
+    if issues:
+        location_hint = ""
+        if _looks_like_synced_path(exe_dir):
+            location_hint = (
+                "\n\nO executavel esta em pasta sincronizada (OneDrive/SharePoint/Partagei). "
+                "Copie a pasta completa do executavel para um diretorio local antes de executar."
+            )
+
+        _mostrar_erro_e_logar(
+            "Stellantis Cost Intelligence - Dependencias",
+            "Falha no preflight do executavel:\n\n- " + "\n- ".join(issues) + location_hint,
+        )
+        sys.exit(1)
+
+    if _looks_like_synced_path(exe_dir):
+        _log_startup_event(
+            f"launcher: aviso - executavel em pasta sincronizada: {exe_dir}"
+        )
 
 
 def is_port_open(host: str, port: int, timeout_seconds: int = 1) -> bool:
@@ -79,6 +277,14 @@ def _mostrar_erro_e_logar(titulo: str, mensagem: str) -> None:
     except Exception:
         pass
 
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            None, mensagem, titulo, 0x10  # MB_ICONERROR
+        )
+    except Exception:
+        pass
+
 
 def _log_startup_event(message: str) -> None:
     """Registra eventos simples de startup para comparar tempo entre versões."""
@@ -88,14 +294,6 @@ def _log_startup_event(message: str) -> None:
         with open(log_path, "a", encoding="utf-8") as f:
             import datetime
             f.write(f"[{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] {message}\n")
-    except Exception:
-        pass
-
-    try:
-        import ctypes
-        ctypes.windll.user32.MessageBoxW(
-            None, mensagem, titulo, 0x10  # MB_ICONERROR
-        )
     except Exception:
         pass
 
@@ -257,7 +455,10 @@ def main() -> None:
         _log_startup_event("launcher: inicio")
 
         if is_frozen:
+            if not _is_server_mode() and _relaunch_from_local_runtime(_get_exe_dir(), base_dir):
+                return
             os.chdir(base_dir)
+            _run_preflight_checks(base_dir)
 
         if _is_server_mode():
             _run_streamlit_server()
@@ -316,48 +517,25 @@ def main() -> None:
         )
 
         # ─── Fluxo principal: abrir no navegador padrão ─────────────────────
-        try:
-            opened_in_browser = _open_url_in_default_browser(server_url)
-            if not opened_in_browser:
-                raise RuntimeError("Falha ao abrir no navegador padrão")
+        opened_in_browser = _open_url_in_default_browser(server_url)
+        if opened_in_browser:
             _log_startup_event(
                 f"launcher: navegador aberto em {time.perf_counter() - started_at:.2f}s"
             )
+        else:
+            _mostrar_erro_e_logar(
+                "Stellantis Cost Intelligence",
+                "Nao foi possivel abrir o navegador automaticamente.\n\n"
+                f"Acesse manualmente: {server_url}"
+            )
 
-            try:
-                while server_process and server_process.poll() is None:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                pass
-            finally:
-                _stop_process(server_process)
-
-        except Exception:
-            # Fallback opcional: janela desktop via pywebview, se disponível.
-            try:
-                import webview
-
-                webview.create_window(
-                    title="Stellantis Cost Intelligence",
-                    url=server_url,
-                    width=1400,
-                    height=900,
-                    resizable=True,
-                )
-                webview.start()
-                _log_startup_event(
-                    f"launcher: fallback pywebview aberto em {time.perf_counter() - started_at:.2f}s"
-                )
-                _stop_process(server_process)
-            except Exception as browser_exc:
-                _stop_process(server_process)
-                _mostrar_erro_e_logar(
-                    "Stellantis Cost Intelligence",
-                    "Nao foi possivel abrir a interface automaticamente.\n\n"
-                    f"Acesse manualmente: {server_url}\n\n"
-                    f"Detalhe: {browser_exc}"
-                )
-                sys.exit(1)
+        try:
+            while server_process and server_process.poll() is None:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            _stop_process(server_process)
 
     except Exception as e:
         import traceback

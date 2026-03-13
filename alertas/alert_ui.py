@@ -11,13 +11,13 @@ from datetime import date
 import streamlit as st
 
 from alertas.alert_engine import (
+    append_to_alert_log,
     accounts_disponiveis,
+    build_alert_log_entry,
     calcular_ranking_consolidado,
-    fmt_delta_cpu,
     fmt_delta_k,
     fmt_k,
-    fmt_linha_account,
-    fmt_linha_type06,
+    fmt_linha_oficina,
     gerar_tabela_validacao,
     load_alert_log,
     load_alert_rules,
@@ -41,7 +41,7 @@ from alertas.utils_dates import (
 _CSS = """
 <style>
 .block-container {
-    padding-top: 0.85rem !important;
+    padding-top: 4rem !important;
     padding-bottom: 0.5rem !important;
 }
 hr {
@@ -246,6 +246,22 @@ def render_monitoring_page() -> None:
         if not ranking:
             st.success("✅ Nenhum desvio significativo encontrado.")
         else:
+            append_to_alert_log(
+                build_alert_log_entry(
+                    ranking,
+                    periodo=periodo_sel,
+                    ano=ano_sel,
+                    modo=modo,
+                    proporcao=prop,
+                    rule_id=regra.get("id", ""),
+                    titulo=f"Previa Central de Alertas - {periodo_sel}",
+                    tipo="manual",
+                    metadata_extra={
+                        "fonte": "central_alertas",
+                    },
+                )
+            )
+
             # Gerar tabela de validação para enviar junto
             tabela_df = gerar_tabela_validacao(
                 data=data,
@@ -467,8 +483,7 @@ def _render_card_consolidado(
                     lines.append(
                         f'<div class="alc-ofi">'
                         f'<span class="alc-tree">{tree_cont_acc}{tree_ofi}</span> '
-                        f'<span class="alc-ofi-name">📍 {_esc(ofi["oficina"])}</span>: '
-                        f'{_esc(_fmt_k_sign(ofi["desvio"], moeda))}'
+                        f'{_esc(fmt_linha_oficina(ofi, moeda, simbolo).strip())}'
                         f'</div>'
                     )
 
@@ -678,21 +693,22 @@ def _render_tabela_validacao(
 # =========================================================================
 
 def _render_mensagens_recentes() -> None:
-    st.subheader("📬 Últimas Mensagens")
+    st.subheader("📬 Ultimos 10 Textos Gerados")
     log = load_alert_log()
     if not log:
-        st.info("Nenhuma mensagem no histórico.")
+        st.info("Nenhum texto gerado no historico.")
         return
 
-    # Últimos 20
-    recentes = log[-20:][::-1]
+    recentes = log[::-1]
     for al in recentes:
         sev = al.get("severidade", "informativo")
         emoji = {"critico": "🔴", "moderado": "🟡"}.get(sev, "🔵")
         titulo = al.get("titulo", "")
         ts = al.get("timestamp", "")
-        with st.expander(f"{emoji} {titulo} — {ts}"):
-            st.text(al.get("mensagem", ""))
+        tipo = al.get("tipo", "automatico")
+        texto = al.get("generated_texts", {}).get("plain_text_tree") or al.get("mensagem", "")
+        with st.expander(f"{emoji} {titulo} - {ts} [{tipo}]"):
+            st.text(texto)
 
 
 # =========================================================================

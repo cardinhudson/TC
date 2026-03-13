@@ -47,10 +47,10 @@ from typing import Dict, Optional
 import re
 import unicodedata
 
-if hasattr(_sys, '_MEIPASS'):
-    _ROOT = _sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.abspath(__file__))
+from tc_core.utils.portabilidade import get_base_path, get_data_root
+
+_ROOT = str(get_base_path())
+_DATA_ROOT = os.path.join(str(get_data_root()), 'TC_Principal')
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -159,10 +159,10 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     if ano is None:
         ano = datetime.now().year
 
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    pasta_ano = os.path.join(_DATA_ROOT, str(ano))
     pasta_bud = os.path.join(pasta_ano, 'BUD')
     pasta_saida = pasta_ano  # Real salva na raiz do ano
-    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado')
+    pasta_historico = os.path.join(_DATA_ROOT, 'historico_consolidado')
 
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)
@@ -1382,7 +1382,7 @@ def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
     Returns:
         DataFrame com colunas: Conferência, Excel, Parquet, Diferença, % Diff, Status
     """
-    pasta_tc = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    pasta_tc = os.path.join(_DATA_ROOT, str(ano))
     excel_path = os.path.join(pasta_tc, 'Reporting veículos.xlsx')
     resultados = []
 
@@ -1610,7 +1610,7 @@ def consolidar_historico_tc_veiculos(tipo: str = 'real') -> list:
         Lista de mensagens de resultado.
     """
     resultados = []
-    pasta_base = os.path.join(_ROOT, 'dados', 'TC_Principal')
+    pasta_base = _DATA_ROOT
 
     # Descobrir anos disponíveis
     anos = []

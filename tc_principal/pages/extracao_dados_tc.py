@@ -1,4 +1,4 @@
-"""
+﻿"""
 TC Veículos — Extração e Processamento de Dados
 Replica o layout e funcionalidades do TC Ext (3 tabs + radio).
 Upload com proteção contra sobrescrita, pré-validação, barra de progresso,
@@ -15,13 +15,12 @@ import json
 import unicodedata
 from datetime import datetime
 
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_principal.ui_components import injetar_css_global, render_header
 
 # ── Caminho raiz do projeto ──
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -47,7 +46,7 @@ except ImportError:
 # CONSTANTES
 # ════════════════════════════════════════════
 
-PASTA_TC = os.path.join(_ROOT, 'dados', 'TC_Principal')
+PASTA_TC = os.path.join(_DATA_ROOT, 'TC_Principal')
 RATEIOS_PATH = os.path.join(_ROOT, 'rateios_manuais.json')
 
 PARQUETS_BUDGET = [
@@ -89,11 +88,11 @@ def _em_execucao_empacotada() -> bool:
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False):
     candidatos = [
-        os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), nome_arquivo),
+        os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -585,7 +584,7 @@ def render():
             f"`dados/TC_Principal/{ano_selecionado}/`. Se necessário, faça upload abaixo."
         )
 
-        pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano_selecionado))
+        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
         destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
 
         # Se já existe, mostra info
@@ -984,7 +983,7 @@ def render():
 
         # ── Árvore de pastas ──
         st.markdown("### 📁 Estrutura de Pastas")
-        pasta_raiz_ano = os.path.join(_ROOT, 'dados', str(ano_selecionado))
+        pasta_raiz_ano = os.path.join(_DATA_ROOT, str(ano_selecionado))
         pasta_tc_ano = os.path.join(PASTA_TC, str(ano_selecionado))
 
         for label, pasta in [
@@ -1014,3 +1013,4 @@ def render():
 
 if __name__ == "__main__":
     render()
+

@@ -83,6 +83,155 @@ def _agregar_sem_veiculo(df):
     return df.groupby(cols_id, as_index=False, dropna=False)[cols_num].sum()
 
 
+def _render_fallback_table_tc(df_src, ctx):
+    """Renderiza tabela simplificada quando o gráfico waterfall falha."""
+    try:
+        modo = ctx.get('modo_comparacao', 'Mês a Mês')
+        col_mes = ctx.get('col_mes_waterfall_tc')
+        mi = ctx.get('mes_inicial')
+        mf = ctx.get('mes_final')
+        if modo == "Mês a Mês":
+            if col_mes and col_mes in df_src.columns:
+                d1 = df_src[df_src[col_mes].astype(str) == str(mi)]
+                d2 = df_src[df_src[col_mes].astype(str) == str(mf)]
+            elif 'Período' in df_src.columns:
+                d1 = df_src[df_src['Período'].astype(str) == str(mi)]
+                d2 = df_src[df_src['Período'].astype(str) == str(mf)]
+            else:
+                return
+        elif modo == "Ano a Ano":
+            ai = ctx.get('ano_inicial')
+            af = ctx.get('ano_final')
+            d1 = df_src[df_src['Ano'].astype(str) == str(ai)]
+            d2 = df_src[df_src['Ano'].astype(str) == str(af)]
+        else:
+            return
+        if d1.empty or d2.empty:
+            return
+        col_val = 'Custo FP' if 'Custo FP' in d1.columns else ('Total' if 'Total' in d1.columns else None)
+        if col_val is None:
+            return
+        cols_grp = [c for c in ['Custo', 'Type 05', 'Type 06', 'Account'] if c in d1.columns]
+        if not cols_grp:
+            return
+        g1 = d1.groupby(cols_grp)[col_val].sum().reset_index().rename(columns={col_val: 'Mês 1'})
+        g2 = d2.groupby(cols_grp)[col_val].sum().reset_index().rename(columns={col_val: 'Mês 2'})
+        df_tab = g2.merge(g1, on=cols_grp, how='outer').fillna(0)
+        df_tab['Delta'] = df_tab['Mês 2'] - df_tab['Mês 1']
+        df_tab = df_tab[df_tab[['Mês 1', 'Mês 2']].abs().sum(axis=1) > 0.01]
+        if df_tab.empty:
+            return
+        st.markdown("---")
+        st.subheader("📊 Análise Flex por Categoria (fallback)")
+        st.info("ℹ️ O gráfico waterfall encontrou um erro. Exibindo dados resumidos.")
+        st.dataframe(df_tab.sort_values('Delta', ascending=True), use_container_width=True, hide_index=True)
+    except Exception:
+        pass
+
+
+def _render_type06_block(df_type06, type06, tipo_visualizacao, fator_conversao, expanded=False):
+    """Renderiza um bloco Type 06 (cabeçalho + tabela Account) dentro de um expander Type 05.
+    Retorna True se renderizou algo, False caso contrário."""
+    import traceback as _tb
+    if df_type06 is None or df_type06.empty:
+        return False
+
+    # Verificar valores não zerados
+    colunas_numericas_check = [col for col in df_type06.columns
+                               if pd.api.types.is_numeric_dtype(df_type06[col])
+                               and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+    if colunas_numericas_check:
+        df_check = df_type06[colunas_numericas_check].fillna(0)
+        if not (df_check.abs().sum(axis=1) > 0.0001).any():
+            return False
+    else:
+        if 'Mês 2' in df_type06.columns:
+            if df_type06['Mês 2'].fillna(0).abs().sum() <= 0.0001:
+                return False
+
+    total_type06 = df_type06['Mês 2'].sum() if 'Mês 2' in df_type06.columns else 0.0
+    total_type06_fmt = f"{total_type06:,.2f}"
+
+    # Filtrar linhas zeradas
+    colunas_num = [col for col in df_type06.columns
+                   if pd.api.types.is_numeric_dtype(df_type06[col])
+                   and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+    if colunas_num:
+        _temp = df_type06[colunas_num].fillna(0)
+        df_filt = df_type06[_temp.abs().sum(axis=1) > 0.0001].copy()
+    else:
+        df_filt = df_type06.copy()
+
+    if df_filt.empty:
+        return False
+
+    # Coluna ID de exibição
+    if 'Account' in df_filt.columns:
+        colunas_id = ['Account']
+    elif 'Type 06' in df_filt.columns:
+        colunas_id = ['Type 06']
+    else:
+        colunas_id = []
+
+    colunas_numericas_disp = [col for col in df_filt.columns
+                              if col not in colunas_id
+                              and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
+    colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas_disp)
+    colunas_display = colunas_id + colunas_ordenadas
+    # Garantir que todas as colunas existem
+    colunas_display = [c for c in colunas_display if c in df_filt.columns]
+    df_display = df_filt[colunas_display].copy()
+
+    # Formatar valores
+    for col in df_display.columns:
+        if col not in colunas_id:
+            if col.startswith('%'):
+                df_display[col] = df_display[col].map(
+                    lambda x: formatar_ratio_com_barra(x / 100) if pd.notna(x) and isinstance(x, (int, float)) else "-")
+            elif pd.api.types.is_numeric_dtype(df_display[col]):
+                if tipo_visualizacao == "CPU (Custo por Unidade)":
+                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
+                else:
+                    _suf = ""
+                    if fator_conversao:
+                        if fator_conversao == "K (milhares)":
+                            _suf = " K"
+                        elif fator_conversao == "M (Milhões)":
+                            _suf = " M"
+                    df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{_suf}")
+
+    # Resumo
+    linha_resumo_t06 = {}
+    linha_resumo_fmt_t06 = {}
+    for c in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1']:
+        linha_resumo_t06[c] = df_filt[c].sum() if c in df_filt.columns else 0
+    for c in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
+        if tipo_visualizacao == "CPU (Custo por Unidade)":
+            linha_resumo_fmt_t06[c] = f"{linha_resumo_t06[c]:,.2f}"
+        else:
+            _suf = ""
+            if fator_conversao:
+                if fator_conversao == "K (milhares)":
+                    _suf = " K"
+                elif fator_conversao == "M (Milhões)":
+                    _suf = " M"
+            linha_resumo_fmt_t06[c] = f"{linha_resumo_t06[c]:,.2f}{_suf}"
+    pct_val = linha_resumo_t06.get('% Mês 2/Flex Mês 1', 0)
+    linha_resumo_fmt_t06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(pct_val / 100 if pct_val else 0)
+
+    # Renderizar
+    with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_fmt}", expanded=expanded):
+        render_inline_summary_metrics(
+            linha_resumo_t06,
+            ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1'],
+            percent_columns={'% Mês 2/Flex Mês 1'},
+            percent_input='percent',
+        )
+        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_fmt_t06)
+        st.markdown(html_table, unsafe_allow_html=True)
+    return True
+
+
 def _enrich_with_vehicle(df_main, df_veic):
     """Usa dados por veículo (com coluna Veículo) se disponíveis.
     Renomeia 'Custo FP Veiculo' → 'Custo FP' para compatibilidade."""
@@ -385,6 +534,8 @@ def _build_office_waterfall_figure(
     fator_conversao,
     value_column,
     flex_delta_override=None,
+    office_labels_override=None,
+    office_values_override=None,
 ):
     def _normalize_oficina_label(valor):
         texto = str(valor).strip() if pd.notna(valor) else ''
@@ -576,6 +727,11 @@ def _build_office_waterfall_figure(
     else:
         office_labels, office_values, flex_delta = _series_real()
 
+    # Se foram fornecidos overrides do gráfico principal (quando Dimensão = Oficina), usar eles
+    if office_labels_override is not None and office_values_override is not None:
+        office_labels = list(office_labels_override)
+        office_values = [float(v) for v in office_values_override]
+
     if flex_delta_override is not None:
         flex_delta = float(flex_delta_override)
 
@@ -744,6 +900,8 @@ def _prepare_sapiens_minimal_table_tc(
     fator_conversao,
     moeda_codigo,
     taxas_cambio,
+    oficinas_sel=None,
+    accounts_sel=None,
 ):
     df_detail = _load_tc_veiculos_sapiens(ano_label)
     df_detail = _apply_session_filters_to_sapiens_tc(df_detail)
@@ -751,13 +909,6 @@ def _prepare_sapiens_minimal_table_tc(
 
     if df_detail is None or df_detail.empty:
         return pd.DataFrame(), None
-
-    office_col, account_col = st.columns(2)
-    oficinas_opcoes = sorted(df_detail['Oficina'].dropna().astype(str).unique().tolist()) if 'Oficina' in df_detail.columns else []
-    accounts_opcoes = sorted(df_detail['Account'].dropna().astype(str).unique().tolist()) if 'Account' in df_detail.columns else []
-
-    oficinas_sel = office_col.multiselect('Oficina', oficinas_opcoes, key=f'{key_prefix}_office_filter') if oficinas_opcoes else []
-    accounts_sel = account_col.multiselect('Account', accounts_opcoes, key=f'{key_prefix}_account_filter') if accounts_opcoes else []
 
     if oficinas_sel and 'Oficina' in df_detail.columns:
         df_detail = df_detail[df_detail['Oficina'].astype(str).isin(oficinas_sel)].copy()
@@ -873,7 +1024,79 @@ def _render_post_waterfall_panel_tc(
     value_column,
     key_prefix,
     flex_delta_override=None,
+    office_labels_override=None,
+    office_values_override=None,
 ):
+    # --- Filtros Type 05 / Type 06 / Oficina / Account (filtram gráfico por oficina e Detalhe Sapiens) ---
+    _src = pd.concat([df_m1, df_m2], ignore_index=True) if (not df_m1.empty or not df_m2.empty) else pd.DataFrame()
+    col_t05_of, col_t06_of, col_ofic_f, col_acct_f = st.columns(4)
+    with col_t05_of:
+        _t05_opts = ["Todos"]
+        if not _src.empty and 'Type 05' in _src.columns:
+            _t05_opts += sorted(_src['Type 05'].dropna().astype(str).unique().tolist())
+        _t05_sel = st.multiselect("Type 05:", _t05_opts, default=["Todos"], key=f"t05_oficina_{key_prefix}")
+    with col_t06_of:
+        _t06_opts = ["Todos"]
+        if not _src.empty and 'Type 06' in _src.columns:
+            _t06_opts += sorted(_src['Type 06'].dropna().astype(str).unique().tolist())
+        _t06_sel = st.multiselect("Type 06:", _t06_opts, default=["Todos"], key=f"t06_oficina_{key_prefix}")
+    with col_ofic_f:
+        _ofic_opts = ["Todos"]
+        if not _src.empty and 'Oficina' in _src.columns:
+            _ofic_opts += sorted(_src['Oficina'].dropna().astype(str).unique().tolist())
+        _ofic_sel = st.multiselect("Oficina:", _ofic_opts, default=["Todos"], key=f"ofic_oficina_{key_prefix}")
+    with col_acct_f:
+        _acct_opts = ["Todos"]
+        if not _src.empty and 'Account' in _src.columns:
+            _acct_opts += sorted(_src['Account'].dropna().astype(str).unique().tolist())
+        _acct_sel = st.multiselect("Account:", _acct_opts, default=["Todos"], key=f"acct_oficina_{key_prefix}")
+
+    _filtering_active = False
+    if _t05_sel and "Todos" not in _t05_sel:
+        _filtering_active = True
+        if 'Type 05' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if 'Type 05' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if df_vol_m1 is not None and 'Type 05' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if df_vol_m2 is not None and 'Type 05' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Type 05'].astype(str).isin(_t05_sel)].copy()
+    if _t06_sel and "Todos" not in _t06_sel:
+        _filtering_active = True
+        if 'Type 06' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if 'Type 06' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if df_vol_m1 is not None and 'Type 06' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if df_vol_m2 is not None and 'Type 06' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Type 06'].astype(str).isin(_t06_sel)].copy()
+    if _ofic_sel and "Todos" not in _ofic_sel:
+        _filtering_active = True
+        if 'Oficina' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if 'Oficina' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if df_vol_m1 is not None and 'Oficina' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if df_vol_m2 is not None and 'Oficina' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Oficina'].astype(str).isin(_ofic_sel)].copy()
+    if _acct_sel and "Todos" not in _acct_sel:
+        _filtering_active = True
+        if 'Account' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Account'].astype(str).isin(_acct_sel)].copy()
+        if 'Account' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Account'].astype(str).isin(_acct_sel)].copy()
+        if df_vol_m1 is not None and 'Account' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Account'].astype(str).isin(_acct_sel)].copy()
+        if df_vol_m2 is not None and 'Account' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Account'].astype(str).isin(_acct_sel)].copy()
+    # Se filtrou, invalida overrides pré-computados
+    if _filtering_active:
+        office_labels_override = None
+        office_values_override = None
+
     st.markdown("#### 🧭 Ganho e Perda por Oficina")
     col_chart, col_table = st.columns([1.15, 0.85], gap='small')
 
@@ -893,6 +1116,8 @@ def _render_post_waterfall_panel_tc(
             fator_conversao=fator_conversao,
             value_column=value_column,
             flex_delta_override=flex_delta_override,
+            office_labels_override=office_labels_override,
+            office_values_override=office_values_override,
         )
         st.markdown("<div style='margin-bottom:60px;'><h5 style='margin:0;'>🏭 Waterfall por Oficina</h5></div>", unsafe_allow_html=True)
         if fig_oficinas is None:
@@ -912,6 +1137,8 @@ def _render_post_waterfall_panel_tc(
             fator_conversao=fator_conversao,
             moeda_codigo=moeda_codigo,
             taxas_cambio=taxas_cambio,
+            oficinas_sel=_ofic_sel if _ofic_sel and "Todos" not in _ofic_sel else None,
+            accounts_sel=_acct_sel if _acct_sel and "Todos" not in _acct_sel else None,
         )
         if df_show.empty:
             st.info('Nao ha linhas detalhadas do Sapiens para o recorte atual.')
@@ -1177,8 +1404,6 @@ if 'USI' in df_filtrado.columns:
         ].copy()
 
 # Filtro 4: Período (com cache otimizado)
-# IMPORTANTE: Criar cópia ANTES do filtro de período para usar no gráfico
-df_para_grafico_periodo = df_filtrado.copy()
 
 if 'Período' in df_filtrado.columns:
     periodo_opcoes_raw = get_filter_options(df_filtrado, 'Período')
@@ -1609,6 +1834,7 @@ else:
             if not meses_selecionados or len(meses_selecionados) < 2 or not periodos_validos:
                 st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
             else:
+                _tabela_real_renderizada = False
                 try:
                     # Determinar coluna de valor baseado no tipo de visualização
                     if tipo_visualizacao == "CPU (Custo por Unidade)":
@@ -1820,6 +2046,11 @@ else:
                             if 'Oficina' in df_temp.columns:
                                 df_temp = df_temp[df_temp['Oficina'].astype(str).isin(oficina_inline_sel_tc_real)].copy()
                         
+                        # ═══ Salvar df_analise ANTES da agregação para a tabela Resumo Geral ═══
+                        # A tabela agrupa por Custo/Type 05/Type 06/Account e NÃO deve depender
+                        # da dimensão selecionada (que pode alterar df_analise via _agregar_sem_veiculo).
+                        df_analise_tabela = df_analise.copy()
+
                         # ═══ Bloco 4: Lazy aggregation — se "Todos" e dim ≠ Veículo, agregar agora ═══
                         if _todos_mode_real and chosen_dim_waterfall_tc != "Veículo":
                             df_analise = _agregar_sem_veiculo(df_analise)
@@ -1872,12 +2103,16 @@ else:
                             else:
                                 default_value = min(total_cats, 20)  # Valor padrão ainda 20 para não sobrecarregar inicialmente
                             
+                            # Sanitizar session_state do slider para o novo range (evita exceção quando dimensão muda)
+                            _slider_key_real = "max_cats_waterfall_tc"
+                            if _slider_key_real in st.session_state:
+                                st.session_state[_slider_key_real] = max(1, min(int(st.session_state[_slider_key_real]), total_cats))
                             max_cats = st.slider(
                                 f"Quantidade de categorias a exibir (Top N) (Total: {total_cats}):",
                                 min_value=1,
-                                max_value=total_cats,  # Permitir todas as categorias disponíveis (sem limite de 20)
+                                max_value=total_cats,
                                 value=default_value,
-                                key="max_cats_waterfall_tc"
+                                key=_slider_key_real
                             )
                         
                         # Selecionar top N categorias baseado no slider (ordenadas por impacto absoluto)
@@ -2040,6 +2275,11 @@ else:
                             if chosen_dim_waterfall_tc not in df_m2.columns:
                                 df_m2 = df_m2.copy()
                                 df_m2[chosen_dim_waterfall_tc] = "(Não informado)"
+
+                        # ═══ Pre-inicializar variáveis usadas pelo painel/tabela (defaults seguros) ═══
+                        total_m1_all = df_m1[col_valor].sum() if not df_m1.empty and col_valor in df_m1.columns else 0
+                        total_m2_all = df_m2[col_valor].sum() if not df_m2.empty and col_valor in df_m2.columns else 0
+                        flex_volume_delta = 0
 
                         # Calcular totais por dimensão selecionada
                         # IMPORTANTE: No modo CPU, usar volumes do df_volume (não do df_m1/df_m2)
@@ -2223,6 +2463,10 @@ else:
                         else:
                             # Sem volume, usar proporção 1.0
                             proporcao_volume_cat = 1.0
+                            volume_m1_cat = 0
+                            volume_m2_cat = 0
+                            df_vol_m1_cat = pd.DataFrame()
+                            df_vol_m2_cat = pd.DataFrame()
                         
                         # Calcular Flex Mês 1 para cada categoria (mesma lógica da tabela)
                         for cat in cats_sel:
@@ -2830,63 +3074,146 @@ else:
                             # Filtrar por período usando a base sem filtro de oficina
                             if modo_comparacao == "Mês a Mês":
                                 if col_mes_waterfall_tc:
-                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)].copy()
-                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)].copy()
+                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)]
+                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)]
                                 else:
-                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_inicial)].copy()
-                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_final)].copy()
+                                    df_m1_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_inicial)]
+                                    df_m2_panel = df_analise_painel_base[df_analise_painel_base['Período'].astype(str) == str(mes_final)]
                             elif modo_comparacao == "Ano a Ano":
-                                df_m1_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)].copy()
-                                df_m2_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_final)].copy()
+                                df_m1_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)]
+                                df_m2_panel = df_analise_painel_base[df_analise_painel_base['Ano'].astype(str) == str(ano_final)]
                             elif modo_comparacao == "Semestre":
                                 meses_semestre_panel = {1: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
                                                         2: ['Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']}
                                 df_m1_panel = df_analise_painel_base[
                                     (df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)) &
                                     (df_analise_painel_base['Período'].isin(meses_semestre_panel.get(semestre_inicial, [])))
-                                ].copy()
+                                ]
                                 df_m2_panel = df_analise_painel_base[
                                     (df_analise_painel_base['Ano'].astype(str) == str(ano_final)) &
                                     (df_analise_painel_base['Período'].isin(meses_semestre_panel.get(semestre_final, [])))
-                                ].copy()
+                                ]
                             elif modo_comparacao == "Quarter":
                                 meses_trimestre_panel = {1: ['Janeiro', 'Fevereiro', 'Março'], 2: ['Abril', 'Maio', 'Junho'],
                                                          3: ['Julho', 'Agosto', 'Setembro'], 4: ['Outubro', 'Novembro', 'Dezembro']}
                                 df_m1_panel = df_analise_painel_base[
                                     (df_analise_painel_base['Ano'].astype(str) == str(ano_inicial)) &
                                     (df_analise_painel_base['Período'].isin(meses_trimestre_panel.get(trimestre_inicial, [])))
-                                ].copy()
+                                ]
                                 df_m2_panel = df_analise_painel_base[
                                     (df_analise_painel_base['Ano'].astype(str) == str(ano_final)) &
                                     (df_analise_painel_base['Período'].isin(meses_trimestre_panel.get(trimestre_final, [])))
-                                ].copy()
+                                ]
                             else:
-                                df_m1_panel = df_m1.copy()
-                                df_m2_panel = df_m2.copy()
+                                df_m1_panel = df_m1
+                                df_m2_panel = df_m2
                             
                             # Volumes para o painel (sem filtro de oficina)
                             if 'df_vol_filtrado_painel_base' in locals() and df_vol_filtrado_painel_base is not None:
                                 if modo_comparacao == "Mês a Mês":
                                     if col_mes_waterfall_tc:
-                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)].copy()
-                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)].copy()
+                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_inicial)]
+                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base[col_mes_waterfall_tc].astype(str) == str(mes_final)]
                                     else:
-                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_inicial)].copy()
-                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_final)].copy()
+                                        df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_inicial)]
+                                        df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Período'].astype(str) == str(mes_final)]
                                 elif modo_comparacao == "Ano a Ano":
-                                    df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_inicial)].copy()
-                                    df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_final)].copy()
+                                    df_vol_m1_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_inicial)]
+                                    df_vol_m2_panel = df_vol_filtrado_painel_base[df_vol_filtrado_painel_base['Ano'].astype(str) == str(ano_final)]
                                 else:
-                                    df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
-                                    df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                                    df_vol_m1_panel = df_vol_m1 if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                                    df_vol_m2_panel = df_vol_m2 if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
                             else:
-                                df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
-                                df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                                df_vol_m1_panel = df_vol_m1 if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                                df_vol_m2_panel = df_vol_m2 if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
                         else:
-                            df_m1_panel = df_m1.copy()
-                            df_m2_panel = df_m2.copy()
-                            df_vol_m1_panel = df_vol_m1.copy() if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
-                            df_vol_m2_panel = df_vol_m2.copy() if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                            df_m1_panel = df_m1
+                            df_m2_panel = df_m2
+                            df_vol_m1_panel = df_vol_m1 if 'df_vol_m1' in locals() and df_vol_m1 is not None else None
+                            df_vol_m2_panel = df_vol_m2 if 'df_vol_m2' in locals() and df_vol_m2 is not None else None
+                        
+                        # ═══ SEMPRE calcular valores fixos por Oficina para o painel inferior ═══
+                        # Usa a mesma lógica do gráfico de cima, como se Dimensão=Oficina estivesse selecionada
+                        _fixed_office_labels = []
+                        _fixed_office_values = []
+                        try:
+                            _dim_oficina = "Oficina"
+                            if _dim_oficina in df_m1_panel.columns and _dim_oficina in df_m2_panel.columns:
+                                # Calcular g1_ofc e g2_ofc (mesma lógica de g1/g2 do gráfico principal)
+                                if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Custo FP' in df_m1_panel.columns:
+                                    _vol_m1_p = df_vol_m1_panel if df_vol_m1_panel is not None else pd.DataFrame()
+                                    _vol_m2_p = df_vol_m2_panel if df_vol_m2_panel is not None else pd.DataFrame()
+                                    _vm1_total = float(_vol_m1_p['Volume'].sum()) if not _vol_m1_p.empty and 'Volume' in _vol_m1_p.columns else 0
+                                    _vm2_total = float(_vol_m2_p['Volume'].sum()) if not _vol_m2_p.empty and 'Volume' in _vol_m2_p.columns else 0
+
+                                    _g1_ofc_custo = df_m1_panel.groupby(_dim_oficina)['Custo FP'].sum()
+                                    _g2_ofc_custo = df_m2_panel.groupby(_dim_oficina)['Custo FP'].sum()
+                                    _g1_ofc = _g1_ofc_custo / _vm1_total if _vm1_total > 0 else _g1_ofc_custo
+                                    _g2_ofc = _g2_ofc_custo / _vm2_total if _vm2_total > 0 else _g2_ofc_custo
+                                    _g1_ofc = _g1_ofc.fillna(0)
+                                    _g2_ofc = _g2_ofc.fillna(0)
+
+                                    # Proporção de volume para flex
+                                    _prop_vol_ofc = _vm2_total / _vm1_total if _vm1_total > 0 else 1.0
+                                    # Volumes por oficina para cálculo de flex
+                                    _vol_m1_por_ofc = _vol_m1_p.groupby(_dim_oficina)['Volume'].sum() if not _vol_m1_p.empty and _dim_oficina in _vol_m1_p.columns else pd.Series(dtype=float)
+                                    _vol_m2_por_ofc = _vol_m2_p.groupby(_dim_oficina)['Volume'].sum() if not _vol_m2_p.empty and _dim_oficina in _vol_m2_p.columns else pd.Series(dtype=float)
+                                else:
+                                    _g1_ofc = df_m1_panel.groupby(_dim_oficina)[col_valor].sum()
+                                    _g2_ofc = df_m2_panel.groupby(_dim_oficina)[col_valor].sum()
+                                    _vm1_total = 0
+                                    _vm2_total = 0
+                                    _prop_vol_ofc = 1.0
+                                    _vol_m1_por_ofc = pd.Series(dtype=float)
+                                    _vol_m2_por_ofc = pd.Series(dtype=float)
+
+                                _all_ofcs = sorted(set(_g1_ofc.index.tolist()) | set(_g2_ofc.index.tolist()))
+
+                                # Calcular g_flex por oficina (mesma lógica de g_flex do gráfico de cima)
+                                for _ofc in _all_ofcs:
+                                    _v_m2 = float(_g2_ofc.get(_ofc, 0.0))
+
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Custo FP' in df_m1_panel.columns:
+                                        # Calcular flex em custo total, depois dividir por volume m2
+                                        _df_ofc_m1 = df_m1_panel[df_m1_panel[_dim_oficina].astype(str) == str(_ofc)]
+                                        _vm1_ofc = float(_vol_m1_por_ofc.get(_ofc, 0.0)) if not _vol_m1_por_ofc.empty else 0
+                                        _vm2_ofc = float(_vol_m2_por_ofc.get(_ofc, 0.0)) if not _vol_m2_por_ofc.empty else 0
+                                        _prop_ofc = _vm2_ofc / _vm1_ofc if _vm1_ofc > 0 else _prop_vol_ofc
+
+                                        if 'Custo' in _df_ofc_m1.columns:
+                                            _fixo_ofc = _df_ofc_m1[_df_ofc_m1['Custo'] == 'Fixo']['Custo FP'].sum()
+                                            _var_ofc = _df_ofc_m1[_df_ofc_m1['Custo'] == 'Variável']['Custo FP'].sum()
+                                        else:
+                                            _fixo_ofc = 0
+                                            _var_ofc = _df_ofc_m1['Custo FP'].sum()
+
+                                        _flex_custo_ofc = _fixo_ofc + (_var_ofc * _prop_ofc)
+                                        _flex_cpu_ofc = _flex_custo_ofc / _vm2_total if _vm2_total > 0 else 0
+                                    else:
+                                        # Custo Total
+                                        _df_ofc_m1 = df_m1_panel[df_m1_panel[_dim_oficina].astype(str) == str(_ofc)]
+                                        if 'Custo' in _df_ofc_m1.columns:
+                                            _fixo_ofc = _df_ofc_m1[_df_ofc_m1['Custo'] == 'Fixo'][col_valor].sum()
+                                            _var_ofc = _df_ofc_m1[_df_ofc_m1['Custo'] == 'Variável'][col_valor].sum()
+                                        else:
+                                            _fixo_ofc = 0
+                                            _var_ofc = _df_ofc_m1[col_valor].sum()
+
+                                        _flex_cpu_ofc = _fixo_ofc + (_var_ofc * _prop_vol_ofc)
+
+                                    _delta_ofc = _v_m2 - _flex_cpu_ofc
+                                    if abs(_delta_ofc) > 1e-9:
+                                        _fixed_office_labels.append(str(_ofc))
+                                        _fixed_office_values.append(float(_delta_ofc))
+
+                                # Ordenar por valor absoluto
+                                if _fixed_office_labels:
+                                    _sorted = sorted(range(len(_fixed_office_values)), key=lambda i: abs(_fixed_office_values[i]), reverse=True)
+                                    _fixed_office_labels = [_fixed_office_labels[i] for i in _sorted]
+                                    _fixed_office_values = [_fixed_office_values[i] for i in _sorted]
+                        except Exception:
+                            _fixed_office_labels = []
+                            _fixed_office_values = []
                         
                         _render_post_waterfall_panel_tc(
                             ano_label=ano_selecionado,
@@ -2907,6 +3234,8 @@ else:
                             value_column=col_valor,
                             key_prefix='wf_tc_real',
                             flex_delta_override=flex_volume_delta,
+                            office_labels_override=_fixed_office_labels if _fixed_office_labels else None,
+                            office_values_override=_fixed_office_values if _fixed_office_values else None,
                         )
                         
                         # ==========================================
@@ -2916,18 +3245,44 @@ else:
                         st.markdown('<div id="analise-flex-bud-por-categoria-waterfall"></div>', unsafe_allow_html=True)
                         st.subheader(f"📊 Análise Flex por Categoria (Base: {mes_inicial})")
                         
+                        # ═══ Construir df_m1_tabela / df_m2_tabela a partir de df_analise_tabela ═══
+                        # Esses DataFrames NÃO sofrem influência de chosen_dim_waterfall_tc
+                        _df_src_tab = df_analise_tabela if 'df_analise_tabela' in locals() and df_analise_tabela is not None else df_analise
+                        if modo_comparacao == "Mês a Mês":
+                            if col_mes_waterfall_tc:
+                                df_m1_tabela = _df_src_tab[_df_src_tab[col_mes_waterfall_tc].astype(str) == str(mes_inicial)]
+                                df_m2_tabela = _df_src_tab[_df_src_tab[col_mes_waterfall_tc].astype(str) == str(mes_final)]
+                            else:
+                                df_m1_tabela = _df_src_tab[_df_src_tab['Período'].astype(str) == str(mes_inicial)]
+                                df_m2_tabela = _df_src_tab[_df_src_tab['Período'].astype(str) == str(mes_final)]
+                        elif modo_comparacao == "Ano a Ano":
+                            df_m1_tabela = _df_src_tab[_df_src_tab['Ano'].astype(str) == str(ano_inicial)]
+                            df_m2_tabela = _df_src_tab[_df_src_tab['Ano'].astype(str) == str(ano_final)]
+                        elif modo_comparacao == "Semestre":
+                            _meses_sem = {1: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho'], 2: ['Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']}
+                            df_m1_tabela = _df_src_tab[(_df_src_tab['Ano'].astype(str)==str(ano_inicial)) & (_df_src_tab['Período'].isin(_meses_sem.get(semestre_inicial,[])))]
+                            df_m2_tabela = _df_src_tab[(_df_src_tab['Ano'].astype(str)==str(ano_final)) & (_df_src_tab['Período'].isin(_meses_sem.get(semestre_final,[])))]
+                        elif modo_comparacao == "Quarter":
+                            _meses_tri = {1:['Janeiro','Fevereiro','Março'],2:['Abril','Maio','Junho'],3:['Julho','Agosto','Setembro'],4:['Outubro','Novembro','Dezembro']}
+                            df_m1_tabela = _df_src_tab[(_df_src_tab['Ano'].astype(str)==str(ano_inicial)) & (_df_src_tab['Período'].isin(_meses_tri.get(trimestre_inicial,[])))]
+                            df_m2_tabela = _df_src_tab[(_df_src_tab['Ano'].astype(str)==str(ano_final)) & (_df_src_tab['Período'].isin(_meses_tri.get(trimestre_final,[])))]
+                        else:
+                            df_m1_tabela = df_m1
+                            df_m2_tabela = df_m2
+
                         # Verificar se temos os dados necessários
-                        if 'df_m1' in locals() and df_m1 is not None and len(df_m1) > 0 and 'df_m2' in locals() and df_m2 is not None and len(df_m2) > 0:
+                        if 'df_m1_tabela' in locals() and df_m1_tabela is not None and len(df_m1_tabela) > 0 and 'df_m2_tabela' in locals() and df_m2_tabela is not None and len(df_m2_tabela) > 0:
                             # Verificar se temos coluna 'Custo' nos dados
                             tem_custo_real = False
-                            if 'Custo' in df_m1.columns and 'Custo' in df_m2.columns:
+                            if 'Custo' in df_m1_tabela.columns and 'Custo' in df_m2_tabela.columns:
                                 tem_custo_real = True
                             
                             if tem_custo_real:
                                 try:
-                                    # Preparar dados: usar df_m1 como base (equivalente a BUD) e df_m2 como Total
-                                    df_real_base = df_m1.copy()
-                                    df_real_final = df_m2.copy()
+                                    # Preparar dados: usar df_m1_tabela como base e df_m2_tabela como Total
+                                    # Estes dados NÃO dependem da dimensão selecionada
+                                    df_real_base = df_m1_tabela.copy()
+                                    df_real_final = df_m2_tabela.copy()
                                     
                                     # IMPORTANTE: df_m1 e df_m2 já vêm de df_filtrado_waterfall_tc que tem a conversão de moeda aplicada
                                     # NÃO aplicar conversão novamente aqui para evitar duplicação
@@ -3106,7 +3461,7 @@ else:
                                     df_tabela_flex_waterfall_tc = df_reorganizado
                                     
                                     # Remover colunas auxiliares (incluindo as que não devem aparecer na tabela)
-                                    colunas_remover = ['Base_CustoFP', '_Flex_Bud_Fixo', '_Flex_Bud_Variavel', '_Flex_Bud_CustoFP', '_CustoFP_Custo_CustoFP']
+                                    colunas_remover = ['Base_CustoFP', '_Flex_Bud_Fixo', '_Flex_Bud_Variavel', '_Flex_Bud_CustoFP', '_CustoFP_Custo_CustoFP', '_Proporcao_Volume']
                                     if tipo_visualizacao == "CPU (Custo por Unidade)":
                                         colunas_remover.append('_Flex_Bud_CustoFP_Custo')
                                     df_tabela_flex_waterfall_tc = df_tabela_flex_waterfall_tc.drop(columns=[col for col in colunas_remover if col in df_tabela_flex_waterfall_tc.columns])
@@ -3205,25 +3560,26 @@ else:
 
                                     # Linha de separação e espaçamento entre Resumo Geral e controles da tabela
                                     st.markdown("---")
-                                    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+                                    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
                                     
                                     # Criar estrutura hierárquica
-                                    if modo_tabela_flex_waterfall_tc == "Fixo/Variável":
-                                        expand_state_key = 'waterfall_tc_real_expand_all'
-                                        if expand_state_key not in st.session_state:
+                                    expand_state_key = 'waterfall_tc_real_expand_all'
+                                    if expand_state_key not in st.session_state:
+                                        st.session_state[expand_state_key] = False
+
+                                    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                    with ctrl_col1:
+                                        if st.button('Expandir tudo', key='waterfall_tc_real_expandir'):
+                                            st.session_state[expand_state_key] = True
+                                    with ctrl_col2:
+                                        if st.button('Recolher tudo', key='waterfall_tc_real_recolher'):
                                             st.session_state[expand_state_key] = False
+                                    with ctrl_col3:
+                                        st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
 
-                                        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
-                                        with ctrl_col1:
-                                            if st.button('Expandir tudo', key='waterfall_tc_real_expandir'):
-                                                st.session_state[expand_state_key] = True
-                                        with ctrl_col2:
-                                            if st.button('Recolher tudo', key='waterfall_tc_real_recolher'):
-                                                st.session_state[expand_state_key] = False
-                                        with ctrl_col3:
-                                            st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+                                    expandir_waterfall_real = st.session_state[expand_state_key]
 
-                                        expandir_waterfall_real = st.session_state[expand_state_key]
+                                    if modo_tabela_flex_waterfall_tc == "Fixo/Variável":
                                         for custo in ['Fixo', 'Variável']:
                                             df_custo = df_tabela_flex_waterfall_tc[df_tabela_flex_waterfall_tc['Custo'] == custo].copy()
                                             
@@ -3248,204 +3604,22 @@ else:
                                                                     with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_real):
                                                                         # Nível 3: Type 06
                                                                         if 'Type 06' in df_type05.columns:
-                                                                                for type06 in sorted(df_type05['Type 06'].dropna().unique()):
-                                                                                    df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
-                                                                                    
-                                                                                    if len(df_type06) > 0:
-                                                                                        # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Verificar se Type 06 tem valores não zerados
-                                                                                        colunas_numericas_check = [col for col in df_type06.columns 
-                                                                                                                  if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                  and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                        if colunas_numericas_check:
-                                                                                            # Verificar se há pelo menos uma linha com valores não zerados
-                                                                                            df_type06_check = df_type06[colunas_numericas_check].fillna(0)
-                                                                                            tem_valores_nao_zerados = (df_type06_check.abs().sum(axis=1) > 0.0001).any()
-                                                                                            if not tem_valores_nao_zerados:
-                                                                                                continue  # Pular Type 06 completamente zerado
-                                                                                        else:
-                                                                                            # Se não há colunas numéricas, verificar se Mês 2 existe e é zero
-                                                                                            if 'Mês 2' in df_type06.columns:
-                                                                                                if df_type06['Mês 2'].fillna(0).abs().sum() <= 0.0001:
-                                                                                                    continue  # Pular Type 06 completamente zerado
-                                                                                        
-                                                                                        # Verificar se a coluna 'Mês 2' existe antes de acessá-la
-                                                                                        if 'Mês 2' in df_type06.columns:
-                                                                                            total_type06 = df_type06['Mês 2'].sum()
-                                                                                        else:
-                                                                                            total_type06 = 0.0
-                                                                                        total_type06_formatado = f"{total_type06:,.2f}"
-                                                                                        
-                                                                                        # Nível 4: Account (se existir)
-                                                                                        if 'Account' in df_type06.columns:
-                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
-                                                                                            colunas_numericas = [col for col in df_type06.columns 
-                                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                            if colunas_numericas:
-                                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                                df_type06_filtrado = df_type06[
-                                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                                ].copy()
-                                                                                            else:
-                                                                                                df_type06_filtrado = df_type06.copy()
-                                                                                            
-                                                                                            # Só exibir se houver dados após filtrar
-                                                                                            if len(df_type06_filtrado) > 0:
-                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                st.markdown("---")  # Separador visual
-                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                with st.container():
-                                                                                                        # Criar tabela
-                                                                                                        colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
-                                                                                                        colunas_numericas = [col for col in df_type06_filtrado.columns 
-                                                                                                                            if col not in colunas_id and col not in ['Type 05', 'Type 06', 'Custo', 'Período']]
-                                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                                        colunas_display = colunas_id + colunas_ordenadas
-                                                                                                        df_display = df_type06_filtrado[colunas_display].copy()
-                                                                                                        
-                                                                                                        # Formatar valores
-                                                                                                        for col in df_display.columns:
-                                                                                                            if col not in colunas_id:
-                                                                                                                if col.startswith('%'):
-                                                                                                                    df_display[col] = df_display[col].map(lambda x: formatar_ratio_com_barra(x / 100) if pd.notna(x) and isinstance(x, (int, float)) else "-")
-                                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                                                                    else:
-                                                                                                                        sufixo = ""
-                                                                                                                        if fator_conversao:
-                                                                                                                            if fator_conversao == "K (milhares)":
-                                                                                                                                sufixo = " K"
-                                                                                                                            elif fator_conversao == "M (Milhões)":
-                                                                                                                                sufixo = " M"
-                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                                                        
-                                                                                                        # Calcular resumo diretamente com nomes das colunas dinâmicas
-                                                                                                        linha_resumo_type06 = {}
-                                                                                                        linha_resumo_formatado_type06 = {}
-                                                                                                        
-                                                                                                        # Calcular valores usando as colunas dinâmicas
-                                                                                                        linha_resumo_type06['Mês 1'] = df_type06_filtrado['Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Flex Mês 1 - Mês 1'] = df_type06_filtrado['Flex Mês 1 - Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Flex Mês 1'] = df_type06_filtrado['Flex Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Mês 2 - Flex Mês 1'] = df_type06_filtrado['Mês 2 - Flex Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Mês 2'] = df_type06_filtrado['Mês 2'].sum()
-                                                                                                        linha_resumo_type06['% Mês 2/Flex Mês 1'] = df_type06_filtrado['% Mês 2/Flex Mês 1'].sum()
-                                                                                                        
-                                                                                                        # Formatar valores
-                                                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
-                                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
-                                                                                                            else:
-                                                                                                                sufixo = ""
-                                                                                                                if fator_conversao:
-                                                                                                                    if fator_conversao == "K (milhares)":
-                                                                                                                        sufixo = " K"
-                                                                                                                    elif fator_conversao == "M (Milhões)":
-                                                                                                                        sufixo = " M"
-                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
-                                                                                                        
-                                                                                                        # Formatar percentual com barra de progresso
-                                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
-                                                                                                        valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
-                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
-                                                                                                        
-                                                                                                        render_inline_summary_metrics(
-                                                                                                            linha_resumo_type06,
-                                                                                                            ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1'],
-                                                                                                            percent_columns={'% Mês 2/Flex Mês 1'},
-                                                                                                            percent_input='percent',
-                                                                                                        )
-                                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
-                                                                                                        st.markdown(html_table, unsafe_allow_html=True)
-                                                                                        else:
-                                                                                            # Sem Account: exibir Type 06 diretamente
-                                                                                            # 🔧 FILTRAR LINHAS ZERADAS E NULAS: Remover linhas onde todos os valores numéricos são zero ou nulos
-                                                                                            colunas_numericas = [col for col in df_type06.columns 
-                                                                                                                if pd.api.types.is_numeric_dtype(df_type06[col]) 
-                                                                                                                and col not in ['Type 05', 'Type 06', 'Account', 'Custo', 'Período']]
-                                                                                            if colunas_numericas:
-                                                                                                df_type06_temp = df_type06[colunas_numericas].fillna(0)
-                                                                                                df_type06_filtrado = df_type06[
-                                                                                                    df_type06_temp.abs().sum(axis=1) > 0.0001
-                                                                                                ].copy()
-                                                                                            else:
-                                                                                                df_type06_filtrado = df_type06.copy()
-                                                                                            
-                                                                                            # Só exibir se houver dados após filtrar
-                                                                                            if len(df_type06_filtrado) > 0:
-                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                st.markdown("---")  # Separador visual
-                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                with st.container():
-                                                                                                        colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
-                                                                                                        colunas_numericas = [col for col in df_type06_filtrado.columns 
-                                                                                                                            if col not in colunas_id and col not in ['Type 05', 'Account', 'Custo', 'Período']]
-                                                                                                        colunas_ordenadas = reordenar_colunas_padrao(colunas_numericas)
-                                                                                                        colunas_display = colunas_id + colunas_ordenadas
-                                                                                                        df_display = df_type06_filtrado[colunas_display].copy()
-                                                                                                        
-                                                                                                        # Formatar valores
-                                                                                                        for col in df_display.columns:
-                                                                                                            if col not in colunas_id:
-                                                                                                                if col.startswith('%'):
-                                                                                                                    df_display[col] = df_display[col].map(lambda x: formatar_ratio_com_barra(x / 100) if pd.notna(x) and isinstance(x, (int, float)) else "-")
-                                                                                                                elif pd.api.types.is_numeric_dtype(df_display[col]):
-                                                                                                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}")
-                                                                                                                    else:
-                                                                                                                        sufixo = ""
-                                                                                                                        if fator_conversao:
-                                                                                                                            if fator_conversao == "K (milhares)":
-                                                                                                                                sufixo = " K"
-                                                                                                                            elif fator_conversao == "M (Milhões)":
-                                                                                                                                sufixo = " M"
-                                                                                                                        df_display[col] = df_display[col].map(lambda x: f"{x:,.2f}{sufixo}")
-                                                                                                        
-                                                                                                        # Calcular resumo diretamente com nomes das colunas dinâmicas
-                                                                                                        linha_resumo_type06 = {}
-                                                                                                        linha_resumo_formatado_type06 = {}
-                                                                                                        
-                                                                                                        # Calcular valores usando as colunas dinâmicas
-                                                                                                        linha_resumo_type06['Mês 1'] = df_type06_filtrado['Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Flex Mês 1 - Mês 1'] = df_type06_filtrado['Flex Mês 1 - Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Flex Mês 1'] = df_type06_filtrado['Flex Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Mês 2 - Flex Mês 1'] = df_type06_filtrado['Mês 2 - Flex Mês 1'].sum()
-                                                                                                        linha_resumo_type06['Mês 2'] = df_type06_filtrado['Mês 2'].sum()
-                                                                                                        linha_resumo_type06['% Mês 2/Flex Mês 1'] = df_type06_filtrado['% Mês 2/Flex Mês 1'].sum()
-                                                                                                        
-                                                                                                        # Formatar valores
-                                                                                                        for col in ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2']:
-                                                                                                            if tipo_visualizacao == "CPU (Custo por Unidade)":
-                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}"
-                                                                                                            else:
-                                                                                                                sufixo = ""
-                                                                                                                if fator_conversao:
-                                                                                                                    if fator_conversao == "K (milhares)":
-                                                                                                                        sufixo = " K"
-                                                                                                                    elif fator_conversao == "M (Milhões)":
-                                                                                                                        sufixo = " M"
-                                                                                                                linha_resumo_formatado_type06[col] = f"{linha_resumo_type06[col]:,.2f}{sufixo}"
-                                                                                                        
-                                                                                                        # Formatar percentual com barra de progresso
-                                                                                                        # O valor está em percentual (ex: 95.5), precisa converter para decimal (0.955)
-                                                                                                        valor_percentual = linha_resumo_type06['% Mês 2/Flex Mês 1']
-                                                                                                        linha_resumo_formatado_type06['% Mês 2/Flex Mês 1'] = formatar_ratio_com_barra(valor_percentual / 100)
-                                                                                                        
-                                                                                                        render_inline_summary_metrics(
-                                                                                                            linha_resumo_type06,
-                                                                                                            ['Mês 1', 'Flex Mês 1 - Mês 1', 'Flex Mês 1', 'Mês 2 - Flex Mês 1', 'Mês 2', '% Mês 2/Flex Mês 1'],
-                                                                                                            percent_columns={'% Mês 2/Flex Mês 1'},
-                                                                                                            percent_input='percent',
-                                                                                                        )
-                                                                                                        html_table = criar_tabela_html_com_barra(df_display, linha_resumo_formatado_type06)
-                                                                                                        st.markdown(html_table, unsafe_allow_html=True)
-                                                                                            else:
-                                                                                                # Sem dados filtrados: não exibir nada
-                                                                                                pass
-                                                                                    else:
+                                                                                _t06_vals = sorted(df_type05['Type 06'].dropna().unique())
+                                                                                if not _t06_vals:
+                                                                                    st.caption("Sem dados de Type 06 para este Type 05.")
+                                                                                _algum_t06_renderizado = False
+                                                                                for type06 in _t06_vals:
+                                                                                    try:
+                                                                                        df_type06 = df_type05[df_type05['Type 06'] == type06].copy()
+                                                                                        if _render_type06_block(df_type06, type06, tipo_visualizacao, fator_conversao, expanded=expandir_waterfall_real):
+                                                                                            _algum_t06_renderizado = True
+                                                                                    except Exception as _e_t06:
+                                                                                        st.error(f"Erro ao renderizar Type 06 '{type06}': {_e_t06}")
+                                                                                        import traceback
+                                                                                        st.code(traceback.format_exc())
+                                                                                if not _algum_t06_renderizado:
+                                                                                    st.caption("Nenhum Type 06 com valores significativos.")
+                                                                        else:
                                                                                         # Sem Type 06: exibir Type 05 diretamente
                                                                                         colunas_id = ['Type 05'] if 'Type 05' in df_type05.columns else []
                                                                                         colunas_numericas = [col for col in df_type05.columns 
@@ -3613,11 +3787,7 @@ else:
                                                                             
                                                                             # Só exibir se houver dados após filtrar
                                                                             if len(df_type06_filtrado) > 0:
-                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                st.markdown("---")  # Separador visual
-                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                with st.container():
+                                                                                with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_real):
                                                                                     # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3709,11 +3879,24 @@ else:
                                 st.info("ℹ️ A tabela requer dados com coluna 'Custo' (Fixo/Variável).")
                         else:
                             st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a tabela.")
+                    _tabela_real_renderizada = True
                 
                 except Exception as e:
                     st.error(f"❌ Erro ao gerar gráfico waterfall: {str(e)}")
                     import traceback
                     st.code(traceback.format_exc())
+                    # ═══ Fallback: renderizar tabela mesmo com erro no gráfico ═══
+                    if not _tabela_real_renderizada:
+                        try:
+                            _dt_src = None
+                            if 'df_analise_tabela' in locals() and df_analise_tabela is not None and not df_analise_tabela.empty:
+                                _dt_src = df_analise_tabela
+                            elif 'df_analise' in locals() and df_analise is not None and not df_analise.empty:
+                                _dt_src = df_analise
+                            if _dt_src is not None and 'mes_inicial' in locals() and 'mes_final' in locals():
+                                _render_fallback_table_tc(_dt_src, locals())
+                        except Exception:
+                            pass
         
         # TAB BUDGET
         if active_tab_waterfall_tc == "💰 Budget":
@@ -3734,6 +3917,7 @@ else:
                 help="Todos = visão consolidada sem quebra por modelo. Selecione um modelo para análise específica.",
             )
 
+            _tabela_budget_renderizada = False
             # Carregar dados de budget e aplicar mesmos filtros
             try:
                 # Carregar dados de budget
@@ -4017,12 +4201,16 @@ else:
                                     else:
                                         default_value_budget = min(total_cats_budget, 20)
                                         
+                                    # Sanitizar session_state do slider para o novo range (evita exceção quando dimensão muda)
+                                    _slider_key_bud = "max_cats_budget_waterfall_tc"
+                                    if _slider_key_bud in st.session_state:
+                                        st.session_state[_slider_key_bud] = max(1, min(int(st.session_state[_slider_key_bud]), total_cats_budget))
                                     max_cats_budget = st.slider(
                                         f"Quantidade de categorias a exibir (Top N) (Total: {total_cats_budget}):",
                                         min_value=1,
                                         max_value=total_cats_budget,
                                         value=default_value_budget,
-                                        key="max_cats_budget_waterfall_tc"
+                                        key=_slider_key_bud
                                     )
                                     
                                 # Selecionar top N categorias
@@ -4185,7 +4373,7 @@ else:
                                         df_budget_filtrado = df_budget_filtrado[df_budget_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
                                     if df_budget_vol_filtrado is not None and 'Oficina' in df_budget_vol_filtrado.columns:
                                         df_budget_vol_filtrado = df_budget_vol_filtrado[df_budget_vol_filtrado['Oficina'].astype(str).isin(oficina_inline_sel_tc_bud)].copy()
-                                    
+                                
                                 # Filtrar budget pelos períodos selecionados
                                 # IMPORTANTE: Sempre filtrar pelos períodos selecionados para garantir que o BUD seja calculado corretamente
                                 if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
@@ -4301,20 +4489,11 @@ else:
                                 else:
                                     # df_budget_periodo já foi criado acima, apenas usar
                                         
-                                    # Agrupar dados reais e budget usando a mesma estrutura de chaves.
-                                    colunas_agrupamento = [chosen_dim_budget]
-                                    if 'Custo' != chosen_dim_budget and (
-                                        'Custo' in df_real_periodo.columns or 'Custo' in df_budget_periodo.columns
-                                    ):
-                                        colunas_agrupamento.append('Custo')
-                                    for _extra_col in ['Type 05', 'Type 06']:
-                                        if _extra_col != chosen_dim_budget and (
-                                            _extra_col in df_real_periodo.columns or _extra_col in df_budget_periodo.columns
-                                        ):
-                                            colunas_agrupamento.insert(0, _extra_col)
-
-                                    # Remover duplicidades preservando a ordem.
-                                    colunas_agrupamento = list(dict.fromkeys(colunas_agrupamento))
+                                    # Agrupar dados reais e budget com hierarquia FIXA (como no Real).
+                                    colunas_agrupamento = ['Custo']
+                                    for _extra_col in ['Type 05', 'Type 06', 'Account']:
+                                        if _extra_col in df_real_periodo.columns or (_extra_col in df_budget_periodo.columns if df_budget_periodo is not None else False):
+                                            colunas_agrupamento.append(_extra_col)
 
                                     df_real_periodo = df_real_periodo.copy()
                                     df_budget_periodo = df_budget_periodo.copy() if df_budget_periodo is not None else pd.DataFrame()
@@ -4495,13 +4674,11 @@ else:
                                         colunas_remover.append('_Flex_Bud_CustoFP_Custo')
                                     df_tabela_flex = df_tabela_flex.drop(columns=[col for col in colunas_remover if col in df_tabela_flex.columns])
                                         
-                                    # Agrupar mantendo estrutura hierárquica pela dimensão selecionada
-                                    colunas_agrupamento_tabela = [chosen_dim_budget]
-                                    if 'Custo' != chosen_dim_budget and 'Custo' in df_tabela_flex.columns:
-                                        colunas_agrupamento_tabela.append('Custo')
-                                    for _extra_col in ['Type 05', 'Type 06']:
-                                        if _extra_col != chosen_dim_budget and _extra_col in df_tabela_flex.columns:
-                                            colunas_agrupamento_tabela.insert(0, _extra_col)
+                                    # Agrupar mantendo estrutura hierárquica FIXA (como no Real)
+                                    colunas_agrupamento_tabela = ['Custo']
+                                    for _extra_col in ['Type 05', 'Type 06', 'Account']:
+                                        if _extra_col in df_tabela_flex.columns:
+                                            colunas_agrupamento_tabela.append(_extra_col)
                                         
                                     # Não precisa agrupar por Período, pois já está filtrado
                                     df_tabela_total_agrupado = df_tabela_flex.groupby(colunas_agrupamento_tabela).agg({
@@ -4899,42 +5076,62 @@ else:
                                                     df_budget_periodo_panel = df_budget_filtrado_painel_base[
                                                         df_budget_filtrado_painel_base['Período'].astype(str).str.strip().isin(meses_panel) &
                                                         df_budget_filtrado_painel_base['Ano'].isin(anos_panel)
-                                                    ].copy()
+                                                    ]
                                                 else:
-                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base
                                             else:
                                                 if 'Período' in df_budget_filtrado_painel_base.columns:
                                                     df_budget_periodo_panel = df_budget_filtrado_painel_base[
                                                         df_budget_filtrado_painel_base['Período'].astype(str).str.strip().isin(periodos_str_panel)
-                                                    ].copy()
+                                                    ]
                                                 else:
-                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
+                                                    df_budget_periodo_panel = df_budget_filtrado_painel_base
                                         else:
-                                            df_budget_periodo_panel = df_budget_filtrado_painel_base.copy()
+                                            df_budget_periodo_panel = df_budget_filtrado_painel_base
                                         
                                         # Real para painel (mesma lógica)
                                         if 'df_analise_budget_painel_base' in locals() and df_analise_budget_painel_base is not None:
                                             if col_mes_budget == 'Período_Ano' and 'Período_Ano' in df_analise_budget_painel_base.columns:
                                                 df_real_periodo_panel = df_analise_budget_painel_base[
                                                     df_analise_budget_painel_base['Período_Ano'].astype(str).isin([str(p) for p in periodos_selecionados_budget])
-                                                ].copy()
+                                                ]
                                             elif 'Período' in df_analise_budget_painel_base.columns:
                                                 df_real_periodo_panel = df_analise_budget_painel_base[
                                                     df_analise_budget_painel_base['Período'].astype(str).isin([str(p) for p in periodos_selecionados_budget])
-                                                ].copy()
+                                                ]
                                             else:
-                                                df_real_periodo_panel = df_analise_budget_painel_base.copy()
+                                                df_real_periodo_panel = df_analise_budget_painel_base
                                         else:
-                                            df_real_periodo_panel = df_real_periodo.copy()
+                                            df_real_periodo_panel = df_real_periodo
                                         
-                                        # Volumes para painel
-                                        df_budget_vol_periodo_panel = df_budget_vol_filtrado_painel_base.copy() if df_budget_vol_filtrado_painel_base is not None else None
-                                        df_volume_real_filtrado_panel = df_volume_real_filtrado.copy() if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
+                                        # Volumes para painel — FILTRAR por período (mesma lógica do gráfico de cima)
+                                        df_budget_vol_periodo_panel = None
+                                        if df_budget_vol_filtrado_painel_base is not None and not df_budget_vol_filtrado_painel_base.empty and 'Volume' in df_budget_vol_filtrado_painel_base.columns:
+                                            _bvpb = df_budget_vol_filtrado_painel_base
+                                            if periodos_selecionados_budget and len(periodos_selecionados_budget) > 0:
+                                                _per_str = [str(p) for p in periodos_selecionados_budget]
+                                                if col_mes_budget == 'Período_Ano':
+                                                    if 'Período_Ano' not in _bvpb.columns and 'Período' in _bvpb.columns and 'Ano' in _bvpb.columns:
+                                                        _bvpb = _bvpb.copy()
+                                                        _bvpb['Período_Ano'] = _bvpb['Período'].astype(str).str.strip() + ' ' + _bvpb['Ano'].astype(str).str.strip()
+                                                    if 'Período_Ano' in _bvpb.columns:
+                                                        df_budget_vol_periodo_panel = _bvpb[_bvpb['Período_Ano'].astype(str).isin(_per_str)]
+                                                if df_budget_vol_periodo_panel is None:
+                                                    if 'Período' in _bvpb.columns:
+                                                        if any(' ' in str(p) and str(p).split(' ')[-1].isdigit() for p in periodos_selecionados_budget) and 'Ano' in _bvpb.columns:
+                                                            _bvpb2 = _bvpb.copy()
+                                                            _bvpb2['_PA_tmp'] = _bvpb2['Período'].astype(str).str.strip() + ' ' + _bvpb2['Ano'].astype(str).str.strip()
+                                                            df_budget_vol_periodo_panel = _bvpb2[_bvpb2['_PA_tmp'].astype(str).isin(_per_str)].drop(columns=['_PA_tmp'])
+                                                        else:
+                                                            df_budget_vol_periodo_panel = _bvpb[_bvpb['Período'].astype(str).isin(_per_str)]
+                                            if df_budget_vol_periodo_panel is None:
+                                                df_budget_vol_periodo_panel = _bvpb
+                                        df_volume_real_filtrado_panel = df_volume_real_filtrado if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
                                     else:
-                                        df_budget_periodo_panel = df_budget_periodo.copy() if df_budget_periodo is not None else pd.DataFrame()
-                                        df_real_periodo_panel = df_real_periodo.copy()
-                                        df_budget_vol_periodo_panel = df_budget_vol_periodo.copy() if 'df_budget_vol_periodo' in locals() and df_budget_vol_periodo is not None else None
-                                        df_volume_real_filtrado_panel = df_volume_real_filtrado.copy() if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
+                                        df_budget_periodo_panel = df_budget_periodo if df_budget_periodo is not None else pd.DataFrame()
+                                        df_real_periodo_panel = df_real_periodo
+                                        df_budget_vol_periodo_panel = df_budget_vol_periodo if 'df_budget_vol_periodo' in locals() and df_budget_vol_periodo is not None else None
+                                        df_volume_real_filtrado_panel = df_volume_real_filtrado if 'df_volume_real_filtrado' in locals() and df_volume_real_filtrado is not None else None
                                     
                                     _render_post_waterfall_panel_tc(
                                         ano_label=ano_selecionado,
@@ -5103,25 +5300,26 @@ else:
                                     
                                     # Linha de separação e espaçamento entre Resumo Geral e controles da tabela
                                     st.markdown("---")
-                                    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+                                    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
                                         
                                     # Criar estrutura hierárquica com expanders
-                                    if modo_tabela == "Fixo/Variável":
-                                        expand_state_key = 'waterfall_tc_budget_expand_all'
-                                        if expand_state_key not in st.session_state:
+                                    expand_state_key = 'waterfall_tc_budget_expand_all'
+                                    if expand_state_key not in st.session_state:
+                                        st.session_state[expand_state_key] = False
+
+                                    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                    with ctrl_col1:
+                                        if st.button('Expandir tudo', key='waterfall_tc_budget_expandir'):
+                                            st.session_state[expand_state_key] = True
+                                    with ctrl_col2:
+                                        if st.button('Recolher tudo', key='waterfall_tc_budget_recolher'):
                                             st.session_state[expand_state_key] = False
+                                    with ctrl_col3:
+                                        st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
 
-                                        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
-                                        with ctrl_col1:
-                                            if st.button('Expandir tudo', key='waterfall_tc_budget_expandir'):
-                                                st.session_state[expand_state_key] = True
-                                        with ctrl_col2:
-                                            if st.button('Recolher tudo', key='waterfall_tc_budget_recolher'):
-                                                st.session_state[expand_state_key] = False
-                                        with ctrl_col3:
-                                            st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+                                    expandir_waterfall_budget = st.session_state[expand_state_key]
 
-                                        expandir_waterfall_budget = st.session_state[expand_state_key]
+                                    if modo_tabela == "Fixo/Variável":
                                         for custo in ['Fixo', 'Variável']:
                                             df_custo = df_tabela_total_agrupado[df_tabela_total_agrupado['Custo'] == custo].copy()
                                                 
@@ -5185,11 +5383,7 @@ else:
                                                                                                     df_type06_filtrado = df_type06.copy()
                                                                                                     
                                                                                                 if len(df_type06_filtrado) > 0:
-                                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                    st.markdown("---")  # Separador visual
-                                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                    with st.container():
+                                                                                                    with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_budget):
                                                                                                         # Criar tabela
                                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -5264,8 +5458,8 @@ else:
                                             colunas_agrupamento_total.append('Type 05')
                                         if 'Type 06' in df_tabela_total_agrupado.columns:
                                             colunas_agrupamento_total.append('Type 06')
-                                        if chosen_dim_budget in df_tabela_total_agrupado.columns and chosen_dim_budget not in colunas_agrupamento_total:
-                                            colunas_agrupamento_total.append(chosen_dim_budget)
+                                        if 'Account' in df_tabela_total_agrupado.columns:
+                                            colunas_agrupamento_total.append('Account')
                                             
                                         if len(colunas_agrupamento_total) > 0:
                                             df_total_agrupado = df_tabela_total_agrupado.groupby(colunas_agrupamento_total).agg({
@@ -5348,11 +5542,7 @@ else:
                                                                                 
                                                                             # Só exibir se houver dados após filtrar
                                                                             if len(df_type06_filtrado) > 0:
-                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                st.markdown("---")  # Separador visual
-                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                with st.container():
+                                                                                with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_budget):
                                                                                         # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -5427,11 +5617,22 @@ else:
                         ano_selecionado,
                         "waterfall_budget_sapiens",
                     )
+                _tabela_budget_renderizada = True
                             
             except Exception as e:
                 st.error(f"❌ Erro ao gerar tabela Budget: {str(e)}")
                 import traceback
                 st.code(traceback.format_exc())
+                # ═══ Fallback: renderizar tabela mesmo com erro no gráfico ═══
+                if not _tabela_budget_renderizada:
+                    try:
+                        _dt_src = None
+                        if 'df_analise_budget' in locals() and df_analise_budget is not None and not df_analise_budget.empty:
+                            _dt_src = df_analise_budget
+                        if _dt_src is not None and 'mes_inicial' in locals() and 'mes_final' in locals():
+                            _render_fallback_table_tc(_dt_src, locals())
+                    except Exception:
+                        pass
 
 # Função para obter mês atual em português
 # Rodapé

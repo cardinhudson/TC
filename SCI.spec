@@ -22,18 +22,21 @@
 #   - O EXE gerado roda em qualquer PC Windows sem dependências externas
 #   - console=True para diagnóstico (erros ficam visíveis na primeira execução)
 #
-# CORREÇÕES (Fev/2026):
+# CORREÇÕES (Mar/2026):
 #   - Todos os caminhos são RELATIVOS (sem hardcode de C:\Users\...)
 #   - collect_all('streamlit') + copy_metadata('streamlit') — FIX CRÍTICO
 #   - Inclui processamento_dados*.py e todos os scripts da raiz como data
 #   - hookspath=['.'] para usar hook-streamlit.py local
 #   - Inclui st_aggrid/streamlit-aggrid para tabelas interativas
 #   - Inclui alertas, TC Copilot e dependências dinâmicas recentes (Graph/PPT/PDF)
+#   - Removido pywebview/pythonnet (pesado) — app abre direto no navegador
+#   - console=False para UX limpa (sem janela de console)
 # =============================================================================
 
 from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
+    collect_dynamic_libs,
     collect_submodules,
     copy_metadata,
 )
@@ -50,13 +53,6 @@ SPEC_DIR = os.path.dirname(os.path.abspath(SPECPATH)) if 'SPECPATH' in dir() els
 # Coleta COMPLETA do Streamlit: dados + binários + submodules + METADADOS
 # ---------------------------------------------------------------------------
 st_datas, st_binaries, st_hiddenimports = collect_all("streamlit")
-
-# Coleta pywebview para app desktop (opcional — fallback para navegador)
-wv_datas, wv_binaries, wv_hiddenimports = [], [], []
-try:
-    wv_datas, wv_binaries, wv_hiddenimports = collect_all("webview")
-except Exception:
-    pass
 
 # Coleta st_aggrid para tabelas interativas
 ag_datas, ag_binaries, ag_hiddenimports = [], [], []
@@ -96,7 +92,8 @@ for pkg in ["streamlit", "altair", "pandas", "pyarrow", "packaging",
             "watchdog", "click", "tornado", "openpyxl",
             "plotly", "numpy", "streamlit-aggrid", "python-pptx",
             "reportlab", "msal", "openai", "PyPDF2", "python-dotenv",
-            "certifi", "truststore"]:
+            "certifi", "truststore", "jsonschema", "jsonschema-specifications",
+            "referencing"]:
     try:
         extra_metadata += copy_metadata(pkg)
     except Exception:
@@ -104,6 +101,47 @@ for pkg in ["streamlit", "altair", "pandas", "pyarrow", "packaging",
 
 # Altair: dados estáticos (schemas JSON)
 altair_datas = collect_data_files("altair")
+altair_schema_datas = []
+try:
+    altair_schema_datas = collect_data_files("altair.vegalite.v5.schema")
+except Exception:
+    pass
+
+jsonschema_spec_datas = []
+try:
+    jsonschema_spec_datas = collect_data_files("jsonschema_specifications")
+except Exception:
+    pass
+
+# Bibliotecas nativas e recursos críticos de pacotes numéricos
+numpy_datas, numpy_binaries = [], []
+try:
+    numpy_datas = collect_data_files("numpy")
+    numpy_binaries = collect_dynamic_libs("numpy")
+except Exception:
+    pass
+
+pandas_datas, pandas_binaries = [], []
+try:
+    pandas_datas = collect_data_files("pandas")
+    pandas_binaries = collect_dynamic_libs("pandas")
+except Exception:
+    pass
+
+pyarrow_datas, pyarrow_binaries = [], []
+pyarrow_hiddenimports = []
+try:
+    pyarrow_datas = collect_data_files("pyarrow")
+    pyarrow_binaries = collect_dynamic_libs("pyarrow")
+    pyarrow_hiddenimports = collect_submodules("pyarrow")
+except Exception:
+    pass
+
+scipy_binaries = []
+try:
+    scipy_binaries = collect_dynamic_libs("scipy")
+except Exception:
+    pass
 
 # Plotly: templates e dados estáticos
 plotly_datas = []
@@ -132,22 +170,23 @@ hidden = (
     "streamlit.runtime.state",
     "streamlit.elements",
     "streamlit.logger",
-    # pywebview para app desktop (fallback para browser se ausente)
-    "webview",
-    "webview.platforms",
-    "webview.platforms.winforms",
-    "webview.platforms.edgechromium",
-    "clr_loader",
-    "pythonnet",
-    "bottle",
-    "proxy_tools",
     # Pacotes de dados
     "altair",
     "altair.vegalite.v5",
+    "altair.vegalite.v5.schema",
+    "jsonschema",
+    "jsonschema.protocols",
+    "jsonschema.validators",
+    "jsonschema_specifications",
+    "referencing",
     "openpyxl",
     "openpyxl.styles.stylesheet",
     "pyarrow",
     "pyarrow.pandas_compat",
+    "pyarrow.parquet",
+    "pyarrow._parquet",
+    "pyarrow.lib",
+    "pyarrow._arrow_lib",
     "pandas",
     "numpy",
     "plotly",
@@ -237,6 +276,8 @@ hidden = (
     "ctypes",
 ])
 
+hidden += pyarrow_hiddenimports
+
 # ---------------------------------------------------------------------------
 # Dados bundled — tudo em _internal/ (self-contained)
 # TODOS os caminhos são RELATIVOS (portável para qualquer PC)
@@ -283,10 +324,14 @@ datas = [
 # Juntar com dados coletados automaticamente
 datas += st_datas
 datas += altair_datas
+datas += altair_schema_datas
+datas += jsonschema_spec_datas
 datas += plotly_datas
+datas += numpy_datas
+datas += pandas_datas
+datas += pyarrow_datas
 datas += extra_metadata
 datas += ag_datas
-datas += wv_datas
 datas += pptx_datas
 datas += reportlab_datas
 datas += msal_datas
@@ -296,7 +341,10 @@ datas += openai_datas
 all_binaries = (
     st_binaries
     + ag_binaries
-    + wv_binaries
+    + numpy_binaries
+    + pandas_binaries
+    + pyarrow_binaries
+    + scipy_binaries
     + pptx_binaries
     + reportlab_binaries
     + msal_binaries
@@ -311,7 +359,7 @@ a = Analysis(
     pathex=["."],
     binaries=all_binaries,
     datas=datas,
-    hiddenimports=hidden + wv_hiddenimports,
+    hiddenimports=hidden,
     hookspath=["."],       # usa hook-streamlit.py local
     hooksconfig={},
     runtime_hooks=[],
@@ -326,6 +374,12 @@ a = Analysis(
         "mypy",
         "pip",
         "setuptools",
+        # pywebview e dependencias .NET (pesado, app abre no navegador)
+        "webview",
+        "clr_loader",
+        "pythonnet",
+        "bottle",
+        "proxy_tools",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -345,8 +399,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,            # console=True para diagnóstico — erros ficam visíveis
-                             # Trocar para False após confirmar que funciona
+    console=False,           # Sem janela de console — app abre direto no navegador
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

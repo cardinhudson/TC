@@ -26,6 +26,7 @@ from tc_core.finance.currency_db import (
     inicializar_banco_taxas,
     salvar_taxas_banco,
 )
+from tc_core.utils.portabilidade import get_data_root
 from tc_principal.shared import descobrir_anos_tc_principal, obter_timestamp_parquets
 
 
@@ -37,10 +38,28 @@ def injetar_css_global():
     """Injeta CSS global padronizado (idêntico ao TC Ext)."""
     st.markdown("""
     <style>
+    /* ── Layout mais compacto ── */
+    .block-container {
+        padding-top: 4rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.35rem !important;
+    }
+
     /* ── Títulos reduzidos 20% ── */
     h1 { font-size: 2.4rem !important; }
     h2 { font-size: 1.6rem !important; }
     h3 { font-size: 1.28rem !important; }
+    h1, h2, h3 {
+        margin-bottom: 0.2rem !important;
+    }
+
+    /* ── Separadores menos intrusivos ── */
+    hr {
+        margin: 0.18rem 0 !important;
+        opacity: 0.22 !important;
+    }
 
     /* ── Botões compactos ── */
     .stButton > button {
@@ -97,7 +116,7 @@ def injetar_css_global():
     div[data-testid="stMetric"] {
         border: 1px solid rgba(250, 250, 250, 0.1);
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 10px 14px;
     }
     div[data-testid="stMetric"] label {
         font-size: 0.75rem !important;
@@ -153,6 +172,110 @@ def render_kpi_spacer() -> None:
     st.markdown("<div class='tc-kpi-spacer'></div>", unsafe_allow_html=True)
 
 
+def render_summary_cards(
+    summary_values: dict,
+    ordered_columns: list[str],
+    *,
+    currency_columns=None,
+    ratio_columns=None,
+    percent_columns=None,
+    number_prefix: str = "",
+    number_suffix: str = "",
+    decimals: int = 2,
+    percent_input: str = "decimal",
+) -> None:
+    """Renderiza cards compactos de resumo acima das tabelas.
+
+    `ratio_columns` usa `formatar_ratio_com_barra` assumindo valores decimais.
+    `percent_columns` usa a mesma barra, aceitando valores em decimal ou em percentual.
+    """
+    if not ordered_columns:
+        return
+
+    currency_columns = set(currency_columns or [])
+    ratio_columns = set(ratio_columns or [])
+    percent_columns = set(percent_columns or [])
+    cols = st.columns(len(ordered_columns), gap="small")
+
+    for idx, col_name in enumerate(ordered_columns):
+        raw_value = summary_values.get(col_name)
+        formatted_value = "-"
+
+        if col_name in ratio_columns:
+            ratio_value = raw_value if isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value) else 0
+            formatted_value = formatar_ratio_com_barra(float(ratio_value))
+        elif col_name in percent_columns:
+            percent_value = raw_value if isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value) else 0
+            percent_value = float(percent_value)
+            if percent_input == "percent":
+                percent_value = percent_value / 100
+            formatted_value = formatar_ratio_com_barra(percent_value)
+        elif isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value):
+            formatted_number = f"{float(raw_value):,.{decimals}f}"
+            if col_name in currency_columns:
+                formatted_value = f"{number_prefix}{formatted_number}{number_suffix}"
+            else:
+                formatted_value = formatted_number
+
+        with cols[idx]:
+            st.markdown(
+                f"""
+                <div class="tc-kpi-card">
+                    <div class="tc-kpi-label">{col_name}</div>
+                    <div class="tc-kpi-value">{formatted_value}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_inline_summary_metrics(
+    summary_values: dict,
+    ordered_columns: list[str],
+    *,
+    currency_columns=None,
+    ratio_columns=None,
+    percent_columns=None,
+    number_prefix: str = "",
+    number_suffix: str = "",
+    decimals: int = 2,
+    percent_input: str = "decimal",
+) -> None:
+    """Renderiza métricas compactas em uma única linha por coluna."""
+    if not ordered_columns:
+        return
+
+    currency_columns = set(currency_columns or [])
+    ratio_columns = set(ratio_columns or [])
+    percent_columns = set(percent_columns or [])
+    cols = st.columns(len(ordered_columns), gap="small")
+
+    for idx, col_name in enumerate(ordered_columns):
+        raw_value = summary_values.get(col_name)
+        formatted_value = "-"
+
+        if col_name in ratio_columns:
+            ratio_value = 0 if pd.isna(raw_value) else float(raw_value)
+            formatted_value = formatar_ratio_com_barra(ratio_value)
+        elif col_name in percent_columns:
+            percent_value = 0 if pd.isna(raw_value) else float(raw_value)
+            if percent_input == "percent":
+                percent_value = percent_value / 100
+            formatted_value = formatar_ratio_com_barra(percent_value)
+        elif isinstance(raw_value, (int, float, np.number)) and not pd.isna(raw_value):
+            formatted_number = f"{float(raw_value):,.{decimals}f}"
+            if col_name in currency_columns:
+                formatted_value = f"{number_prefix}{formatted_number}{number_suffix}"
+            else:
+                formatted_value = formatted_number
+
+        with cols[idx]:
+            st.markdown(
+                f"<div style='font-size:0.78rem; line-height:1.2; white-space:nowrap;'><strong>{col_name}:</strong> {formatted_value}</div>",
+                unsafe_allow_html=True,
+            )
+
+
 # ═══════════════════════════════════════════════════════════════
 #  HEADER / BANNER
 # ═══════════════════════════════════════════════════════════════
@@ -181,7 +304,7 @@ def render_header():
     # Data atualização parquets (formato igual TC Ext)
     data_atualizacao = None
     try:
-        pasta_dados = os.path.join(_ROOT, "dados", "TC_Principal")
+        pasta_dados = os.path.join(str(get_data_root()), "TC_Principal")
         if os.path.exists(pasta_dados):
             anos = [d for d in os.listdir(pasta_dados)
                     if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]

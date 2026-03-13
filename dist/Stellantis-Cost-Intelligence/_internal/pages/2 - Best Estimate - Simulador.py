@@ -8,12 +8,17 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from versionamento import obter_versao_atual
+from tc_core.utils.portabilidade import get_base_path, get_data_root
+from tc_principal.ui_components import (
+    injetar_css_global,
+    render_header,
+    render_sidebar_global,
+)
 
 # Diretório raiz do projeto
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
+_TC_EXT_ROOT = os.path.join(_DATA_ROOT, "TC_Ext")
 
 # st_aggrid é opcional: se a página for executada fora do .venv, pode não existir.
 # Mantemos a funcionalidade principal (forecast) mesmo sem AgGrid.
@@ -47,14 +52,6 @@ def _fix_mojibake_cols(df: pd.DataFrame) -> pd.DataFrame:
         df['Custo'] = df['Custo'].replace({f"Vari\ufffdvel": "Variável"})
     return df
 
-# Configuração da página
-st.set_page_config(
-    page_title="Best Estimate - Simulador",
-    page_icon="🔮",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Função para obter mês atual em português
 def obter_mes_atual():
     """Retorna o mês atual em português"""
@@ -71,10 +68,10 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet"),
+            os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_historico.parquet"),
         ]
         
         data_atualizacao = None
@@ -103,305 +100,14 @@ def obter_data_atualizacao_dados():
     except Exception:
         return None
 
-# Cabeçalho compacto com data de atualização
-mes_atual = obter_mes_atual()
-ano_atual = datetime.now().year
-versao_atual = obter_versao_atual()
-data_atualizacao = obter_data_atualizacao_dados()
-
-# Montar textos do cabeçalho
-texto_esquerda = f"📚 Stellantis Cost Intelligence (SCI) | Versão {versao_atual} | {mes_atual} {ano_atual} | Desenvolvido por Hudson Cardin e Lauro Paiva"
-texto_direita = f"📅 Dados atualizados em: {data_atualizacao}" if data_atualizacao else ""
-
-st.markdown(f"""
-<div style='display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 8px 10px; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid #5a4fcf; margin-bottom: 10px;'>
-    <div style='flex: 1;'>{texto_esquerda}</div>
-    <div style='flex: 0 0 auto; margin-left: 20px;'>{texto_direita}</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# CSS para customização
-st.markdown("""
-    <style>
-        .block-container {
-            padding-top: 0.8rem !important;
-            padding-bottom: 0.4rem !important;
-        }
-        hr {
-            display: none !important;
-            margin: 0 !important;
-        }
-        /* Reduzir títulos em 20% e evitar quebra de linha */
-        h1 {
-            /* Reduzido de 3rem para 2.4rem (20%) */
-            font-size: 2.4rem !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            margin-bottom: 0.2rem !important;
-        }
-        h2 {
-            /* Reduzido de 2rem para 1.6rem (20%) */
-            font-size: 1.6rem !important;
-            margin-bottom: 0.2rem !important;
-        }
-        h3 {
-            /* Reduzido de 1.6rem para 1.28rem (20%) */
-            font-size: 1.28rem !important;
-            margin-bottom: 0.2rem !important;
-        }
-        /* Estilos para botões: reduzir fonte e aproximar */
-        .stButton > button {
-            font-size: 0.85rem !important;
-            padding: 0.4rem 1rem !important;
-            margin-bottom: 0.3rem !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+injetar_css_global()
+render_header()
 
 # Título
 st.title("🔮 Best Estimate - Simulador")
 st.subheader("Análise preditiva e previsões de custos e volumes")
 
 st.markdown("---")
-
-# ========== CABEÇALHO PADRONIZADO (Moeda, Bandeiras, Taxas, Tipo, Fator) ==========
-import sqlite3
-from datetime import datetime
-
-# Inicializar estado se não existir
-if 'moeda_selecionada' not in st.session_state:
-    st.session_state.moeda_selecionada = "🇧🇷 R$"
-if 'moeda_selecionada_radio' not in st.session_state:
-    st.session_state.moeda_selecionada_radio = "🇧🇷 R$"
-
-# URLs das bandeiras
-bandeira_brasil_url = "https://flagcdn.com/br.svg"
-bandeira_eua_url = "https://flagcdn.com/us.svg"
-bandeira_europa_url = "https://flagcdn.com/eu.svg"
-
-# Funções de banco de dados SQLite
-def inicializar_banco_taxas():
-    """Cria o banco de dados e tabela para taxas de câmbio se não existir"""
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS taxas_cambio (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            moeda TEXT NOT NULL,
-            taxa_para_brl REAL NOT NULL,
-            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(moeda)
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-def carregar_taxas_banco():
-    """Carrega as taxas de câmbio do banco de dados SQLite"""
-    inicializar_banco_taxas()
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT moeda, taxa_para_brl FROM taxas_cambio ORDER BY data_atualizacao DESC')
-    resultados = cursor.fetchall()
-    conn.close()
-    
-    taxas = {}
-    for moeda, taxa in resultados:
-        taxas[moeda] = taxa
-    
-    # Valores padrão se não houver dados
-    if 'USD' not in taxas:
-        taxas['USD'] = 5.00
-    if 'EUR' not in taxas:
-        taxas['EUR'] = 5.50
-    
-    return taxas
-
-def salvar_taxas_banco(taxas):
-    """Salva as taxas de câmbio no banco de dados SQLite"""
-    inicializar_banco_taxas()
-    caminho_db = os.path.join(os.getcwd(), 'taxas_cambio.db')
-    conn = sqlite3.connect(caminho_db)
-    cursor = conn.cursor()
-    
-    for moeda, taxa in taxas.items():
-        cursor.execute('''
-            INSERT OR REPLACE INTO taxas_cambio (moeda, taxa_para_brl, data_atualizacao)
-            VALUES (?, ?, ?)
-        ''', (moeda, float(taxa), datetime.now()))
-    
-    conn.commit()
-    conn.close()
-
-# Seleção de moeda com bandeiras ao lado
-col_moeda1, col_moeda2 = st.columns([3, 1])
-
-with col_moeda1:
-    st.markdown("💱 **Moeda:**", unsafe_allow_html=True)
-    opcoes_moeda = ["🇧🇷 R$", "🇺🇸 $", "🇪🇺 €"]
-    
-    moeda_atual_para_index = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-    index_moeda = opcoes_moeda.index(moeda_atual_para_index) if moeda_atual_para_index in opcoes_moeda else 0
-    
-    def atualizar_moeda():
-        if 'moeda_selecionada_radio' in st.session_state:
-            st.session_state.moeda_selecionada = st.session_state.moeda_selecionada_radio
-    
-    moeda_selecionada = st.radio(
-        "",
-        opcoes_moeda,
-        index=index_moeda,
-        horizontal=True,
-        help="Selecione a moeda para exibição nos gráficos",
-        key="moeda_selecionada_radio_forecast",
-        label_visibility="visible",
-        on_change=atualizar_moeda
-    )
-    
-    if st.session_state.moeda_selecionada != moeda_selecionada:
-        st.session_state.moeda_selecionada = moeda_selecionada
-
-# Obter moeda atual do session_state
-moeda_atual = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-flag_selecionada_brl = moeda_atual == '🇧🇷 R$'
-flag_selecionada_usd = moeda_atual == '🇺🇸 $'
-flag_selecionada_eur = moeda_atual == '🇪🇺 €'
-
-with col_moeda2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 0.5rem; justify-content: center;">
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_brl else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_brl else 'transparent'};">
-            <img src="{bandeira_brasil_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_brl else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_brl else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_usd else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_usd else 'transparent'};">
-            <img src="{bandeira_eua_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_usd else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_usd else 'none'};">
-        </div>
-        <div style="padding: 4px; border-radius: 6px; border: 2px solid {'#ff4b4b' if flag_selecionada_eur else 'transparent'}; background-color: {'rgba(255, 75, 75, 0.1)' if flag_selecionada_eur else 'transparent'};">
-            <img src="{bandeira_europa_url}" style="width: 40px; height: 28px; border-radius: 3px; border: {'2px solid #ff4b4b' if flag_selecionada_eur else '1px solid rgba(255, 255, 255, 0.2)'}; object-fit: cover; display: block; box-shadow: {'0 0 6px rgba(255, 75, 75, 0.6)' if flag_selecionada_eur else 'none'};">
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Carregar taxas do banco de dados
-try:
-    taxas_cambio_banco = carregar_taxas_banco()
-except Exception as e:
-    taxas_cambio_banco = {"USD": 5.00, "EUR": 5.50}
-
-# Taxas de conversão
-taxa_usd_para_brl_padrao = taxas_cambio_banco.get("USD", 5.00)
-taxa_eur_para_brl_padrao = taxas_cambio_banco.get("EUR", 5.50)
-
-# Seção de Taxas de Câmbio
-st.markdown("📝 **Entrada de Taxas:**", unsafe_allow_html=True)
-
-col_taxa1, col_taxa2 = st.columns([1.1, 1.1], gap="small")
-
-with col_taxa1:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇺🇸 1 $ (USD) = R$</p>', unsafe_allow_html=True)
-    taxa_usd_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_usd_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Dólar Americano em Reais Brasileiros",
-        key="taxa_usd_para_brl_input_forecast",
-        label_visibility="collapsed"
-    )
-
-with col_taxa2:
-    st.markdown('<p style="font-size: 0.7rem; margin-bottom: 0.2rem;">🇪🇺 1 € (EUR) = R$</p>', unsafe_allow_html=True)
-    taxa_eur_para_brl = st.number_input(
-        "",
-        min_value=0.01,
-        max_value=100.0,
-        value=float(taxa_eur_para_brl_padrao),
-        step=0.01,
-        format="%.2f",
-        help="Digite quanto vale 1 Euro em Reais Brasileiros",
-        key="taxa_eur_para_brl_input_forecast",
-        label_visibility="collapsed"
-    )
-
-# Calcular taxas inversas
-taxa_brl_para_usd = 1.0 / taxa_usd_para_brl if taxa_usd_para_brl > 0 else 0.20
-taxa_brl_para_eur = 1.0 / taxa_eur_para_brl if taxa_eur_para_brl > 0 else 0.18
-
-# Salvar taxas quando alteradas
-taxa_usd_atual_key = "taxa_usd_atual_salva_forecast"
-taxa_eur_atual_key = "taxa_eur_atual_salva_forecast"
-
-taxa_usd_mudou = (taxa_usd_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_usd_atual_key) != taxa_usd_para_brl)
-taxa_eur_mudou = (taxa_eur_atual_key not in st.session_state or 
-                  st.session_state.get(taxa_eur_atual_key) != taxa_eur_para_brl)
-
-if taxa_usd_mudou or taxa_eur_mudou:
-    novas_taxas = {
-        "USD": float(taxa_usd_para_brl),
-        "EUR": float(taxa_eur_para_brl)
-    }
-    try:
-        salvar_taxas_banco(novas_taxas)
-        st.session_state[taxa_usd_atual_key] = taxa_usd_para_brl
-        st.session_state[taxa_eur_atual_key] = taxa_eur_para_brl
-    except Exception as e:
-        st.error(f"❌ Erro ao salvar taxas: {e}")
-
-# Armazenar taxas em dicionário
-taxas_cambio = {
-    "BRL": 1.0,
-    "USD": taxa_brl_para_usd,
-    "EUR": taxa_brl_para_eur
-}
-
-# Seletores Tipo e Fator
-col_tipo, col_fator = st.columns([1.3, 1.2], gap="small")
-
-with col_tipo:
-    tipo_visualizacao = st.radio(
-        "📊 **Tipo:**",
-        ["Custo Total", "CPU (Custo por Unidade)"],
-        index=0,
-        horizontal=True,
-        key="tipo_visualizacao_top_forecast"
-    )
-
-with col_fator:
-    if tipo_visualizacao == "Custo Total":
-        fator_conversao = st.radio(
-            "🔢 **Fator:**",
-            ["Nenhum", "K (milhares)", "M (Milhões)"],
-            index=1,
-            horizontal=True,
-            help="Aplica divisão aos valores para simplificar visualização. Não afeta cálculos.",
-            key="fator_conversao_top_forecast"
-        )
-    else:
-        fator_conversao = None
-
-# Obter código e símbolo da moeda
-moeda_selecionada = st.session_state.get('moeda_selecionada', '🇧🇷 R$')
-if moeda_selecionada == "🇧🇷 R$":
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
-elif moeda_selecionada == "🇺🇸 $":
-    moeda_codigo = "USD"
-    moeda_simbolo = "$"
-elif moeda_selecionada == "🇪🇺 €":
-    moeda_codigo = "EUR"
-    moeda_simbolo = "€"
-else:
-    moeda_codigo = "BRL"
-    moeda_simbolo = "R$"
 
 # Funções de conversão de moeda
 def converter_moeda(valor, moeda_destino, taxas):
@@ -437,7 +143,7 @@ st.markdown("---")
 # Função auxiliar para listar anos disponíveis
 def listar_anos_disponiveis():
     """Lista todos os anos disponíveis nas pastas de dados"""
-    pasta_dados = "dados"
+    pasta_dados = _TC_EXT_ROOT
     anos_disponiveis = []
     
     if os.path.exists(pasta_dados):
@@ -460,28 +166,28 @@ def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     """
     # 1. PRIORIDADE: Tentar pasta Forecast primeiro
     if nome_arquivo == "df_final.parquet":
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet")
         if os.path.exists(caminho_forecast):
             return caminho_forecast
     
     if nome_arquivo == "df_vol.parquet":
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         if os.path.exists(caminho_forecast_vol):
             return caminho_forecast_vol
     
     # Se ano específico foi selecionado, buscar na pasta do ano
     if ano_selecionado is not None and ano_selecionado != "Todos":
-        caminho_ano = os.path.join(_ROOT, "dados", "TC_Ext", str(ano_selecionado), nome_arquivo)
+        caminho_ano = os.path.join(_TC_EXT_ROOT, str(ano_selecionado), nome_arquivo)
         if os.path.exists(caminho_ano):
             return caminho_ano
     
     # 2. Tentar histórico consolidado (fallback)
-    caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
+    caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
     if os.path.exists(caminho_historico):
         return caminho_historico
     
     # 3. Tentar pasta do ano mais recente
-    pasta_dados = os.path.join(_ROOT, "dados", "TC_Ext")
+    pasta_dados = _TC_EXT_ROOT
     if os.path.exists(pasta_dados):
         anos_disponiveis = []
         for item in os.listdir(pasta_dados):
@@ -502,38 +208,21 @@ def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     return None
 
 # Filtros na sidebar - ANTES de carregar dados
-st.sidebar.markdown("---")
-st.sidebar.markdown("**📅 Seleção de Ano**")
-
-# Listar anos disponíveis
-anos_disponiveis = listar_anos_disponiveis()
-opcoes_ano = ["Todos"] + [str(ano) for ano in anos_disponiveis]
-
-# Inicializar session_state para manter valores dos filtros
-if 'filtro_ano_simulador' not in st.session_state:
-    # Padrão: ano mais recente (primeiro da lista decrescente)
-    st.session_state.filtro_ano_simulador = str(anos_disponiveis[0]) if anos_disponiveis else "Todos"
-
-# Seletor de ano
-ano_selecionado = st.sidebar.selectbox(
-    "Selecione o ano:",
-    options=opcoes_ano,
-    index=opcoes_ano.index(st.session_state.filtro_ano_simulador) if st.session_state.filtro_ano_simulador in opcoes_ano else 0,
-    help="Selecione 'Todos' para ver dados consolidados ou um ano específico",
-    key="filtro_ano_simulador_selectbox"
+cfg = render_sidebar_global(
+    'be_ext_sim',
+    incluir_todos=True,
+    descobrir_anos_fn=listar_anos_disponiveis,
 )
-# Atualizar session_state
-st.session_state.filtro_ano_simulador = ano_selecionado
 
-st.sidebar.markdown("---")
+ano_selecionado = cfg['ano']
+moeda_codigo = cfg['moeda']
+moeda_simbolo = cfg['simbolo']
+taxas_cambio = cfg['taxas']
+tipo_visualizacao = cfg['tipo']
+fator_conversao = cfg['fator']
 
-# Seletor de tipo de visualização (mesma lógica do TC_Ext)
-st.sidebar.markdown("**📊 Tipo de Visualização**")
-tipo_visualizacao = st.sidebar.radio(
-    "Selecione o tipo:",
-    ["Custo Total", "CPU (Custo por Unidade)"],
-    index=0
-)
+st.session_state.filtro_ano_simulador = str(ano_selecionado) if ano_selecionado != 'Todos' else 'Todos'
+
 st.sidebar.markdown("---")
 
 # Botão para limpar cache (útil após mudanças no código)
@@ -594,7 +283,7 @@ def load_data(ano_selecionado_param):
         # O forecast_completo.parquet pode estar desatualizado com sensibilidade/inflação antigas
         # O forecast deve ser sempre recalculado em tempo real com as configurações atuais
         # Usar apenas dados históricos como base
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet")
         # REMOVIDO: Não carregar diretamente do forecast_completo.parquet
         # O forecast será calculado em tempo real com as configurações atuais
         
@@ -639,7 +328,7 @@ def load_volume_data(ano_selecionado_param):
     """Carrega os dados de volume do arquivo parquet - PRIORIZA PASTA FORECAST"""
     try:
         # PRIORIDADE 1: Tentar carregar de df_vol_historico.parquet na pasta Forecast
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_forecast_vol):
             df = pd.read_parquet(caminho_forecast_vol)
@@ -678,7 +367,7 @@ def load_volume_historico_data():
     """Carrega os dados de volume histórico da pasta Forecast"""
     try:
         # PRIORIDADE: Buscar arquivo na pasta Forecast
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_forecast):
             df = pd.read_parquet(caminho_forecast)
@@ -687,7 +376,7 @@ def load_volume_historico_data():
             return df
         
         # FALLBACK: Tentar histórico consolidado
-        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+        caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet")
         if os.path.exists(caminho_historico):
             df = pd.read_parquet(caminho_historico)
             # 🔧 OTIMIZAÇÃO: Usar função cacheada para otimização de tipos
@@ -1481,7 +1170,7 @@ def ordenar_periodo_para_select(periodo_str):
 # Criar lista de períodos disponíveis com ano (baseado nos dados do historico_consolidado)
 # IMPORTANTE: Carregar períodos diretamente do arquivo historico_consolidado para obter TODOS os períodos disponíveis
 periodos_disponiveis = []
-caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet")
 
 if os.path.exists(caminho_historico):
     try:
@@ -2279,7 +1968,7 @@ Estes custos seguirão as mesmas regras de rateio por veículo que os dados norm
 # Funções auxiliares para gerenciar custos específicos
 def carregar_custos_especificos():
     """Carrega custos específicos do arquivo parquet"""
-    caminho_custos = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "custos_especificos.parquet")
+    caminho_custos = os.path.join(_TC_EXT_ROOT, "Forecast", "custos_especificos.parquet")
     if os.path.exists(caminho_custos):
         try:
             df = pd.read_parquet(caminho_custos)
@@ -2291,7 +1980,7 @@ def carregar_custos_especificos():
 
 def salvar_custos_especificos(df):
     """Salva custos específicos no arquivo parquet"""
-    pasta_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast")
+    pasta_forecast = os.path.join(_TC_EXT_ROOT, "Forecast")
     os.makedirs(pasta_forecast, exist_ok=True)
     caminho_custos = os.path.join(pasta_forecast, "custos_especificos.parquet")
     try:
@@ -2306,12 +1995,12 @@ def carregar_rateio_arquivo(ano_selecionado=None):
     try:
         # Determinar caminho do arquivo
         if ano_selecionado and ano_selecionado != "Todos":
-            caminho_rateio = os.path.join(_ROOT, "dados", str(ano_selecionado), "Reporting fluxo anexo.xlsx")
+            caminho_rateio = os.path.join(_TC_EXT_ROOT, str(ano_selecionado), "Reporting fluxo anexo.xlsx")
         else:
             # Tentar encontrar em qualquer pasta de ano
             caminho_rateio = None
             for ano in [2024, 2025]:
-                caminho_teste = os.path.join(_ROOT, "dados", str(ano), "Reporting fluxo anexo.xlsx")
+                caminho_teste = os.path.join(_TC_EXT_ROOT, str(ano), "Reporting fluxo anexo.xlsx")
                 if os.path.exists(caminho_teste):
                     caminho_rateio = caminho_teste
                     break
@@ -2447,7 +2136,7 @@ def buscar_info_por_account(account, df_base=None):
     # Se não encontrou Custo nos dados, tentar buscar do arquivo Base conso
     if 'Custo' not in info:
         try:
-            caminho_sapiens = os.path.join(_ROOT, "dados", "Dados SAPIENS.xlsx")
+            caminho_sapiens = os.path.join(_TC_EXT_ROOT, "Dados SAPIENS.xlsx")
             if os.path.exists(caminho_sapiens):
                 df_base_conso = pd.read_excel(caminho_sapiens, sheet_name='Base conso')
                 if 'Type 04' in df_base_conso.columns:
@@ -3202,8 +2891,8 @@ if aplicar_config_forecast:
     # 🔧 OTIMIZAÇÃO: Sincronizar Excel/Parquet apenas quando aplicar configurações
     # Ambos os arquivos são gerados juntos neste momento
     try:
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
-        caminho_forecast_vol_excel = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.xlsx")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol_excel = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.xlsx")
         
         # Se o Excel existe e é mais recente que o Parquet, sincronizar
         if os.path.exists(caminho_forecast_vol_excel):
@@ -3646,14 +3335,14 @@ if aplicar_config_forecast:
                 st.stop()
             
             # Carregar dados completos da base original
-            caminho_base_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+            caminho_base_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet")
             df_base_completo = None
             
             if os.path.exists(caminho_base_original):
                 df_base_completo = pd.read_parquet(caminho_base_original)
             else:
                 # Se não existir, tentar carregar do arquivo forecast
-                caminho_forecast_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico_forecast.parquet")
+                caminho_forecast_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico_forecast.parquet")
                 if os.path.exists(caminho_forecast_original):
                     df_base_completo = pd.read_parquet(caminho_forecast_original)
                     # Converter valores antigos 'Forecast' para 'BE' (compatibilidade com arquivos antigos)
@@ -4576,8 +4265,8 @@ if aplicar_config_forecast:
             budget_has_veiculo = False
             try:
                 if oficinas_ref_budget_set:
-                    caminho_budget_custo = os.path.join(_ROOT, 'dados', 'historico_consolidado', 'BUD', 'df_final_historico_BUD.parquet')
-                    caminho_budget_vol = os.path.join(_ROOT, 'dados', 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
+                    caminho_budget_custo = os.path.join(_TC_EXT_ROOT, 'historico_consolidado', 'BUD', 'df_final_historico_BUD.parquet')
+                    caminho_budget_vol = os.path.join(_TC_EXT_ROOT, 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
                     if os.path.exists(caminho_budget_custo) and os.path.exists(caminho_budget_vol):
                         df_budget_custo = pd.read_parquet(caminho_budget_custo)
                         df_budget_vol = pd.read_parquet(caminho_budget_vol)
@@ -5674,7 +5363,7 @@ if aplicar_config_forecast:
             # ============================================================
             try:
                 # Carregar arquivo completo de volume histórico (antes dos filtros)
-                caminho_vol_historico_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+                caminho_vol_historico_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet")
                 
                 if os.path.exists(caminho_vol_historico_original):
                     # Carregar arquivo completo de volume histórico

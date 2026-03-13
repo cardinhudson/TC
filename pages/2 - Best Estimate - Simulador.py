@@ -8,6 +8,7 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from versionamento import obter_versao_atual
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_principal.ui_components import (
     injetar_css_global,
     render_header,
@@ -15,10 +16,9 @@ from tc_principal.ui_components import (
 )
 
 # Diretório raiz do projeto
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
+_TC_EXT_ROOT = os.path.join(_DATA_ROOT, "TC_Ext")
 
 # st_aggrid é opcional: se a página for executada fora do .venv, pode não existir.
 # Mantemos a funcionalidade principal (forecast) mesmo sem AgGrid.
@@ -68,10 +68,10 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet"),
+            os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_historico.parquet"),
         ]
         
         data_atualizacao = None
@@ -143,7 +143,7 @@ st.markdown("---")
 # Função auxiliar para listar anos disponíveis
 def listar_anos_disponiveis():
     """Lista todos os anos disponíveis nas pastas de dados"""
-    pasta_dados = "dados"
+    pasta_dados = _TC_EXT_ROOT
     anos_disponiveis = []
     
     if os.path.exists(pasta_dados):
@@ -166,28 +166,28 @@ def encontrar_arquivo_parquet(nome_arquivo, ano_selecionado=None):
     """
     # 1. PRIORIDADE: Tentar pasta Forecast primeiro
     if nome_arquivo == "df_final.parquet":
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet")
         if os.path.exists(caminho_forecast):
             return caminho_forecast
     
     if nome_arquivo == "df_vol.parquet":
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         if os.path.exists(caminho_forecast_vol):
             return caminho_forecast_vol
     
     # Se ano específico foi selecionado, buscar na pasta do ano
     if ano_selecionado is not None and ano_selecionado != "Todos":
-        caminho_ano = os.path.join(_ROOT, "dados", "TC_Ext", str(ano_selecionado), nome_arquivo)
+        caminho_ano = os.path.join(_TC_EXT_ROOT, str(ano_selecionado), nome_arquivo)
         if os.path.exists(caminho_ano):
             return caminho_ano
     
     # 2. Tentar histórico consolidado (fallback)
-    caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
+    caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", nome_arquivo.replace(".parquet", "_historico.parquet"))
     if os.path.exists(caminho_historico):
         return caminho_historico
     
     # 3. Tentar pasta do ano mais recente
-    pasta_dados = os.path.join(_ROOT, "dados", "TC_Ext")
+    pasta_dados = _TC_EXT_ROOT
     if os.path.exists(pasta_dados):
         anos_disponiveis = []
         for item in os.listdir(pasta_dados):
@@ -283,7 +283,7 @@ def load_data(ano_selecionado_param):
         # O forecast_completo.parquet pode estar desatualizado com sensibilidade/inflação antigas
         # O forecast deve ser sempre recalculado em tempo real com as configurações atuais
         # Usar apenas dados históricos como base
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "forecast_completo.parquet")
         # REMOVIDO: Não carregar diretamente do forecast_completo.parquet
         # O forecast será calculado em tempo real com as configurações atuais
         
@@ -328,7 +328,7 @@ def load_volume_data(ano_selecionado_param):
     """Carrega os dados de volume do arquivo parquet - PRIORIZA PASTA FORECAST"""
     try:
         # PRIORIDADE 1: Tentar carregar de df_vol_historico.parquet na pasta Forecast
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_forecast_vol):
             df = pd.read_parquet(caminho_forecast_vol)
@@ -367,7 +367,7 @@ def load_volume_historico_data():
     """Carrega os dados de volume histórico da pasta Forecast"""
     try:
         # PRIORIDADE: Buscar arquivo na pasta Forecast
-        caminho_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
+        caminho_forecast = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
         
         if os.path.exists(caminho_forecast):
             df = pd.read_parquet(caminho_forecast)
@@ -376,7 +376,7 @@ def load_volume_historico_data():
             return df
         
         # FALLBACK: Tentar histórico consolidado
-        caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+        caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet")
         if os.path.exists(caminho_historico):
             df = pd.read_parquet(caminho_historico)
             # 🔧 OTIMIZAÇÃO: Usar função cacheada para otimização de tipos
@@ -1170,7 +1170,7 @@ def ordenar_periodo_para_select(periodo_str):
 # Criar lista de períodos disponíveis com ano (baseado nos dados do historico_consolidado)
 # IMPORTANTE: Carregar períodos diretamente do arquivo historico_consolidado para obter TODOS os períodos disponíveis
 periodos_disponiveis = []
-caminho_historico = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet")
 
 if os.path.exists(caminho_historico):
     try:
@@ -1968,7 +1968,7 @@ Estes custos seguirão as mesmas regras de rateio por veículo que os dados norm
 # Funções auxiliares para gerenciar custos específicos
 def carregar_custos_especificos():
     """Carrega custos específicos do arquivo parquet"""
-    caminho_custos = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "custos_especificos.parquet")
+    caminho_custos = os.path.join(_TC_EXT_ROOT, "Forecast", "custos_especificos.parquet")
     if os.path.exists(caminho_custos):
         try:
             df = pd.read_parquet(caminho_custos)
@@ -1980,7 +1980,7 @@ def carregar_custos_especificos():
 
 def salvar_custos_especificos(df):
     """Salva custos específicos no arquivo parquet"""
-    pasta_forecast = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast")
+    pasta_forecast = os.path.join(_TC_EXT_ROOT, "Forecast")
     os.makedirs(pasta_forecast, exist_ok=True)
     caminho_custos = os.path.join(pasta_forecast, "custos_especificos.parquet")
     try:
@@ -1995,12 +1995,12 @@ def carregar_rateio_arquivo(ano_selecionado=None):
     try:
         # Determinar caminho do arquivo
         if ano_selecionado and ano_selecionado != "Todos":
-            caminho_rateio = os.path.join(_ROOT, "dados", str(ano_selecionado), "Reporting fluxo anexo.xlsx")
+            caminho_rateio = os.path.join(_TC_EXT_ROOT, str(ano_selecionado), "Reporting fluxo anexo.xlsx")
         else:
             # Tentar encontrar em qualquer pasta de ano
             caminho_rateio = None
             for ano in [2024, 2025]:
-                caminho_teste = os.path.join(_ROOT, "dados", str(ano), "Reporting fluxo anexo.xlsx")
+                caminho_teste = os.path.join(_TC_EXT_ROOT, str(ano), "Reporting fluxo anexo.xlsx")
                 if os.path.exists(caminho_teste):
                     caminho_rateio = caminho_teste
                     break
@@ -2136,7 +2136,7 @@ def buscar_info_por_account(account, df_base=None):
     # Se não encontrou Custo nos dados, tentar buscar do arquivo Base conso
     if 'Custo' not in info:
         try:
-            caminho_sapiens = os.path.join(_ROOT, "dados", "Dados SAPIENS.xlsx")
+            caminho_sapiens = os.path.join(_TC_EXT_ROOT, "Dados SAPIENS.xlsx")
             if os.path.exists(caminho_sapiens):
                 df_base_conso = pd.read_excel(caminho_sapiens, sheet_name='Base conso')
                 if 'Type 04' in df_base_conso.columns:
@@ -2891,8 +2891,8 @@ if aplicar_config_forecast:
     # 🔧 OTIMIZAÇÃO: Sincronizar Excel/Parquet apenas quando aplicar configurações
     # Ambos os arquivos são gerados juntos neste momento
     try:
-        caminho_forecast_vol = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.parquet")
-        caminho_forecast_vol_excel = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "df_vol_historico.xlsx")
+        caminho_forecast_vol = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.parquet")
+        caminho_forecast_vol_excel = os.path.join(_TC_EXT_ROOT, "Forecast", "df_vol_historico.xlsx")
         
         # Se o Excel existe e é mais recente que o Parquet, sincronizar
         if os.path.exists(caminho_forecast_vol_excel):
@@ -3335,14 +3335,14 @@ if aplicar_config_forecast:
                 st.stop()
             
             # Carregar dados completos da base original
-            caminho_base_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet")
+            caminho_base_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico.parquet")
             df_base_completo = None
             
             if os.path.exists(caminho_base_original):
                 df_base_completo = pd.read_parquet(caminho_base_original)
             else:
                 # Se não existir, tentar carregar do arquivo forecast
-                caminho_forecast_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico_forecast.parquet")
+                caminho_forecast_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_final_historico_forecast.parquet")
                 if os.path.exists(caminho_forecast_original):
                     df_base_completo = pd.read_parquet(caminho_forecast_original)
                     # Converter valores antigos 'Forecast' para 'BE' (compatibilidade com arquivos antigos)
@@ -4265,8 +4265,8 @@ if aplicar_config_forecast:
             budget_has_veiculo = False
             try:
                 if oficinas_ref_budget_set:
-                    caminho_budget_custo = os.path.join(_ROOT, 'dados', 'historico_consolidado', 'BUD', 'df_final_historico_BUD.parquet')
-                    caminho_budget_vol = os.path.join(_ROOT, 'dados', 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
+                    caminho_budget_custo = os.path.join(_TC_EXT_ROOT, 'historico_consolidado', 'BUD', 'df_final_historico_BUD.parquet')
+                    caminho_budget_vol = os.path.join(_TC_EXT_ROOT, 'historico_consolidado', 'BUD', 'df_vol_historico_BUD.parquet')
                     if os.path.exists(caminho_budget_custo) and os.path.exists(caminho_budget_vol):
                         df_budget_custo = pd.read_parquet(caminho_budget_custo)
                         df_budget_vol = pd.read_parquet(caminho_budget_vol)
@@ -5363,7 +5363,7 @@ if aplicar_config_forecast:
             # ============================================================
             try:
                 # Carregar arquivo completo de volume histórico (antes dos filtros)
-                caminho_vol_historico_original = os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet")
+                caminho_vol_historico_original = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_vol_historico.parquet")
                 
                 if os.path.exists(caminho_vol_historico_original):
                     # Carregar arquivo completo de volume histórico

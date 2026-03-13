@@ -52,4 +52,10 @@ hiddenimports += [
     "PIL",
     "pyarrow",
     "pyarrow.pandas_compat",
+    "pyarrow.parquet",
+    "pyarrow._parquet",
+    "pyarrow.lib",
+    "pyarrow._arrow_lib",
 ]
+
+hiddenimports += collect_submodules("pyarrow", on_error="ignore")

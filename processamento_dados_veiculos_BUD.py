@@ -29,10 +29,10 @@ from typing import Dict, Optional
 import re
 import unicodedata
 
-if hasattr(_sys, '_MEIPASS'):
-    _ROOT = _sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.abspath(__file__))
+from tc_core.utils.portabilidade import get_base_path, get_data_root
+
+_ROOT = str(get_base_path())
+_DATA_ROOT = os.path.join(str(get_data_root()), 'TC_Principal')
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -179,9 +179,9 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     if ano is None:
         ano = datetime.now().year
 
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
-    pasta_saida = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD')
-    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado', 'BUD')
+    pasta_ano = os.path.join(_DATA_ROOT, str(ano))
+    pasta_saida = os.path.join(_DATA_ROOT, str(ano), 'BUD')
+    pasta_historico = os.path.join(_DATA_ROOT, 'historico_consolidado', 'BUD')
 
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)

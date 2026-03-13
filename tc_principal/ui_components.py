@@ -26,6 +26,7 @@ from tc_core.finance.currency_db import (
     inicializar_banco_taxas,
     salvar_taxas_banco,
 )
+from tc_core.utils.portabilidade import get_data_root
 from tc_principal.shared import descobrir_anos_tc_principal, obter_timestamp_parquets
 
 
@@ -39,7 +40,7 @@ def injetar_css_global():
     <style>
     /* ── Layout mais compacto ── */
     .block-container {
-        padding-top: 0.65rem !important;
+        padding-top: 4rem !important;
         padding-bottom: 0.25rem !important;
     }
     div[data-testid="stVerticalBlock"] {
@@ -303,7 +304,7 @@ def render_header():
     # Data atualização parquets (formato igual TC Ext)
     data_atualizacao = None
     try:
-        pasta_dados = os.path.join(_ROOT, "dados", "TC_Principal")
+        pasta_dados = os.path.join(str(get_data_root()), "TC_Principal")
         if os.path.exists(pasta_dados):
             anos = [d for d in os.listdir(pasta_dados)
                     if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]

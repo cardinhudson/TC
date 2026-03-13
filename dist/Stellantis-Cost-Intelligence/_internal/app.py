@@ -1,9 +1,13 @@
 ﻿import base64
+import os
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import streamlit as st
 
-from tc_core.utils.portabilidade import get_base_path
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_principal.pages.home_tc import render as render_home_tc
 
 from tc_principal.pages.extracao_dados_tc import (
@@ -13,6 +17,69 @@ from tc_principal.pages.debug_calculos_tc import (
     render as render_debug_calculos_tc,
 )
 from tc_copilot.pages.home_copilot import render as render_copilot
+
+
+def _iter_startup_files(data_root: Path, assets_root: Path) -> list[Path]:
+    roots = [data_root, assets_root / ".streamlit"]
+    allowed_exts = {".parquet", ".json", ".toml", ".png"}
+    priority_names = {
+        "df_principal_BUD.parquet",
+        "df_principal.parquet",
+        "df_vol_veiculos_BUD.parquet",
+        "df_vol_veiculos.parquet",
+        "df_final_historico.parquet",
+        "df_vol_historico.parquet",
+        "df_final_historico_BUD.parquet",
+        "df_vol_historico_BUD.parquet",
+        "SCI_faixa.png",
+        "config.toml",
+    }
+    files: list[Path] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if path.is_file() and path.suffix.lower() in allowed_exts:
+                files.append(path)
+    files.sort(key=lambda item: (item.name not in priority_names, len(str(item))))
+    return files
+
+
+def _warm_file(path: Path) -> None:
+    size = path.stat().st_size
+    bytes_to_read = size if size <= 5_000_000 else min(size, 1_000_000)
+    with path.open("rb") as handle:
+        handle.read(bytes_to_read)
+
+
+@st.cache_resource(show_spinner=False)
+def start_background_warmup(data_root_str: str, assets_root_str: str):
+    status = {
+        "done": False,
+        "files": 0,
+        "errors": 0,
+        "started_at": time.time(),
+        "finished_at": None,
+    }
+
+    def worker() -> None:
+        data_root = Path(data_root_str)
+        assets_root = Path(assets_root_str)
+        files = _iter_startup_files(data_root, assets_root)
+        status["files"] = len(files)
+        max_workers = min(8, max(2, os.cpu_count() or 4))
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                for path in files:
+                    executor.submit(_warm_file, path)
+        except Exception:
+            status["errors"] += 1
+        finally:
+            status["done"] = True
+            status["finished_at"] = time.time()
+
+    threading.Thread(target=worker, name="sci-startup-warmup", daemon=True).start()
+    return status
 
 
 st.set_page_config(
@@ -29,6 +96,7 @@ target_url = f"{base_url}/" if base_url else "/"
 host = st.get_option("server.address") or "localhost"
 port = st.get_option("server.port") or 8501
 browser_url = f"http://{host}:{port}{target_url}"
+warmup_status = start_background_warmup(str(get_data_root()), str(get_base_path()))
 
 # Faixa no sidebar (proporção original, sem cortes)
 faixa_path = get_base_path() / "SCI_faixa.png"
@@ -75,6 +143,9 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+if not warmup_status.get("done"):
+    st.sidebar.caption("Aquecimento inicial de arquivos em andamento para acelerar a primeira navegação.")
 
 # Título principal (restaurado)
 st.markdown(

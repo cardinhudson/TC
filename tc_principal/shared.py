@@ -14,6 +14,7 @@ import unicodedata
 from datetime import datetime
 
 from tc_core.constants import ORDEM_MESES  # noqa: F401 — re-exportado para as páginas
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 
 # ═══════════════════════════════════════════════════════════════
 #  RAIZ DO PROJETO (compatível com EXE PyInstaller)
@@ -22,6 +23,9 @@ if hasattr(_sys, '_MEIPASS'):
     _ROOT = _sys._MEIPASS          # EXE → aponta para _internal/
 else:
     _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # dev
+
+_BASE_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 
 # ═══════════════════════════════════════════════════════════════
 #  CONSTANTES
@@ -71,20 +75,20 @@ def extrair_redis(df: pd.DataFrame) -> float:
 def _pasta_tc_principal(ano):
     """Caminho da pasta de dados TC Veículos Budget para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/BUD/
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD')
 
 
 def _pasta_tc_principal_real(ano):
     """Caminho da pasta de dados TC Veículos Real para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/ (raiz, sem subfolder)
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano))
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def descobrir_anos_tc_principal():
     """Descobre anos que possuem dados processados em dados/TC_Principal/{ano}/BUD/."""
     anos = []
-    pasta_base = os.path.join(_ROOT, 'dados', 'TC_Principal')
+    pasta_base = os.path.join(_DATA_ROOT, 'TC_Principal')
     if os.path.exists(pasta_base):
         for d in sorted(os.listdir(pasta_base), reverse=True):
             pasta_parquets = os.path.join(pasta_base, d, 'BUD')
@@ -313,7 +317,7 @@ def load_dea_dedicado_real(ano: int = 2026):
     Carrega arquivo de D&A dedicado por veículo do processamento Real.
     Usado para fazer rateio idêntico ao processamento Real.
     """
-    caminho = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
+    caminho = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
@@ -501,11 +505,11 @@ def _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo='Custo FP'):
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_historico():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado')
 
 
 def _pasta_historico_bud():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado', 'BUD')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado', 'BUD')
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
@@ -573,7 +577,7 @@ def load_historico_custo_fp_veiculo_bud():
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_forecast_tc():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'Forecast')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'Forecast')
 
 
 @st.cache_data(ttl=3600, show_spinner=True)

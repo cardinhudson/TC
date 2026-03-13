@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from versionamento import obter_versao_atual
 from tc_principal.ui_components import render_sidebar_global
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 
 # Configurar Plotly para usar o engine JSON padrão em vez de orjson (evita problemas de importação circular)
 # Isso força o Plotly a usar o json padrão do Python em vez de orjson
@@ -42,10 +43,8 @@ def plotly_chart_safe(fig, use_container_width=True):
             raise
 
 # Adicionar o diretório raiz ao path para importar funções do app.py
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -62,14 +61,6 @@ from tc_exports import (
     listar_anos_disponiveis, encontrar_arquivo_parquet,
     carregar_taxas_banco, salvar_taxas_banco, inicializar_banco_taxas,
     reordenar_colunas_padrao
-)
-
-# Configuração da página
-st.set_page_config(
-    page_title="Waterfall Analysis - TC",
-    page_icon="🌊",
-    layout="wide",
-    initial_sidebar_state="expanded"
 )
 
 # Função para obter mês atual em português
@@ -90,9 +81,9 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
             os.path.join("./dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
@@ -168,7 +159,7 @@ st.markdown(f"""
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 0.8rem !important;
+            padding-top: 4rem !important;
             padding-bottom: 0.4rem !important;
         }
         hr {
@@ -589,17 +580,56 @@ def _build_office_waterfall_figure_ext(
     return fig
 
 
-def _prepare_minimal_detail_table_ext(df_detail_source, df_pairs, key_prefix):
+def _render_fallback_table_ext(df_src, ctx):
+    """Renderiza tabela simplificada quando o gráfico waterfall falha."""
+    try:
+        modo = ctx.get('modo_comparacao', 'Mês a Mês')
+        col_mes = ctx.get('col_mes_waterfall')
+        mi = ctx.get('mes_inicial')
+        mf = ctx.get('mes_final')
+        if modo == "Mês a Mês":
+            if col_mes and col_mes in df_src.columns:
+                d1 = df_src[df_src[col_mes].astype(str) == str(mi)]
+                d2 = df_src[df_src[col_mes].astype(str) == str(mf)]
+            elif 'Período' in df_src.columns:
+                d1 = df_src[df_src['Período'].astype(str) == str(mi)]
+                d2 = df_src[df_src['Período'].astype(str) == str(mf)]
+            else:
+                return
+        elif modo == "Ano a Ano":
+            ai = ctx.get('ano_inicial')
+            af = ctx.get('ano_final')
+            d1 = df_src[df_src['Ano'].astype(str) == str(ai)]
+            d2 = df_src[df_src['Ano'].astype(str) == str(af)]
+        else:
+            return
+        if d1.empty or d2.empty:
+            return
+        col_val = 'Total' if 'Total' in d1.columns else ('Custo FP' if 'Custo FP' in d1.columns else None)
+        if col_val is None:
+            return
+        cols_grp = [c for c in ['Custo', 'Type 05', 'Type 06', 'Account'] if c in d1.columns]
+        if not cols_grp:
+            return
+        g1 = d1.groupby(cols_grp)[col_val].sum().reset_index().rename(columns={col_val: 'Mês 1'})
+        g2 = d2.groupby(cols_grp)[col_val].sum().reset_index().rename(columns={col_val: 'Mês 2'})
+        df_tab = g2.merge(g1, on=cols_grp, how='outer').fillna(0)
+        df_tab['Delta'] = df_tab['Mês 2'] - df_tab['Mês 1']
+        df_tab = df_tab[df_tab[['Mês 1', 'Mês 2']].abs().sum(axis=1) > 0.01]
+        if df_tab.empty:
+            return
+        st.markdown("---")
+        st.subheader("📊 Análise Flex por Categoria (fallback)")
+        st.info("ℹ️ O gráfico waterfall encontrou um erro. Exibindo dados resumidos.")
+        st.dataframe(df_tab.sort_values('Delta', ascending=True), use_container_width=True, hide_index=True)
+    except Exception:
+        pass
+
+
+def _prepare_minimal_detail_table_ext(df_detail_source, df_pairs, key_prefix, oficinas_sel=None, accounts_sel=None):
     df_detail = _filter_detail_by_pairs_ext(df_detail_source, df_pairs)
     if df_detail is None or df_detail.empty:
         return pd.DataFrame(), None
-
-    col_oficina, col_account = st.columns(2)
-    oficinas_opcoes = sorted(df_detail['Oficina'].dropna().astype(str).unique().tolist()) if 'Oficina' in df_detail.columns else []
-    accounts_opcoes = sorted(df_detail['Account'].dropna().astype(str).unique().tolist()) if 'Account' in df_detail.columns else []
-
-    oficinas_sel = col_oficina.multiselect('Oficina', oficinas_opcoes, key=f'{key_prefix}_office_filter') if oficinas_opcoes else []
-    accounts_sel = col_account.multiselect('Account', accounts_opcoes, key=f'{key_prefix}_account_filter') if accounts_opcoes else []
 
     if oficinas_sel and 'Oficina' in df_detail.columns:
         df_detail = df_detail[df_detail['Oficina'].astype(str).isin(oficinas_sel)].copy()
@@ -705,6 +735,67 @@ def _render_post_waterfall_panel_ext(
     key_prefix,
     flex_delta_override=None,
 ):
+    # --- Filtros Type 05 / Type 06 / Oficina / Account (filtram gráfico por oficina e Detalhe Sapiens) ---
+    _src = pd.concat([df_m1, df_m2], ignore_index=True) if (not df_m1.empty or not df_m2.empty) else pd.DataFrame()
+    col_t05_of, col_t06_of, col_ofic_f, col_acct_f = st.columns(4)
+    with col_t05_of:
+        _t05_opts = ["Todos"]
+        if not _src.empty and 'Type 05' in _src.columns:
+            _t05_opts += sorted(_src['Type 05'].dropna().astype(str).unique().tolist())
+        _t05_sel = st.multiselect("Type 05:", _t05_opts, default=["Todos"], key=f"t05_oficina_{key_prefix}")
+    with col_t06_of:
+        _t06_opts = ["Todos"]
+        if not _src.empty and 'Type 06' in _src.columns:
+            _t06_opts += sorted(_src['Type 06'].dropna().astype(str).unique().tolist())
+        _t06_sel = st.multiselect("Type 06:", _t06_opts, default=["Todos"], key=f"t06_oficina_{key_prefix}")
+    with col_ofic_f:
+        _ofic_opts = ["Todos"]
+        if not _src.empty and 'Oficina' in _src.columns:
+            _ofic_opts += sorted(_src['Oficina'].dropna().astype(str).unique().tolist())
+        _ofic_sel = st.multiselect("Oficina:", _ofic_opts, default=["Todos"], key=f"ofic_oficina_{key_prefix}")
+    with col_acct_f:
+        _acct_opts = ["Todos"]
+        if not _src.empty and 'Account' in _src.columns:
+            _acct_opts += sorted(_src['Account'].dropna().astype(str).unique().tolist())
+        _acct_sel = st.multiselect("Account:", _acct_opts, default=["Todos"], key=f"acct_oficina_{key_prefix}")
+
+    if _t05_sel and "Todos" not in _t05_sel:
+        if 'Type 05' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if 'Type 05' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if df_vol_m1 is not None and 'Type 05' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Type 05'].astype(str).isin(_t05_sel)].copy()
+        if df_vol_m2 is not None and 'Type 05' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Type 05'].astype(str).isin(_t05_sel)].copy()
+    if _t06_sel and "Todos" not in _t06_sel:
+        if 'Type 06' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if 'Type 06' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if df_vol_m1 is not None and 'Type 06' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Type 06'].astype(str).isin(_t06_sel)].copy()
+        if df_vol_m2 is not None and 'Type 06' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Type 06'].astype(str).isin(_t06_sel)].copy()
+    if _ofic_sel and "Todos" not in _ofic_sel:
+        if 'Oficina' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if 'Oficina' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if df_vol_m1 is not None and 'Oficina' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Oficina'].astype(str).isin(_ofic_sel)].copy()
+        if df_vol_m2 is not None and 'Oficina' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Oficina'].astype(str).isin(_ofic_sel)].copy()
+    if _acct_sel and "Todos" not in _acct_sel:
+        if 'Account' in df_m1.columns:
+            df_m1 = df_m1[df_m1['Account'].astype(str).isin(_acct_sel)].copy()
+        if 'Account' in df_m2.columns:
+            df_m2 = df_m2[df_m2['Account'].astype(str).isin(_acct_sel)].copy()
+        if df_vol_m1 is not None and 'Account' in df_vol_m1.columns:
+            df_vol_m1 = df_vol_m1[df_vol_m1['Account'].astype(str).isin(_acct_sel)].copy()
+        if df_vol_m2 is not None and 'Account' in df_vol_m2.columns:
+            df_vol_m2 = df_vol_m2[df_vol_m2['Account'].astype(str).isin(_acct_sel)].copy()
+
     st.markdown('#### 🧭 Ganho e Perda por Oficina')
     col_chart, col_table = st.columns([1.15, 0.85], gap='small')
 
@@ -735,7 +826,11 @@ def _render_post_waterfall_panel_ext(
     with col_table:
         st.markdown('##### 📄 Detalhe Sapiens')
         df_pairs = _build_selected_period_pairs_ext(df_m1, df_m2)
-        df_show, valor_col = _prepare_minimal_detail_table_ext(df_detail_source, df_pairs, key_prefix)
+        df_show, valor_col = _prepare_minimal_detail_table_ext(
+            df_detail_source, df_pairs, key_prefix,
+            oficinas_sel=_ofic_sel if _ofic_sel and "Todos" not in _ofic_sel else None,
+            accounts_sel=_acct_sel if _acct_sel and "Todos" not in _acct_sel else None,
+        )
         if df_show.empty:
             st.info('Nao ha linhas detalhadas para o recorte atual.')
         else:
@@ -795,7 +890,7 @@ except Exception as e:
 # ═══ Merge BE para meses sem dados Real ═══
 _be_merged = False
 try:
-    _fc_path = os.path.join(_ROOT, "dados", "TC_Ext", "Forecast", "forecast_completo.parquet")
+    _fc_path = os.path.join(_DATA_ROOT, "TC_Ext", "Forecast", "forecast_completo.parquet")
     if os.path.exists(_fc_path):
         _df_fc = pd.read_parquet(_fc_path)
         if 'Período' not in _df_fc.columns:
@@ -1371,6 +1466,7 @@ else:
             if not meses_selecionados or len(meses_selecionados) < 2 or not periodos_validos:
                 st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a análise waterfall.")
             else:
+                _tabela_real_renderizada = False
                 try:
                     # Determinar coluna de valor baseado no tipo de visualização
                     if tipo_visualizacao == "CPU (Custo por Unidade)":
@@ -1751,6 +1847,11 @@ else:
                     elif df_m1.empty or df_m2.empty:
                         st.warning("⚠️ Não há dados suficientes para os períodos selecionados.")
                     else:
+                        # ═══ Pre-inicializar variáveis usadas pelo painel/tabela (defaults seguros) ═══
+                        total_m1_all = df_m1[col_valor].sum() if not df_m1.empty and col_valor in df_m1.columns else 0
+                        total_m2_all = df_m2[col_valor].sum() if not df_m2.empty and col_valor in df_m2.columns else 0
+                        flex_volume_delta = 0
+
                         # Calcular totais por dimensão selecionada
                         # IMPORTANTE: No modo CPU, usar volumes do df_volume (não do df_m1/df_m2)
                         if tipo_visualizacao == "CPU (Custo por Unidade)" and 'Total' in df_m1.columns:
@@ -1933,6 +2034,10 @@ else:
                         else:
                             # Sem volume, usar proporção 1.0
                             proporcao_volume_cat = 1.0
+                            volume_m1_cat = 0
+                            volume_m2_cat = 0
+                            df_vol_m1_cat = pd.DataFrame()
+                            df_vol_m2_cat = pd.DataFrame()
                         
                         # Calcular Flex Mês 1 para cada categoria (mesma lógica da tabela)
                         for cat in cats_sel:
@@ -2900,6 +3005,22 @@ else:
                                         st.markdown("<br>", unsafe_allow_html=True)
                                     
                                     # Criar estrutura hierárquica
+                                    expand_state_key = 'waterfall_ext_real_expand_all'
+                                    if expand_state_key not in st.session_state:
+                                        st.session_state[expand_state_key] = False
+
+                                    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                    with ctrl_col1:
+                                        if st.button('Expandir tudo', key='waterfall_ext_real_expandir'):
+                                            st.session_state[expand_state_key] = True
+                                    with ctrl_col2:
+                                        if st.button('Recolher tudo', key='waterfall_ext_real_recolher'):
+                                            st.session_state[expand_state_key] = False
+                                    with ctrl_col3:
+                                        st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+
+                                    expandir_waterfall_ext_real = st.session_state[expand_state_key]
+
                                     if modo_tabela_flex_waterfall == "Fixo/Variável":
                                         for custo in ['Fixo', 'Variável']:
                                             df_custo = df_tabela_flex_waterfall[df_tabela_flex_waterfall['Custo'] == custo].copy()
@@ -2910,7 +3031,7 @@ else:
                                                 
                                                 # Não exibir se o total for zero
                                                 if total_custo != 0 and pd.notna(total_custo):
-                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                                    with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=expandir_waterfall_ext_real):
                                                         # Nível 2: Type 05
                                                         if 'Type 05' in df_custo.columns:
                                                             for type05 in sorted(df_custo['Type 05'].dropna().unique()):
@@ -2922,7 +3043,7 @@ else:
                                                                     
                                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
                                                                     # A filtragem de linhas zeradas já é feita dentro do loop do Type 06
-                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_ext_real):
                                                                         # Nível 3: Type 06
                                                                         if 'Type 06' in df_type05.columns:
                                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -2968,11 +3089,7 @@ else:
                                                                                             
                                                                                             # Só exibir se houver dados após filtrar
                                                                                             if len(df_type06_filtrado) > 0:
-                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                st.markdown("---")  # Separador visual
-                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                with st.container():
+                                                                                                with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_ext_real):
                                                                                                         # Criar tabela
                                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3063,11 +3180,7 @@ else:
                                                                                             
                                                                                             # Só exibir se houver dados após filtrar
                                                                                             if len(df_type06_filtrado) > 0:
-                                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                st.markdown("---")  # Separador visual
-                                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                with st.container():
+                                                                                                with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_ext_real):
                                                                                                         colunas_id = ['Type 06'] if 'Type 06' in df_type06_filtrado.columns else []
                                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
                                                                                                                             if col not in colunas_id and col not in ['Type 05', 'Account', 'Custo', 'Período']]
@@ -3268,7 +3381,7 @@ else:
                                                     total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                     
                                                     # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                    with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_ext_real):
                                                         # Nível 2: Type 06
                                                         if 'Type 06' in df_type05.columns:
                                                                 for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -3312,11 +3425,7 @@ else:
                                                                             
                                                                             # Só exibir se houver dados após filtrar
                                                                             if len(df_type06_filtrado) > 0:
-                                                                                # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                st.markdown("---")  # Separador visual
-                                                                                st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                with st.container():
+                                                                                with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_ext_real):
                                                                                     # Criar tabela
                                                                                         colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                         colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -3403,16 +3512,28 @@ else:
                                 st.info("ℹ️ A tabela requer dados com coluna 'Custo' (Fixo/Variável).")
                         else:
                             st.info("ℹ️ Selecione os períodos para comparação acima para visualizar a tabela.")
+                    _tabela_real_renderizada = True
                 
                 except Exception as e:
                     st.error(f"❌ Erro ao gerar gráfico waterfall: {str(e)}")
                     import traceback
                     st.code(traceback.format_exc())
+                    # ═══ Fallback: renderizar tabela mesmo com erro no gráfico ═══
+                    if not _tabela_real_renderizada:
+                        try:
+                            _dt_src = None
+                            if 'df_analise' in locals() and df_analise is not None and not df_analise.empty:
+                                _dt_src = df_analise
+                            if _dt_src is not None and 'mes_inicial' in locals() and 'mes_final' in locals():
+                                _render_fallback_table_ext(_dt_src, locals())
+                        except Exception:
+                            pass
             
             # TAB BUDGET
             if active_tab_waterfall == "💰 Budget":
                 st.subheader("💰 Análise Budget")
                 
+                _tabela_budget_renderizada = False
                 # Carregar dados de budget e aplicar mesmos filtros
                 try:
                     # Carregar dados de budget
@@ -4714,6 +4835,22 @@ else:
                                         st.markdown("<br>", unsafe_allow_html=True)
                                         
                                         # Criar estrutura hierárquica com expanders
+                                        expand_state_key = 'waterfall_ext_budget_expand_all'
+                                        if expand_state_key not in st.session_state:
+                                            st.session_state[expand_state_key] = False
+
+                                        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 3])
+                                        with ctrl_col1:
+                                            if st.button('Expandir tudo', key='waterfall_ext_budget_expandir'):
+                                                st.session_state[expand_state_key] = True
+                                        with ctrl_col2:
+                                            if st.button('Recolher tudo', key='waterfall_ext_budget_recolher'):
+                                                st.session_state[expand_state_key] = False
+                                        with ctrl_col3:
+                                            st.caption('Controle aplicado aos expanders desta tabela Waterfall.')
+
+                                        expandir_waterfall_ext_budget = st.session_state[expand_state_key]
+
                                         if modo_tabela == "Fixo/Variável":
                                             for custo in ['Fixo', 'Variável']:
                                                 df_custo = df_tabela_total_agrupado[df_tabela_total_agrupado['Custo'] == custo].copy()
@@ -4723,7 +4860,7 @@ else:
                                                     total_custo_formatado = f"{total_custo:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_custo:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_custo:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_custo:,.2f}")
                                                     
                                                     if total_custo != 0 and pd.notna(total_custo):
-                                                        with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=False):
+                                                        with st.expander(f"💰 {custo} - Total: {total_custo_formatado}", expanded=expandir_waterfall_ext_budget):
                                                             # Nível 2: Type 05
                                                             if 'Type 05' in df_custo.columns:
                                                                 for type05 in sorted(df_custo['Type 05'].dropna().unique()):
@@ -4734,7 +4871,7 @@ else:
                                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                                         
                                                                         # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_ext_budget):
                                                                             # Nível 3: Type 06
                                                                             if 'Type 06' in df_type05.columns:
                                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -4776,11 +4913,7 @@ else:
                                                                                                         df_type06_filtrado = df_type06.copy()
                                                                                                     
                                                                                                     if len(df_type06_filtrado) > 0:
-                                                                                                        # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                                        # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                                        st.markdown("---")  # Separador visual
-                                                                                                        st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                                        with st.container():
+                                                                                                        with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_ext_budget):
                                                                                                             # Criar tabela
                                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -4895,7 +5028,7 @@ else:
                                                         total_type05_formatado = f"{total_type05:,.2f}" if tipo_visualizacao == "CPU (Custo por Unidade)" else (f"{total_type05:,.2f} K" if fator_conversao == "K (milhares)" else f"{total_type05:,.2f} M" if fator_conversao == "M (Milhões)" else f"{total_type05:,.2f}")
                                                         
                                                         # 🔧 CORREÇÃO: Remover condição restritiva para permitir exibição mesmo com total zero
-                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=False):
+                                                        with st.expander(f"📊 Type 05: {type05} - Total: {total_type05_formatado}", expanded=expandir_waterfall_ext_budget):
                                                             # Nível 2: Type 06
                                                             if 'Type 06' in df_type05.columns:
                                                                     for type06 in sorted(df_type05['Type 06'].dropna().unique()):
@@ -4939,11 +5072,7 @@ else:
                                                                                 
                                                                                 # Só exibir se houver dados após filtrar
                                                                                 if len(df_type06_filtrado) > 0:
-                                                                                    # 🔧 CORREÇÃO: Usar container em vez de expander para evitar problema de 3 níveis aninhados
-                                                                                    # O Streamlit 1.50.0 pode ter problemas com expanders aninhados em 3 camadas
-                                                                                    st.markdown("---")  # Separador visual
-                                                                                    st.markdown(f"#### **Type 06: {type06} - Total: {total_type06_formatado}**")
-                                                                                    with st.container():
+                                                                                    with st.expander(f"🔹 Type 06: {type06} — Total: {total_type06_formatado}", expanded=expandir_waterfall_ext_budget):
                                                                                             # Criar tabela
                                                                                             colunas_id = ['Account'] if 'Account' in df_type06_filtrado.columns else []
                                                                                             colunas_numericas = [col for col in df_type06_filtrado.columns 
@@ -5013,11 +5142,22 @@ else:
                                             else:
                                                 # Sem Type 05: não exibir nada (não deve acontecer)
                                                 st.info("ℹ️ Dados sem estrutura hierárquica (Type 05).")
+                    _tabela_budget_renderizada = True
                             
                 except Exception as e:
                     st.error(f"❌ Erro ao gerar tabela Budget: {str(e)}")
                     import traceback
                     st.code(traceback.format_exc())
+                    # ═══ Fallback: renderizar tabela mesmo com erro no gráfico ═══
+                    if not _tabela_budget_renderizada:
+                        try:
+                            _dt_src = None
+                            if 'df_analise_budget' in locals() and df_analise_budget is not None and not df_analise_budget.empty:
+                                _dt_src = df_analise_budget
+                            if _dt_src is not None and 'mes_inicial' in locals() and 'mes_final' in locals():
+                                _render_fallback_table_ext(_dt_src, locals())
+                        except Exception:
+                            pass
 
 st.markdown("---")
 

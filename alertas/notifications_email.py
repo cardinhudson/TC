@@ -14,6 +14,7 @@ from alertas.alert_engine import (
     fmt_delta_k,
     fmt_k,
     fmt_linha_account,
+    fmt_linha_oficina,
     fmt_linha_type06,
 )
 
@@ -63,6 +64,7 @@ def _ranking_html(ranking: dict) -> str:
 def _ranking_consolidado_html(ranking: dict) -> str:
     """Monta HTML do ranking consolidado hierárquico."""
     moeda = ranking.get("moeda", "BRL")
+    simbolo = ranking.get("simbolo", "R$")
     itens = ranking.get("itens", [])
 
     rows: list[str] = []
@@ -98,13 +100,12 @@ def _ranking_consolidado_html(ranking: dict) -> str:
             # Oficinas
             for ofi in acc.get("oficinas", []):
                 ofi_name = _esc(ofi.get("oficina", ""))
-                ofi_dev = ofi.get("desvio", 0)
-                ofi_k = f"{ofi_dev / 1000:+,.1f}k"
+                ofi_line = _esc(fmt_linha_oficina(ofi, moeda, simbolo).strip())
                 rows.append(
                     f'<tr><td style="padding-left:48px;color:#777;'
                     f'font-size:0.9em;padding:1px 8px">📍 {ofi_name}</td>'
                     f'<td style="color:#777;font-size:0.9em;padding:1px 8px">'
-                    f'{ofi_k}</td><td></td></tr>'
+                    f'{ofi_line.replace(f"📍 {ofi_name}: ", "")}</td><td></td></tr>'
                 )
 
                 # Textos breve

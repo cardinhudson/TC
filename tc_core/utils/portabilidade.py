@@ -24,6 +24,17 @@ from pathlib import Path
 IS_FROZEN: bool = getattr(sys, "frozen", False)
 
 
+def _get_env_data_root() -> Path | None:
+    """Retorna o diretório de dados compartilhados definido por ambiente, se houver."""
+    raw = (sys.environ.get("SCI_SHARED_DATA_ROOT") if hasattr(sys, "environ") else None)
+    if not raw:
+        import os
+        raw = os.environ.get("SCI_SHARED_DATA_ROOT")
+    if not raw:
+        return None
+    return Path(raw).expanduser()
+
+
 def get_base_path() -> Path:
     """
     Retorna o diretório base para dados, configs e assets.
@@ -38,6 +49,24 @@ def get_base_path() -> Path:
         return Path(sys._MEIPASS)  # type: ignore[attr-defined]
     # __file__ = .../tc_core/utils/portabilidade.py → dois levels acima = raiz
     return Path(__file__).resolve().parents[2]
+
+
+def get_data_root() -> Path:
+    """
+    Retorna a pasta base de dados (`dados/`).
+
+    - Padrão: `<base_path>/dados`
+    - Override: variável de ambiente `SCI_SHARED_DATA_ROOT`
+    """
+    env_root = _get_env_data_root()
+    if env_root is not None:
+        return env_root
+    return get_base_path() / "dados"
+
+
+def is_shared_data_override_active() -> bool:
+    """Indica se o app está usando uma raiz de dados compartilhada externa."""
+    return _get_env_data_root() is not None
 
 
 def get_assets_path() -> Path:
@@ -75,3 +104,8 @@ def resolve_path(relativo: str) -> Path:
         caminho = resolve_path("dados/TC_Principal/2025/BUD")
     """
     return get_base_path() / relativo
+
+
+def resolve_data_path(*parts: str) -> Path:
+    """Resolve caminhos relativos à pasta de dados efetiva."""
+    return get_data_root().joinpath(*parts)

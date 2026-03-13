@@ -13,10 +13,10 @@ from typing import Tuple, Dict, Optional
 import re
 import unicodedata
 
-if hasattr(_sys, '_MEIPASS'):
-    _ROOT = _sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.abspath(__file__))
+from tc_core.utils.portabilidade import get_base_path, get_data_root
+
+_ROOT = str(get_base_path())
+_DATA_ROOT = os.path.join(str(get_data_root()), 'TC_Ext')
 
 # ═══════════════════════════════════════════════════════════════
 #  OFICINAS INVÁLIDAS (excluídas da extração)
@@ -236,10 +236,10 @@ def configurar_ano_bud(ano: Optional[int] = None, continuar_sem_arquivos: bool =
     if ano is None:
         ano = datetime.now().year
     
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
-    pasta_bud = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), 'BUD')
-    pasta_historico = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado')
-    pasta_historico_bud = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado', 'BUD')
+    pasta_ano = os.path.join(_DATA_ROOT, str(ano))
+    pasta_bud = os.path.join(_DATA_ROOT, str(ano), 'BUD')
+    pasta_historico = os.path.join(_DATA_ROOT, 'historico_consolidado')
+    pasta_historico_bud = os.path.join(_DATA_ROOT, 'historico_consolidado', 'BUD')
     pasta_raiz = '.'
     
     # Criar estrutura de pastas
@@ -753,7 +753,7 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
     log("📚 Consolidando histórico BUD...")
     
     # Consolidar histórico
-    pasta_dados = os.path.join(_ROOT, 'dados', 'TC_Ext')
+    pasta_dados = _DATA_ROOT
     anos_disponiveis = []
     if os.path.exists(pasta_dados):
         for item in os.listdir(pasta_dados):

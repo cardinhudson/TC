@@ -16,6 +16,7 @@ from alertas.alert_engine import (
     fmt_delta_k,
     fmt_k,
     fmt_linha_account,
+    fmt_linha_oficina,
     fmt_linha_type06,
 )
 
@@ -138,8 +139,7 @@ def _build_ranking_text(ranking: dict) -> str:
 
                     lines.append(
                         f"{_tree_html(tree_cont_acc + tree_ofi)} "
-                        f"<strong>📍 {ofi['oficina']}:</strong> "
-                        f"{_fmt_k_sign(ofi['desvio'], moeda)}"
+                        f"{fmt_linha_oficina(ofi, moeda, simbolo).strip()}"
                     )
 
                     textos = ofi.get("textos", [])

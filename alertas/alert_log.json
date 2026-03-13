@@ -1,268 +1,5 @@
 [
   {
-    "id": "df938431-4b43-4778-ac22-f76161cac2d6",
-    "rule_id": "3913a627-350a-4ed6-82ff-74731e4bf426",
-    "timestamp": "2026-03-05T09:46:28",
-    "titulo": "Desvio em Teste",
-    "mensagem": "Real R$ 0 vs Esperado R$ 310,642 (-100.0%)",
-    "severidade": "critico",
-    "tipo": "automatico",
-    "lido": true,
-    "metrica": "custo_total",
-    "metadata": {
-      "oficina": [],
-      "periodo": "Março",
-      "ano": 2026,
-      "valor_real": 0.0,
-      "valor_esperado": 310642.02,
-      "desvio_absoluto": -310642.02,
-      "desvio_percentual": -100.0,
-      "proporcao_mes": 0.1613,
-      "baixa_confianca": false
-    },
-    "notificacoes_enviadas": {
-      "email": false,
-      "teams": false
-    }
-  },
-  {
-    "id": "90568a22-cb40-4aae-8078-9dfab1083e80",
-    "rule_id": "6fb44621-91d3-404f-b699-4f4b80022ad3",
-    "timestamp": "2026-03-05T11:12:55",
-    "titulo": "Top 10 perdas — Todas",
-    "mensagem": "Budget Flex × Real | Março | Desvio total: R$ 4,896,818 | Maior: Plant Depreciation",
-    "severidade": "informativo",
-    "tipo": "automatico",
-    "lido": false,
-    "metadata": {
-      "oficinas": [],
-      "periodo": "Março",
-      "ano": 2026,
-      "modo": "flex_bud_x_real",
-      "proporcao_mes": 0.1613,
-      "total_desvio": 4896818.39,
-      "top_account": "Plant Depreciation"
-    },
-    "ranking": [
-      {
-        "account": "Plant Depreciation",
-        "type_05": "D&A",
-        "type_06": "Taxes, Insurance & Assets Amortization",
-        "real": 2591966.85,
-        "esperado": 0.0,
-        "desvio": 2591966.85,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "D&A",
-            "valor": 2591966.85
-          }
-        ]
-      },
-      {
-        "account": "Material",
-        "type_05": "Burden",
-        "type_06": "Maintenance",
-        "real": 576626.27,
-        "esperado": 0.0,
-        "desvio": 576626.27,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "TUBO ACO S/ COSTURA SCH 40 3/4\"",
-            "valor": 104187.85
-          },
-          {
-            "texto_breve": "BOMBA 17K658 1500 CC GRACO",
-            "valor": 85757.42
-          },
-          {
-            "texto_breve": "TUBO METALON 40 X 40 X 3,0 STALX",
-            "valor": 57353.5
-          },
-          {
-            "texto_breve": "KIT REPARO CAMISA GRACO 289548 EFLO 1500",
-            "valor": 41676.84
-          },
-          {
-            "texto_breve": "TUBO METALON 50 X 50 X 3,0 STALX",
-            "valor": 40843.96
-          }
-        ]
-      },
-      {
-        "account": "Electricity",
-        "type_05": "Burden",
-        "type_06": "Energy",
-        "real": 418275.75,
-        "esperado": 0.0,
-        "desvio": 418275.75,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "CONTRATO DE FORNECIMENTO DE ENERGIA",
-            "valor": 282084.85
-          },
-          {
-            "texto_breve": "Previsao de eletricidade",
-            "valor": 116634.37
-          },
-          {
-            "texto_breve": "FORNECIMENTO GAS NATURAL PRODUCAO",
-            "valor": 19556.53
-          }
-        ]
-      },
-      {
-        "account": "Third Part Services / Uma",
-        "type_05": "Burden",
-        "type_06": "Expenses",
-        "real": 358938.35,
-        "esperado": 0.0,
-        "desvio": 358938.35,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "Amortizacao Acumulada Sub. E Anel De Distr. Intern",
-            "valor": 358838.52
-          },
-          {
-            "texto_breve": "SERVICO DE CONSULTORIA",
-            "valor": 99.83
-          }
-        ]
-      },
-      {
-        "account": "Main/Principal",
-        "type_05": "Labor",
-        "type_06": "Direct Labor",
-        "real": 264739.82,
-        "esperado": 0.0,
-        "desvio": 264739.82,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "AJUSTE FEVEREIRO PARA BATER LABOR",
-            "valor": 264739.82
-          }
-        ]
-      },
-      {
-        "account": "Stock Obsolescence % Overstock",
-        "type_05": "Burden",
-        "type_06": "Material Losses",
-        "real": 209368.05,
-        "esperado": 0.0,
-        "desvio": 209368.05,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "Ecart de fiabilité",
-            "valor": 109901.81
-          },
-          {
-            "texto_breve": "Déclassements pièces autos et mulets",
-            "valor": 57688.92
-          },
-          {
-            "texto_breve": "Dépréciations pièces autos et mulets",
-            "valor": 38899.5
-          },
-          {
-            "texto_breve": "Dépréciations MHF",
-            "valor": 2877.81
-          }
-        ]
-      },
-      {
-        "account": "Service",
-        "type_05": "Burden",
-        "type_06": "Maintenance",
-        "real": 184023.09,
-        "esperado": 0.0,
-        "desvio": 184023.09,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "7.09  VARRICAO, COLETA, REMOCAO, INCINE",
-            "valor": 168266.86
-          },
-          {
-            "texto_breve": "SERVICO DE MANUTENCAO",
-            "valor": 14790.0
-          },
-          {
-            "texto_breve": "SERVICO DE INFORMATICA",
-            "valor": 564.28
-          },
-          {
-            "texto_breve": "SERVICO DE CONSULTORIA",
-            "valor": 401.95
-          }
-        ]
-      },
-      {
-        "account": "Taxes & Insurances",
-        "type_05": "D&A",
-        "type_06": "Taxes, Insurance & Assets Amortization",
-        "real": 119993.14,
-        "esperado": 0.0,
-        "desvio": 119993.14,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "ITA",
-            "valor": 119993.14
-          }
-        ]
-      },
-      {
-        "account": "Gas",
-        "type_05": "Burden",
-        "type_06": "Energy",
-        "real": 88896.29,
-        "esperado": 0.0,
-        "desvio": 88896.29,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "Previsao de gás",
-            "valor": 88896.29
-          }
-        ]
-      },
-      {
-        "account": "WC & Trainee",
-        "type_05": "Labor",
-        "type_06": "WC & Trainee",
-        "real": 83990.78,
-        "esperado": 0.0,
-        "desvio": 83990.78,
-        "desvio_pct": 0.0,
-        "severidade": "informativo",
-        "sub_despesas": [
-          {
-            "texto_breve": "AJUSTE FEVEREIRO PARA BATER LABOR",
-            "valor": 83990.78
-          }
-        ]
-      }
-    ],
-    "notificacoes_enviadas": {
-      "email": false,
-      "teams": false
-    }
-  },
-  {
     "id": "daily_2026_Março_2026-03-07T09:23:23",
     "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
     "timestamp": "2026-03-07T09:23:23",
@@ -361,6 +98,670 @@
     "ano": 2026,
     "severidade": "critico",
     "total_desvio": 501685.7,
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "84f62417-d91c-461c-b6f3-da2425f44a1e",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-12T16:51:55",
+    "titulo": "Previa Central de Alertas - Março",
+    "mensagem": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 38.7% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 764,4 kBRL (136,8 R$/veíc) | ∆ +414,1 kBRL (∆ +74,1 R$/veíc)\n│   [█░░░░░░░░░] representa 9% do desvio total · ∆ +414,1 kBRL · 118.2%\n│  ├─ Material: +617,9 kBRL (∆ +110,6 R$/veíc)\n│  │  ├─ 📍 GS: +326,9 kBRL (∆ +58,5 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +187,9 kBRL (∆ +33,6 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +101,8 kBRL (∆ +18,2 R$/veíc)\n│  │  │   • medidor fluxo 80a dn4+ms endress hauser (+28,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • cabeca leitora pla140 lju do brasil (+17,0 k)\n│  │  ├─ 📍 PL: +8,7 kBRL (∆ +1,6 R$/veíc)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • tocha mig mag 350 ( 3 mts ) (+1,1 k)\n│  │  ├─ 📍 BS: +7,7 kBRL (∆ +1,4 R$/veíc)\n│  │  │   • bateria cpu 1756-ba2 rockwell (+9,5 k)\n│  │  │   • sensor a1263r5q390141 senstronic (+8,7 k)\n│  │  │   • conserto e reparo de equipamentos (+5,9 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -203,7 kBRL (∆ -36,5 R$/veíc)\n│     └─ 📍 AS: +5,1 kBRL (∆ +0,9 R$/veíc)\n│         • servico de manutencao (+14,8 k)\n├─ 🟢 Material Losses: -371,8 kBRL (-66,5 R$/veíc) | ∆ -324,2 kBRL (∆ -58,0 R$/veíc)\n│   [█░░░░░░░░░] representa 7% do desvio total · ∆ -324,2 kBRL · 680.7%\n│  ├─ Scrap Sales: +244,2 kBRL (∆ +43,7 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +209,1 kBRL (∆ +37,4 R$/veíc)\n│  │  └─ 📍 GS: +35,0 kBRL (∆ +6,3 R$/veíc)\n│  ├─ Scraps: -12,5 kBRL (∆ -2,2 R$/veíc)\n│  │  ├─ 📍 AS: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  │   • amortecedor diant esq conj (+2,6 k)\n│  │  │   • capa encosto assento diant esq (+2,4 k)\n│  │  └─ 📍 BS: +2,7 kBRL (∆ +0,5 R$/veíc)\n│  │      • painel interno porta tras esq mont (+2,4 k)\n│  │      • painel interno tampa tras mont (+1,1 k)\n│  │      • painel porta tras esq (+0,8 k)\n│  ├─ Inventory Adjustments: -19,3 kBRL (∆ -3,5 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -536,6 kBRL (∆ -96,0 R$/veíc)\n│     └─ 📍 PL: +50,2 kBRL (∆ +9,0 R$/veíc)\n│         • déclassements pièces autos et mulets (+57,7 k)\n│         • dépréciations pièces autos et mulets (+38,9 k)\n└─ 🟢 Energy: -3.393,6 kBRL (-607,3 R$/veíc) | ∆ -4.054,6 kBRL (∆ -725,6 R$/veíc)\n    [████████░░] representa 85% do desvio total · ∆ -4.054,6 kBRL · 613.4%\n   ├─ Energy Long Term lease: -2,5 kBRL (∆ -0,4 R$/veíc)\n   ├─ Water: -11,4 kBRL (∆ -2,0 R$/veíc)\n   ├─ Gas: -1.818,7 kBRL (∆ -325,5 R$/veíc)\n   └─ Electricity: -2.222,1 kBRL (∆ -397,6 R$/veíc)",
+    "generated_texts": {
+      "plain_text_tree": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 38.7% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 764,4 kBRL (136,8 R$/veíc) | ∆ +414,1 kBRL (∆ +74,1 R$/veíc)\n│   [█░░░░░░░░░] representa 9% do desvio total · ∆ +414,1 kBRL · 118.2%\n│  ├─ Material: +617,9 kBRL (∆ +110,6 R$/veíc)\n│  │  ├─ 📍 GS: +326,9 kBRL (∆ +58,5 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +187,9 kBRL (∆ +33,6 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +101,8 kBRL (∆ +18,2 R$/veíc)\n│  │  │   • medidor fluxo 80a dn4+ms endress hauser (+28,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • cabeca leitora pla140 lju do brasil (+17,0 k)\n│  │  ├─ 📍 PL: +8,7 kBRL (∆ +1,6 R$/veíc)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • tocha mig mag 350 ( 3 mts ) (+1,1 k)\n│  │  ├─ 📍 BS: +7,7 kBRL (∆ +1,4 R$/veíc)\n│  │  │   • bateria cpu 1756-ba2 rockwell (+9,5 k)\n│  │  │   • sensor a1263r5q390141 senstronic (+8,7 k)\n│  │  │   • conserto e reparo de equipamentos (+5,9 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -203,7 kBRL (∆ -36,5 R$/veíc)\n│     └─ 📍 AS: +5,1 kBRL (∆ +0,9 R$/veíc)\n│         • servico de manutencao (+14,8 k)\n├─ 🟢 Material Losses: -371,8 kBRL (-66,5 R$/veíc) | ∆ -324,2 kBRL (∆ -58,0 R$/veíc)\n│   [█░░░░░░░░░] representa 7% do desvio total · ∆ -324,2 kBRL · 680.7%\n│  ├─ Scrap Sales: +244,2 kBRL (∆ +43,7 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +209,1 kBRL (∆ +37,4 R$/veíc)\n│  │  └─ 📍 GS: +35,0 kBRL (∆ +6,3 R$/veíc)\n│  ├─ Scraps: -12,5 kBRL (∆ -2,2 R$/veíc)\n│  │  ├─ 📍 AS: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  │   • amortecedor diant esq conj (+2,6 k)\n│  │  │   • capa encosto assento diant esq (+2,4 k)\n│  │  └─ 📍 BS: +2,7 kBRL (∆ +0,5 R$/veíc)\n│  │      • painel interno porta tras esq mont (+2,4 k)\n│  │      • painel interno tampa tras mont (+1,1 k)\n│  │      • painel porta tras esq (+0,8 k)\n│  ├─ Inventory Adjustments: -19,3 kBRL (∆ -3,5 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -536,6 kBRL (∆ -96,0 R$/veíc)\n│     └─ 📍 PL: +50,2 kBRL (∆ +9,0 R$/veíc)\n│         • déclassements pièces autos et mulets (+57,7 k)\n│         • dépréciations pièces autos et mulets (+38,9 k)\n└─ 🟢 Energy: -3.393,6 kBRL (-607,3 R$/veíc) | ∆ -4.054,6 kBRL (∆ -725,6 R$/veíc)\n    [████████░░] representa 85% do desvio total · ∆ -4.054,6 kBRL · 613.4%\n   ├─ Energy Long Term lease: -2,5 kBRL (∆ -0,4 R$/veíc)\n   ├─ Water: -11,4 kBRL (∆ -2,0 R$/veíc)\n   ├─ Gas: -1.818,7 kBRL (∆ -325,5 R$/veíc)\n   └─ Electricity: -2.222,1 kBRL (∆ -397,6 R$/veíc)"
+    },
+    "severidade": "critico",
+    "tipo": "manual",
+    "lido": false,
+    "metadata": {
+      "periodo": "Março",
+      "ano": 2026,
+      "modo": "flex_bud_x_real",
+      "modo_label": "Budget Flex × Real",
+      "moeda": "BRL",
+      "proporcao_mes": 0.3871,
+      "total_desvio": -3964717.58,
+      "volume_total": 5588.0,
+      "fonte": "central_alertas"
+    },
+    "ranking": {
+      "periodo": "Março",
+      "volume_total": 5588.0,
+      "moeda": "BRL",
+      "simbolo": "R$",
+      "severidade": "critico",
+      "total_desvio": -3964717.58,
+      "itens": [
+        {
+          "type_06": "Maintenance",
+          "type_05": "Burden",
+          "real": 764357.03,
+          "esperado": 350228.44,
+          "desvio": 414128.59,
+          "desvio_pct": 118.25,
+          "cpu_real": 136.7854,
+          "cpu_esperado": 62.6751,
+          "delta_cpu": 74.1103,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Material",
+              "desvio": 617850.86,
+              "delta_cpu": 110.5674,
+              "esperado": 158679.23,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 326932.06,
+                  "delta_cpu": 58.5061,
+                  "textos": [
+                    {
+                      "texto": "tubo aco s/ costura sch 40 3/4\"",
+                      "valor": 104187.85
+                    },
+                    {
+                      "texto": "tubo metalon 40 x 40 x 3,0 stalx",
+                      "valor": 57353.5
+                    },
+                    {
+                      "texto": "cabo flex 120,00mm - preto - 1kv",
+                      "valor": 47142.91
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PS",
+                  "desvio": 187948.05,
+                  "delta_cpu": 33.6342,
+                  "textos": [
+                    {
+                      "texto": "bomba 17k658 1500 cc graco",
+                      "valor": 85757.42
+                    },
+                    {
+                      "texto": "kit reparo camisa graco 289548 eflo 1500",
+                      "valor": 41676.84
+                    },
+                    {
+                      "texto": "inversor 3f 380-480v 75kw atv630d75n4",
+                      "valor": 33806.36
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 101770.61,
+                  "delta_cpu": 18.2123,
+                  "textos": [
+                    {
+                      "texto": "medidor fluxo 80a dn4+ms endress hauser",
+                      "valor": 28519.54
+                    },
+                    {
+                      "texto": "pirometro 42x pc auto hedson technologie",
+                      "valor": 19251.31
+                    },
+                    {
+                      "texto": "cabeca leitora pla140 lju do brasil",
+                      "valor": 16967.03
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PL",
+                  "desvio": 8743.03,
+                  "delta_cpu": 1.5646,
+                  "textos": [
+                    {
+                      "texto": "chapa pp 1240x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "chapa pp 770x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "tocha mig mag 350 ( 3 mts )",
+                      "valor": 1118.43
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 7703.42,
+                  "delta_cpu": 1.3786,
+                  "textos": [
+                    {
+                      "texto": "bateria cpu 1756-ba2 rockwell",
+                      "valor": 9471.09
+                    },
+                    {
+                      "texto": "sensor a1263r5q390141 senstronic",
+                      "valor": 8653.04
+                    },
+                    {
+                      "texto": "conserto e reparo de equipamentos",
+                      "valor": 5880.13
+                    }
+                  ]
+                },
+                {
+                  "oficina": "QY",
+                  "desvio": 60.84,
+                  "delta_cpu": 0.0109,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Service",
+              "desvio": -203722.27,
+              "delta_cpu": -36.4571,
+              "esperado": 191549.21,
+              "oficinas": [
+                {
+                  "oficina": "AS",
+                  "desvio": 5073.94,
+                  "delta_cpu": 0.908,
+                  "textos": [
+                    {
+                      "texto": "servico de manutencao",
+                      "valor": 14790.0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Material Losses",
+          "type_05": "Burden",
+          "real": -371825.08,
+          "esperado": -47627.09,
+          "desvio": -324198.0,
+          "desvio_pct": -680.7,
+          "cpu_real": -66.5399,
+          "cpu_esperado": -8.5231,
+          "delta_cpu": -58.0168,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Scrap Sales",
+              "desvio": 244175.27,
+              "delta_cpu": 43.6964,
+              "esperado": -244175.27,
+              "oficinas": [
+                {
+                  "oficina": "SM",
+                  "desvio": 209134.66,
+                  "delta_cpu": 37.4257,
+                  "textos": []
+                },
+                {
+                  "oficina": "GS",
+                  "desvio": 35040.61,
+                  "delta_cpu": 6.2707,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Scraps",
+              "desvio": -12471.7,
+              "delta_cpu": -2.2319,
+              "esperado": 16613.98,
+              "oficinas": [
+                {
+                  "oficina": "AS",
+                  "desvio": 27202.98,
+                  "delta_cpu": 4.8681,
+                  "textos": [
+                    {
+                      "texto": "capa encosto assento diant dir",
+                      "valor": 9571.97
+                    },
+                    {
+                      "texto": "amortecedor diant esq conj",
+                      "valor": 2607.34
+                    },
+                    {
+                      "texto": "capa encosto assento diant esq",
+                      "valor": 2351.15
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 2696.42,
+                  "delta_cpu": 0.4825,
+                  "textos": [
+                    {
+                      "texto": "painel interno porta tras esq mont",
+                      "valor": 2385.1
+                    },
+                    {
+                      "texto": "painel interno tampa tras mont",
+                      "valor": 1064.05
+                    },
+                    {
+                      "texto": "painel porta tras esq",
+                      "valor": 829.87
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Inventory Adjustments",
+              "desvio": -19319.17,
+              "delta_cpu": -3.4573,
+              "esperado": 19319.17,
+              "oficinas": []
+            },
+            {
+              "account": "Stock Obsolescence % Overstock",
+              "desvio": -536582.39,
+              "delta_cpu": -96.0241,
+              "esperado": 160615.03,
+              "oficinas": [
+                {
+                  "oficina": "PL",
+                  "desvio": 50180.37,
+                  "delta_cpu": 8.98,
+                  "textos": [
+                    {
+                      "texto": "déclassements pièces autos et mulets",
+                      "valor": 57688.92
+                    },
+                    {
+                      "texto": "dépréciations pièces autos et mulets",
+                      "valor": 38899.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Energy",
+          "type_05": "Burden",
+          "real": -3393633.43,
+          "esperado": 661014.74,
+          "desvio": -4054648.17,
+          "desvio_pct": -613.4,
+          "cpu_real": -607.3073,
+          "cpu_esperado": 118.2918,
+          "delta_cpu": -725.5992,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Energy Long Term lease",
+              "desvio": -2465.41,
+              "delta_cpu": -0.4412,
+              "esperado": 2465.41,
+              "oficinas": []
+            },
+            {
+              "account": "Water",
+              "desvio": -11432.57,
+              "delta_cpu": -2.0459,
+              "esperado": 7703.3,
+              "oficinas": []
+            },
+            {
+              "account": "Gas",
+              "desvio": -1818685.58,
+              "delta_cpu": -325.4627,
+              "esperado": 317892.8,
+              "oficinas": []
+            },
+            {
+              "account": "Electricity",
+              "desvio": -2222064.62,
+              "delta_cpu": -397.6494,
+              "esperado": 332953.24,
+              "oficinas": []
+            }
+          ]
+        }
+      ]
+    },
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": false
+    }
+  },
+  {
+    "id": "86fbefb2-f121-4824-9dd9-3545a76eb62e",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-12T17:01:27",
+    "titulo": "teste3 - Março",
+    "mensagem": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 38.7% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 764,4 kBRL (136,8 R$/veíc) | ∆ +414,1 kBRL (∆ +74,1 R$/veíc)\n│   [█░░░░░░░░░] representa 9% do desvio total · ∆ +414,1 kBRL · 118.2%\n│  ├─ Material: +617,9 kBRL (∆ +110,6 R$/veíc)\n│  │  ├─ 📍 GS: +326,9 kBRL (∆ +58,5 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +187,9 kBRL (∆ +33,6 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +101,8 kBRL (∆ +18,2 R$/veíc)\n│  │  │   • medidor fluxo 80a dn4+ms endress hauser (+28,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • cabeca leitora pla140 lju do brasil (+17,0 k)\n│  │  ├─ 📍 PL: +8,7 kBRL (∆ +1,6 R$/veíc)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • tocha mig mag 350 ( 3 mts ) (+1,1 k)\n│  │  ├─ 📍 BS: +7,7 kBRL (∆ +1,4 R$/veíc)\n│  │  │   • bateria cpu 1756-ba2 rockwell (+9,5 k)\n│  │  │   • sensor a1263r5q390141 senstronic (+8,7 k)\n│  │  │   • conserto e reparo de equipamentos (+5,9 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -203,7 kBRL (∆ -36,5 R$/veíc)\n│     └─ 📍 AS: +5,1 kBRL (∆ +0,9 R$/veíc)\n│         • servico de manutencao (+14,8 k)\n├─ 🟢 Material Losses: -371,8 kBRL (-66,5 R$/veíc) | ∆ -324,2 kBRL (∆ -58,0 R$/veíc)\n│   [█░░░░░░░░░] representa 7% do desvio total · ∆ -324,2 kBRL · 680.7%\n│  ├─ Scrap Sales: +244,2 kBRL (∆ +43,7 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +209,1 kBRL (∆ +37,4 R$/veíc)\n│  │  └─ 📍 GS: +35,0 kBRL (∆ +6,3 R$/veíc)\n│  ├─ Scraps: -12,5 kBRL (∆ -2,2 R$/veíc)\n│  │  ├─ 📍 AS: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  │   • amortecedor diant esq conj (+2,6 k)\n│  │  │   • capa encosto assento diant esq (+2,4 k)\n│  │  └─ 📍 BS: +2,7 kBRL (∆ +0,5 R$/veíc)\n│  │      • painel interno porta tras esq mont (+2,4 k)\n│  │      • painel interno tampa tras mont (+1,1 k)\n│  │      • painel porta tras esq (+0,8 k)\n│  ├─ Inventory Adjustments: -19,3 kBRL (∆ -3,5 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -536,6 kBRL (∆ -96,0 R$/veíc)\n│     └─ 📍 PL: +50,2 kBRL (∆ +9,0 R$/veíc)\n│         • déclassements pièces autos et mulets (+57,7 k)\n│         • dépréciations pièces autos et mulets (+38,9 k)\n└─ 🟢 Energy: -3.393,6 kBRL (-607,3 R$/veíc) | ∆ -4.054,6 kBRL (∆ -725,6 R$/veíc)\n    [████████░░] representa 85% do desvio total · ∆ -4.054,6 kBRL · 613.4%\n   ├─ Energy Long Term lease: -2,5 kBRL (∆ -0,4 R$/veíc)\n   ├─ Water: -11,4 kBRL (∆ -2,0 R$/veíc)\n   ├─ Gas: -1.818,7 kBRL (∆ -325,5 R$/veíc)\n   └─ Electricity: -2.222,1 kBRL (∆ -397,6 R$/veíc)",
+    "generated_texts": {
+      "plain_text_tree": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 38.7% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 764,4 kBRL (136,8 R$/veíc) | ∆ +414,1 kBRL (∆ +74,1 R$/veíc)\n│   [█░░░░░░░░░] representa 9% do desvio total · ∆ +414,1 kBRL · 118.2%\n│  ├─ Material: +617,9 kBRL (∆ +110,6 R$/veíc)\n│  │  ├─ 📍 GS: +326,9 kBRL (∆ +58,5 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +187,9 kBRL (∆ +33,6 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +101,8 kBRL (∆ +18,2 R$/veíc)\n│  │  │   • medidor fluxo 80a dn4+ms endress hauser (+28,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • cabeca leitora pla140 lju do brasil (+17,0 k)\n│  │  ├─ 📍 PL: +8,7 kBRL (∆ +1,6 R$/veíc)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • tocha mig mag 350 ( 3 mts ) (+1,1 k)\n│  │  ├─ 📍 BS: +7,7 kBRL (∆ +1,4 R$/veíc)\n│  │  │   • bateria cpu 1756-ba2 rockwell (+9,5 k)\n│  │  │   • sensor a1263r5q390141 senstronic (+8,7 k)\n│  │  │   • conserto e reparo de equipamentos (+5,9 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -203,7 kBRL (∆ -36,5 R$/veíc)\n│     └─ 📍 AS: +5,1 kBRL (∆ +0,9 R$/veíc)\n│         • servico de manutencao (+14,8 k)\n├─ 🟢 Material Losses: -371,8 kBRL (-66,5 R$/veíc) | ∆ -324,2 kBRL (∆ -58,0 R$/veíc)\n│   [█░░░░░░░░░] representa 7% do desvio total · ∆ -324,2 kBRL · 680.7%\n│  ├─ Scrap Sales: +244,2 kBRL (∆ +43,7 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +209,1 kBRL (∆ +37,4 R$/veíc)\n│  │  └─ 📍 GS: +35,0 kBRL (∆ +6,3 R$/veíc)\n│  ├─ Scraps: -12,5 kBRL (∆ -2,2 R$/veíc)\n│  │  ├─ 📍 AS: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  │   • amortecedor diant esq conj (+2,6 k)\n│  │  │   • capa encosto assento diant esq (+2,4 k)\n│  │  └─ 📍 BS: +2,7 kBRL (∆ +0,5 R$/veíc)\n│  │      • painel interno porta tras esq mont (+2,4 k)\n│  │      • painel interno tampa tras mont (+1,1 k)\n│  │      • painel porta tras esq (+0,8 k)\n│  ├─ Inventory Adjustments: -19,3 kBRL (∆ -3,5 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -536,6 kBRL (∆ -96,0 R$/veíc)\n│     └─ 📍 PL: +50,2 kBRL (∆ +9,0 R$/veíc)\n│         • déclassements pièces autos et mulets (+57,7 k)\n│         • dépréciations pièces autos et mulets (+38,9 k)\n└─ 🟢 Energy: -3.393,6 kBRL (-607,3 R$/veíc) | ∆ -4.054,6 kBRL (∆ -725,6 R$/veíc)\n    [████████░░] representa 85% do desvio total · ∆ -4.054,6 kBRL · 613.4%\n   ├─ Energy Long Term lease: -2,5 kBRL (∆ -0,4 R$/veíc)\n   ├─ Water: -11,4 kBRL (∆ -2,0 R$/veíc)\n   ├─ Gas: -1.818,7 kBRL (∆ -325,5 R$/veíc)\n   └─ Electricity: -2.222,1 kBRL (∆ -397,6 R$/veíc)"
+    },
+    "severidade": "critico",
+    "tipo": "automatico",
+    "lido": false,
+    "metadata": {
+      "periodo": "Março",
+      "ano": 2026,
+      "modo": "flex_bud_x_real",
+      "modo_label": "Budget Flex × Real",
+      "moeda": "BRL",
+      "proporcao_mes": 0.3871,
+      "total_desvio": -3964717.58,
+      "volume_total": 5588.0,
+      "regra_nome": "teste3"
+    },
+    "ranking": {
+      "periodo": "Março",
+      "volume_total": 5588.0,
+      "moeda": "BRL",
+      "simbolo": "R$",
+      "severidade": "critico",
+      "total_desvio": -3964717.58,
+      "itens": [
+        {
+          "type_06": "Maintenance",
+          "type_05": "Burden",
+          "real": 764357.03,
+          "esperado": 350228.44,
+          "desvio": 414128.59,
+          "desvio_pct": 118.25,
+          "cpu_real": 136.7854,
+          "cpu_esperado": 62.6751,
+          "delta_cpu": 74.1103,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Material",
+              "desvio": 617850.86,
+              "delta_cpu": 110.5674,
+              "esperado": 158679.23,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 326932.06,
+                  "delta_cpu": 58.5061,
+                  "textos": [
+                    {
+                      "texto": "tubo aco s/ costura sch 40 3/4\"",
+                      "valor": 104187.85
+                    },
+                    {
+                      "texto": "tubo metalon 40 x 40 x 3,0 stalx",
+                      "valor": 57353.5
+                    },
+                    {
+                      "texto": "cabo flex 120,00mm - preto - 1kv",
+                      "valor": 47142.91
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PS",
+                  "desvio": 187948.05,
+                  "delta_cpu": 33.6342,
+                  "textos": [
+                    {
+                      "texto": "bomba 17k658 1500 cc graco",
+                      "valor": 85757.42
+                    },
+                    {
+                      "texto": "kit reparo camisa graco 289548 eflo 1500",
+                      "valor": 41676.84
+                    },
+                    {
+                      "texto": "inversor 3f 380-480v 75kw atv630d75n4",
+                      "valor": 33806.36
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 101770.61,
+                  "delta_cpu": 18.2123,
+                  "textos": [
+                    {
+                      "texto": "medidor fluxo 80a dn4+ms endress hauser",
+                      "valor": 28519.54
+                    },
+                    {
+                      "texto": "pirometro 42x pc auto hedson technologie",
+                      "valor": 19251.31
+                    },
+                    {
+                      "texto": "cabeca leitora pla140 lju do brasil",
+                      "valor": 16967.03
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PL",
+                  "desvio": 8743.03,
+                  "delta_cpu": 1.5646,
+                  "textos": [
+                    {
+                      "texto": "chapa pp 1240x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "chapa pp 770x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "tocha mig mag 350 ( 3 mts )",
+                      "valor": 1118.43
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 7703.42,
+                  "delta_cpu": 1.3786,
+                  "textos": [
+                    {
+                      "texto": "bateria cpu 1756-ba2 rockwell",
+                      "valor": 9471.09
+                    },
+                    {
+                      "texto": "sensor a1263r5q390141 senstronic",
+                      "valor": 8653.04
+                    },
+                    {
+                      "texto": "conserto e reparo de equipamentos",
+                      "valor": 5880.13
+                    }
+                  ]
+                },
+                {
+                  "oficina": "QY",
+                  "desvio": 60.84,
+                  "delta_cpu": 0.0109,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Service",
+              "desvio": -203722.27,
+              "delta_cpu": -36.4571,
+              "esperado": 191549.21,
+              "oficinas": [
+                {
+                  "oficina": "AS",
+                  "desvio": 5073.94,
+                  "delta_cpu": 0.908,
+                  "textos": [
+                    {
+                      "texto": "servico de manutencao",
+                      "valor": 14790.0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Material Losses",
+          "type_05": "Burden",
+          "real": -371825.08,
+          "esperado": -47627.09,
+          "desvio": -324198.0,
+          "desvio_pct": -680.7,
+          "cpu_real": -66.5399,
+          "cpu_esperado": -8.5231,
+          "delta_cpu": -58.0168,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Scrap Sales",
+              "desvio": 244175.27,
+              "delta_cpu": 43.6964,
+              "esperado": -244175.27,
+              "oficinas": [
+                {
+                  "oficina": "SM",
+                  "desvio": 209134.66,
+                  "delta_cpu": 37.4257,
+                  "textos": []
+                },
+                {
+                  "oficina": "GS",
+                  "desvio": 35040.61,
+                  "delta_cpu": 6.2707,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Scraps",
+              "desvio": -12471.7,
+              "delta_cpu": -2.2319,
+              "esperado": 16613.98,
+              "oficinas": [
+                {
+                  "oficina": "AS",
+                  "desvio": 27202.98,
+                  "delta_cpu": 4.8681,
+                  "textos": [
+                    {
+                      "texto": "capa encosto assento diant dir",
+                      "valor": 9571.97
+                    },
+                    {
+                      "texto": "amortecedor diant esq conj",
+                      "valor": 2607.34
+                    },
+                    {
+                      "texto": "capa encosto assento diant esq",
+                      "valor": 2351.15
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 2696.42,
+                  "delta_cpu": 0.4825,
+                  "textos": [
+                    {
+                      "texto": "painel interno porta tras esq mont",
+                      "valor": 2385.1
+                    },
+                    {
+                      "texto": "painel interno tampa tras mont",
+                      "valor": 1064.05
+                    },
+                    {
+                      "texto": "painel porta tras esq",
+                      "valor": 829.87
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Inventory Adjustments",
+              "desvio": -19319.17,
+              "delta_cpu": -3.4573,
+              "esperado": 19319.17,
+              "oficinas": []
+            },
+            {
+              "account": "Stock Obsolescence % Overstock",
+              "desvio": -536582.39,
+              "delta_cpu": -96.0241,
+              "esperado": 160615.03,
+              "oficinas": [
+                {
+                  "oficina": "PL",
+                  "desvio": 50180.37,
+                  "delta_cpu": 8.98,
+                  "textos": [
+                    {
+                      "texto": "déclassements pièces autos et mulets",
+                      "valor": 57688.92
+                    },
+                    {
+                      "texto": "dépréciations pièces autos et mulets",
+                      "valor": 38899.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Energy",
+          "type_05": "Burden",
+          "real": -3393633.43,
+          "esperado": 661014.74,
+          "desvio": -4054648.17,
+          "desvio_pct": -613.4,
+          "cpu_real": -607.3073,
+          "cpu_esperado": 118.2918,
+          "delta_cpu": -725.5992,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Energy Long Term lease",
+              "desvio": -2465.41,
+              "delta_cpu": -0.4412,
+              "esperado": 2465.41,
+              "oficinas": []
+            },
+            {
+              "account": "Water",
+              "desvio": -11432.57,
+              "delta_cpu": -2.0459,
+              "esperado": 7703.3,
+              "oficinas": []
+            },
+            {
+              "account": "Gas",
+              "desvio": -1818685.58,
+              "delta_cpu": -325.4627,
+              "esperado": 317892.8,
+              "oficinas": []
+            },
+            {
+              "account": "Electricity",
+              "desvio": -2222064.62,
+              "delta_cpu": -397.6494,
+              "esperado": 332953.24,
+              "oficinas": []
+            }
+          ]
+        }
+      ]
+    },
     "notificacoes_enviadas": {
       "email": false,
       "teams": true

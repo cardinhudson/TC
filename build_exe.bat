@@ -71,11 +71,6 @@ if %errorlevel% neq 0 (
     echo       Instalando PyInstaller...
     pip install pyinstaller --quiet
 )
-%VENV_DIR%\Scripts\python.exe -c "import webview" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo       Instalando pywebview...
-    pip install pywebview --quiet
-)
 echo       OK
 
 :: ─────────────────────────────────────────────────────────────
@@ -210,9 +205,45 @@ copy /y "GUIA_EXECUTAVEL.md" "%DEST%\" >nul 2>&1
 if exist "%VENV_DIR%\Lib\site-packages\st_aggrid" xcopy "%VENV_DIR%\Lib\site-packages\st_aggrid" "%DEST%\st_aggrid\" /E /I /Y /Q >nul
 for /d %%D in ("%VENV_DIR%\Lib\site-packages\streamlit_aggrid-*.dist-info") do xcopy "%%D" "%DEST%\%%~nxD\" /E /I /Y /Q >nul
 
+:: Altair schema JSON — alguns ambientes/PCs nao encontram os schemas via hook.
+if exist "%VENV_DIR%\Lib\site-packages\altair\vegalite\v5\schema" xcopy "%VENV_DIR%\Lib\site-packages\altair\vegalite\v5\schema" "%DEST%\altair\vegalite\v5\schema\" /E /I /Y /Q >nul
+if exist "%VENV_DIR%\Lib\site-packages\jsonschema_specifications" xcopy "%VENV_DIR%\Lib\site-packages\jsonschema_specifications" "%DEST%\jsonschema_specifications\" /E /I /Y /Q >nul
+
+:: Bibliotecas nativas numericas — ajudam portabilidade em PCs sem Python.
+if exist "%VENV_DIR%\Lib\site-packages\numpy.libs" xcopy "%VENV_DIR%\Lib\site-packages\numpy.libs" "%DEST%\numpy.libs\" /E /I /Y /Q >nul
+if exist "%VENV_DIR%\Lib\site-packages\pandas\_libs" xcopy "%VENV_DIR%\Lib\site-packages\pandas\_libs" "%DEST%\pandas\_libs\" /E /I /Y /Q >nul
+if exist "%VENV_DIR%\Lib\site-packages\pyarrow" xcopy "%VENV_DIR%\Lib\site-packages\pyarrow" "%DEST%\pyarrow\" /E /I /Y /Q >nul
+
 :: Limpar __pycache__ copiados para _internal (evita .pyc stale no EXE)
 for /d /r "%DEST%" %%d in (__pycache__) do (
     if exist "%%d" rmdir /s /q "%%d" >nul 2>&1
+)
+
+:: Verificacoes obrigatorias de portabilidade
+if not exist "%DEST%\altair\vegalite\v5\schema\vega-lite-schema.json" (
+    echo [ERRO] Altair schema nao foi bundled: %DEST%\altair\vegalite\v5\schema\vega-lite-schema.json
+    pause
+    exit /b 1
+)
+if not exist "%DEST%\jsonschema_specifications\schemas\draft3\metaschema.json" (
+    echo [ERRO] JSON Schema draft3 nao foi bundled: %DEST%\jsonschema_specifications\schemas\draft3\metaschema.json
+    pause
+    exit /b 1
+)
+if not exist "%DEST%\pyarrow\_parquet*.pyd" (
+    echo [ERRO] Binarios de parquet do PyArrow nao foram bundled corretamente em %DEST%\pyarrow\
+    pause
+    exit /b 1
+)
+if not exist "%DEST%\numpy\_core\*.pyd" (
+    echo [ERRO] Binarios do NumPy nao foram bundled corretamente em %DEST%\numpy\_core\
+    pause
+    exit /b 1
+)
+if not exist "%DEST%\numpy.libs\*.dll" (
+    echo [ERRO] DLLs do NumPy nao foram bundled corretamente em %DEST%\numpy.libs\
+    pause
+    exit /b 1
 )
 echo       OK
 
@@ -272,6 +303,12 @@ if exist "dist\Stellantis-Cost-Intelligence\Stellantis-Cost-Intelligence.exe" (
     echo.
     echo Para executar:
     echo    dist\Stellantis-Cost-Intelligence\Stellantis-Cost-Intelligence.exe
+    echo.
+    echo IMPORTANTE:
+    echo    Distribua e execute a pasta COMPLETA do executavel.
+    echo    Nao rode a aplicacao diretamente de pastas sincronizadas
+    echo    ^(OneDrive, SharePoint, Partagei, GEIB, rede^).
+    echo    Copie primeiro para um diretorio local no PC do usuario.
     echo.
     echo Dica: se precisar re-extrair dados dentro do EXE, faca a extracao
     echo       no projeto primeiro e depois rebuilde com este script.

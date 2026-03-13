@@ -12,6 +12,9 @@ from alertas.alert_engine import (
     _get_mes_anterior,
     _selecionar_type06_para_alerta,
     _safe_div,
+    append_to_alert_log,
+    build_alert_log_entry,
+    build_ranking_history_text,
     calcular_ranking_consolidado,
     calcular_ranking_por_oficina,
     classify_severity,
@@ -22,6 +25,7 @@ from alertas.alert_engine import (
     fmt_delta_k,
     fmt_k,
     fmt_linha_account,
+    fmt_linha_oficina,
     fmt_linha_type06,
     gerar_tabela_validacao,
     load_alert_log,
@@ -229,6 +233,54 @@ class TestFormatacao:
         assert "Scrap Sales" in line
         assert "kEUR" in line
         assert line.startswith("  ")  # indentado
+
+    def test_fmt_linha_oficina(self):
+        ofi = {"oficina": "GS", "desvio": 345300, "delta_cpu": 128.7}
+        line = fmt_linha_oficina(ofi, "BRL", "R$")
+        assert "GS" in line
+        assert "+345,3 kBRL" in line
+        assert "∆ +128,7 R$/veíc" in line
+
+    def test_build_ranking_history_text(self):
+        ranking = {
+            "moeda": "BRL",
+            "simbolo": "R$",
+            "itens": [
+                {
+                    "type_05": "Burden",
+                    "type_06": "Material Losses",
+                    "real": 26200,
+                    "cpu_real": 6.8,
+                    "desvio": 75500,
+                    "desvio_pct": 19.6,
+                    "delta_cpu": 19.6,
+                    "accounts": [
+                        {
+                            "account": "Scrap Sales",
+                            "desvio": 71200,
+                            "delta_cpu": 18.5,
+                            "esperado": -50,
+                            "oficinas": [
+                                {
+                                    "oficina": "GS",
+                                    "desvio": 345300,
+                                    "delta_cpu": 128.7,
+                                    "textos": [{"texto": "Ajuste", "valor": 1200}],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        text = build_ranking_history_text(ranking, "Budget Flex × Real", 0.5, "Junho")
+        assert "Relatorio de Alertas - Junho" in text
+        assert "Burden" in text
+        assert "Material Losses" in text
+        assert "⚠ menos receita" in text
+        assert "📍 GS: +345,3 kBRL (∆ +128,7 R$/veíc)" in text
+        assert "• Ajuste (+1,2 k)" in text
 
 
 # =========================================================================
@@ -482,6 +534,51 @@ class TestPersistencia:
 
     def test_load_log_inexistente(self, tmp_path):
         assert load_alert_log(str(tmp_path / "log.json")) == []
+
+    def test_save_alert_log_limita_ultimos_10(self, tmp_path):
+        path = str(tmp_path / "log.json")
+        save_alert_log([{"id": f"a{i}"} for i in range(12)], path)
+        loaded = load_alert_log(path)
+        assert len(loaded) == 10
+        assert loaded[0]["id"] == "a2"
+        assert loaded[-1]["id"] == "a11"
+
+    def test_append_to_alert_log_persiste_plain_text_tree(self, tmp_path):
+        path = str(tmp_path / "log.json")
+        ranking = {
+            "moeda": "BRL",
+            "simbolo": "R$",
+            "severidade": "moderado",
+            "total_desvio": 75500,
+            "volume_total": 1000,
+            "itens": [
+                {
+                    "type_05": "Burden",
+                    "type_06": "Material Losses",
+                    "real": 26200,
+                    "cpu_real": 6.8,
+                    "desvio": 75500,
+                    "desvio_pct": 19.6,
+                    "delta_cpu": 19.6,
+                    "accounts": [],
+                }
+            ],
+        }
+        entry = build_alert_log_entry(
+            ranking,
+            periodo="Junho",
+            ano=2025,
+            modo="flex_bud_x_real",
+            proporcao=0.5,
+            titulo="Previa Central de Alertas - Junho",
+            tipo="manual",
+        )
+
+        append_to_alert_log(entry, path)
+        loaded = load_alert_log(path)
+        assert loaded[0]["generated_texts"]["plain_text_tree"] == loaded[0]["mensagem"]
+        assert "Material Losses" in loaded[0]["generated_texts"]["plain_text_tree"]
+        assert loaded[0]["tipo"] == "manual"
 
 
 # =========================================================================

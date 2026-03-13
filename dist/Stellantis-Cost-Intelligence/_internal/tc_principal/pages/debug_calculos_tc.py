@@ -1,4 +1,4 @@
-"""
+﻿"""
 TC Veículos — Debug de Cálculos
 15 abas de auditoria: integridade, tabela principal, rateio FA, custo FA,
                      custo FP, D&A, volume/tempo, comparar Excel,
@@ -7,10 +7,10 @@ TC Veículos — Debug de Cálculos
 
 import sys as _sys
 import os as _os
-if hasattr(_sys, '_MEIPASS'):
-    _ROOT = _sys._MEIPASS
-else:
-    _ROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from tc_core.utils.portabilidade import get_base_path, get_data_root
+
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 
 import streamlit as st
 import pandas as pd
@@ -402,7 +402,7 @@ def render():
             st.info("Faça upload do arquivo Excel para comparar.")
 
             # Tentar carregar automaticamente se existir
-            caminho_auto = os.path.join(_ROOT, 'dados', str(ano), 'Reporting fluxo anexo.xlsx')
+            caminho_auto = os.path.join(_DATA_ROOT, str(ano), 'Reporting fluxo anexo.xlsx')
             if os.path.exists(caminho_auto):
                 st.caption(f"💡 Arquivo encontrado em `{caminho_auto}`. Use o upload acima ou:")
                 if st.button("📂 Carregar arquivo local", key='dbg_load_local'):
@@ -767,3 +767,4 @@ def render():
 
 if __name__ == "__main__":
     render()
+

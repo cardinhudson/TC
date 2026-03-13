@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import uuid
 from datetime import date
 from pathlib import Path
@@ -52,6 +53,7 @@ _PATH_BUD_VOL = os.path.join(_HIST, "BUD", "df_vol_historico_BUD.parquet")
 _DIR = Path(__file__).resolve().parent
 _DEFAULT_RULES = str(_DIR / "alert_rules.json")
 _DEFAULT_LOG = str(_DIR / "alert_log.json")
+_MAX_LOG_ENTRIES = 10
 
 # Modos de comparação
 MODOS_COMPARACAO = {
@@ -227,13 +229,35 @@ def save_alert_rules(data: dict, path: str = _DEFAULT_RULES) -> None:
 def load_alert_log(path: str = _DEFAULT_LOG) -> list[dict]:
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
     return []
 
 
+def _trim_alert_log(log: list[dict], limit: int = _MAX_LOG_ENTRIES) -> list[dict]:
+    if limit <= 0:
+        return []
+    return list(log)[-limit:]
+
+
+def _write_json_atomically(data: object, path: str) -> None:
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(prefix="sci-alert-", suffix=".tmp", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=2)
+        os.replace(temp_path, path)
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
 def save_alert_log(log: list[dict], path: str = _DEFAULT_LOG) -> None:
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(log, fh, ensure_ascii=False, indent=2)
+    _write_json_atomically(_trim_alert_log(log), path)
 
 
 def append_to_alert_log(alert: dict, path: str = _DEFAULT_LOG) -> None:
@@ -250,7 +274,16 @@ def _read_parquet_safe(path: str) -> pd.DataFrame | None:
     if not os.path.exists(path):
         logger.warning("Parquet não encontrado: %s", path)
         return None
-    df = pd.read_parquet(path)
+    try:
+        df = pd.read_parquet(path)
+    except AttributeError as exc:
+        if "pyarrow" in str(exc).lower() and "parquet" in str(exc).lower():
+            logger.exception("PyArrow sem suporte a parquet no runtime frozen: %s", path)
+            raise RuntimeError(
+                "Falha ao ler parquet: o runtime do executavel esta sem suporte completo a pyarrow.parquet. "
+                "Rebuild o bundle com os submodulos de pyarrow incluidos."
+            ) from exc
+        raise
     df = normalize_common_column_mojibake(df)
     df = normalizar_coluna_periodo(df, "Período")
     if "Volume" in df.columns:
@@ -524,6 +557,168 @@ def fmt_linha_account(acc: dict, moeda: str = "EUR", simbolo: str = "€") -> st
         f"  {nome}: {sinal}{_fmt_num(v_k)} k{moeda} "
         f"({fmt_delta_cpu(delta_cpu, simbolo)})"
     )
+
+
+def fmt_linha_oficina(ofi: dict, moeda: str = "EUR", simbolo: str = "€") -> str:
+    """Sub-linha de Oficina no mesmo padrao visual do delta de Account."""
+    nome = ofi.get("oficina", "")
+    desvio = ofi.get("desvio", 0)
+    delta_cpu = ofi.get("delta_cpu", 0)
+    v_k = float(desvio) / 1000 if desvio else 0.0
+    sinal = "+" if v_k >= 0 else ""
+    return (
+        f"  📍 {nome}: {sinal}{_fmt_num(v_k)} k{moeda} "
+        f"({fmt_delta_cpu(delta_cpu, simbolo)})"
+    )
+
+
+def _severity_icons(desvio_pct: float, desvio: float | None = None) -> str:
+    if desvio is not None and desvio <= 0:
+        return "🟢"
+    pct = abs(desvio_pct)
+    if pct > 50:
+        return "🔴🔴🔴"
+    if pct > 15:
+        return "🔴🔴"
+    if pct > 5:
+        return "🟠"
+    if pct > 1:
+        return "🟡"
+    return "🟢"
+
+
+def _bar_text(desvio: float, total_desvio_abs: float, width: int = 10) -> str:
+    if total_desvio_abs <= 0:
+        return "[░░░░░░░░░░] representa 0% do desvio total"
+
+    ratio = min(1.0, abs(desvio) / total_desvio_abs)
+    filled = int(round(ratio * width))
+    if abs(desvio) > 0 and filled == 0:
+        filled = 1
+    empty = max(0, width - filled)
+    return f"[{'█' * filled}{'░' * empty}] representa {ratio * 100:.0f}% do desvio total"
+
+
+def build_ranking_history_text(
+    ranking: dict,
+    modo_label: str,
+    proporcao: float,
+    periodo: str,
+) -> str:
+    """Gera texto hierarquico persistivel da Central de Alertas."""
+    moeda = ranking.get("moeda", "BRL")
+    itens = ranking.get("itens", [])
+    total_desvio_abs = sum(abs(it.get("desvio", 0)) for it in itens)
+
+    by_t05: dict[str, list[dict]] = {}
+    for it in itens:
+        t05 = it.get("type_05", "Outros")
+        by_t05.setdefault(t05, []).append(it)
+
+    lines = [
+        f"Relatorio de Alertas - {periodo}",
+        f"{modo_label} | P = {proporcao:.1%} | Moeda: {moeda}",
+        "",
+    ]
+
+    for t05, t05_itens in by_t05.items():
+        t05_pct = (
+            sum(it.get("desvio_pct", 0) for it in t05_itens) / len(t05_itens)
+            if t05_itens else 0
+        )
+        t05_desvio = sum(it.get("desvio", 0) for it in t05_itens)
+        lines.append(f"{_severity_icons(t05_pct, t05_desvio)} {t05}")
+
+        for idx_t6, it in enumerate(t05_itens):
+            is_last_t6 = idx_t6 == len(t05_itens) - 1
+            tree_t6 = "└─" if is_last_t6 else "├─"
+            tree_cont = "   " if is_last_t6 else "│  "
+            lines.append(
+                f"{tree_t6} {_severity_icons(it.get('desvio_pct', 0), it.get('desvio', 0))} "
+                f"{fmt_linha_type06(it, moeda, ranking.get('simbolo', 'R$')).strip()}"
+            )
+            lines.append(
+                f"{tree_cont} {_bar_text(it.get('desvio', 0), total_desvio_abs)} · "
+                f"{fmt_delta_k(it.get('desvio', 0), moeda)} · {abs(it.get('desvio_pct', 0)):.1f}%"
+            )
+
+            accounts = it.get("accounts", [])
+            for idx_acc, acc in enumerate(accounts):
+                is_last_acc = idx_acc == len(accounts) - 1
+                tree_acc = "└─" if is_last_acc else "├─"
+                tree_cont_acc = tree_cont + ("   " if is_last_acc else "│  ")
+                credit_tag = " ⚠ menos receita" if acc.get("esperado", 0) < 0 else ""
+                lines.append(
+                    f"{tree_cont}{tree_acc} {fmt_linha_account(acc, moeda, ranking.get('simbolo', 'R$')).strip()}"
+                    f"{credit_tag}"
+                )
+
+                oficinas = acc.get("oficinas", [])
+                for idx_ofi, ofi in enumerate(oficinas):
+                    is_last_ofi = idx_ofi == len(oficinas) - 1
+                    tree_ofi = "└─" if is_last_ofi else "├─"
+                    tree_cont_ofi = tree_cont_acc + ("   " if is_last_ofi else "│  ")
+                    lines.append(
+                        f"{tree_cont_acc}{tree_ofi} {fmt_linha_oficina(ofi, moeda, ranking.get('simbolo', 'R$')).strip()}"
+                    )
+
+                    for txt in ofi.get("textos", []):
+                        valor_txt = float(txt.get("valor", 0) or 0) / 1000
+                        sinal_txt = "+" if valor_txt >= 0 else ""
+                        lines.append(
+                            f"{tree_cont_ofi} • {txt.get('texto', '')} "
+                            f"({sinal_txt}{_fmt_num(valor_txt)} k)"
+                        )
+
+    return "\n".join(lines)
+
+
+def build_alert_log_entry(
+    ranking: dict,
+    *,
+    periodo: str,
+    ano: int,
+    modo: str,
+    proporcao: float,
+    rule_id: str = "",
+    titulo: str | None = None,
+    tipo: str = "automatico",
+    metadata_extra: dict | None = None,
+    notificacoes_enviadas: dict | None = None,
+) -> dict:
+    """Cria um item de historico com o texto hierarquico persistido."""
+    modo_label = MODOS_COMPARACAO.get(modo, modo)
+    plain_text_tree = build_ranking_history_text(ranking, modo_label, proporcao, periodo)
+    base_metadata = {
+        "periodo": periodo,
+        "ano": ano,
+        "modo": modo,
+        "modo_label": modo_label,
+        "moeda": ranking.get("moeda", "BRL"),
+        "proporcao_mes": round(proporcao, 4),
+        "total_desvio": round(ranking.get("total_desvio", 0), 2),
+        "volume_total": ranking.get("volume_total", 0),
+    }
+    if metadata_extra:
+        base_metadata.update(metadata_extra)
+
+    top_n = len(ranking.get("itens", []))
+    return {
+        "id": str(uuid.uuid4()),
+        "rule_id": rule_id,
+        "timestamp": timestamp_agora_iso(),
+        "titulo": titulo or f"Top {top_n} perdas - {periodo}",
+        "mensagem": plain_text_tree,
+        "generated_texts": {
+            "plain_text_tree": plain_text_tree,
+        },
+        "severidade": ranking.get("severidade", "informativo"),
+        "tipo": tipo,
+        "lido": False,
+        "metadata": base_metadata,
+        "ranking": ranking,
+        "notificacoes_enviadas": notificacoes_enviadas or {"email": False, "teams": False},
+    }
 
 
 # =========================================================================
@@ -1411,16 +1606,20 @@ def _executar_regra_notificacao(
         filtro_account=regra.get("filtro_account") or None,
     )
 
-    alerta_log = {
-        "id": f"rule_{regra.get('id', '')}_{timestamp_agora_iso()}",
-        "rule_id": regra.get("id", ""),
-        "timestamp": timestamp_agora_iso(),
-        "periodo": periodo,
-        "ano": ano,
-        "severidade": ranking.get("severidade", "informativo"),
-        "total_desvio": ranking.get("total_desvio", 0),
-        "notificacoes_enviadas": {"email": False, "teams": False},
-    }
+    alerta_log = build_alert_log_entry(
+        ranking,
+        periodo=periodo,
+        ano=ano,
+        modo=modo,
+        proporcao=prop,
+        rule_id=regra.get("id", ""),
+        titulo=f"{regra.get('nome', 'Relatorio de Alertas')} - {periodo}",
+        tipo="automatico",
+        metadata_extra={
+            "regra_nome": regra.get("nome", ""),
+        },
+        notificacoes_enviadas={"email": False, "teams": False},
+    )
 
     notif = config.get("notifications_enabled", {})
     if notif.get("email"):

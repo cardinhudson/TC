@@ -7,7 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from tc_core.utils.portabilidade import get_base_path
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_principal.pages.home_tc import render as render_home_tc
 
 from tc_principal.pages.extracao_dados_tc import (
@@ -19,8 +19,8 @@ from tc_principal.pages.debug_calculos_tc import (
 from tc_copilot.pages.home_copilot import render as render_copilot
 
 
-def _iter_startup_files(base_path: Path) -> list[Path]:
-    roots = [base_path / "dados", base_path / ".streamlit"]
+def _iter_startup_files(data_root: Path, assets_root: Path) -> list[Path]:
+    roots = [data_root, assets_root / ".streamlit"]
     allowed_exts = {".parquet", ".json", ".toml", ".png"}
     priority_names = {
         "df_principal_BUD.parquet",
@@ -53,7 +53,7 @@ def _warm_file(path: Path) -> None:
 
 
 @st.cache_resource(show_spinner=False)
-def start_background_warmup(base_path_str: str):
+def start_background_warmup(data_root_str: str, assets_root_str: str):
     status = {
         "done": False,
         "files": 0,
@@ -63,8 +63,9 @@ def start_background_warmup(base_path_str: str):
     }
 
     def worker() -> None:
-        base_path = Path(base_path_str)
-        files = _iter_startup_files(base_path)
+        data_root = Path(data_root_str)
+        assets_root = Path(assets_root_str)
+        files = _iter_startup_files(data_root, assets_root)
         status["files"] = len(files)
         max_workers = min(8, max(2, os.cpu_count() or 4))
         try:
@@ -95,7 +96,7 @@ target_url = f"{base_url}/" if base_url else "/"
 host = st.get_option("server.address") or "localhost"
 port = st.get_option("server.port") or 8501
 browser_url = f"http://{host}:{port}{target_url}"
-warmup_status = start_background_warmup(str(get_base_path()))
+warmup_status = start_background_warmup(str(get_data_root()), str(get_base_path()))
 
 # Faixa no sidebar (proporção original, sem cortes)
 faixa_path = get_base_path() / "SCI_faixa.png"

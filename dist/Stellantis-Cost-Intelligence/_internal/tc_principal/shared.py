@@ -14,6 +14,7 @@ import unicodedata
 from datetime import datetime
 
 from tc_core.constants import ORDEM_MESES  # noqa: F401 — re-exportado para as páginas
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 
 # ═══════════════════════════════════════════════════════════════
 #  RAIZ DO PROJETO (compatível com EXE PyInstaller)
@@ -22,6 +23,9 @@ if hasattr(_sys, '_MEIPASS'):
     _ROOT = _sys._MEIPASS          # EXE → aponta para _internal/
 else:
     _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # dev
+
+_BASE_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 
 # ═══════════════════════════════════════════════════════════════
 #  CONSTANTES
@@ -71,19 +75,20 @@ def extrair_redis(df: pd.DataFrame) -> float:
 def _pasta_tc_principal(ano):
     """Caminho da pasta de dados TC Veículos Budget para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/BUD/
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD')
 
 
 def _pasta_tc_principal_real(ano):
     """Caminho da pasta de dados TC Veículos Real para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/ (raiz, sem subfolder)
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano))
+    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano))
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def descobrir_anos_tc_principal():
     """Descobre anos que possuem dados processados em dados/TC_Principal/{ano}/BUD/."""
     anos = []
-    pasta_base = os.path.join(_ROOT, 'dados', 'TC_Principal')
+    pasta_base = os.path.join(_DATA_ROOT, 'TC_Principal')
     if os.path.exists(pasta_base):
         for d in sorted(os.listdir(pasta_base), reverse=True):
             pasta_parquets = os.path.join(pasta_base, d, 'BUD')
@@ -95,6 +100,7 @@ def descobrir_anos_tc_principal():
     return anos
 
 
+@st.cache_data(ttl=900, show_spinner=False)
 def obter_timestamp_parquets(ano):
     """Retorna timestamp mais recente entre os parquets do ano."""
     pasta = _pasta_tc_principal(ano)
@@ -110,30 +116,30 @@ def obter_timestamp_parquets(ano):
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_principal(ano):
+def load_principal(ano, columns=None):
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_principal_BUD.parquet')
     if not os.path.exists(caminho):
         return None
-    return pd.read_parquet(caminho)
+    return pd.read_parquet(caminho, columns=columns)
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_volume_bud(ano):
+def load_volume_bud(ano, columns=None):
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_BUD.parquet')
     if not os.path.exists(caminho):
         return None
-    df = pd.read_parquet(caminho)
+    df = pd.read_parquet(caminho, columns=columns)
     if 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_volume_actual(ano):
+def load_volume_actual(ano, columns=None):
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_actual.parquet')
     if not os.path.exists(caminho):
         return None
-    df = pd.read_parquet(caminho)
+    df = pd.read_parquet(caminho, columns=columns)
     if 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
@@ -164,14 +170,14 @@ def load_volume_fa(ano):
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_tc_sapiens(ano):
+def load_tc_sapiens(ano, columns=None):
     """Carrega df_tc_sapiens.parquet — dados Sapiens detalhados com todas as colunas.
     O arquivo é gerado pela fase10b e salvo na pasta Real (não BUD).
     """
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tc_sapiens.parquet')
     if not os.path.exists(caminho):
         return None
-    return pd.read_parquet(caminho)
+    return pd.read_parquet(caminho, columns=columns)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -206,12 +212,12 @@ def load_custo_rateado_veiculos(ano):
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_custo_fp_veiculo(ano):
+def load_custo_fp_veiculo(ano, columns=None):
     """Custo FP final por veículo (rateado + D&A)."""
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_fp_BUD.parquet')
     if not os.path.exists(caminho):
         return None
-    return pd.read_parquet(caminho)
+    return pd.read_parquet(caminho, columns=columns)
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
@@ -228,12 +234,12 @@ def load_cpu_veiculo(ano):
 # ═══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_principal_real(ano):
+def load_principal_real(ano, columns=None):
     """Tabela principal Real (Sapiens)."""
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_principal.parquet')
     if not os.path.exists(caminho):
         return None
-    return pd.read_parquet(caminho)
+    return pd.read_parquet(caminho, columns=columns)
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
@@ -311,7 +317,7 @@ def load_dea_dedicado_real(ano: int = 2026):
     Carrega arquivo de D&A dedicado por veículo do processamento Real.
     Usado para fazer rateio idêntico ao processamento Real.
     """
-    caminho = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
+    caminho = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
@@ -499,11 +505,11 @@ def _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo='Custo FP'):
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_historico():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado')
 
 
 def _pasta_historico_bud():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'historico_consolidado', 'BUD')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado', 'BUD')
 
 
 @st.cache_data(ttl=3600, show_spinner=True)
@@ -571,7 +577,7 @@ def load_historico_custo_fp_veiculo_bud():
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_forecast_tc():
-    return os.path.join(_ROOT, 'dados', 'TC_Principal', 'Forecast')
+    return os.path.join(_DATA_ROOT, 'TC_Principal', 'Forecast')
 
 
 @st.cache_data(ttl=3600, show_spinner=True)

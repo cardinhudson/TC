@@ -1,18 +1,18 @@
 import streamlit as st
 import pandas as pd
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from versionamento import obter_versao_atual
 import sys
 import re
 import unicodedata
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 
 # Adicionar o diretório raiz ao path para importar os módulos de processamento
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -30,6 +30,30 @@ try:
     _ALERTAS_DISPONIVEL = True
 except ImportError:
     pass
+
+
+def _em_execucao_empacotada():
+    return getattr(sys, '_frozen', False) or getattr(sys, 'frozen', False)
+
+
+def _selecionar_arquivo_excel_desktop(nome_arquivo: str) -> str | None:
+    """Abre seletor nativo do Windows para contornar falhas do uploader no desktop."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        caminho = filedialog.askopenfilename(
+            title=f"Selecionar {nome_arquivo}",
+            filetypes=[("Excel", "*.xlsx")],
+        )
+        root.destroy()
+        return caminho or None
+    except Exception as e:
+        st.error(f"❌ Não foi possível abrir o seletor de arquivos: {e}")
+        return None
 
 
 def _executar_alertas_pos_extracao():
@@ -60,9 +84,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -94,6 +118,17 @@ def obter_data_atualizacao_dados():
 # CSS para reduzir fonte das configurações da sidebar
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 4rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.35rem !important;
+        }
+        hr {
+            margin: 0.18rem 0 !important;
+            opacity: 0.2 !important;
+        }
         /* Reduzir fonte do header da sidebar */
         .css-1d391kg h3 {
             font-size: 0.9rem !important;
@@ -124,14 +159,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# Configuração da página
-st.set_page_config(
-    page_title="Extração de Dados - TC",
-    page_icon="📥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Função para obter mês atual em português
 def obter_mes_atual():
@@ -233,11 +260,11 @@ def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: st
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False) -> str | None:
     candidatos = [
-        os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), nome_arquivo),
+        os.path.join(_DATA_ROOT, 'TC_Ext', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Ext', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -470,7 +497,7 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
 
 def verificar_arquivos_reais(ano):
     """Verifica arquivos necessários para dados REAIS"""
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
+    pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano))
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume e Sapiens'
@@ -494,7 +521,7 @@ def verificar_arquivos_reais(ano):
 
 def verificar_arquivos_budget(ano):
     """Verifica arquivos necessários para dados BUDGET"""
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
+    pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano))
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume'
@@ -586,23 +613,13 @@ with tab1:
         (Os outputs de BUDGET continuam indo para dados/TC_Ext/{ano}/BUD/ como antes.)
         """
 
-        pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano_selecionado))
+        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
         destino = os.path.join(pasta_ano, nome_arquivo)
-
-        arquivo_upload = st.file_uploader(
-            label,
-            type=["xlsx"],
-            key=key_uploader,
-            help=help_text,
-        )
 
         if os.path.exists(destino):
             st.warning(f"⚠️ Já existe: `{destino}`")
         else:
             st.caption(f"📁 Destino: `{destino}`")
-
-        if arquivo_upload is None:
-            return
 
         precisa_confirmar = os.path.exists(destino)
         confirmar = True
@@ -612,6 +629,37 @@ with tab1:
                 value=False,
                 key=f"{key_uploader}_confirm_overwrite",
             )
+
+        if _em_execucao_empacotada():
+            st.caption(
+                "No app desktop, use o seletor nativo do Windows para evitar "
+                "falhas do upload embutido."
+            )
+            if st.button(
+                f"📂 Selecionar e salvar {nome_arquivo}",
+                key=f"{key_uploader}_btn_save_desktop",
+                use_container_width=False,
+                type="primary",
+                disabled=precisa_confirmar and not confirmar,
+            ):
+                origem = _selecionar_arquivo_excel_desktop(nome_arquivo)
+                if origem:
+                    os.makedirs(pasta_ano, exist_ok=True)
+                    shutil.copy2(origem, destino)
+                    st.success(f"✅ Arquivo salvo em: `{destino}`")
+                    st.caption(f"Arquivo selecionado: `{origem}`")
+                    st.rerun()
+            return
+
+        arquivo_upload = st.file_uploader(
+            label,
+            type=["xlsx"],
+            key=key_uploader,
+            help=help_text,
+        )
+
+        if arquivo_upload is None:
+            return
 
         if st.button(
             f"💾 Salvar {nome_arquivo}",
@@ -804,7 +852,7 @@ with tab3:
     
     st.subheader("📁 Estrutura de Pastas")
     
-    pasta_ext_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano_selecionado))
+    pasta_ext_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
     if os.path.exists(pasta_ext_ano):
         st.success(f"✅ Pasta `dados/TC_Ext/{ano_selecionado}/` existe")
         
@@ -825,7 +873,7 @@ with tab3:
     
     st.subheader("📚 Histórico Consolidado")
     
-    pasta_hist = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado')
+    pasta_hist = os.path.join(_DATA_ROOT, 'TC_Ext', 'historico_consolidado')
     if os.path.exists(pasta_hist):
         st.success("✅ Pasta `dados/TC_Ext/historico_consolidado/` existe")
         

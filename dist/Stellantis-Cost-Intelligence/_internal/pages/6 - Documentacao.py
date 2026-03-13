@@ -8,21 +8,12 @@ import base64
 import sys
 from datetime import datetime
 from tc_core.presentation_docs import render_presentation_section
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from versionamento import obter_versao_atual
 
 # Diretório raiz do projeto
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# Configuração da página
-st.set_page_config(
-    page_title="Documentação - Stellantis Cost Intelligence (SCI)",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 
 # Função para obter mês atual em português
 def obter_mes_atual():
@@ -40,9 +31,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -92,6 +83,17 @@ st.markdown(f"""
 # CSS para melhorar visualização
 st.markdown("""
     <style>
+        .block-container {
+            padding-top: 4rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.38rem !important;
+        }
+        hr {
+            margin: 0.18rem 0 !important;
+            opacity: 0.16 !important;
+        }
         h1 {
             white-space: nowrap !important;
             overflow: hidden !important;

@@ -8,12 +8,11 @@ from versionamento import obter_versao_atual
 import sys
 import re
 import unicodedata
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 
 # Adicionar o diretório raiz ao path para importar os módulos de processamento
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -85,9 +84,9 @@ def obter_data_atualizacao_dados():
     """Retorna a data e hora da última atualização dos arquivos de dados"""
     try:
         arquivos_dados = [
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
-            os.path.join(_ROOT, "dados", "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join(_DATA_ROOT, "TC_Ext", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
         ]
         
         data_atualizacao = None
@@ -120,7 +119,7 @@ def obter_data_atualizacao_dados():
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 0.65rem !important;
+            padding-top: 4rem !important;
             padding-bottom: 0.25rem !important;
         }
         div[data-testid="stVerticalBlock"] {
@@ -160,14 +159,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# Configuração da página
-st.set_page_config(
-    page_title="Extração de Dados - TC",
-    page_icon="📥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Função para obter mês atual em português
 def obter_mes_atual():
@@ -269,11 +260,11 @@ def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str], contexto: st
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False) -> str | None:
     candidatos = [
-        os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), nome_arquivo),
+        os.path.join(_DATA_ROOT, 'TC_Ext', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Ext', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -506,7 +497,7 @@ def _validar_pre_extracao_budget(ano: int) -> tuple[bool, list[str]]:
 
 def verificar_arquivos_reais(ano):
     """Verifica arquivos necessários para dados REAIS"""
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
+    pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano))
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume e Sapiens'
@@ -530,7 +521,7 @@ def verificar_arquivos_reais(ano):
 
 def verificar_arquivos_budget(ano):
     """Verifica arquivos necessários para dados BUDGET"""
-    pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano))
+    pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano))
     arquivos_necessarios = {
         'Dados SAPIENS.xlsx': 'Base de dados SAPIENS',
         'Reporting fluxo anexo.xlsx': 'Dados de rateio/volume'
@@ -622,7 +613,7 @@ with tab1:
         (Os outputs de BUDGET continuam indo para dados/TC_Ext/{ano}/BUD/ como antes.)
         """
 
-        pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano_selecionado))
+        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
         destino = os.path.join(pasta_ano, nome_arquivo)
 
         if os.path.exists(destino):
@@ -861,7 +852,7 @@ with tab3:
     
     st.subheader("📁 Estrutura de Pastas")
     
-    pasta_ext_ano = os.path.join(_ROOT, 'dados', 'TC_Ext', str(ano_selecionado))
+    pasta_ext_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
     if os.path.exists(pasta_ext_ano):
         st.success(f"✅ Pasta `dados/TC_Ext/{ano_selecionado}/` existe")
         
@@ -882,7 +873,7 @@ with tab3:
     
     st.subheader("📚 Histórico Consolidado")
     
-    pasta_hist = os.path.join(_ROOT, 'dados', 'TC_Ext', 'historico_consolidado')
+    pasta_hist = os.path.join(_DATA_ROOT, 'TC_Ext', 'historico_consolidado')
     if os.path.exists(pasta_hist):
         st.success("✅ Pasta `dados/TC_Ext/historico_consolidado/` existe")
         

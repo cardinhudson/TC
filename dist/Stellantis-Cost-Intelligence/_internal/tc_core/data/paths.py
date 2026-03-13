@@ -4,14 +4,14 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from tc_core.utils.portabilidade import get_base_path
+from tc_core.utils.portabilidade import get_data_root
 
 # Constantes de caminhos base — sempre relativas ao base_path.
 # Avaliadas uma vez na importação; get_base_path() é estático por sessão.
 # No EXE: apontam para a pasta ao lado do .exe (onde dados/ reside).
 # Em dev : apontam para a raiz do repositório.
-PASTA_TC_EXT: str = str(get_base_path() / "dados" / "TC_Ext")
-PASTA_TC_PRINCIPAL: str = str(get_base_path() / "dados" / "TC_Principal")
+PASTA_TC_EXT: str = str(get_data_root() / "TC_Ext")
+PASTA_TC_PRINCIPAL: str = str(get_data_root() / "TC_Principal")
 
 
 

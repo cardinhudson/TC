@@ -1,4 +1,4 @@
-"""
+﻿"""
 TC Veículos — Extração e Processamento de Dados
 Replica o layout e funcionalidades do TC Ext (3 tabs + radio).
 Upload com proteção contra sobrescrita, pré-validação, barra de progresso,
@@ -8,19 +8,19 @@ log ao vivo, consolidação histórica multi-ano e status de parquets.
 import streamlit as st
 import pandas as pd
 import os
+import shutil
 import sys
 import re
 import json
 import unicodedata
 from datetime import datetime
 
+from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_principal.ui_components import injetar_css_global, render_header
 
 # ── Caminho raiz do projeto ──
-if hasattr(sys, '_MEIPASS'):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = str(get_base_path())
+_DATA_ROOT = str(get_data_root())
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -35,11 +35,18 @@ except ImportError:
     processar_veiculos_real = None
     executar_conferencias = None
 
+try:
+    from alertas.alert_engine import run_daily_check
+    _ALERTAS_DISPONIVEL = True
+except ImportError:
+    run_daily_check = None
+    _ALERTAS_DISPONIVEL = False
+
 # ════════════════════════════════════════════
 # CONSTANTES
 # ════════════════════════════════════════════
 
-PASTA_TC = os.path.join(_ROOT, 'dados', 'TC_Principal')
+PASTA_TC = os.path.join(_DATA_ROOT, 'TC_Principal')
 RATEIOS_PATH = os.path.join(_ROOT, 'rateios_manuais.json')
 
 PARQUETS_BUDGET = [
@@ -71,17 +78,21 @@ PARQUETS_REAL = [
 ]
 
 
+def _em_execucao_empacotada() -> bool:
+    return getattr(sys, 'frozen', False)
+
+
 # ════════════════════════════════════════════
 # FUNÇÕES AUXILIARES
 # ════════════════════════════════════════════
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False):
     candidatos = [
-        os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), nome_arquivo),
+        os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), nome_arquivo),
         os.path.join('.', nome_arquivo),
     ]
     if incluir_bud:
-        candidatos.insert(1, os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano), 'BUD', nome_arquivo))
+        candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD', nome_arquivo))
     for c in candidatos:
         if os.path.exists(c):
             return c
@@ -443,6 +454,49 @@ def _salvar_rateios(rateios: dict):
         json.dump(rateios, f, indent=2)
 
 
+def _executar_alertas_pos_extracao() -> None:
+    """Executa a Central de Alertas ao final do processamento."""
+    if not _ALERTAS_DISPONIVEL or run_daily_check is None:
+        return
+    try:
+        with st.spinner("🔔 Verificando alertas do SCI..."):
+            alertas = run_daily_check()
+        if alertas:
+            enviados = sum(
+                1 for alerta in alertas
+                if alerta.get("notificacoes_enviadas", {}).get("email")
+                or alerta.get("notificacoes_enviadas", {}).get("teams")
+            )
+            st.info(
+                f"🔔 **Central de Alertas:** {len(alertas)} alerta(s) processado(s), "
+                f"{enviados} notificação(ões) enviada(s)."
+            )
+        else:
+            st.success("🔔 Central de Alertas: nenhum desvio identificado.")
+    except Exception as exc:
+        st.warning(f"⚠️ Alertas não puderam ser verificados: {exc}")
+
+
+def _selecionar_arquivo_excel_desktop() -> str | None:
+    """Usa o seletor nativo do Windows para upload no app desktop."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        caminho = filedialog.askopenfilename(
+            title="Selecionar Reporting veículos.xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+        )
+        root.destroy()
+        return caminho or None
+    except Exception as exc:
+        st.error(f"❌ Não foi possível abrir o seletor de arquivos: {exc}")
+        return None
+
+
 # ════════════════════════════════════════════
 # RENDER PRINCIPAL
 # ════════════════════════════════════════════
@@ -530,15 +584,8 @@ def render():
             f"`dados/TC_Principal/{ano_selecionado}/`. Se necessário, faça upload abaixo."
         )
 
-        pasta_ano = os.path.join(_ROOT, 'dados', 'TC_Principal', str(ano_selecionado))
+        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
         destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
-
-        arquivo_upload = st.file_uploader(
-            "📄 Upload: Reporting veículos.xlsx",
-            type=["xlsx"],
-            key="upload_reporting_tc",
-            help="Arquivo principal contendo abas Budget e Real.",
-        )
 
         # Se já existe, mostra info
         if os.path.exists(destino):
@@ -548,17 +595,42 @@ def render():
         else:
             st.caption(f"📁 Destino: `{destino}`")
 
-        if arquivo_upload is not None:
-            precisa_confirmar = os.path.exists(destino)
-            confirmar = True
-            if precisa_confirmar:
-                confirmar = st.checkbox(
-                    "Confirmar sobrescrita do arquivo existente",
-                    value=False,
-                    key="upload_confirm_overwrite",
-                )
+        precisa_confirmar = os.path.exists(destino)
+        confirmar = True
+        if precisa_confirmar:
+            confirmar = st.checkbox(
+                "Confirmar sobrescrita do arquivo existente",
+                value=False,
+                key="upload_confirm_overwrite",
+            )
 
+        if _em_execucao_empacotada():
+            st.info(
+                "No app desktop, use o seletor nativo do Windows abaixo. "
+                "Isso evita falhas do upload no navegador embutido."
+            )
             if st.button(
+                "📂 Selecionar e salvar Reporting veículos.xlsx",
+                key="btn_upload_desktop_tc",
+                type="primary",
+                disabled=precisa_confirmar and not confirmar,
+            ):
+                origem = _selecionar_arquivo_excel_desktop()
+                if origem:
+                    os.makedirs(pasta_ano, exist_ok=True)
+                    shutil.copy2(origem, destino)
+                    st.success(f"✅ Arquivo salvo em: `{destino}`")
+                    st.caption(f"Arquivo selecionado: `{origem}`")
+                    st.rerun()
+        else:
+            arquivo_upload = st.file_uploader(
+                "📄 Upload: Reporting veículos.xlsx",
+                type=["xlsx"],
+                key="upload_reporting_tc",
+                help="Arquivo principal contendo abas Budget e Real.",
+            )
+
+            if arquivo_upload is not None and st.button(
                 "💾 Salvar Reporting veículos.xlsx",
                 key="btn_salvar_upload",
                 use_container_width=False,
@@ -626,6 +698,7 @@ def render():
 
         # Botões de execução
         col_b1, col_b2, col_b3 = st.columns(3)
+        houve_sucesso_processamento = False
 
         executar_reais = False
         executar_budget = False
@@ -684,6 +757,7 @@ def render():
 
                             progress_bar.progress(100)
                             status_text.success("✅ Processamento Real concluído!")
+                            houve_sucesso_processamento = True
 
                             # Consolidar histórico
                             status_text_hist = st.empty()
@@ -756,6 +830,7 @@ def render():
 
                             progress_bar_b.progress(100)
                             status_text_b.success("✅ Processamento Budget concluído!")
+                            houve_sucesso_processamento = True
 
                             # Consolidar histórico
                             status_text_hist_b = st.empty()
@@ -800,6 +875,9 @@ def render():
                         progress_bar_b.progress(0)
                         status_text_b.error(f"❌ Erro: {str(e)}")
                         st.exception(e)
+
+        if houve_sucesso_processamento:
+            _executar_alertas_pos_extracao()
 
     # ─────────────────────────────────────
     #  TAB 3: Status e Logs
@@ -905,7 +983,7 @@ def render():
 
         # ── Árvore de pastas ──
         st.markdown("### 📁 Estrutura de Pastas")
-        pasta_raiz_ano = os.path.join(_ROOT, 'dados', str(ano_selecionado))
+        pasta_raiz_ano = os.path.join(_DATA_ROOT, str(ano_selecionado))
         pasta_tc_ano = os.path.join(PASTA_TC, str(ano_selecionado))
 
         for label, pasta in [
@@ -935,3 +1013,4 @@ def render():
 
 if __name__ == "__main__":
     render()
+

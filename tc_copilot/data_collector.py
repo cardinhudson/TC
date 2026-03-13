@@ -16,15 +16,12 @@ import numpy as np
 import pandas as pd
 
 from tc_core.constants import ORDEM_MESES, MESES_NUMERO
+from tc_core.utils.portabilidade import get_data_root
 from tc_principal.shared import calcular_flex_budget, calcular_flex_budget_detalhado
 
 logger = logging.getLogger(__name__)
 
-# Raiz do projeto (compatível com EXE)
-if hasattr(sys, "_MEIPASS"):
-    _ROOT = sys._MEIPASS
-else:
-    _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA_ROOT = str(get_data_root())
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -162,23 +159,23 @@ def _ler_parquet(caminho: str) -> pd.DataFrame | None:
 
 
 def _pasta_real(ano: int) -> str:
-    return os.path.join(_ROOT, "dados", "TC_Principal", str(ano))
+    return os.path.join(_DATA_ROOT, "TC_Principal", str(ano))
 
 
 def _pasta_bud(ano: int) -> str:
-    return os.path.join(_ROOT, "dados", "TC_Principal", str(ano), "BUD")
+    return os.path.join(_DATA_ROOT, "TC_Principal", str(ano), "BUD")
 
 
 def _pasta_historico() -> str:
-    return os.path.join(_ROOT, "dados", "TC_Principal", "historico_consolidado")
+    return os.path.join(_DATA_ROOT, "TC_Principal", "historico_consolidado")
 
 
 def _pasta_tc_ext(ano: int) -> str:
-    return os.path.join(_ROOT, "dados", "TC_Ext", str(ano))
+    return os.path.join(_DATA_ROOT, "TC_Ext", str(ano))
 
 
 def _pasta_tc_ext_bud(ano: int) -> str:
-    return os.path.join(_ROOT, "dados", "TC_Ext", str(ano), "BUD")
+    return os.path.join(_DATA_ROOT, "TC_Ext", str(ano), "BUD")
 
 
 # ── TC Veículos — Real ──
@@ -1794,7 +1791,7 @@ def descobrir_meses_disponiveis(ano: int) -> list[int]:
 
 def descobrir_anos_disponiveis() -> list[int]:
     """Retorna lista de anos que possuem dados processados."""
-    pasta_base = os.path.join(_ROOT, "dados", "TC_Principal")
+    pasta_base = os.path.join(_DATA_ROOT, "TC_Principal")
     if not os.path.isdir(pasta_base):
         return []
     anos = []
