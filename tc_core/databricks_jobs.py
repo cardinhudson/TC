@@ -533,11 +533,11 @@ def _upload_workspace_via_sdk(
 ) -> dict[str, Any]:
     """Upload para Workspace Files via Databricks SDK (auto-auth).
 
-    - Arquivos <= 10 MB: usa workspace.import_ (base64).
-    - Arquivos > 10 MB: usa REST PUT workspace-files com headers OAuth
-      do SDK (suporta até 500 MB sem base64).
+    Usa w.workspace.upload() que suporta até 500 MB sem base64 e sem
+    problemas com caracteres especiais (como @) na URL.
     """
     from databricks.sdk import WorkspaceClient  # noqa: PLC0415
+    from databricks.sdk.service.workspace import ImportFormat  # noqa: PLC0415
 
     file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
     w = WorkspaceClient()
@@ -549,64 +549,20 @@ def _upload_workspace_via_sdk(
     except Exception:
         pass  # Pode já existir
 
-    if file_size_mb <= 10:
-        # Caminho rápido: import_ com base64 (funciona para arquivos pequenos)
-        import base64 as _b64
-        from databricks.sdk.service.workspace import ImportFormat  # noqa: PLC0415
-
-        with open(local_path, "rb") as fh:
-            content = fh.read()
-        w.workspace.import_(
+    with open(local_path, "rb") as fh:
+        w.workspace.upload(
             path=workspace_path,
-            content=_b64.b64encode(content).decode(),
+            content=fh,
             format=ImportFormat.AUTO,
             overwrite=overwrite,
         )
-        return {"ok": True, "message": f"Upload Workspace (SDK import) concluído: `{workspace_path}`"}
-
-    # Arquivo > 10 MB: REST PUT binário (workspace-files, até 500 MB)
-    from urllib.parse import quote
-
-    host = w.config.host.rstrip("/")
-    # Obter headers de autenticação OAuth do SDK
-    auth_result = w.config.authenticate()
-    if callable(auth_result):
-        auth_headers = auth_result()
-    elif isinstance(auth_result, dict):
-        auth_headers = auth_result
-    else:
-        raise RuntimeError("SDK authenticate() retornou tipo inesperado")
-
-    api_path = workspace_path.lstrip("/")
-    if not api_path.startswith("Workspace/"):
-        api_path = f"Workspace/{api_path}"
-    encoded_path = quote(api_path, safe="/@")
-    ow_param = "true" if overwrite else "false"
-    url = f"{host}/api/2.0/workspace-files/import-file/{encoded_path}?overwrite={ow_param}"
-
-    with open(local_path, "rb") as f:
-        resp = requests.put(
-            url,
-            headers={
-                **auth_headers,
-                "Content-Type": "application/octet-stream",
-            },
-            data=f,
-            timeout=300,
-        )
-
-    if resp.status_code in (200, 204):
-        return {
-            "ok": True,
-            "message": (
-                f"Upload Workspace (SDK+REST) concluído ({file_size_mb:.1f} MB)\n"
-                f"   Destino: `{workspace_path}`"
-            ),
-        }
 
     return {
-        "ok": False,
-        "message": f"SDK+REST HTTP {resp.status_code}: {resp.text[:300]}",
+        "ok": True,
+        "message": (
+            f"Upload Workspace (SDK upload) concluído ({file_size_mb:.1f} MB)\n"
+            f"   Destino: `{workspace_path}`"
+        ),
     }
 
 
