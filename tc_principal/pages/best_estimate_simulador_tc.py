@@ -2189,7 +2189,7 @@ with tab_visualizar:
             df_custos_formatado['Oficina'].notna() &
             df_custos_formatado['Período'].notna() &
             (df_custos_formatado['Custo FP'].notna()) &
-            (pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce') > 0)
+            (pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce') != 0)
         )
         df_custos_formatado = df_custos_formatado[mask_valido].copy()
         
@@ -2315,10 +2315,19 @@ with tab_visualizar:
                 linhas_marcadas = df_editado[df_editado['✅'] == True]  # noqa: E712
                 n_selecionadas = len(linhas_marcadas)
 
-                col_btn1, col_btn2 = st.columns([2, 3])
+                col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
                 with col_btn2:
                     if n_selecionadas > 0:
                         st.info(f"📊 {n_selecionadas} linha(s) selecionada(s)")
+                with col_btn_edit:
+                    if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_fallback_tc'):
+                        if n_selecionadas == 1:
+                            st.session_state['edit_custo_especifico_tc'] = linhas_marcadas.iloc[0].to_dict()
+                            st.rerun()
+                        elif n_selecionadas > 1:
+                            st.warning("⚠️ Selecione apenas 1 linha para editar.")
+                        else:
+                            st.warning("⚠️ Selecione uma linha para editar.")
                 with col_btn1:
                     if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True, key='btn_deletar_fallback_tc'):
                         if n_selecionadas > 0:
@@ -2449,7 +2458,7 @@ with tab_visualizar:
                     </style>
                 """, unsafe_allow_html=True)
 
-                col_btn1, col_btn2 = st.columns([2, 3])
+                col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
                 with col_btn1:
                     if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
                         selected_rows = grid_response.get('selected_rows')
@@ -2507,6 +2516,24 @@ with tab_visualizar:
                         else:
                             st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
                 
+                with col_btn_edit:
+                    _sel_rows_edit = grid_response.get('selected_rows')
+                    if _sel_rows_edit is not None:
+                        if isinstance(_sel_rows_edit, pd.DataFrame):
+                            _sel_rows_edit = _sel_rows_edit.to_dict('records')
+                        elif not isinstance(_sel_rows_edit, list):
+                            _sel_rows_edit = []
+                    else:
+                        _sel_rows_edit = []
+                    if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_aggrid_tc'):
+                        if len(_sel_rows_edit) == 1:
+                            st.session_state['edit_custo_especifico_tc'] = _sel_rows_edit[0]
+                            st.rerun()
+                        elif len(_sel_rows_edit) > 1:
+                            st.warning("⚠️ Selecione apenas 1 linha para editar.")
+                        else:
+                            st.warning("⚠️ Selecione uma linha para editar.")
+
                 with col_btn2:
                     selected_rows = grid_response.get('selected_rows')
                     if selected_rows is not None:
@@ -2523,6 +2550,58 @@ with tab_visualizar:
                     if selected_count > 0:
                         st.info(f"📊 {selected_count} linha(s) selecionada(s)")
             
+            # ── Formulário de edição inline ──
+            if 'edit_custo_especifico_tc' in st.session_state:
+                _ed = st.session_state['edit_custo_especifico_tc']
+                st.markdown("---")
+                st.markdown("#### ✏️ Editar Custo Selecionado")
+                with st.form("form_editar_custo_tc"):
+                    col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+                    with col_e1:
+                        st.text_input("Oficina", value=str(_ed.get('Oficina', '') or ''), disabled=True, key='edit_oficina_tc')
+                    with col_e2:
+                        st.text_input("Período", value=str(_ed.get('Período', '') or ''), disabled=True, key='edit_periodo_tc')
+                    with col_e3:
+                        st.text_input("Account", value=str(_ed.get('Account', '') or ''), disabled=True, key='edit_account_tc')
+                    with col_e4:
+                        _val_atual = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
+                        _val_atual = float(_val_atual) if pd.notna(_val_atual) else 0.0
+                        novo_valor = st.number_input("Valor (R$)", value=_val_atual, format="%.2f", key='edit_valor_tc')
+                    nova_descricao = st.text_input("Descrição", value=str(_ed.get('Descricao', '') or ''), key='edit_descricao_tc')
+
+                    col_save, col_cancel = st.columns(2)
+                    with col_save:
+                        submitted = st.form_submit_button("💾 Salvar Alteração", type="primary")
+                    with col_cancel:
+                        cancelled = st.form_submit_button("❌ Cancelar")
+
+                    if submitted:
+                        _mask_edit = pd.Series([True] * len(df_custos_especificos))
+                        for _campo in ['Oficina', 'Período', 'Account']:
+                            if _campo in _ed and pd.notna(_ed.get(_campo)) and _campo in df_custos_especificos.columns:
+                                _mask_edit = _mask_edit & (df_custos_especificos[_campo].astype(str) == str(_ed[_campo]))
+                        _old_val = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
+                        if pd.notna(_old_val) and 'Custo FP' in df_custos_especificos.columns:
+                            _mask_edit = _mask_edit & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == _old_val)
+                        _indices_edit = df_custos_especificos[_mask_edit].index.tolist()
+                        if _indices_edit:
+                            _idx = _indices_edit[0]
+                            df_custos_especificos.at[_idx, 'Custo FP'] = novo_valor
+                            if 'Descricao' in df_custos_especificos.columns:
+                                df_custos_especificos.at[_idx, 'Descricao'] = nova_descricao
+                            if salvar_custos_especificos(df_custos_especificos):
+                                del st.session_state['edit_custo_especifico_tc']
+                                st.success("✅ Custo atualizado com sucesso!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erro ao salvar o custo atualizado.")
+                        else:
+                            st.error("❌ Não foi possível encontrar a linha original.")
+
+                    if cancelled:
+                        del st.session_state['edit_custo_especifico_tc']
+                        st.rerun()
+
             st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
         else:
             st.info("ℹ️ Nenhum custo específico válido encontrado.")
