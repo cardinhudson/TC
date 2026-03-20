@@ -186,19 +186,31 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)
 
-    # Localizar arquivo
-    caminho_ano = os.path.join(pasta_ano, 'Reporting veículos.xlsx')
-    caminho_raiz = 'Reporting veículos.xlsx'
-
-    if os.path.exists(caminho_ano):
-        caminho = caminho_ano
-    elif os.path.exists(caminho_raiz):
-        shutil.copy2(caminho_raiz, caminho_ano)
-        caminho = caminho_ano
-        print(f"  📦 Copiado {caminho_raiz} → {caminho_ano}")
-    else:
+    # Localizar arquivo (aceita variantes de nome para compatibilidade)
+    _EXCEL_CANDIDATES = ("Reporting veículos.xlsx", "Reporting veiculos.xlsx", "Reporting_veiculos.xlsx")
+    caminho = None
+    caminhos_testados = []
+    for candidato in _EXCEL_CANDIDATES:
+        caminho_teste = os.path.join(pasta_ano, candidato)
+        caminhos_testados.append(caminho_teste)
+        if os.path.exists(caminho_teste):
+            caminho = caminho_teste
+            break
+    if caminho is None:
+        # Fallback: buscar na raiz
+        for candidato in _EXCEL_CANDIDATES:
+            caminho_raiz = candidato
+            caminhos_testados.append(caminho_raiz)
+            if os.path.exists(caminho_raiz):
+                destino = os.path.join(pasta_ano, _EXCEL_CANDIDATES[0])
+                shutil.copy2(caminho_raiz, destino)
+                caminho = destino
+                print(f"  📦 Copiado {caminho_raiz} → {destino}")
+                break
+    if caminho is None:
         raise FileNotFoundError(
-            f"❌ Arquivo não encontrado em {caminho_ano} nem em {caminho_raiz}"
+            f"❌ Arquivo não encontrado em:\n"
+            + "\n".join(f"   • {p}" for p in caminhos_testados)
         )
 
     # Validar abas obrigatórias

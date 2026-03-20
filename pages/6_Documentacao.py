@@ -203,7 +203,25 @@ def _formatar_mtime(ts: float) -> str:
 @st.cache_data(show_spinner=False)
 def _ler_arquivo_texto_cacheado(caminho: str, mtime: float) -> str:
     with open(caminho, "r", encoding="utf-8") as f:
-        return f.read()
+        return _reparar_mojibake(f.read())
+
+
+def _reparar_mojibake(texto: str) -> str:
+    if not texto:
+        return ""
+
+    marcadores = ("Ã", "Â", "â", "ðŸ", "ï¸", "â€”", "â†’", "â‚¬")
+    original_score = sum(texto.count(m) for m in marcadores)
+    if original_score == 0:
+        return texto
+
+    try:
+        reparado = texto.encode("latin-1", errors="ignore").decode("utf-8", errors="ignore")
+    except Exception:
+        return texto
+
+    reparado_score = sum(reparado.count(m) for m in marcadores)
+    return reparado if reparado_score < original_score else texto
 
 
 def _carregar_markdown(caminho: str) -> tuple[str | None, str | None, float | None]:
@@ -242,6 +260,41 @@ def _extrair_secao_por_heading(md: str, headings: list[str]) -> str:
     if end == -1:
         end = len(md)
     return md[start_content:end].strip()
+
+
+def _quebrar_markdown_nivel2(md: str) -> list[tuple[str, str]]:
+    if not md:
+        return []
+
+    secoes: list[tuple[str, str]] = []
+    atual_titulo: str | None = None
+    atual_linhas: list[str] = []
+
+    for linha in md.splitlines():
+        if linha.startswith("## "):
+            if atual_titulo and any(l.strip() for l in atual_linhas):
+                secoes.append((atual_titulo, "\n".join(atual_linhas).strip()))
+            atual_titulo = linha[3:].strip()
+            atual_linhas = []
+            continue
+        if atual_titulo is not None:
+            atual_linhas.append(linha)
+
+    if atual_titulo and any(l.strip() for l in atual_linhas):
+        secoes.append((atual_titulo, "\n".join(atual_linhas).strip()))
+
+    return secoes
+
+
+def _renderizar_markdown_em_expanders(md: str, expanded_first: bool = True) -> None:
+    secoes = _quebrar_markdown_nivel2(md)
+    if not secoes:
+        st.info("Conteúdo de documentação indisponível para esta seção.")
+        return
+
+    for indice, (titulo, conteudo) in enumerate(secoes):
+        with st.expander(titulo, expanded=expanded_first and indice == 0):
+            st.markdown(conteudo)
 
 # Funções para persistir dados da equipe
 def salvar_dados_equipe(dados):
@@ -342,6 +395,7 @@ indice_selecionado = st.sidebar.radio(
         "🧾 Especificação Técnica",
         "📥 Guia de Extração de Dados",
         "🔮 Guia de Best Estimate",
+        "☁️ TC Cloud",
         "📊 Apresentação Visual",
         "💬 Chatbot de Documentação",
         "🔔 Sistema de Alertas",
@@ -638,9 +692,6 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
     if _err_ext:
         st.error(_err_ext)
     else:
-        st.caption(
-            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
-        )
         with st.expander("📐 Regras e Cálculo — TC Estendido", expanded=True):
             st.markdown(
                 _extrair_secao_por_heading(_md_ext, ["## 2) Regras e Cálculo — TC Estendido"])
@@ -649,9 +700,6 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
     _caminho_flex = os.path.join(get_base_path(), "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")
     _md_flex, _err_flex, _mtime_flex = _carregar_markdown(_caminho_flex)
     if not _err_flex:
-        st.caption(
-            f"Fonte: {_caminho_flex} | Atualizado em: {_formatar_mtime(_mtime_flex)}"
-        )
         with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
             st.markdown(
                 _extrair_secao_por_heading(
@@ -669,9 +717,6 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
         st.error(_err_veic)
         st.stop()
 
-    st.caption(
-        f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
-    )
     with st.expander("💰 Cadeia de Custos", expanded=True):
         st.markdown(_extrair_secao_por_heading(_md_veic, ["## 2) Cadeia de Custos TC Veículos"]))
     with st.expander("🚗 Rateio por Veículo", expanded=False):
@@ -702,8 +747,6 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
     if _err:
         st.error(_err)
         st.stop()
-
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
 
     with st.expander("💰 Cadeia de Custos", expanded=True):
         st.markdown(_extrair_secao_por_heading(_md, ["## 2) Cadeia de Custos TC Veículos"]))
@@ -923,10 +966,10 @@ elif indice_selecionado == "📐 Regras e Cálculo":
         st.error(_err)
         st.stop()
 
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e Cálculo — TC Estendido"]))
-    st.markdown("---")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud — Ano Completo e Governança"]))
+    with st.expander("📐 Regras e Cálculo — TC Estendido", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e Cálculo — TC Estendido"]))
+    with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud — Ano Completo e Governança"]))
     st.stop()
 
     # Conteúdo antigo removido: esta seção agora é renderizada diretamente do Markdown oficial.
@@ -2402,18 +2445,16 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
     if _err_ext:
         st.error(_err_ext)
     else:
-        st.caption(
-            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
-        )
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md_ext,
-                [
-                    "## 4) Visualizações — TC Estendido",
-                    "## 4) Visualizações",
-                ],
+        with st.expander("📊 TC Estendido", expanded=True):
+            st.markdown(
+                _extrair_secao_por_heading(
+                    _md_ext,
+                    [
+                        "## 4) Visualizações — TC Estendido",
+                        "## 4) Visualizações",
+                    ],
+                )
             )
-        )
 
     st.markdown("---")
 
@@ -2423,15 +2464,13 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
     if _err_veic:
         st.error(_err_veic)
     else:
-        st.caption(
-            f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
-        )
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md_veic,
-                ["## 8) Visualizações e Gráficos"],
+        with st.expander("🚗 TC Veículos", expanded=False):
+            st.markdown(
+                _extrair_secao_por_heading(
+                    _md_veic,
+                    ["## 8) Visualizações e Gráficos"],
+                )
             )
-        )
 
     st.stop()
 
@@ -2444,8 +2483,8 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         st.error(_err)
         st.stop()
 
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 8) Visualizações e Gráficos"]))
+    with st.expander("🚗 Visualizações e Gráficos — TC Veículos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 8) Visualizações e Gráficos"]))
     st.stop()
 
     st.info(
@@ -2535,7 +2574,6 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         st.error(_err)
         st.stop()
 
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
     st.markdown(
         "Esta seção explica os pontos que mais geram divergência entre **tabela** e **gráfico** "
         "no TC Ext (Normal vs CPU)."
@@ -2597,15 +2635,13 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.star
     if _err_ext:
         st.error(_err_ext)
     else:
-        st.caption(
-            f"Fonte: {_caminho_ext} | Atualizado em: {_formatar_mtime(_mtime_ext)}"
-        )
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md_ext,
-                ["## 3) Arquitetura — TC Estendido"],
+        with st.expander("📊 TC Estendido", expanded=True):
+            st.markdown(
+                _extrair_secao_por_heading(
+                    _md_ext,
+                    ["## 3) Arquitetura — TC Estendido"],
+                )
             )
-        )
 
     st.markdown("---")
 
@@ -2615,15 +2651,13 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.star
     if _err_veic:
         st.error(_err_veic)
     else:
-        st.caption(
-            f"Fonte: {_caminho_veic} | Atualizado em: {_formatar_mtime(_mtime_veic)}"
-        )
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md_veic,
-                ["## 10) Arquitetura TC Veículos"],
+        with st.expander("🚗 TC Veículos", expanded=False):
+            st.markdown(
+                _extrair_secao_por_heading(
+                    _md_veic,
+                    ["## 10) Arquitetura TC Veículos"],
+                )
             )
-        )
 
     st.stop()
 
@@ -2636,8 +2670,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         st.error(_err)
         st.stop()
 
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC Veículos"]))
+    with st.expander("🏗️ Arquitetura TC Veículos", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC Veículos"]))
     st.stop()
 
     st.info(
@@ -2806,8 +2840,8 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
         st.error(_err)
         st.stop()
 
-    st.caption(f"Fonte: {_caminho} | Atualizado em: {_formatar_mtime(_mtime)}")
-    st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura — TC Estendido"]))
+    with st.expander("🏗️ Arquitetura — TC Estendido", expanded=True):
+        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura — TC Estendido"]))
     st.stop()
     
     st.markdown("""
@@ -3230,51 +3264,35 @@ plotly>=5.0.0
 elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.startswith("📌 Ambos"):
     st.header("🧾 Especificação Técnica — TC Ext + TC Veículos")
 
-    col1, col2 = st.columns(2)
+    st.subheader("📊 TC Estendido")
+    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
+    if not os.path.exists(caminho_doc):
+        st.error(f"Arquivo não encontrado: {caminho_doc}")
+    else:
+        try:
+            mtime_doc = os.path.getmtime(caminho_doc)
+            conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
+            _renderizar_markdown_em_expanders(conteudo)
+        except Exception as e:
+            st.error(f"Erro ao carregar especificação: {e}")
 
-    with col1:
-        st.subheader("📊 TC Estendido")
-        caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-        if not os.path.exists(caminho_doc):
-            st.error(f"Arquivo não encontrado: {caminho_doc}")
-        else:
-            try:
-                mtime_doc = os.path.getmtime(caminho_doc)
-                st.caption(
-                    f"Fonte: {caminho_doc} | Atualizado em: {_formatar_mtime(mtime_doc)}"
-                )
-                conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
-                st.markdown(conteudo)
-            except Exception as e:
-                st.error(f"Erro ao carregar especificação: {e}")
-
-    with col2:
-        st.subheader("🚗 TC Veículos")
-        caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-        if not os.path.exists(caminho_doc_tc):
-            st.error(f"Arquivo não encontrado: {caminho_doc_tc}")
-        else:
-            try:
-                mtime_tc = os.path.getmtime(caminho_doc_tc)
-                st.caption(
-                    f"Fonte: {caminho_doc_tc} | Atualizado em: {_formatar_mtime(mtime_tc)}"
-                )
-                conteudo_tc = _ler_arquivo_texto_cacheado(caminho_doc_tc, mtime_tc)
-                st.markdown(conteudo_tc)
-            except Exception as e:
-                st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+    st.markdown("---")
+    st.subheader("🚗 TC Veículos")
+    caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
+    if not os.path.exists(caminho_doc_tc):
+        st.error(f"Arquivo não encontrado: {caminho_doc_tc}")
+    else:
+        try:
+            mtime_tc = os.path.getmtime(caminho_doc_tc)
+            conteudo_tc = _ler_arquivo_texto_cacheado(caminho_doc_tc, mtime_tc)
+            _renderizar_markdown_em_expanders(conteudo_tc, expanded_first=False)
+        except Exception as e:
+            st.error(f"Erro ao carregar especificação TC Veículos: {e}")
 
     st.stop()
 
 elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "🚗 TC Veículos":
     st.header("🧾 Especificação Técnica — TC Veículos")
-
-    st.markdown(
-        """
-        Especificação técnica completa do módulo **TC Veículos** em formato Markdown.
-        Arquivo fonte: `DOCUMENTACAO_TC_PRINCIPAL.md`
-        """
-    )
 
     _caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
 
@@ -3283,15 +3301,8 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
     else:
         try:
             _mtime_tc = os.path.getmtime(_caminho_doc_tc)
-            st.caption(
-                f"Fonte: {_caminho_doc_tc} | Atualizado em: {_formatar_mtime(_mtime_tc)}"
-            )
-
             _conteudo_tc = _ler_arquivo_texto_cacheado(_caminho_doc_tc, _mtime_tc)
-
-            # Sem botões de download: a especificação deve estar toda escrita na página.
-            st.markdown("---")
-            st.markdown(_conteudo_tc)
+            _renderizar_markdown_em_expanders(_conteudo_tc)
         except Exception as e:
             st.error(f"Erro ao carregar especificação TC Veículos: {e}")
 
@@ -3319,15 +3330,8 @@ elif indice_selecionado == "🧾 Especificação Técnica":
     else:
         try:
             mtime_doc = os.path.getmtime(caminho_doc)
-            st.caption(
-                f"Fonte: {caminho_doc} | Atualizado em: {_formatar_mtime(mtime_doc)}"
-            )
-
             conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
-
-            # Sem botões de download: a especificação deve estar toda escrita na página.
-            st.markdown("---")
-            st.markdown(conteudo)
+            _renderizar_markdown_em_expanders(conteudo)
         except Exception as e:
             st.error(f"Erro ao carregar especificação: {e}")
 
@@ -3756,7 +3760,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             ]
         }
         
-        st.dataframe(pd.DataFrame(diferencas_bud), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(diferencas_bud), width="stretch", hide_index=True)
         
         st.markdown("### Processo Idêntico")
         st.info("""
@@ -3852,7 +3856,7 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
             ]
         }
         
-        st.dataframe(pd.DataFrame(resumo_merges), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(resumo_merges), width="stretch", hide_index=True)
         
         st.markdown("### Detalhamento dos Merges")
         
@@ -3973,7 +3977,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             ]
         }
         
-        st.dataframe(pd.DataFrame(colunas_finais), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(colunas_finais), width="stretch", hide_index=True)
         
         st.markdown("### Colunas do DataFrame de Volume (df_vol.parquet)")
         
@@ -3988,7 +3992,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             ]
         }
         
-        st.dataframe(pd.DataFrame(colunas_volume), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(colunas_volume), width="stretch", hide_index=True)
         
         st.markdown("### Relacionamento entre Colunas")
         
@@ -4101,7 +4105,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             ]
         }
         
-        st.dataframe(pd.DataFrame(arquivos_saida_real), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(arquivos_saida_real), width="stretch", hide_index=True)
         
         st.markdown("### Arquivos Gerados por tc_ext/notebooks/dados_BUD.ipynb (BUDGET)")
         
@@ -4140,7 +4144,7 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
             ]
         }
         
-        st.dataframe(pd.DataFrame(arquivos_saida_bud), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(arquivos_saida_bud), width="stretch", hide_index=True)
         
         st.markdown("---")
         
@@ -6134,14 +6138,86 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         """)
 
 # ==========================================
-# SEÇÃO 6: APRESENTAÇÃO VISUAL
+# SEÇÃO 6: TC CLOUD
+# ==========================================
+elif indice_selecionado == "☁️ TC Cloud":
+    st.header("☁️ TC Cloud")
+
+    st.markdown("""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #06b6d4 100%); border-radius: 10px; margin-bottom: 2rem; color: white;">
+        <h2 style="color: white; margin: 0;">☁️ SCI no Databricks — Fonte de Verdade Operacional</h2>
+        <p style="color: #e5eefc; margin: 0.5rem 0 0 0;">
+            Consolidação da arquitetura cloud, tecnologias, fluxo do TC Veículos e regras para sincronização sem regressão.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("🌐 Ecossistema tecnológico do TC Cloud", expanded=True):
+        st.markdown(
+            """
+            **Python** executa o app Streamlit, o processamento e as integrações do SCI.
+
+            **GitHub** é a base de versionamento do código e o ponto de controle das mudanças feitas localmente.
+
+            **Databricks Apps** hospeda a interface web em cloud para uso operacional.
+
+            **Databricks Workspace Files** guarda o código publicado do app e os artefatos usados no runtime.
+
+            **Databricks Jobs e notebooks** executam pipelines, validações e rotinas de suporte ao ambiente cloud.
+
+            **Azure / infraestrutura corporativa** sustenta autenticação, rede e serviços de base do workspace Databricks.
+
+            **TC-Cloud e espelhos locais** funcionam como camada de publicação e segurança operacional para sincronizar o que está estável no cloud sem perder o desenvolvimento local.
+            """
+        )
+
+    with st.expander("🏗️ Arquitetura atual", expanded=False):
+        st.markdown(
+            """
+            - `sci` separado de `sci_app`
+            - `dados/`, `jobs/` e `workspace_publish/` fora do app
+            - notebooks e pipeline isolados da interface
+            - app Streamlit focado em leitura e navegação
+            """
+        )
+
+    with st.expander("🚗 TC Veículos no cloud", expanded=False):
+        st.markdown(
+            """
+            - pipeline Real e Budget alinhado
+            - leitura por Parquet em Workspace Files
+            - startup do app definindo `SCI_SHARED_DATA_ROOT`
+            - validação operacional pelos notebooks principais
+            """
+        )
+
+    with st.expander("🔁 Operação segura", expanded=False):
+        st.markdown(
+            """
+            - pull do Databricks para `TC-Cloud`
+            - propagação para raiz e espelhos locais
+            - upload via SDK quando o CLI não estiver disponível
+            - checklist anti-regressão no próprio produto
+            """
+        )
+
+    caminho_doc_cloud = os.path.join(get_base_path(), "DOCUMENTACAO_TC_CLOUD.md")
+    conteudo_cloud, erro_cloud, mtime_cloud = _carregar_markdown(caminho_doc_cloud)
+
+    if erro_cloud:
+        st.error(erro_cloud)
+    else:
+        _renderizar_markdown_em_expanders(conteudo_cloud, expanded_first=False)
+
+# ==========================================
+# SEÇÃO 7: APRESENTAÇÃO VISUAL
 # ==========================================
 elif indice_selecionado == "📊 Apresentação Visual":
     st.header("📊 Apresentação Visual - 5 Minutos")
     render_presentation_section(str(versao_atual), data_atualizacao)
 
 # ==========================================
-# SEÇÃO 7: CHATBOT DE DOCUMENTAÇÃO
+# SEÇÃO 8: CHATBOT DE DOCUMENTAÇÃO
 # ==========================================
 elif indice_selecionado == "💬 Chatbot de Documentação":
     st.header("💬 Chatbot de Documentação")

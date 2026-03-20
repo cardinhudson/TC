@@ -61,6 +61,9 @@ msal>=1.28.0
 openai>=1.0.0
 # SDK oficial da OpenAI para integração com GPT
 
+requests>=2.28.0
+# HTTP client para chamadas ao Databricks Model Serving (Claude)
+
 reportlab>=4.0
 # Geração de PDFs profissionais com ReportLab
 
@@ -69,6 +72,9 @@ matplotlib>=3.8.0
 
 python-dotenv>=1.0.0
 # Carregamento de variáveis de ambiente do arquivo .env
+
+databricks-sdk>=0.20.0
+# SDK oficial Databricks (auto-auth em Apps, upload DBFS)
 
 certifi>=2024.0.0
 # CA bundle explícito para webhooks HTTPS no executável
@@ -81,6 +87,18 @@ PyPDF2>=3.0.0
 
 python-pptx>=0.6.23
 # Geração de apresentações PowerPoint nativas para exportação da apresentação visual
+
+# ==========================================
+# CLOUD MIGRATION — dependências opcionais
+# ==========================================
+# Instale apenas quando o backend correspondente for ativado.
+# Em ambiente local (SCI_DATA_BACKEND=local) NÃO são necessárias.
+
+# snowflake-connector-python>=3.6.0
+# Conector Snowflake (só para SCI_DATA_BACKEND=snowflake)
+
+# cryptography>=42.0.0
+# Key-pair auth Snowflake (só se usar SNF_PRIVATE_KEY)
 
 # ==========================================
 # NOTA: DEPENDÊNCIAS DO CHATBOT SÃO OPCIONAIS

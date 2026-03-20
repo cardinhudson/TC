@@ -276,9 +276,10 @@ def build_email_html_consolidated(
 def _send_graph(subject: str, html: str, email_config: dict) -> None:
     """Envia email via Microsoft Graph API."""
     from alertas.email_graph import GraphEmailClient
+    from tc_core.secrets import get_secret
 
-    client_id = email_config.get("client_id", "")
-    tenant_id = email_config.get("tenant_id", "")
+    client_id = get_secret("SCI_GRAPH_CLIENT_ID") or email_config.get("client_id", "")
+    tenant_id = get_secret("SCI_GRAPH_TENANT_ID") or email_config.get("tenant_id", "")
     if not client_id or not tenant_id:
         raise ValueError(
             "client_id e tenant_id são obrigatórios. "

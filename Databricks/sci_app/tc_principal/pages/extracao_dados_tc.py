@@ -16,7 +16,7 @@ import time
 import unicodedata
 from datetime import datetime
 
-from tc_core.utils.portabilidade import get_base_path, get_data_root, is_cloud, probe_write_access
+from tc_core.utils.portabilidade import get_base_path, get_data_root, get_workspace_upload_root, is_cloud, probe_write_access
 from tc_core.databricks_jobs import (
     get_databricks_run_output,
     get_tc_pipeline_run_status,
@@ -33,8 +33,6 @@ _EXCEL_CANDIDATOS = (
     'Reporting veiculos.xlsx',
 )
 
-# ── Constantes de workspace para upload ao cloud ──
-_WORKSPACE_DATA_ROOT = "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/dados"
 # Caminho DBFS para upload do Excel (API DBFS funciona sem limite de tamanho)
 _DBFS_DATA_ROOT = "dbfs:/sci_data"
 
@@ -244,15 +242,21 @@ def _executar_prevalidacao_cloud(ano: int, tipo_extracao: str) -> tuple[bool, li
 # ════════════════════════════════════════════
 
 def _encontrar_arquivo(ano: int, nome_arquivo: str, incluir_bud: bool = False):
-    candidatos = [
-        os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), nome_arquivo),
-        os.path.join('.', nome_arquivo),
-    ]
-    if incluir_bud:
-        candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD', nome_arquivo))
-    for c in candidatos:
-        if os.path.exists(c):
-            return c
+    # Gera variantes do nome para lidar com diferenças de encoding/formatação
+    _VARIANTES_XLSX = {
+        "Reporting veículos.xlsx": ("Reporting veículos.xlsx", "Reporting veiculos.xlsx", "Reporting_veiculos.xlsx"),
+    }
+    nomes = _VARIANTES_XLSX.get(nome_arquivo, (nome_arquivo,))
+    for nome in nomes:
+        candidatos = [
+            os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), nome),
+            os.path.join('.', nome),
+        ]
+        if incluir_bud:
+            candidatos.insert(1, os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD', nome))
+        for c in candidatos:
+            if os.path.exists(c):
+                return c
     return None
 
 
@@ -827,16 +831,12 @@ def _buscar_excel_sharepoint(ano: int) -> tuple[bool, str]:
     )
 
 
-def _slugify_filename(name: str) -> str:
-    """Remove acentos e substitui espaços por underscore."""
-    nfkd = unicodedata.normalize("NFKD", name)
-    return nfkd.encode("ascii", "ignore").decode("ascii").replace(" ", "_")
-
 
 def _enviar_excel_ao_cloud(ano: int) -> tuple[bool, str]:
     """Envia o Excel local para o Databricks Workspace.
 
     Retorna (sucesso, mensagem).
+    Em cloud, DBFS não é acessível ao container — envia só para Workspace.
     """
     # Procurar Excel local (nome original ou slugified)
     # No cloud, o arquivo salvo fica em /tmp/sci_data_cache/...
@@ -854,25 +854,14 @@ def _enviar_excel_ao_cloud(ano: int) -> tuple[bool, str]:
             f"depois envie ao cloud."
         )
 
-    # Destino 1: DBFS (API chunked, sem limite de tamanho)
-    dbfs_dest = f"{_DBFS_DATA_ROOT}/TC_Principal/{ano}/Reporting_veiculos.xlsx"
-    # Destino 2: Workspace Files (usado pelo processamento via get_data_root)
-    ws_dest = f"{_WORKSPACE_DATA_ROOT}/TC_Principal/{ano}/Reporting_veiculos.xlsx"
+    # Destino: usar o nome original do arquivo encontrado (preservar acentos/espaços)
+    nome_destino = os.path.basename(local_path)
+    # Destino: Workspace Files (usado pelo processamento via get_data_root)
+    ws_dest = f"{get_workspace_upload_root()}/TC_Principal/{ano}/{nome_destino}"
 
     msgs: list[str] = []
 
-    # ── Upload DBFS ──
-    try:
-        resultado = upload_file_to_dbfs(local_path, dbfs_dest, overwrite=True)
-    except Exception as exc:
-        resultado = {"ok": False, "message": str(exc)}
-
-    if resultado.get("ok"):
-        msgs.append(f"DBFS: `{dbfs_dest}` ✔")
-    else:
-        msgs.append(f"DBFS falhou: {resultado.get('message', '?')}")
-
-    # ── Upload Workspace Files ──
+    # ── Upload Workspace Files (obrigatório) ──
     try:
         res_ws = upload_file_to_workspace(local_path, ws_dest, overwrite=True)
     except Exception as exc:
@@ -883,9 +872,22 @@ def _enviar_excel_ao_cloud(ano: int) -> tuple[bool, str]:
     else:
         msgs.append(f"Workspace falhou: {res_ws.get('message', '?')}")
 
-    ok = resultado.get("ok") or res_ws.get("ok")
+    ws_ok = res_ws.get("ok", False)
+
+    # ── Upload DBFS (apenas local — em cloud pode falhar) ──
+    if not is_cloud():
+        dbfs_dest = f"{_DBFS_DATA_ROOT}/TC_Principal/{ano}/{nome_destino}"
+        try:
+            resultado = upload_file_to_dbfs(local_path, dbfs_dest, overwrite=True)
+        except Exception as exc:
+            resultado = {"ok": False, "message": str(exc)}
+        if resultado.get("ok"):
+            msgs.append(f"DBFS: `{dbfs_dest}` ✔")
+        else:
+            msgs.append(f"DBFS falhou: {resultado.get('message', '?')}")
+
     resumo = "\n   ".join(msgs)
-    if ok:
+    if ws_ok:
         return True, f"☁️ Excel enviado ao Databricks com sucesso!\n   {resumo}"
     return False, f"Falha no upload ao cloud:\n   {resumo}"
 
@@ -1078,7 +1080,7 @@ def render():
         # No cloud, salvar em /tmp (container não monta Workspace externo)
         if is_cloud():
             pasta_ano = os.path.join('/tmp/sci_data_cache', 'TC_Principal', str(ano_selecionado))
-        destino = os.path.join(pasta_ano, "Reporting_veiculos.xlsx")
+        destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
 
         # Se já existe, mostra info
         if os.path.exists(destino):
@@ -1140,8 +1142,6 @@ def render():
                 with open(destino, "wb") as f:
                     f.write(arquivo_upload.getbuffer())
                 st.success(f"✅ Arquivo salvo: `{destino}`")
-                if is_cloud():
-                    st.info("📌 Arquivo salvo em cache temporário. Execute o pipeline (04→03→05) para processar.")
                 # Enviar ao cloud (Workspace + DBFS)
                 with st.spinner("Enviando ao Databricks Workspace..."):
                     ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
@@ -1152,8 +1152,8 @@ def render():
 
         st.divider()
 
-        # ── Buscar do SharePoint + Enviar ao Cloud ──
-        st.markdown("### 📂 SharePoint → Local → Cloud")
+        # ── Importar e Publicar no Databricks ──
+        st.markdown("### 📂 Importar e Publicar no Databricks")
 
         _pasta_excel = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
         _excel_candidatos = [
@@ -1168,11 +1168,11 @@ def render():
             _tam = os.path.getsize(_excel_local) / (1024 * 1024)
             _dt = datetime.fromtimestamp(os.path.getmtime(_excel_local))
             st.caption(
-                f"📄 Excel local: `{_excel_local}`\n\n"
-                f"Tamanho: {_tam:.1f} MB | Modificado: {_dt:%d/%m/%Y %H:%M}"
+                f"📄 Excel: `{os.path.basename(_excel_local)}` — "
+                f"{_tam:.1f} MB | {_dt:%d/%m/%Y %H:%M}"
             )
         else:
-            st.caption("⚠️ Nenhum Excel local. Faça upload, busque do SharePoint ou selecione o arquivo.")
+            st.caption("⚠️ Nenhum Excel local encontrado.")
 
         if not is_cloud():
             _pasta_sp_resolvida = _resolver_pasta_sharepoint(int(ano_selecionado))
@@ -1186,59 +1186,60 @@ def render():
                 else:
                     _esperado = _caminho_sharepoint_esperado(int(ano_selecionado)) or _base_f
                     st.caption(f"⚠️ Pasta não encontrada: `{_esperado}`")
+            st.caption(
+                "Ao clicar, o sistema busca o Excel na pasta SharePoint (barra lateral), "
+                "copia para a pasta local e envia ao Databricks."
+            )
+        else:
+            st.caption(
+                "Ao clicar, o Excel já salvo (upload acima) será publicado no Workspace Databricks."
+            )
 
-        col_sp, col_cloud = st.columns(2)
-
-        with col_sp:
+        if st.button(
+            "📥 Importar e Publicar no Databricks",
+            key="btn_importar_publicar_tc",
+            type="primary",
+            use_container_width=True,
+        ):
             if not is_cloud():
-                if st.button(
-                    "🔄 Buscar do SharePoint",
-                    use_container_width=True,
-                    type="secondary",
-                    disabled=bool(bloqueio_escrita_cloud),
-                    key="btn_buscar_sharepoint",
-                ):
+                # LOCAL: buscar do SharePoint + enviar ao cloud
+                with st.spinner("Buscando do SharePoint..."):
                     ok_sp, msg_sp = _buscar_excel_sharepoint(int(ano_selecionado))
-                    if ok_sp:
-                        st.success(msg_sp)
+                if ok_sp:
+                    st.success(msg_sp)
+                else:
+                    st.warning(msg_sp)
+                # Enviar ao cloud (re-detectar Excel após busca)
+                _excel_atualizado = next(
+                    (p for p in _excel_candidatos if os.path.isfile(p)), None,
+                )
+                if _excel_atualizado:
+                    with st.spinner("Enviando ao Databricks Workspace..."):
+                        ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
+                    if ok_c:
+                        st.success(msg_c)
                     else:
-                        st.warning(msg_sp)
-
-        with col_cloud:
-            if st.button(
-                "☁️ Enviar ao Databricks",
-                key="btn_enviar_cloud",
-                type="primary" if _tem_excel else "secondary",
-                use_container_width=True,
-                disabled=not _tem_excel,
-            ):
+                        st.error(msg_c)
+                    st.rerun()
+                else:
+                    st.warning(
+                        "⚠️ Nenhum Excel encontrado. Faça upload acima "
+                        "ou configure o SharePoint na barra lateral."
+                    )
+            else:
+                # CLOUD: publicar Excel existente
+                _uploader = st.session_state.get("upload_reporting_tc")
+                if _uploader is not None:
+                    os.makedirs(pasta_ano, exist_ok=True)
+                    with open(destino, "wb") as f:
+                        f.write(_uploader.getbuffer())
+                    st.info(f"📥 Arquivo do upload salvo em cache: `{destino}`")
                 with st.spinner("Enviando ao Databricks Workspace..."):
                     ok_cloud, msg_cloud = _enviar_excel_ao_cloud(int(ano_selecionado))
                 if ok_cloud:
                     st.success(msg_cloud)
                 else:
                     st.error(msg_cloud)
-
-        if not is_cloud():
-            if st.button(
-                "🚀 Buscar do SharePoint + Enviar ao Cloud",
-                type="primary",
-                use_container_width=True,
-                disabled=bool(bloqueio_escrita_cloud),
-                key="btn_sp_e_cloud",
-            ):
-                with st.spinner("Buscando do SharePoint..."):
-                    ok_sp, msg_sp = _buscar_excel_sharepoint(int(ano_selecionado))
-                if ok_sp:
-                    st.success(msg_sp)
-                    with st.spinner("Enviando ao Databricks Workspace..."):
-                        ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
-                    if ok_c:
-                        st.success(msg_c)
-                    else:
-                        st.warning(f"SharePoint OK, mas falha no envio ao cloud: {msg_c}")
-                else:
-                    st.warning(msg_sp)
 
         st.divider()
 

@@ -5,9 +5,9 @@ Três abas:
   1. 💬 Chatbot — consulta inteligente ao vivo (dados parquet)
   2. 📄 Relatório — gerar relatório PDF e exibir na tela
      2a. Relatório Automático (sem API)
-     2b. Relatório com IA (OpenAI)
+      2b. Relatório com IA (provider configurado)
      2c. Biblioteca de PDFs — visualizar/baixar todos os PDFs gerados
-  3. ⚙️ Configuração — API key, modelo, idioma
+  3. ⚙️ Configuração — provider, credenciais, modelo, idioma
 """
 
 from __future__ import annotations
@@ -18,17 +18,24 @@ import streamlit as st
 
 from tc_copilot.config import (
     IDIOMAS,
+    MODELOS_DATABRICKS,
     MODELOS_LLM,
     PASTA_RELATORIOS,
     carregar_api_key,
+    carregar_databricks_cfg,
     caminho_downloads_usuario,
     carregar_idioma,
     carregar_modelo,
+    carregar_provider,
     caminho_relatorio,
     em_execucao_empacotada,
     salvar_bytes_em_downloads,
     salvar_api_key,
+    salvar_databricks_cfg,
     carregar_copilot_habilitado,
+    salvar_idioma,
+    salvar_modelo,
+    salvar_provider,
     salvar_copilot_habilitado,
 )
 
@@ -156,14 +163,68 @@ def _render_chatbot():
     from tc_copilot.prompts import obter_nome_mes
 
     st.subheader("Consulta Inteligente")
-    st.caption("Pergunte diretamente sobre os dados de custos — acesso ao vivo nos parquets")
-
-    api_key = carregar_api_key()
-    if not api_key:
-        st.error(
-            "❌ Chave da OpenAI necessária para consultas. "
-            "Configure na aba **⚙️ Configuração**."
+    st.caption(
+        "Pergunte diretamente sobre os dados de custos "
+        "— acesso ao vivo nos parquets"
+    )
+    with st.expander("📖 Dimensões e colunas disponíveis", expanded=False):
+        st.markdown(
+            "| Nível | Exemplos | Como perguntar |\n"
+            "| --- | --- | --- |\n"
+            "| Type 05 | Labor, Burden, D&A | categorias macro de custo |\n"
+            "| Type 06 | Benefits, Direct Labor, Energy, Expenses, "
+            "Maintenance | subcategorias dentro do Type 05 |\n"
+            "| Account | Main/Principal, Restaurant-BC, Health-BC, Gas, "
+            "Water, Third Part Services / Uma | contas detalhadas dentro do "
+            "Type 06 |\n"
+            "| **Texto breve** | peças reposição, serviço elétrico, "
+            "manutenção predial | **detalhe mais granular** dos gastos "
+            "realizados dentro de cada Account |\n"
+            "| Oficina | Prensas, Armação, Soldagem | onde o impacto "
+            "aconteceu |"
         )
+        st.caption(
+            "Dica rápida: perguntas sobre 'manutenção', 'benefícios', "
+            "'energia' ou 'serviços de terceiros' agora podem ser "
+            "detalhadas até o nível Account e **Texto breve** "
+            "(descrição do lançamento contábil)."
+        )
+        st.markdown(
+            "**Exemplos de perguntas**\n"
+            "- Quais foram os maiores gastos realizados em Maintenance "
+            "este mês?\n"
+            "- Top 5 Accounts com maior desvio vs Budget em Benefits.\n"
+            "- Em Energy, quais contas mais pressionaram o Real vs Mês "
+            "Anterior?\n"
+            "- Quais oficinas tiveram maior impacto em Burden e qual "
+            "Type 06 puxou isso?\n"
+            "- **Quais são os maiores gastos do Account Third Part "
+            "Services / Uma?** (detalha por Texto breve)\n"
+            "- Detalhe os gastos de Maintenance por Account e Texto "
+            "breve.\n"
+            "- Quais foram os maiores ganhos e perdas em Third Part "
+            "Services / Uma?"
+        )
+
+    provider = carregar_provider()
+    api_key = carregar_api_key()
+    databricks_cfg = carregar_databricks_cfg()
+    llm_configurada = bool(api_key) if provider == "openai" else bool(
+        databricks_cfg["url"]
+        and databricks_cfg["endpoint"]
+        and databricks_cfg["token"]
+    )
+    if not llm_configurada:
+        if provider == "databricks_claude":
+            st.error(
+                "❌ Configuração do Databricks necessária para consultas. "
+                "Preencha URL, endpoint e token na aba **⚙️ Configuração**."
+            )
+        else:
+            st.error(
+                "❌ Chave da OpenAI necessária para consultas. "
+                "Configure na aba **⚙️ Configuração**."
+            )
         return
 
     # ── Selecionar ano e mês ──
@@ -233,7 +294,10 @@ def _render_chatbot():
                 # Configurar moeda antes de formatar contexto
                 moeda = st.session_state.get("copilot_moeda", "EUR")
                 simbolo = st.session_state.get("copilot_simbolo", "€")
-                taxas = st.session_state.get("copilot_taxas", {"BRL": 1.0, "USD": 0.20, "EUR": 0.18})
+                taxas = st.session_state.get(
+                    "copilot_taxas",
+                    {"BRL": 1.0, "USD": 0.20, "EUR": 1.0 / 6.4855},
+                )
                 taxa_conversao = taxas.get(moeda, 1.0)
                 configurar_moeda_formatacao(moeda, simbolo)
 
@@ -465,12 +529,25 @@ def _render_relatorio_ia():
     )
     from tc_copilot.prompts import obter_nome_mes
 
+    provider = carregar_provider()
     api_key = carregar_api_key()
-    if not api_key:
+    databricks_cfg = carregar_databricks_cfg()
+    llm_configurada = bool(api_key) if provider == "openai" else bool(
+        databricks_cfg["url"]
+        and databricks_cfg["endpoint"]
+        and databricks_cfg["token"]
+    )
+    if not llm_configurada:
+        mensagem = (
+            "⚠️ Configuração do Databricks não encontrada. "
+            if provider == "databricks_claude"
+            else "⚠️ Chave da OpenAI não configurada. "
+        )
         st.warning(
-            "⚠️ Chave da OpenAI não configurada. "
-            "O relatório será gerado sem análise inteligente (dados brutos apenas). "
-            "Configure na aba **⚙️ Configuração**."
+            mensagem
+            + "O relatório será gerado sem análise inteligente "
+            + "(dados brutos apenas). "
+            + "Configure na aba **⚙️ Configuração**."
         )
 
     # ── Selecionar ano ──
@@ -1124,13 +1201,13 @@ def _renderizar_tabelas_streamlit(
         if formatters:
             st.dataframe(
                 df_tab.style.format(formatters),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
         else:
             st.dataframe(
                 df_tab,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
         st.markdown("")
@@ -1421,21 +1498,96 @@ def _render_configuracao():
         st.info("Ative o toggle acima para usar o Chatbot e Relatório.")
         return
 
-    # ── API Key ──
-    st.markdown("#### Chave da OpenAI")
-    chave_atual = carregar_api_key()
-    status_chave = "✅ Configurada" if chave_atual else "❌ Não configurada"
-    st.info(f"Status: {status_chave}")
+    # ── Provider e credenciais ──
+    st.markdown("#### Provedor LLM")
+    provider_atual = carregar_provider()
+    provider_opcoes = ["openai", "databricks_claude"]
+    provider = st.selectbox(
+        "Provedor",
+        provider_opcoes,
+        index=provider_opcoes.index(provider_atual) if provider_atual in provider_opcoes else 0,
+        format_func=lambda x: {
+            "openai": "OpenAI",
+            "databricks_claude": "Databricks Claude",
+        }.get(x, x),
+        help="Selecione qual backend LLM o TC Copilot deve usar.",
+    )
+    if provider != provider_atual:
+        salvar_provider(provider)
+        st.rerun()
 
-    with st.form("form_api_key"):
-        nova_chave = st.text_input(
-            "Chave da API OpenAI",
-            type="password",
-            placeholder="sk-...",
-            help="Insira sua chave da OpenAI. Ela será salva no arquivo .env local.",
-        )
-        col1, col2 = st.columns([1, 3])
-        with col1:
+    chave_atual = carregar_api_key()
+    databricks_cfg = carregar_databricks_cfg()
+
+    if provider == "databricks_claude":
+        status_provider = "✅ Configurado" if all(databricks_cfg.values()) else "❌ Não configurado"
+        st.markdown("#### Credenciais do Databricks")
+        st.info(f"Status: {status_provider}")
+
+        with st.form("form_databricks_cfg"):
+            nova_url = st.text_input(
+                "URL do workspace Databricks",
+                value=databricks_cfg["url"],
+                placeholder="https://adb-....azuredatabricks.net",
+                help="Se vazio, o backend usa DATABRICKS_HOST quando existir.",
+            )
+            novo_endpoint = st.text_input(
+                "Serving endpoint",
+                value=databricks_cfg["endpoint"],
+                placeholder="databricks-claude-opus-4-6",
+                help="Nome do endpoint de Model Serving que receberá as requisições.",
+            )
+            _token_ok = bool(databricks_cfg.get("token"))
+            if _token_ok:
+                st.caption("✅ Token Databricks configurado.")
+            else:
+                st.warning("⚠️ Token Databricks não configurado. Preencha o campo abaixo.")
+            atualizar_token = st.checkbox(
+                "Atualizar token Databricks",
+                value=not _token_ok,
+                key="copilot_atualizar_token_databricks",
+            )
+            novo_token = ""
+            if atualizar_token:
+                st.markdown(
+                    """
+                    <style>
+                    div[data-testid="stTextArea"] textarea {
+                        -webkit-text-security: disc;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                novo_token = st.text_area(
+                    "Novo token Databricks",
+                    value="",
+                    placeholder="dapi...",
+                    help="PAT ou token aceito pelo workspace Databricks. O valor digitado substitui o token atual.",
+                    height=68,
+                    key="copilot_novo_token_databricks",
+                )
+            salvar_cfg = st.form_submit_button("💾 Salvar Databricks", use_container_width=True)
+        if salvar_cfg:
+            token_para_salvar = databricks_cfg["token"]
+            if atualizar_token:
+                token_para_salvar = novo_token.strip()
+            salvar_databricks_cfg(nova_url, novo_endpoint, token_para_salvar)
+            st.success("Configuração do Databricks salva com sucesso!")
+            st.rerun()
+    else:
+        status_chave = "✅ Configurada" if chave_atual else "❌ Não configurada"
+        st.markdown("#### Chave da OpenAI")
+        st.info(f"Status: {status_chave}")
+
+        with st.form("form_api_key"):
+            nova_chave = st.text_input(
+                "Chave da API OpenAI",
+                value=chave_atual or "",
+                type="password",
+                placeholder="sk-...",
+                help="Insira sua chave da OpenAI. Ela será salva no arquivo .env local.",
+            )
             salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
         if salvar and nova_chave.strip():
             salvar_api_key(nova_chave.strip())
@@ -1445,13 +1597,20 @@ def _render_configuracao():
     # ── Modelo LLM ──
     st.markdown("#### Modelo LLM")
     modelo_atual = carregar_modelo()
-    modelo_idx = MODELOS_LLM.index(modelo_atual) if modelo_atual in MODELOS_LLM else 0
+    modelos_disponiveis = MODELOS_DATABRICKS if provider == "databricks_claude" else MODELOS_LLM
+    modelo_idx = modelos_disponiveis.index(modelo_atual) if modelo_atual in modelos_disponiveis else 0
     modelo = st.selectbox(
         "Modelo",
-        MODELOS_LLM,
+        modelos_disponiveis,
         index=modelo_idx,
-        help="gpt-4o-mini é mais rápido e econômico. gpt-4o oferece melhor qualidade.",
+        help=(
+            "Selecione o modelo OpenAI desejado."
+            if provider == "openai"
+            else "Selecione o serving endpoint/modelo padrão do Databricks Claude."
+        ),
     )
+    if modelo != modelo_atual:
+        salvar_modelo(modelo)
     st.session_state["copilot_modelo"] = modelo
 
     # ── Idioma ──
@@ -1466,6 +1625,8 @@ def _render_configuracao():
         format_func=lambda x: IDIOMAS[x],
         help="Define o idioma do relatório PDF e das análises.",
     )
+    if idioma != idioma_atual:
+        salvar_idioma(idioma)
     st.session_state["copilot_idioma"] = idioma
 
     # ── Moeda do Relatório ──
@@ -1476,7 +1637,7 @@ def _render_configuracao():
         inicializar_banco_taxas()
         taxas_entrada = carregar_taxas_banco()
     except ImportError:
-        taxas_entrada = {"USD": 5.0, "EUR": 5.5}
+        taxas_entrada = {"USD": 5.0, "EUR": 6.4855}
 
     moedas_opcoes = ["BRL", "USD", "EUR"]
     moeda_atual = st.session_state.get("copilot_moeda", "EUR")
@@ -1504,7 +1665,7 @@ def _render_configuracao():
         with col_t2:
             taxas_entrada["EUR"] = st.number_input(
                 "🇪🇺 1 EUR = R$",
-                value=taxas_entrada.get("EUR", 5.5),
+                value=taxas_entrada.get("EUR", 6.4855),
                 min_value=0.001, step=0.001, format="%.3f",
                 key="copilot_taxa_eur",
             )
@@ -1515,11 +1676,11 @@ def _render_configuracao():
 
     # Calcular taxas inversas (1 BRL → X moeda) para conversão
     taxa_usd = taxas_entrada.get("USD", 5.0)
-    taxa_eur = taxas_entrada.get("EUR", 5.5)
+    taxa_eur = taxas_entrada.get("EUR", 6.4855)
     taxas_inversas = {
         "BRL": 1.0,
         "USD": 1.0 / taxa_usd if taxa_usd > 0 else 0.20,
-        "EUR": 1.0 / taxa_eur if taxa_eur > 0 else 0.18,
+        "EUR": 1.0 / taxa_eur if taxa_eur > 0 else 1.0 / 6.4855,
     }
     st.session_state["copilot_taxas"] = taxas_inversas
 
@@ -1530,10 +1691,15 @@ def _render_configuracao():
     st.divider()
     st.markdown("**Configuração ativa:**")
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("API Key", "✅" if chave_atual else "❌")
-    col2.metric("Modelo", modelo)
+    col1.metric("Provider", "OpenAI" if provider == "openai" else "Databricks")
+    col2.metric(
+        "Credenciais",
+        "✅" if (bool(chave_atual) if provider == "openai" else all(databricks_cfg.values())) else "❌",
+    )
     col3.metric("Idioma", IDIOMAS.get(idioma, idioma))
-    col4.metric("Moeda", moeda)
+    col4.metric("Modelo", modelo)
+
+    st.caption(f"Moeda ativa: {moeda}")
 
     # ── Bibliotecas e Roadmap ──
     st.divider()
@@ -1543,7 +1709,7 @@ def _render_configuracao():
         "Pandas": "Manipulação de dados",
         "Parquet": "Armazenamento eficiente de dados",
         "ReportLab": "Geração de PDFs",
-        "OpenAI API": "Geração de textos via LLM",
+        "OpenAI / Databricks Model Serving": "Geração de textos via LLM",
         "Streamlit": "Interface web interativa",
         "NumPy": "Cálculos numéricos",
     }

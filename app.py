@@ -1,5 +1,6 @@
 ﻿import base64
 import os
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -8,15 +9,130 @@ from pathlib import Path
 import streamlit as st
 
 from tc_core.utils.portabilidade import get_base_path, get_data_root
-from tc_principal.pages.home_tc import render as render_home_tc
 
-from tc_principal.pages.extracao_dados_tc import (
-    render as render_extracao_dados_tc,
+
+DEFAULT_WORKSPACE_REPO_ROOT = Path(
+    "/Workspace/Users/u235107@inetpsa.com/Drafts/sci"
 )
-from tc_principal.pages.debug_calculos_tc import (
-    render as render_debug_calculos_tc,
-)
-from tc_copilot.pages.home_copilot import render as render_copilot
+
+_CLOUD_DATA_CACHE = Path("/tmp/sci_data_cache")
+
+
+def _configure_cloud_data_root() -> None:
+    """Resolve a pasta compartilhada de dados antes dos imports das páginas.
+
+    Ordem de tentativa quando SCI_SHARED_DATA_ROOT está definida:
+      1. Acesso direto ao filesystem (cluster, Workspace FUSE mount)
+      2. Volumes UC  /  DBFS  (resolve_data_root)
+      3. Mirror via Databricks REST API → cache local em /tmp/sci_data_cache/
+    """
+    env_root = os.environ.get("SCI_SHARED_DATA_ROOT")
+
+    if env_root:
+        # ── 1. Acesso direto ao path configurado ──────────────────────
+        if os.path.isdir(env_root):
+            return  # Tudo OK — nada a fazer
+
+        # O path configurado NÃO é acessível via filesystem.
+        # Isso acontece em Databricks Apps onde o container só monta
+        # seu próprio diretório de código-fonte.
+        from tc_core.utils.portabilidade import (
+            cloud_path_exists,
+            mirror_workspace_tree,
+            resolve_data_root,
+        )
+
+        _log = lambda msg: print(msg, file=sys.stderr)  # noqa: E731
+
+        _log(f"[SCI] _configure_cloud_data_root: env_root={env_root}")
+        _log(f"[SCI]   os.path.isdir={os.path.isdir(env_root)}")
+        _log(f"[SCI]   DATABRICKS_HOST={os.environ.get('DATABRICKS_HOST', '(vazio)')}")
+        _log(f"[SCI]   DATABRICKS_TOKEN presente={bool(os.environ.get('DATABRICKS_TOKEN'))}")
+        _log(f"[SCI]   DATABRICKS_CLIENT_ID={os.environ.get('DATABRICKS_CLIENT_ID', '(vazio)')}")
+
+        # ── 2. Tentar Volumes / DBFS ──────────────────────────────────
+        try:
+            resolved = resolve_data_root(log=_log)
+            os.environ["SCI_SHARED_DATA_ROOT"] = str(resolved)
+            _log(f"[SCI] DATA_ROOT resolvido via Volumes/DBFS: {resolved}")
+            return
+        except FileNotFoundError:
+            _log("[SCI]   Volumes/DBFS não encontrados — tentando API/SDK")
+
+        # ── 3. Mirror via Workspace API (SDK ou REST) ─────────────────
+        _log(f"[SCI]   Verificando cloud_path_exists({env_root})...")
+        exists = cloud_path_exists(env_root)
+        _log(f"[SCI]   cloud_path_exists={exists}")
+        if exists:
+            _log(f"[SCI] Workspace path existe via API — iniciando mirror: {env_root}")
+            ok = mirror_workspace_tree(env_root, _CLOUD_DATA_CACHE, log=_log)
+            if ok:
+                if not os.environ.get("SCI_WORKSPACE_DATA_ROOT"):
+                    os.environ["SCI_WORKSPACE_DATA_ROOT"] = env_root
+                os.environ["SCI_SHARED_DATA_ROOT"] = str(_CLOUD_DATA_CACHE)
+                _log(f"[SCI] DATA_ROOT redirecionado para cache local: {_CLOUD_DATA_CACHE}")
+                return
+            else:
+                _log("[SCI]   mirror_workspace_tree retornou False")
+        elif _CLOUD_DATA_CACHE.exists() and any(_CLOUD_DATA_CACHE.iterdir()):
+            # Cache local sobreviveu de execução anterior
+            if not os.environ.get("SCI_WORKSPACE_DATA_ROOT"):
+                os.environ["SCI_WORKSPACE_DATA_ROOT"] = env_root
+            os.environ["SCI_SHARED_DATA_ROOT"] = str(_CLOUD_DATA_CACHE)
+            _log(f"[SCI] Usando cache local existente: {_CLOUD_DATA_CACHE}")
+            return
+
+        # Mantém o valor original como último recurso
+        _log(f"[SCI] ⚠ Nenhuma alternativa encontrada — mantendo {env_root}")
+        return
+
+    # ── Auto-discovery (sem env var definida) ─────────────────────────
+    base_path = get_base_path()
+    base_path_str = str(base_path)
+    in_workspace = base_path_str.startswith("/Workspace/Users/")
+    if not in_workspace and not os.environ.get("DATABRICKS_RUNTIME_VERSION"):
+        return
+
+    candidates = []
+    if base_path.name == "sci_app":
+        candidates.append(base_path.parent / "sci" / "dados")
+    candidates.append(DEFAULT_WORKSPACE_REPO_ROOT / "dados")
+    candidates.append(base_path / "dados")
+
+    selected = candidates[0]
+    for candidate in candidates:
+        try:
+            if candidate.exists():
+                selected = candidate
+                break
+        except OSError:
+            continue
+
+    os.environ["SCI_SHARED_DATA_ROOT"] = str(selected)
+    os.environ.setdefault("SCI_CLOUD", "1")
+
+
+_configure_cloud_data_root()
+
+
+def render_home_tc():
+    from tc_principal.pages.home_tc import render
+    return render()
+
+
+def render_extracao_dados_tc():
+    from tc_principal.pages.extracao_dados_tc import render
+    return render()
+
+
+def render_debug_calculos_tc():
+    from tc_principal.pages.debug_calculos_tc import render
+    return render()
+
+
+def render_copilot():
+    from tc_copilot.pages.home_copilot import render
+    return render()
 
 
 def _iter_startup_files(data_root: Path, assets_root: Path) -> list[Path]:
@@ -208,24 +324,24 @@ PAGES = {
             url_path="tc-ext",
         ),
         st.Page(
-            "pages/1 - Waterfall.py",
+            "pages/1_Waterfall.py",
             title="Waterfall",
             url_path="tc-ext-waterfall",
         ),
         st.Page(
-            "pages/2 - Best Estimate - Simulador.py",
+            "pages/2_Best_Estimate.py",
             title="Best Estimate (Simulador)",
             url_path="tc-ext-best-estimate-simulador",
         ),
         st.Page(
-            "pages/5 - Extração de Dados.py",
+            "pages/5_Extracao_Dados.py",
             title="Extração de Dados",
             url_path="tc-ext-extracao",
         ),
     ],
     "Documentação": [
         st.Page(
-            "pages/6 - Documentacao.py",
+            "pages/6_Documentacao.py",
             title="Documentação (Projeto)",
             url_path="documentacao",
         ),

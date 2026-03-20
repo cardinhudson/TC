@@ -621,7 +621,7 @@ def _render_fallback_table_ext(df_src, ctx):
         st.markdown("---")
         st.subheader("📊 Análise Flex por Categoria (fallback)")
         st.info("ℹ️ O gráfico waterfall encontrou um erro. Exibindo dados resumidos.")
-        st.dataframe(df_tab.sort_values('Delta', ascending=True), use_container_width=True, hide_index=True)
+        st.dataframe(df_tab.sort_values('Delta', ascending=True), width="stretch", hide_index=True)
     except Exception:
         pass
 
@@ -820,7 +820,7 @@ def _render_post_waterfall_panel_ext(
         if fig_oficinas is None:
             st.info('Nao ha dados suficientes por oficina para montar o grafico neste recorte.')
         else:
-            plotly_chart_safe(fig_oficinas, use_container_width=True)
+            plotly_chart_safe(fig_oficinas)
             st.caption('Vermelho indica aumento de custo; verde indica ganho/queda de custo.')
 
     with col_table:
@@ -2625,7 +2625,7 @@ else:
                         st.markdown("### 🌊 Waterfall Analysis")
                         
                         # Exibir gráfico
-                        plotly_chart_safe(fig, use_container_width=True)
+                        plotly_chart_safe(fig)
                         
                         # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
                         # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline
@@ -4609,7 +4609,7 @@ else:
                                         st.markdown("### 🌊 Waterfall Analysis")
                                         
                                         # Exibir gráfico
-                                        plotly_chart_safe(fig, use_container_width=True)
+                                        plotly_chart_safe(fig)
                                         
                                         # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
                                         # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline

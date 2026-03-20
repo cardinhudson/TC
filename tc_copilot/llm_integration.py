@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import logging
 
-from tc_copilot.config import carregar_api_key, carregar_modelo
+from tc_copilot.config import (
+    carregar_api_key,
+    carregar_modelo,
+    carregar_provider,
+    carregar_databricks_cfg,
+)
 from tc_copilot.prompts import SYSTEM_PROMPTS, PROMPTS
 
 logger = logging.getLogger(__name__)
@@ -29,6 +34,54 @@ def _criar_cliente(api_key: str | None = None):
         return OpenAI(api_key=key)
     except Exception as e:
         logger.warning("Erro ao criar cliente OpenAI: %s", e)
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CLIENTE DATABRICKS CLAUDE
+# ═══════════════════════════════════════════════════════════════
+
+def _chamar_claude_com_mensagens(
+    messages: list[dict],
+    model: str = "databricks-claude-opus-4-6",
+    temperature: float = 0.3,
+    max_tokens: int = 4096,
+) -> str | None:
+    """Chama Claude via Databricks Model Serving (OpenAI-compatible)."""
+    cfg = carregar_databricks_cfg()
+    url = cfg.get("url") or ""
+    token = cfg.get("token") or ""
+    endpoint = cfg.get("endpoint") or model
+    if not url or not token:
+        logger.warning("Databricks Claude não configurado (url/token vazios).")
+        return None
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=token,
+            base_url=f"{url.rstrip('/')}/serving-endpoints",
+        )
+        # Separar system do resto
+        system_text = ""
+        user_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                system_text += m["content"] + "\n"
+            else:
+                user_messages.append(m)
+        api_messages = []
+        if system_text.strip():
+            api_messages.append({"role": "system", "content": system_text.strip()})
+        api_messages.extend(user_messages)
+        response = client.chat.completions.create(
+            model=endpoint,
+            messages=api_messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("Erro ao chamar Databricks Claude: %s", e)
         return None
 
 
@@ -229,6 +282,16 @@ def responder_consulta_live(
     _api_key = api_key or carregar_api_key()
     _model = model or carregar_modelo()
 
+    # --- Provider Databricks Claude ---
+    if carregar_provider() == "databricks_claude":
+        texto = _chamar_claude_com_mensagens(messages, _model, temperature=0.3, max_tokens=4096)
+        if texto:
+            return texto
+        if idioma == "pt-BR":
+            return "⚠️ Erro ao consultar Claude (Databricks). Verifique endpoint e token."
+        return "⚠️ Error querying Claude (Databricks). Check endpoint and token."
+
+    # --- Provider OpenAI (default) ---
     client = _criar_cliente(_api_key)
     if not client:
         if idioma == "pt-BR":
@@ -240,7 +303,7 @@ def responder_consulta_live(
             model=_model,
             messages=messages,
             temperature=0.3,
-            max_tokens=2000,
+            max_tokens=4096,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:

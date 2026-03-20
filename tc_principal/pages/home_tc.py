@@ -49,7 +49,10 @@ from tc_principal.ui_components import (
     criar_tabela_html, render_kpi, render_kpi_spacer,
     formatar_ratio_com_barra, criar_tabela_html_flex, render_inline_summary_metrics,
 )
-from processamento_dados_veiculos import executar_conferencias
+try:
+    from processamento_dados_veiculos import executar_conferencias
+except ImportError:
+    executar_conferencias = None
 
 _ALTAIR_IMPORT_ERROR = None
 try:
@@ -96,11 +99,23 @@ _MAP_PER = {
 }
 
 
+def _forecast_mtime():
+    """Retorna mtime do forecast para invalidação de cache."""
+    p = os.path.join(
+        _DATA_ROOT, "TC_Principal", "Forecast",
+        "forecast_completo.parquet",
+    )
+    try:
+        return os.path.getmtime(p)
+    except OSError:
+        return 0
+
+
 @st.cache_data(ttl=3600, show_spinner=True)
-def _load_forecast(ano=None):
+def _load_forecast(ano=None, file_mtime=0):
     """Carrega forecast_completo.parquet (Histórico + BE)."""
     caminho = os.path.join(
-        "dados", "TC_Principal", "Forecast", "forecast_completo.parquet"
+        _DATA_ROOT, "TC_Principal", "Forecast", "forecast_completo.parquet"
     )
     if not os.path.exists(caminho):
         return None
@@ -429,7 +444,7 @@ def render():
     st.title("🏭 Dashboard TC Veículos")
     st.subheader("Custo de Produção de Veículos • Real")
 
-    # ── Sidebar Global ──
+    # ── Sidebar Global (carrega sempre, independente de haver dados) ──
     cfg = render_sidebar_global('home')
     ano, moeda, simbolo = cfg['ano'], cfg['moeda'], cfg['simbolo']
     taxas, tipo, fator = cfg['taxas'], cfg['tipo'], cfg['fator']
@@ -438,7 +453,7 @@ def render():
     # ── Carregar dados ──
     df_principal = load_principal(ano)
     df_real_raw = load_principal_real(ano)
-    df_be_raw = _load_forecast(ano)
+    df_be_raw = _load_forecast(ano, file_mtime=_forecast_mtime())
     df_vol_bud = load_volume_bud(ano)
     df_vol_actual = load_volume_actual(ano)
     df_tempo_veic = load_tempo_veiculos(ano)
@@ -449,8 +464,11 @@ def render():
     df_veic_be_raw = load_custo_fp_veiculo_forecast_fresh()  # Forecast com veículo (cache invalidado por mtime)
 
     if df_principal is None:
-        st.error(f"❌ Dados do TC Veículos não encontrados para {ano}")
-        st.info("💡 Execute o processamento na página **Extração de Dados**.")
+        st.info(
+            f"📊 **Dados não encontrados para {ano}.**\n\n"
+            "Execute o processamento na página **📥 Extração de Dados** para gerar os parquets.\n\n"
+            "Após o processamento, volte aqui para ver o dashboard completo."
+        )
         st.stop()
 
     df_principal = normalizar_periodo(df_principal)
@@ -599,9 +617,22 @@ def render():
         _usar_be_t1 = _fonte_dados_t1 == "BE (Simulado)"
         if _usar_be_t1 and (_raw_df_be is None or _raw_df_be.empty):
             st.warning(
-                "⚠️ Forecast (Best Estimate) não encontrado. "
-                "Exibindo Real como fallback."
+                "⚠️ **Forecast (Best Estimate) ainda não foi gerado.**\n\n"
+                "Para gerar o forecast:\n"
+                "1. Acesse a página **🔮 Best Estimate — Simulador**\n"
+                "2. Configure os parâmetros (períodos, sensibilidade, inflação)\n"
+                "3. Clique em **✅ Aplicar Configurações do Forecast**\n"
+                "4. Aguarde o processamento e volte a esta página\n\n"
+                "Exibindo dados **Reais** como fallback."
             )
+            try:
+                st.page_link(
+                    "pages/2_Best_Estimate.py",
+                    label="🔮 Ir para o Simulador BE",
+                    icon="🔮",
+                )
+            except Exception:
+                pass
 
         # ════════════════════════════════════════
         # 🔍 Filtros da Aba (Oficina + Veículo)
@@ -2044,14 +2075,19 @@ def render():
             else:
                 st.success(f"✅ Excel encontrado: `Reporting veículos.xlsx` (Ano {ano})")
 
-                if st.button("🔄 Executar Validação Excel × SCI", key="btn_val_excel_sci_home", use_container_width=True):
+                if executar_conferencias is None:
+                    st.info(
+                        "Validação Excel × SCI indisponível neste runtime. "
+                        "Publique também o módulo de processamento para habilitar esta função."
+                    )
+                elif st.button("🔄 Executar Validação Excel × SCI", key="btn_val_excel_sci_home", use_container_width=True):
                     with st.spinner("Executando conferências..."):
                         # ── Budget ──
                         st.markdown("#### 📊 Budget")
                         df_conf_bud = executar_conferencias(ano, 'budget')
                         _ok_b = (df_conf_bud['Status'] == '✅').sum()
                         _total_b = len(df_conf_bud)
-                        st.dataframe(df_conf_bud, use_container_width=True, hide_index=True)
+                        st.dataframe(df_conf_bud, width="stretch", hide_index=True)
                         if _ok_b == _total_b:
                             st.success(f"🎉 Budget: {_ok_b}/{_total_b} conferências OK")
                         else:
@@ -2064,7 +2100,7 @@ def render():
                         df_conf_real = executar_conferencias(ano, 'real')
                         _ok_r = (df_conf_real['Status'] == '✅').sum()
                         _total_r = len(df_conf_real)
-                        st.dataframe(df_conf_real, use_container_width=True, hide_index=True)
+                        st.dataframe(df_conf_real, width="stretch", hide_index=True)
                         if _ok_r == _total_r:
                             st.success(f"🎉 Real: {_ok_r}/{_total_r} conferências OK")
                         else:
@@ -2366,7 +2402,7 @@ def render():
                     lambda x: f"{x:.2%}"
                 )
 
-                st.dataframe(df_comp_fmt, use_container_width=True, hide_index=True)
+                st.dataframe(df_comp_fmt, width="stretch", hide_index=True)
 
                 # Destacar proporção
                 prop_total = df_comp[df_comp['Período'] == 'Total']['Proporção'].iloc[0]
@@ -2439,7 +2475,7 @@ def render():
                 # Destacar linha Total com CSS via markdown
                 st.dataframe(
                     _pivot_bud_fmt,
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -2450,7 +2486,7 @@ def render():
                     _pivot_act_fmt = _formatar_pivot(_pivot_act)
                     st.dataframe(
                         _pivot_act_fmt,
-                        use_container_width=True,
+                        width="stretch",
                         hide_index=True,
                     )
             else:
@@ -2568,7 +2604,7 @@ def render():
                     )
 
                 st.markdown("**📦 Budget (BUD)**")
-                st.dataframe(fmt_bud, use_container_width=True)
+                st.dataframe(fmt_bud, width="stretch")
 
                 # Flex Budget por Oficina × Período (se disponível)
                 if 'Custo' in df_bud.columns:
@@ -2625,7 +2661,7 @@ def render():
                         )
 
                     st.markdown("**📈 Flex Budget**")
-                    st.dataframe(fmt_flex, use_container_width=True)
+                    st.dataframe(fmt_flex, width="stretch")
             else:
                 st.info("Dados de Flex Budget não disponíveis.")
 
@@ -2717,7 +2753,7 @@ def render():
                 fmt_cat[col] = fmt_cat[col].apply(
                     lambda x: f"{simbolo} {x:,.0f}" if pd.notna(x) else "—"
                 )
-            st.dataframe(fmt_cat, use_container_width=True)
+            st.dataframe(fmt_cat, width="stretch")
 
             # Comparação BUD vs Flex por categoria
             st.markdown("**📈 BUD vs Flex Budget por Categoria**")
@@ -2738,7 +2774,7 @@ def render():
             for col in ['BUD', 'Flex BUD', 'Diferença']:
                 comp_data[col] = comp_data[col].apply(lambda x: f"{simbolo} {x:,.0f}")
 
-            st.dataframe(comp_data, use_container_width=True, hide_index=True)
+            st.dataframe(comp_data, width="stretch", hide_index=True)
         else:
             st.info("Dados de categoria (Custo) não disponíveis para análise Flex.")
 
@@ -3061,7 +3097,7 @@ def render():
             }).sort_values(['Oficina', 'Tempo Veic'], ascending=[True, False])
             df_tv_tab['Tempo Veic'] = df_tv_tab['Tempo Veic'] * fator_tempo
             df_tv_tab = df_tv_tab.rename(columns={'Tempo Veic': f'Tempo Veic ({label_tempo})'})
-            st.dataframe(df_tv_tab, use_container_width=True, hide_index=True)
+            st.dataframe(df_tv_tab, width="stretch", hide_index=True)
 
             # ── Tabela de Percentuais de Rateio (conferência com Excel) ──
             st.divider()
@@ -3089,7 +3125,7 @@ def render():
                 _fmt = {c: '{:.2%}'.format for c in _cols_ord}
                 st.dataframe(
                     _piv.style.format(_fmt, na_rep='—'),
-                    use_container_width=True, hide_index=True, height=500,
+                    width="stretch", hide_index=True, height=500,
                 )
                 # Verificar soma = 100%
                 _soma_pct = _pct.groupby(
@@ -3444,7 +3480,7 @@ def render():
                     _df_sap_filt = _df_sap_filt[_df_sap_filt['Type 05'].isin(_t05_sel)]
 
                 st.caption(f"📊 {len(_df_sap_filt):,} linhas × {len(_df_sap_filt.columns)} colunas")
-                st.dataframe(_df_sap_filt, use_container_width=True, height=500)
+                st.dataframe(_df_sap_filt, width="stretch", height=500)
 
                 # ── Download Excel ──
                 if st.button(

@@ -559,7 +559,7 @@ def _render_resumo_top_validacao(
             "Real - Flex BUD P": "Delta",
         }
     )
-    st.dataframe(resumo, use_container_width=True, hide_index=True)
+    st.dataframe(resumo, width="stretch", hide_index=True)
 
 
 # =========================================================================
@@ -685,7 +685,7 @@ def _render_tabela_validacao(
         },
     ).map(_color_delta, subset=["Real - Flex BUD P", "% Delta"])
 
-    st.dataframe(styled, use_container_width=True, height=600)
+    st.dataframe(styled, width="stretch", height=600)
 
 
 # =========================================================================

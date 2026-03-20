@@ -490,6 +490,31 @@ def build_presentation_slides(version: str, data_atualizacao: str | None, langua
 
     slides = [
         _cover_slide(version, data_atualizacao),
+            SlideSpec(
+                id="databricks_cloud",
+                title="TC Cloud on Databricks",
+                subtitle="Separate app and pipeline, with Workspace Files and controlled synchronization",
+                duration="1:35-2:00",
+                key_message="The cloud environment is stable because app, pipeline, and shared data paths now follow a single operating model.",
+                bullets=[
+                    "`sci` keeps notebooks, jobs, data, and `workspace_publish`, while `sci_app/sci_app` keeps only the Streamlit application code.",
+                    "App startup resolves `SCI_SHARED_DATA_ROOT` before page imports, with fallback to Volumes, DBFS, or a mirrored cache in `/tmp`.",
+                    "Local sync now uses a dedicated pull and propagation flow, protecting the Databricks state that is already validated.",
+                ],
+                highlights=[
+                    "App and pipeline separated",
+                    "Workspace Files as current backend",
+                    "Safer sync with fewer regressions",
+                ],
+                visual_title="Validated cloud flow",
+                visual_lines=[
+                    "sci = data + notebooks + jobs",
+                    "sci_app = Streamlit interface",
+                    "workspace_publish = pipeline outputs",
+                    "pull and sync keep mirrors aligned",
+                ],
+                presenter_note="Explain that TC Vehicles is stable in cloud because runtime paths, app source, and synchronization responsibilities are now clearly separated.",
+            ),
         SlideSpec(
             id="overview",
             title="O que e o SCI",
@@ -565,6 +590,32 @@ def build_presentation_slides(version: str, data_atualizacao: str | None, langua
                 "Alertas pos-extracao",
             ],
             presenter_note="Reforcar que a complexidade do ETL fica encapsulada para o usuario final.",
+        ),
+        SlideSpec(
+            id="tc_cloud",
+            title="TC Cloud no Databricks",
+            subtitle="Python, GitHub e Databricks operando em camadas separadas, com sincronizacao controlada",
+            duration="1:35-2:00",
+            key_message="O ambiente cloud ficou estavel quando cada tecnologia passou a ter um papel claro: codigo versionado, app publicado, dados resolvidos no runtime e sincronizacao sem sobrescrever o que ja funciona.",
+            bullets=[
+                "GitHub continua como fonte de versionamento; Python executa app, processamento e integracoes; Databricks Apps hospeda a interface publicada.",
+                "`sci` concentra notebooks, jobs, dados e `workspace_publish`, enquanto `sci_app/sci_app` concentra apenas o codigo Streamlit do app.",
+                "O startup do app resolve `SCI_SHARED_DATA_ROOT` antes dos imports, com fallback para Workspace Files, cache espelhado em `/tmp` e sincronizacao controlada.",
+            ],
+            highlights=[
+                "Papel claro para cada tecnologia",
+                "App e pipeline separados",
+                "Sync mais seguro, com menos regressao",
+            ],
+            visual_title="Tecnologias e fluxo cloud",
+            visual_lines=[
+                "GitHub versiona o codigo",
+                "Python implementa regras e processamento",
+                "Databricks Apps publica a interface",
+                "Workspace Files e Jobs sustentam o runtime",
+                "pull e sync mantem os espelhos alinhados",
+            ],
+            presenter_note="Explicar que o TC Veiculos esta estavel no cloud porque paths de runtime, codigo do app e sincronizacao agora estao claramente separados.",
         ),
         SlideSpec(
             id="extended",
@@ -1069,6 +1120,8 @@ def _render_cover(slide: SlideSpec, language: str = "pt") -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    st.markdown("<div style='height:0.9rem;'></div>", unsafe_allow_html=True)
 
     c1, c2 = st.columns([1.35, 1])
     with c1:

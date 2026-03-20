@@ -1,0 +1,85 @@
+{
+  "name": "SCI - pipeline diaria workspace",
+  "timeout_seconds": 0,
+  "max_concurrent_runs": 1,
+  "schedule": {
+    "quartz_cron_expression": "0 0 6 * * ?",
+    "timezone_id": "Europe/Paris",
+    "pause_status": "PAUSED"
+  },
+  "tasks": [
+    {
+      "task_key": "pipeline_workspace",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/notebooks/03_processar_e_publicar_delta.py",
+        "base_parameters": {
+          "REPO_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci",
+          "DATA_ROOT": "",
+          "PUBLISH_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/workspace_publish",
+          "ANO": "2026",
+          "RUN_BUDGET": "true",
+          "RUN_REAL": "true"
+        }
+      },
+      "existing_cluster_id": "__DEFINIR_NA_UI__",
+      "max_retries": 2,
+      "min_retry_interval_millis": 300000
+    },
+    {
+      "task_key": "pos_validacao",
+      "depends_on": [
+        {
+          "task_key": "pipeline_workspace"
+        }
+      ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/notebooks/05_validacao_pos_job.py",
+        "base_parameters": {
+          "REPO_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci",
+          "PUBLISH_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/workspace_publish",
+          "ANO": "2026"
+        }
+      },
+      "existing_cluster_id": "__DEFINIR_NA_UI__",
+      "max_retries": 1,
+      "min_retry_interval_millis": 300000
+    },
+    {
+      "task_key": "processar_tc_ext",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/notebooks/03_processar_e_publicar_delta.py",
+        "base_parameters": {
+          "REPO_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci",
+          "DATA_ROOT": "",
+          "PUBLISH_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/workspace_publish",
+          "ANO": "2026",
+          "RUN_BUDGET": "true",
+          "RUN_REAL": "true",
+          "DATASET_KEY": "TC_Ext"
+        }
+      },
+      "existing_cluster_id": "__DEFINIR_NA_UI__",
+      "max_retries": 2,
+      "min_retry_interval_millis": 300000
+    },
+    {
+      "task_key": "validar_tc_ext",
+      "depends_on": [
+        {
+          "task_key": "processar_tc_ext"
+        }
+      ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/notebooks/05_validacao_pos_job.py",
+        "base_parameters": {
+          "REPO_ROOT": "/Workspace/Users/u235107@inetpsa.com/Drafts/sci",
+          "ANO": "2026",
+          "DATASET_KEY": "TC_Ext"
+        }
+      },
+      "existing_cluster_id": "__DEFINIR_NA_UI__",
+      "max_retries": 1,
+      "min_retry_interval_millis": 300000
+    }
+  ]
+}

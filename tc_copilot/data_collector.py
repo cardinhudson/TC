@@ -793,16 +793,18 @@ def _drill_down_completo(
     label_ref: str,
     col_ref: str = "Custo FP",
     tipo: str = "mes_anterior",
-    top_type06: int = 3,
-    top_accounts: int = 2,
+    top_type06: int = 5,
+    top_accounts: int = 3,
+    top_textos: int = 5,
     volume: float = 0,
 ) -> str:
     """
-    Drill-down 3 níveis: Type 05 → Type 06 → Account.
+    Drill-down 4 níveis: Type 05 → Type 06 → Account → Texto breve.
     Todos os valores em kBRL + R$/veíc (se volume > 0). Nomes originais preservados.
 
     col_ref: coluna do df_ref a somar (ex: 'Custo FP' ou 'Flex_Bud').
     tipo: tipo de comparação — define linguagem (ganho/perda vs redução/aumento).
+    top_textos: quantos 'Texto breve' exibir dentro de cada Account (default 3).
     volume: volume real para cálculo de R$/veíc (0 = não exibir).
     """
     if df_real is None or df_real.empty:
@@ -913,6 +915,29 @@ def _drill_down_completo(
                     lines.append(
                         f"  - {cor_a} {acc_name}: {s_a}{_fmt_k(d_a)}"
                     )
+
+                # ── Nível Texto breve dentro deste Account ──
+                if "Texto breve" in df_r_t06.columns:
+                    df_r_acc = df_r_t06[df_r_t06["Account"] == acc_name]
+                    if not df_r_acc.empty:
+                        txt_agg = (
+                            df_r_acc.groupby("Texto breve")["Custo FP"]
+                            .sum()
+                            .sort_values(ascending=False)
+                        )
+                        for txt_name, txt_val in txt_agg.head(top_textos).items():
+                            txt_label = " ".join(str(txt_name).strip().split()).lower()
+                            if not txt_label or txt_label == "nan":
+                                continue
+                            if volume and volume > 0:
+                                cpu_txt = txt_val / volume
+                                lines.append(
+                                    f"    · {txt_label}: {_fmt_k(txt_val)} ({_fmt_cpu(cpu_txt)})"
+                                )
+                            else:
+                                lines.append(
+                                    f"    · {txt_label}: {_fmt_k(txt_val)}"
+                                )
 
     lines.append("")
     lines.append("🟢 = economia/ganho | 🔴 = perda/aumento de despesa")

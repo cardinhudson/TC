@@ -61,5 +61,8 @@ dados/
 *.xlsx
 *.xls
 
+# Staging local do Databricks (gerado por sync, nao e fonte Git)
+Databricks/
+
 
 

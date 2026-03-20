@@ -167,20 +167,31 @@ def configurar_ambiente(ano: Optional[int] = None) -> Dict:
     os.makedirs(pasta_saida, exist_ok=True)
     os.makedirs(pasta_historico, exist_ok=True)
 
-    # Localizar Excel
-    caminho_excel = os.path.join(pasta_ano, 'Reporting veículos.xlsx')
-    if not os.path.exists(caminho_excel):
+    # Localizar Excel (aceita variantes de nome para compatibilidade)
+    _EXCEL_CANDIDATES = ("Reporting veículos.xlsx", "Reporting veiculos.xlsx", "Reporting_veiculos.xlsx")
+    caminho_excel = None
+    caminhos_testados = []
+    for candidato in _EXCEL_CANDIDATES:
+        caminho_teste = os.path.join(pasta_ano, candidato)
+        caminhos_testados.append(caminho_teste)
+        if os.path.exists(caminho_teste):
+            caminho_excel = caminho_teste
+            break
+    if caminho_excel is None:
         # Fallback: buscar na raiz
-        caminho_raiz = os.path.join('.', 'Reporting veículos.xlsx')
-        if os.path.exists(caminho_raiz):
-            shutil.copy2(caminho_raiz, caminho_excel)
-            print(f"   📋 Copiado da raiz → {caminho_excel}")
-        else:
-            raise FileNotFoundError(
-                f"❌ Arquivo 'Reporting veículos.xlsx' não encontrado em:\n"
-                f"   • {caminho_excel}\n"
-                f"   • {caminho_raiz}"
-            )
+        for candidato in _EXCEL_CANDIDATES:
+            caminho_raiz = os.path.join('.', candidato)
+            caminhos_testados.append(caminho_raiz)
+            if os.path.exists(caminho_raiz):
+                caminho_excel = os.path.join(pasta_ano, _EXCEL_CANDIDATES[0])
+                shutil.copy2(caminho_raiz, caminho_excel)
+                print(f"   📋 Copiado da raiz → {caminho_excel}")
+                break
+    if caminho_excel is None:
+        raise FileNotFoundError(
+            f"❌ Arquivo 'Reporting veículos.xlsx' não encontrado em:\n"
+            + "\n".join(f"   • {p}" for p in caminhos_testados)
+        )
 
     # Validar abas obrigatórias para Real
     abas_obrigatorias = [
@@ -1383,10 +1394,17 @@ def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
         DataFrame com colunas: Conferência, Excel, Parquet, Diferença, % Diff, Status
     """
     pasta_tc = os.path.join(_DATA_ROOT, str(ano))
-    excel_path = os.path.join(pasta_tc, 'Reporting veículos.xlsx')
+    # Busca Excel com fallback para variantes de nome
+    _EXCEL_CANDIDATES = ("Reporting veículos.xlsx", "Reporting veiculos.xlsx", "Reporting_veiculos.xlsx")
+    excel_path = None
+    for candidato in _EXCEL_CANDIDATES:
+        caminho_teste = os.path.join(pasta_tc, candidato)
+        if os.path.exists(caminho_teste):
+            excel_path = caminho_teste
+            break
     resultados = []
 
-    if not os.path.exists(excel_path):
+    if excel_path is None:
         return pd.DataFrame([{'Conferência': 'ERRO', 'Status': '❌ Excel não encontrado'}])
 
     # ── helpers ────────────────────────────────────────────────

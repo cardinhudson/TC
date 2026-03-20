@@ -2020,7 +2020,7 @@ def gerar_relatorio_mes(
         modelo: Modelo LLM
         idioma: 'pt-BR' ou 'en'
         moeda: Código da moeda (BRL, USD, EUR)
-        taxas: Dict com taxas multiplicativas {"USD": 0.20, "EUR": 0.18}
+        taxas: Dict com taxas multiplicativas {"USD": 0.20, "EUR": 1/6.4855}
 
     Returns:
         Caminho do PDF gerado
@@ -2053,7 +2053,7 @@ def gerar_relatorio_mes(
                 taxas.setdefault(_mk, 1.0 / _mv if _mv > 0 else 1.0)
         except Exception:
             taxas.setdefault("USD", 0.20)
-            taxas.setdefault("EUR", 0.18)
+            taxas.setdefault("EUR", 1.0 / 6.4855)
     simbolo = obter_simbolo_moeda(moeda)
 
     # Configurar moeda ativa para formatação automática
@@ -2791,7 +2791,7 @@ def gerar_relatorio_mes_local(
 
     Args:
         moeda: Código da moeda para o relatório (BRL, USD, EUR).
-        taxas: Dict com taxas multiplicativas {\"USD\": 0.20, \"EUR\": 0.18} (1 BRL → X moeda).
+        taxas: Dict com taxas multiplicativas {\"USD\": 0.20, \"EUR\": 1/6.4855} (1 BRL → X moeda).
 
     Returns:
         Caminho do PDF gerado.
@@ -2820,7 +2820,7 @@ def gerar_relatorio_mes_local(
                 taxas.setdefault(_mk, 1.0 / _mv if _mv > 0 else 1.0)
         except Exception:
             taxas.setdefault("USD", 0.20)
-            taxas.setdefault("EUR", 0.18)
+            taxas.setdefault("EUR", 1.0 / 6.4855)
     simbolo = obter_simbolo_moeda(moeda)
 
     # Configurar moeda ativa para formatação automática

@@ -333,12 +333,11 @@ def get_filter_options(df, column_name):
 def get_oficinas_budget_opcoes(ano_selecionado_param):
     """Obtém lista de oficinas presentes no Budget (custos e volume) (histórico consolidado BUD)."""
     try:
-        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         caminho_budget_custo = os.path.join(
-            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_principal_historico_BUD.parquet"
+            str(get_data_root()), "TC_Principal", "historico_consolidado", "BUD", "df_principal_historico_BUD.parquet"
         )
         caminho_budget_vol = os.path.join(
-            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+            str(get_data_root()), "TC_Principal", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
         )
 
         oficinas_set = set()
@@ -387,12 +386,11 @@ def get_oficinas_budget_opcoes(ano_selecionado_param):
 def get_veiculos_budget_opcoes(ano_selecionado_param):
     """Obtém lista de veículos presentes no Budget (custos e volume) (histórico consolidado BUD)."""
     try:
-        project_root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         caminho_budget_custo = os.path.join(
-            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_principal_historico_BUD.parquet"
+            str(get_data_root()), "TC_Principal", "historico_consolidado", "BUD", "df_principal_historico_BUD.parquet"
         )
         caminho_budget_vol = os.path.join(
-            project_root, "dados", "TC_Principal", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
+            str(get_data_root()), "TC_Principal", "historico_consolidado", "BUD", "df_vol_historico_BUD.parquet"
         )
 
         veiculos_set = set()
@@ -2308,7 +2306,7 @@ with tab_visualizar:
                     df_sel,
                     column_config=col_config_sel,
                     disabled=[c for c in df_sel.columns if c != '✅'],
-                    use_container_width=True,
+                    width="stretch",
                     height=480,
                     hide_index=True,
                     key='data_editor_custos_fallback_tc',
@@ -2545,7 +2543,7 @@ with tab_adicionar:
             cols_ref = [c for c in ['Account', 'Type 06', 'Type 05', 'Custo', 'USI'] if c in df_filtrado.columns]
             if cols_ref:
                 df_ref = df_filtrado[cols_ref].drop_duplicates().dropna(subset=['Account']).sort_values('Account')
-                st.dataframe(df_ref, hide_index=True, use_container_width=True)
+                st.dataframe(df_ref, hide_index=True, width="stretch")
         else:
             st.info("Sem dados de referência disponíveis.")
 
@@ -2595,7 +2593,7 @@ with tab_adicionar:
         column_config=editor_column_config,
         num_rows="dynamic",
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key="custos_editor_tc"
     )
 
@@ -2640,7 +2638,7 @@ with tab_adicionar:
             df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
             # Formatar valores
             fmt_cfg = {m: st.column_config.NumberColumn(m, format='R$ %.2f') for m in cols_meses + ['Total']}
-            st.dataframe(df_pivot, hide_index=True, use_container_width=True, column_config=fmt_cfg)
+            st.dataframe(df_pivot, hide_index=True, width="stretch", column_config=fmt_cfg)
 
     # Botão Salvar
     if st.button("💾 Salvar Custos", type="primary", key="btn_salvar_custos_tc"):
@@ -2731,7 +2729,7 @@ with tab_adicionar:
             _df_show = _df_full[_cols_presentes + _extras].copy()
             st.dataframe(
                 _df_show,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=400,
             )
@@ -3311,7 +3309,7 @@ if aplicar_config_forecast:
     with st.spinner("🔄 Gerando arquivos de forecast... Isso pode levar alguns minutos."):
         try:
             # CRIAR PASTA FORECAST PRIMEIRO (antes de qualquer processamento)
-            pasta_dados = "dados"
+            pasta_dados = str(get_data_root())
             pasta_forecast = os.path.join(pasta_dados, "TC_Principal", "Forecast")
             try:
                 # Criar pasta dados se não existir
@@ -5607,7 +5605,7 @@ if aplicar_config_forecast:
             # ============================================================
             
             # Criar pasta Forecast em dados/TC_Principal/Forecast (ANTES de tentar salvar) (MESMA LÓGICA DO FORECAST COPY)
-            pasta_dados = "dados"
+            pasta_dados = str(get_data_root())
             pasta_forecast = os.path.join(pasta_dados, "TC_Principal", "Forecast")
             
             adicionar_mensagem("info", f"📁 Preparando para salvar em: {os.path.abspath(pasta_forecast)}")

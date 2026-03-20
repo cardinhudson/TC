@@ -1,0 +1,31 @@
+command:
+  - streamlit
+  - run
+  - app.py
+env:
+  - name: SCI_CLOUD
+    value: "1"
+  - name: TC_LLM_PROVIDER
+    value: "databricks_claude"
+  - name: SCI_SHARED_DATA_ROOT
+    value: "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/dados"
+  - name: SCI_WORKSPACE_DATA_ROOT
+    value: "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/dados"
+  - name: STREAMLIT_GATHER_USAGE_STATS
+    value: "false"
+  - name: TC_DATABRICKS_URL
+    value: "https://adb-5678659344564033.13.azuredatabricks.net"
+  - name: TC_DATABRICKS_ENDPOINT
+    value: "databricks-claude-opus-4-6"
+  - name: DATABRICKS_TOKEN
+    valueFrom: "secret:sci:DATABRICKS_TOKEN"
+  - name: TC_DATABRICKS_TOKEN
+    valueFrom: "secret:sci:DATABRICKS_TOKEN"
+  - name: DATABRICKS_HOST
+    value: "https://adb-5678659344564033.13.azuredatabricks.net"
+  - name: SCI_PIPELINE_CLUSTER_ID
+    valueFrom: "secret:sci:SCI_PIPELINE_CLUSTER_ID"
+  - name: SCI_DELTA_ROOT
+    value: "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/delta"
+  - name: SCI_DEFAULT_DATASET_KEY
+    value: "TC_Principal"

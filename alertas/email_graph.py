@@ -83,7 +83,11 @@ def build_send_mail_payload(
 # =========================================================================
 
 class GraphEmailClient:
-    """Cliente de e-mail via Microsoft Graph API com Device Code Flow."""
+    """Cliente de e-mail via Microsoft Graph API com Device Code Flow.
+
+    Em ambiente cloud (Databricks), o Device Code Flow não está disponível
+    (sem browser interativo). Use Teams webhook como alternativa.
+    """
 
     def __init__(
         self,
@@ -91,9 +95,19 @@ class GraphEmailClient:
         tenant_id: str,
         token_cache_path: str | Path | None = None,
     ):
+        from tc_core.utils.portabilidade import is_cloud
+
         self._client_id = client_id
         self._tenant_id = tenant_id
-        self._cache_path = Path(token_cache_path or _TOKEN_CACHE_PATH)
+        self._is_cloud = is_cloud()
+        if self._is_cloud:
+            self._cache_path = None
+            logger.warning(
+                "GraphEmailClient em cloud — Device Code Flow indisponível. "
+                "Use Teams webhook para notificações."
+            )
+        else:
+            self._cache_path = Path(token_cache_path or _TOKEN_CACHE_PATH)
         self._cache = self._load_cache()
         authority = f"https://login.microsoftonline.com/{tenant_id}"
         self._app = msal.PublicClientApplication(
@@ -106,7 +120,7 @@ class GraphEmailClient:
 
     def _load_cache(self) -> msal.SerializableTokenCache:
         cache = msal.SerializableTokenCache()
-        if self._cache_path.exists():
+        if self._cache_path and self._cache_path.exists():
             try:
                 cache.deserialize(self._cache_path.read_text(encoding="utf-8"))
             except Exception:
@@ -114,7 +128,7 @@ class GraphEmailClient:
         return cache
 
     def _save_cache(self) -> None:
-        if self._cache.has_state_changed:
+        if self._cache_path and self._cache.has_state_changed:
             self._cache_path.write_text(
                 self._cache.serialize(), encoding="utf-8",
             )

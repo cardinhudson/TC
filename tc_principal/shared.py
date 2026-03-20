@@ -15,6 +15,8 @@ from datetime import datetime
 
 from tc_core.constants import ORDEM_MESES  # noqa: F401 — re-exportado para as páginas
 from tc_core.utils.portabilidade import get_base_path, get_data_root
+from tc_core.data_source import read_table
+from tc_core.feature_flags import get_flag
 
 # ═══════════════════════════════════════════════════════════════
 #  RAIZ DO PROJETO (compatível com EXE PyInstaller)
@@ -26,6 +28,20 @@ else:
 
 _BASE_ROOT = str(get_base_path())
 _DATA_ROOT = str(get_data_root())
+
+
+def _data_root_str() -> str:
+    """Resolve DATA_ROOT em tempo de uso para refletir o ambiente atual."""
+    return str(get_data_root())
+
+
+def _join_data_root(*parts: str) -> str:
+    return os.path.join(_data_root_str(), *parts)
+
+
+def _use_snowflake() -> bool:
+    """True quando o backend de dados é Snowflake."""
+    return get_flag("SCI_DATA_BACKEND", default="local") == "snowflake"
 
 # ═══════════════════════════════════════════════════════════════
 #  CONSTANTES
@@ -75,24 +91,30 @@ def extrair_redis(df: pd.DataFrame) -> float:
 def _pasta_tc_principal(ano):
     """Caminho da pasta de dados TC Veículos Budget para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/BUD/
-    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'BUD')
+    return _join_data_root('TC_Principal', str(ano), 'BUD')
 
 
 def _pasta_tc_principal_real(ano):
     """Caminho da pasta de dados TC Veículos Real para um ano."""
     # Estrutura: dados/TC_Principal/{ano}/ (raiz, sem subfolder)
-    return os.path.join(_DATA_ROOT, 'TC_Principal', str(ano))
+    return _join_data_root('TC_Principal', str(ano))
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def descobrir_anos_tc_principal():
     """Descobre anos que possuem dados processados em dados/TC_Principal/{ano}/BUD/."""
+    from tc_core.data_source import list_available_years
+    if _use_snowflake():
+        return list_available_years("TC_Principal", "BUD")
+
+    from tc_core.utils.portabilidade import cloud_path_exists, cloud_listdir, cloud_isdir
+
     anos = []
-    pasta_base = os.path.join(_DATA_ROOT, 'TC_Principal')
-    if os.path.exists(pasta_base):
-        for d in sorted(os.listdir(pasta_base), reverse=True):
+    pasta_base = _join_data_root('TC_Principal')
+    if cloud_path_exists(pasta_base):
+        for d in sorted(cloud_listdir(pasta_base), reverse=True):
             pasta_parquets = os.path.join(pasta_base, d, 'BUD')
-            if os.path.isdir(pasta_parquets) and any(f.endswith('.parquet') for f in os.listdir(pasta_parquets)):
+            if cloud_isdir(pasta_parquets) and any(f.endswith('.parquet') for f in cloud_listdir(pasta_parquets)):
                 try:
                     anos.append(int(d))
                 except ValueError:
@@ -100,7 +122,7 @@ def descobrir_anos_tc_principal():
     return anos
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def obter_timestamp_parquets(ano):
     """Retorna timestamp mais recente entre os parquets do ano."""
     pasta = _pasta_tc_principal(ano)
@@ -115,16 +137,23 @@ def obter_timestamp_parquets(ano):
     return ts_max if ts_max > 0 else None
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_principal(ano, columns=None):
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_principal_BUD', columns)
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_principal_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho, columns=columns)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_volume_bud(ano, columns=None):
+    if _use_snowflake():
+        df = read_table('TC_Principal', str(ano), 'BUD', 'df_vol_veiculos_BUD', columns)
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_BUD.parquet')
     if not os.path.exists(caminho):
         return None
@@ -134,8 +163,13 @@ def load_volume_bud(ano, columns=None):
     return df
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_volume_actual(ano, columns=None):
+    if _use_snowflake():
+        df = read_table('TC_Principal', str(ano), 'BUD', 'df_vol_veiculos_actual', columns)
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_actual.parquet')
     if not os.path.exists(caminho):
         return None
@@ -145,35 +179,43 @@ def load_volume_actual(ano, columns=None):
     return df
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_tempo_veiculos(ano):
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_tempo_veiculos_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_tempo_veiculos_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_dea_dedicado(ano):
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_dea_dedicado_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_dea_dedicado_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_volume_fa(ano):
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_volume_fa_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_volume_fa_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_tc_sapiens(ano, columns=None):
     """Carrega df_tc_sapiens.parquet — dados Sapiens detalhados com todas as colunas.
     O arquivo é gerado pela fase10b e salvo na pasta Real (não BUD).
     """
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_tc_sapiens', columns)
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tc_sapiens.parquet')
     if not os.path.exists(caminho):
         return None
@@ -184,45 +226,55 @@ def load_tc_sapiens(ano, columns=None):
 #  DATA LOADING — Novos parquets de veículos (Fases 13–17)
 # ═══════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_fp_sem_da_veiculos(ano):
     """Custo FP sem D&A Dedicado (base de rateio)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_fp_sem_da_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_fp_sem_da_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_percentual_rateio_veiculos(ano):
     """Percentuais de rateio por veículo."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_percentual_rateio_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_percentual_rateio_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_custo_rateado_veiculos(ano):
     """Custo rateado por veículo (FP sem Ded × Percentual)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_custo_rateado_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_rateado_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_custo_fp_veiculo(ano, columns=None):
     """Custo FP final por veículo (rateado + D&A)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_custo_fp_BUD', columns)
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_fp_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho, columns=columns)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_cpu_veiculo(ano):
     """CPU (Custo Por Unidade) por modelo de veículo."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_cpu_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_cpu_BUD.parquet')
     if not os.path.exists(caminho):
         return None
@@ -233,36 +285,47 @@ def load_cpu_veiculo(ano):
 #  DATA LOADING — REAL (cached)
 # ═══════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_principal_real(ano, columns=None):
     """Tabela principal Real (Sapiens)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_principal', columns)
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_principal.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho, columns=columns)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_volume_fa_real(ano):
     """Volume FA + Tempo FA Real."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_volume_fa')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_volume_fa.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_tempo_veiculos_real(ano):
     """Tempo Veículo Real."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_tempo_veiculos')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tempo_veiculos.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_volume_veiculos_real(ano):
     """Volume de veículos Real (processado da aba 'Volume Actual')."""
+    if _use_snowflake():
+        df = read_table('TC_Principal', str(ano), '', 'df_vol_veiculos')
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_vol_veiculos.parquet')
     if not os.path.exists(caminho):
         return None
@@ -272,36 +335,44 @@ def load_volume_veiculos_real(ano):
     return df
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_comparativo(ano):
     """Comparativo Real × Budget."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_comparativo_real_budget')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_comparativo_real_budget.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_custo_fp_veiculo_real(ano):
     """Custo FP final por veículo (rateado + D&A) — Real."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_veiculos_custo_fp')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_custo_fp.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_cpu_veiculo_real(ano):
     """CPU (Custo Por Unidade) por modelo de veículo — Real."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_veiculos_cpu')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_cpu.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_percentual_rateio_veiculos_real(ano):
     """Percentuais de rateio por veículo — Real (baseados em tempos reais)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_veiculos_percentual_rateio')
     caminho = os.path.join(
         _pasta_tc_principal_real(ano),
         'df_veiculos_percentual_rateio.parquet',
@@ -311,13 +382,15 @@ def load_percentual_rateio_veiculos_real(ano):
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_dea_dedicado_real(ano: int = 2026):
     """
     Carrega arquivo de D&A dedicado por veículo do processamento Real.
     Usado para fazer rateio idêntico ao processamento Real.
     """
-    caminho = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano), 'df_dea_dedicado.parquet')
+    if _use_snowflake():
+        return read_table('TC_Principal', str(ano), '', 'df_dea_dedicado')
+    caminho = _join_data_root('TC_Principal', str(ano), 'df_dea_dedicado.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
@@ -505,25 +578,32 @@ def _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo='Custo FP'):
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_historico():
-    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado')
+    return _join_data_root('TC_Principal', 'historico_consolidado')
 
 
 def _pasta_historico_bud():
-    return os.path.join(_DATA_ROOT, 'TC_Principal', 'historico_consolidado', 'BUD')
+    return _join_data_root('TC_Principal', 'historico_consolidado', 'BUD')
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_principal():
     """Tabela principal consolidada multi-ano (Real)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'historico_consolidado', 'df_principal_historico')
     caminho = os.path.join(_pasta_historico(), 'df_principal_historico.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_volume():
     """Volume consolidado multi-ano (Real)."""
+    if _use_snowflake():
+        df = read_table('TC_Principal', '', 'historico_consolidado', 'df_vol_historico')
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_historico(), 'df_vol_historico.parquet')
     if not os.path.exists(caminho):
         return None
@@ -533,27 +613,36 @@ def load_historico_volume():
     return df
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_custo_fp_veiculo():
     """Custo FP por veículo consolidado multi-ano (Real)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'historico_consolidado', 'df_veiculos_custo_fp_historico')
     caminho = os.path.join(_pasta_historico(), 'df_veiculos_custo_fp_historico.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_principal_bud():
     """Tabela principal consolidada multi-ano (Budget)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'historico_consolidado/BUD', 'df_principal_historico_BUD')
     caminho = os.path.join(_pasta_historico_bud(), 'df_principal_historico_BUD.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_volume_bud():
     """Volume consolidado multi-ano (Budget)."""
+    if _use_snowflake():
+        df = read_table('TC_Principal', '', 'historico_consolidado/BUD', 'df_vol_historico_BUD')
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_historico_bud(), 'df_vol_historico_BUD.parquet')
     if not os.path.exists(caminho):
         return None
@@ -563,9 +652,11 @@ def load_historico_volume_bud():
     return df
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_historico_custo_fp_veiculo_bud():
     """Custo FP por veículo consolidado multi-ano (Budget)."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'historico_consolidado/BUD', 'df_veiculos_custo_fp_historico_BUD')
     caminho = os.path.join(_pasta_historico_bud(), 'df_veiculos_custo_fp_historico_BUD.parquet')
     if not os.path.exists(caminho):
         return None
@@ -577,21 +668,28 @@ def load_historico_custo_fp_veiculo_bud():
 # ═══════════════════════════════════════════════════════════════
 
 def _pasta_forecast_tc():
-    return os.path.join(_DATA_ROOT, 'TC_Principal', 'Forecast')
+    return _join_data_root('TC_Principal', 'Forecast')
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_forecast_completo():
     """Forecast completo (Real + BE) — gerado pelo BE Simulador."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'Forecast', 'forecast_completo')
     caminho = os.path.join(_pasta_forecast_tc(), 'forecast_completo.parquet')
     if not os.path.exists(caminho):
         return None
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_forecast_volume():
     """Volume do forecast — gerado pelo BE Simulador."""
+    if _use_snowflake():
+        df = read_table('TC_Principal', '', 'Forecast', 'df_vol_historico')
+        if df is not None and 'Volume' in df.columns:
+            df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
+        return df
     caminho = os.path.join(_pasta_forecast_tc(), 'df_vol_historico.parquet')
     if not os.path.exists(caminho):
         return None
@@ -608,7 +706,7 @@ def _get_file_mtime(caminho):
     return 0
 
 
-@st.cache_data(ttl=3600, show_spinner=True)
+@st.cache_data(ttl=60, show_spinner=True)
 def load_custo_fp_veiculo_forecast(_file_mtime=None):
     """Custo FP por veículo do Forecast — gerado pelo BE Simulador.
     
@@ -618,6 +716,8 @@ def load_custo_fp_veiculo_forecast(_file_mtime=None):
     
     O parâmetro _file_mtime é usado para invalidar o cache quando o arquivo muda.
     """
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'Forecast', 'forecast_veiculos_custo_fp')
     caminho = os.path.join(_pasta_forecast_tc(), 'forecast_veiculos_custo_fp.parquet')
     if not os.path.exists(caminho):
         return None
@@ -996,7 +1096,7 @@ def _render_tabela_fmt(st_obj, df_show, colunas_num):
     for c in colunas_num:
         if c in df_fmt.columns:
             df_fmt[c] = df_show[c].apply(lambda v: _fmt_ptbr(v))
-    st_obj.dataframe(df_fmt, use_container_width=True, hide_index=True)
+    st_obj.dataframe(df_fmt, width="stretch", hide_index=True)
 
 
 def render_secao_tabela_detalhe(

@@ -21,7 +21,7 @@ try:
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
     faiss = None  # Definir como None se não disponível para evitar NameError
-    print("⚠️ Aviso: sentence-transformers ou faiss não disponíveis. Usando método de busca simples.")
+    print("Aviso: sentence-transformers ou faiss nao disponiveis. Usando metodo de busca simples.")
 
 
 # Cache global para modelo e embeddings
@@ -29,6 +29,24 @@ _modelo_embedding = None
 _embeddings_cache = {}
 _indice_faiss = None
 _segmentos_cache = []
+
+
+def _reparar_mojibake(texto: str) -> str:
+    if not texto:
+        return ""
+
+    marcadores = ("Ã", "Â", "â", "ðŸ", "ï¸", "â€”", "â†’", "â‚¬")
+    original_score = sum(texto.count(m) for m in marcadores)
+    if original_score == 0:
+        return texto
+
+    try:
+        reparado = texto.encode("latin-1", errors="ignore").decode("utf-8", errors="ignore")
+    except Exception:
+        return texto
+
+    reparado_score = sum(reparado.count(m) for m in marcadores)
+    return reparado if reparado_score < original_score else texto
 
 
 def carregar_documentacao() -> str:
@@ -44,7 +62,7 @@ def carregar_documentacao() -> str:
     # Fontes de documentação (priorizar especificação técnica e docs completas;
     # NÃO incluir apresentações curtas)
     fontes = [
-        ("python", os.path.join(base_path, "pages", "6 - Documentacao.py")),
+        ("python", os.path.join(base_path, "pages", "6_Documentacao.py")),
         ("md", os.path.join(base_path, "DOCUMENTACAO_SISTEMA_TC.md")),
         ("md", os.path.join(base_path, "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")),
         ("md", os.path.join(base_path, "INSTRUCOES_AMBIENTE_VIRTUAL.md")),
@@ -61,7 +79,7 @@ def carregar_documentacao() -> str:
 
         try:
             with open(caminho, "r", encoding="utf-8") as f:
-                bruto = f.read()
+                bruto = _reparar_mojibake(f.read())
         except Exception as e:
             print(f"Erro ao carregar documentação ({caminho}): {e}")
             continue

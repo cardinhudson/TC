@@ -108,6 +108,12 @@ def init_scheduler(
     """Inicia o scheduler em modo legado ou com jobs por regra."""
     global _scheduler  # noqa: PLW0603
 
+    # Em cloud (Databricks), alertas agendados rodam via Jobs pipeline.
+    from tc_core.utils.portabilidade import is_cloud
+    if is_cloud():
+        logger.info("Cloud detectado — APScheduler desabilitado (usar Databricks Jobs).")
+        return
+
     stop_scheduler()
 
     try:

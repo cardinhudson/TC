@@ -1,4 +1,34 @@
 {
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Databricks: Sync app",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\sync_databricks_app.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Databricks: Watch app sync",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\sync_databricks_app.ps1",
+        "-Watch"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}{
     "version": "2.0.0",
     "tasks": [
         {

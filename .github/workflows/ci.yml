@@ -1,0 +1,46 @@
+name: CI — SCI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov ruff
+
+      - name: Ruff lint
+        run: ruff check . --output-format=github
+
+      - name: Run tests
+        env:
+          SCI_DATA_BACKEND: local
+        run: |
+          pytest tests/ alertas/test_alert_engine.py -v --tb=short --co -q 2>/dev/null || true
+          pytest tests/ alertas/test_alert_engine.py -v --tb=short
+
+      - name: Syntax check — app.py
+        run: python -c "import py_compile; py_compile.compile('app.py', doraise=True)"

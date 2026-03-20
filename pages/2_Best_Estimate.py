@@ -2320,7 +2320,7 @@ with tab_visualizar:
                     df_sel,
                     column_config=col_config_sel,
                     disabled=[c for c in df_sel.columns if c != '✅'],
-                    use_container_width=True,
+                    width="stretch",
                     height=480,
                     hide_index=True,
                     key='data_editor_custos_fallback',
@@ -2562,7 +2562,7 @@ with tab_adicionar:
             cols_ref = [c for c in ['Account', 'Type 06', 'Type 05', 'Custo', 'USI'] if c in df_filtrado.columns]
             if cols_ref:
                 df_ref = df_filtrado[cols_ref].drop_duplicates().dropna(subset=['Account']).sort_values('Account')
-                st.dataframe(df_ref, hide_index=True, use_container_width=True)
+                st.dataframe(df_ref, hide_index=True, width="stretch")
         else:
             st.info("Sem dados de referência disponíveis.")
 
@@ -2600,7 +2600,7 @@ with tab_adicionar:
         column_config=editor_column_config,
         num_rows="dynamic",
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key="custos_editor_ext"
     )
 
@@ -2646,7 +2646,7 @@ with tab_adicionar:
             df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
             # Formatar valores
             fmt_cfg = {m: st.column_config.NumberColumn(m, format='R$ %.2f') for m in cols_meses + ['Total']}
-            st.dataframe(df_pivot, hide_index=True, use_container_width=True, column_config=fmt_cfg)
+            st.dataframe(df_pivot, hide_index=True, width="stretch", column_config=fmt_cfg)
 
     # Botão Salvar
     if st.button("💾 Salvar Custos", type="primary", key="btn_salvar_custos_ext"):
@@ -2739,7 +2739,7 @@ with tab_adicionar:
             _df_show = _df_full[_cols_presentes + _extras].copy()
             st.dataframe(
                 _df_show,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=400,
             )

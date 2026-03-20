@@ -26,7 +26,6 @@ from tc_core.finance.currency_db import (
     inicializar_banco_taxas as _core_inicializar_banco_taxas,
     salvar_taxas_banco as _core_salvar_taxas_banco,
 )
-from tc_core.utils.portabilidade import get_data_root
 
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
@@ -108,19 +107,19 @@ def obter_data_atualizacao_dados():
         # Tentar múltiplos caminhos possíveis (para compatibilidade com diferentes ambientes)
         arquivos_dados = [
             # Caminhos do histórico consolidado
-            _tc_ext_data_path("historico_consolidado", "df_final_historico.parquet"),
-            _tc_ext_data_path("historico_consolidado", "df_vol_historico.parquet"),
-            _tc_ext_data_path("historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("dados", "historico_consolidado", "BUD", "df_final_historico_BUD.parquet"),
             # Caminhos do Best Estimate (arquivos gerados)
             os.path.join("dados", "Forecast", "forecast_completo.parquet"),
             os.path.join("dados", "Forecast", "df_vol_historico.parquet"),
             # Caminhos alternativos (pode existir em diferentes estruturas)
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_final_historico.parquet"),
-            os.path.join("dados", "TC_Ext", "historico_consolidado", "df_vol_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_final_historico.parquet"),
+            os.path.join("./dados", "historico_consolidado", "df_vol_historico.parquet"),
         ]
         
         # Também tentar buscar em pastas de anos recentes
-        pasta_dados = _tc_ext_data_path()
+        pasta_dados = "dados"
         if os.path.exists(pasta_dados):
             try:
                 anos = [d for d in os.listdir(pasta_dados) if os.path.isdir(os.path.join(pasta_dados, d)) and d.isdigit()]
@@ -164,16 +163,14 @@ def _get_project_root_tc_ext():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _tc_ext_data_path(*parts):
-    """Monta caminhos absolutos dentro de dados/TC_Ext."""
-    return os.path.join(str(get_data_root()), "TC_Ext", *parts)
-
-
-@st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
+@st.cache_data(ttl=60, max_entries=10, show_spinner=False)
 def get_budget_oficinas_opcoes(ano_selecionado_param):
     """Retorna lista de oficinas existentes no Budget (custos) (histórico consolidado BUD)."""
     try:
-        caminho_budget = _tc_ext_data_path(
+        project_root = _get_project_root_tc_ext()
+        caminho_budget = os.path.join(
+            project_root,
+            "dados",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -206,11 +203,14 @@ def get_budget_oficinas_opcoes(ano_selecionado_param):
         return []
 
 
-@st.cache_data(ttl=3600, max_entries=10, show_spinner=False)
+@st.cache_data(ttl=60, max_entries=10, show_spinner=False)
 def get_budget_volume_oficinas_opcoes(ano_selecionado_param):
     """Retorna lista de oficinas existentes no Budget de Volume (histórico consolidado BUD)."""
     try:
-        caminho_budget_vol = _tc_ext_data_path(
+        project_root = _get_project_root_tc_ext()
+        caminho_budget_vol = os.path.join(
+            project_root,
+            "dados",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",
@@ -264,7 +264,7 @@ st.markdown(f"""
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 4rem !important;
+            padding-top: 2.5rem !important;
             padding-bottom: 0.25rem !important;
         }
         div[data-testid="stVerticalBlock"] {
@@ -851,7 +851,7 @@ st.session_state.filtro_ano_tc_ext = ano_selecionado
 
 # Função para carregar dados com cache (disponível para todas as páginas - deve estar antes do uso)
 @st.cache_data(
-    ttl=3600,
+    ttl=60,
     max_entries=10,  # Aumentar para cachear diferentes anos
     show_spinner=True
 )
@@ -1658,14 +1658,17 @@ def _merge_volume_com_fallback(df_base, df_volume):
 
 # Função para carregar dados de budget (Total) com cache
 @st.cache_data(
-    ttl=3600,
+    ttl=60,
     max_entries=10,
     show_spinner=True
 )
 def load_budget_data(ano_selecionado_param):
     """Carrega os dados de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        caminho_budget = _tc_ext_data_path(
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        caminho_budget = os.path.join(
+            project_root,
+            "dados",
             "historico_consolidado",
             "BUD",
             "df_final_historico_BUD.parquet",
@@ -1735,14 +1738,17 @@ def load_budget_data(ano_selecionado_param):
 
 # Função para carregar dados de budget (Volume) com cache
 @st.cache_data(
-    ttl=3600,
+    ttl=60,
     max_entries=10,
     show_spinner=True
 )
 def load_budget_volume_data(ano_selecionado_param):
     """Carrega os dados de volume de budget do arquivo parquet - SEMPRE do histórico consolidado BUD"""
     try:
-        caminho_budget_vol = _tc_ext_data_path(
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        caminho_budget_vol = os.path.join(
+            project_root,
+            "dados",
             "historico_consolidado",
             "BUD",
             "df_vol_historico_BUD.parquet",

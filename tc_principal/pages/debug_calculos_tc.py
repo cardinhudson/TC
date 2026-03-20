@@ -154,7 +154,7 @@ def render():
             st.success("✅ Nenhum NaN detectado.")
         else:
             st.warning("⚠️ Colunas com NaN:")
-            st.dataframe(nan_cols.to_frame('NaN count'), use_container_width=True)
+            st.dataframe(nan_cols.to_frame('NaN count'), width="stretch")
 
         st.divider()
         st.markdown("**Períodos únicos:**")
@@ -189,7 +189,7 @@ def render():
             df_filt = df_filt[df_filt['Período'].isin(per_sel)]
 
         st.caption(f"{len(df_filt):,} linhas")
-        st.dataframe(df_filt, use_container_width=True, height=500)
+        st.dataframe(df_filt, width="stretch", height=500)
 
         st.divider()
         st.markdown("**Totais por coluna monetária:**")
@@ -198,7 +198,7 @@ def render():
             if c in df_filt.columns:
                 totais[c] = df_filt[c].sum()
         st.dataframe(pd.DataFrame(totais, index=['Total']).T.rename(columns={0: 'Valor'}),
-                     use_container_width=True)
+                     width="stretch")
 
     # ── 3. RATEIO FA ──
     with tabs[2]:
@@ -208,7 +208,7 @@ def render():
             st.markdown("**Rateios por Oficina (média):**")
             rateios_ofi = df.groupby('Oficina')['Rateio FA'].mean().sort_values(ascending=False)
             st.dataframe(rateios_ofi.to_frame('Rateio FA (média)').style.format("{:.6f}"),
-                         use_container_width=True)
+                         width="stretch")
 
             st.divider()
             st.markdown("**Rateios por Oficina × Período:**")
@@ -218,7 +218,7 @@ def render():
             cols_ord = [m for m in ORDEM_MESES if m in pivot_rateio.columns]
             if cols_ord:
                 pivot_rateio = pivot_rateio[cols_ord]
-            st.dataframe(pivot_rateio.style.format("{:.6f}"), use_container_width=True)
+            st.dataframe(pivot_rateio.style.format("{:.6f}"), width="stretch")
         else:
             st.warning("⚠️ Coluna 'Rateio FA' não encontrada no dataframe.")
 
@@ -227,7 +227,7 @@ def render():
             st.divider()
             st.markdown("**Volume FA (Tempo FA):**")
             _resumo_df(df_vol_fa, 'df_vol_fa')
-            st.dataframe(df_vol_fa.head(50), use_container_width=True, height=300)
+            st.dataframe(df_vol_fa.head(50), width="stretch", height=300)
 
     # ── 4. CUSTO FA ──
     with tabs[3]:
@@ -245,7 +245,7 @@ def render():
                 st.success(f"✅ Todas as {len(df_fa):,} linhas batem (diff < 0,01).")
             else:
                 st.error(f"❌ {len(erros):,} linhas com diferença ≥ 0,01")
-                st.dataframe(erros, use_container_width=True)
+                st.dataframe(erros, width="stretch")
 
             st.divider()
             st.markdown("**Total Custo FA:**")
@@ -255,7 +255,7 @@ def render():
             # Por oficina
             fa_ofi = df.groupby('Oficina')['Custo FA'].sum().sort_values(ascending=False)
             st.markdown("**Custo FA por Oficina:**")
-            st.dataframe(fa_ofi.to_frame().style.format("R$ {:,.2f}"), use_container_width=True)
+            st.dataframe(fa_ofi.to_frame().style.format("R$ {:,.2f}"), width="stretch")
         else:
             st.warning("⚠️ Colunas necessárias para auditoria de Custo FA não encontradas.")
 
@@ -278,7 +278,7 @@ def render():
                 st.success(f"✅ Todas as {len(df_fp):,} linhas batem (diff < 0,01).")
             else:
                 st.error(f"❌ {len(erros):,} linhas com diferença ≥ 0,01")
-                st.dataframe(erros, use_container_width=True)
+                st.dataframe(erros, width="stretch")
 
             st.divider()
             st.markdown("**Totais:**")
@@ -294,7 +294,7 @@ def render():
                 st.divider()
                 st.markdown("**Custo FP por Tipo (Fixo/Variável):**")
                 fp_tipo = df.groupby('Custo')['Custo FP'].sum().sort_values(ascending=False)
-                st.dataframe(fp_tipo.to_frame().style.format("R$ {:,.2f}"), use_container_width=True)
+                st.dataframe(fp_tipo.to_frame().style.format("R$ {:,.2f}"), width="stretch")
         else:
             st.warning("⚠️ Colunas necessárias para auditoria de Custo FP não encontradas.")
 
@@ -315,7 +315,7 @@ def render():
                 st.success(f"✅ Todas as {len(df_dea_check):,} linhas batem.")
             else:
                 st.error(f"❌ {len(erros):,} linhas com diferença")
-                st.dataframe(erros, use_container_width=True)
+                st.dataframe(erros, width="stretch")
 
             st.divider()
             c1, c2, c3 = st.columns(3)
@@ -331,7 +331,7 @@ def render():
             st.markdown("**Parquet `df_dea_dedicado_BUD.parquet`:**")
             _resumo_df(df_dea, 'df_dea_dedicado')
             dea_ofi = df_dea.groupby('Oficina')['D&A dedicado'].sum().sort_values(ascending=False)
-            st.dataframe(dea_ofi.to_frame().style.format("R$ {:,.2f}"), use_container_width=True)
+            st.dataframe(dea_ofi.to_frame().style.format("R$ {:,.2f}"), width="stretch")
 
     # ── 7. VOLUME / TEMPO ──
     with tabs[6]:
@@ -345,7 +345,7 @@ def render():
                 _resumo_df(df_vol_bud, 'df_vol_veiculos_BUD')
                 vol_total = df_vol_bud['Volume'].sum() if 'Volume' in df_vol_bud.columns else 0
                 st.metric("Volume Budget Total", f"{vol_total:,.0f}")
-                st.dataframe(df_vol_bud.head(30), use_container_width=True, height=300)
+                st.dataframe(df_vol_bud.head(30), width="stretch", height=300)
             else:
                 st.warning("⚠️ Parquet não encontrado.")
 
@@ -355,7 +355,7 @@ def render():
                 _resumo_df(df_vol_act, 'df_vol_veiculos_actual')
                 vol_total = df_vol_act['Volume'].sum() if 'Volume' in df_vol_act.columns else 0
                 st.metric("Volume Actual Total", f"{vol_total:,.0f}")
-                st.dataframe(df_vol_act.head(30), use_container_width=True, height=300)
+                st.dataframe(df_vol_act.head(30), width="stretch", height=300)
             else:
                 st.warning("⚠️ Parquet não encontrado.")
 
@@ -365,8 +365,8 @@ def render():
             _resumo_df(df_tempo, 'df_tempo_veiculos_BUD')
             if 'Tempo Veic' in df_tempo.columns:
                 tempo_ofi = df_tempo.groupby('Oficina')['Tempo Veic'].sum().sort_values(ascending=False)
-                st.dataframe(tempo_ofi.to_frame().style.format("{:,.2f}"), use_container_width=True)
-            st.dataframe(df_tempo.head(30), use_container_width=True, height=300)
+                st.dataframe(tempo_ofi.to_frame().style.format("{:,.2f}"), width="stretch")
+            st.dataframe(df_tempo.head(30), width="stretch", height=300)
         else:
             st.warning("⚠️ Parquet não encontrado.")
 
@@ -385,7 +385,7 @@ def render():
                 aba_sel = st.selectbox("Selecionar aba:", xl.sheet_names, key='dbg_aba')
                 df_excel = pd.read_excel(uploaded, sheet_name=aba_sel)
                 st.markdown(f"**{aba_sel}** — {len(df_excel):,} linhas × {len(df_excel.columns)} cols")
-                st.dataframe(df_excel.head(50), use_container_width=True, height=400)
+                st.dataframe(df_excel.head(50), width="stretch", height=400)
 
                 # Comparação automática de totais
                 st.divider()
@@ -394,7 +394,7 @@ def render():
                 if len(num_cols_excel) > 0:
                     totais_excel = df_excel[num_cols_excel].sum()
                     st.dataframe(totais_excel.to_frame('Total Excel').style.format("{:,.2f}"),
-                                 use_container_width=True)
+                                 width="stretch")
 
             except Exception as e:
                 st.error(f"❌ Erro ao ler Excel: {e}")
@@ -438,7 +438,7 @@ def render():
             if per_sel9:
                 df_pct_f = df_pct_f[df_pct_f['Período'].isin(per_sel9)]
 
-            st.dataframe(df_pct_f, use_container_width=True, height=500)
+            st.dataframe(df_pct_f, width="stretch", height=500)
 
             # Validação: soma por oficina/período = 100%
             st.divider()
@@ -450,7 +450,7 @@ def render():
                 st.success(f"✅ Todos os {len(soma_pct)} grupos somam 100%.")
             else:
                 st.error(f"❌ {len(erros_pct)} grupos com soma ≠ 100%:")
-                st.dataframe(erros_pct, use_container_width=True)
+                st.dataframe(erros_pct, width="stretch")
 
             # Pivot Oficina × Veículo (média dos percentuais)
             st.divider()
@@ -458,7 +458,7 @@ def render():
             pivot_pct = df_pct_rateio.pivot_table(
                 values='Percentual', index='Oficina', columns='Veículo', aggfunc='mean'
             )
-            st.dataframe(pivot_pct.style.format("{:.4%}"), use_container_width=True)
+            st.dataframe(pivot_pct.style.format("{:.4%}"), width="stretch")
         else:
             st.warning("⚠️ Parquet `df_veiculos_percentual_rateio_BUD.parquet` não encontrado. Execute o processamento.")
 
@@ -487,7 +487,7 @@ def render():
             if per_sel10:
                 df_fpsda_f = df_fpsda_f[df_fpsda_f['Período'].isin(per_sel10)]
 
-            st.dataframe(df_fpsda_f, use_container_width=True, height=500)
+            st.dataframe(df_fpsda_f, width="stretch", height=500)
 
             st.divider()
             st.markdown("**Totais:**")
@@ -529,7 +529,7 @@ def render():
             if per_sel11:
                 df_rat_f = df_rat_f[df_rat_f['Período'].isin(per_sel11)]
 
-            st.dataframe(df_rat_f, use_container_width=True, height=500)
+            st.dataframe(df_rat_f, width="stretch", height=500)
 
             # Validação: soma rateado = soma FP sem Ded
             st.divider()
@@ -577,14 +577,14 @@ def render():
             if per_sel12:
                 df_fpv_f = df_fpv_f[df_fpv_f['Período'].isin(per_sel12)]
 
-            st.dataframe(df_fpv_f, use_container_width=True, height=500)
+            st.dataframe(df_fpv_f, width="stretch", height=500)
 
             # Totais por veículo
             st.divider()
             st.markdown("**Custo FP Veículo por modelo:**")
             if 'Custo FP Veiculo' in df_custo_fp_veic.columns:
                 fp_veic = df_custo_fp_veic.groupby('Veículo')['Custo FP Veiculo'].sum().sort_values(ascending=False)
-                st.dataframe(fp_veic.to_frame().style.format("R$ {:,.2f}"), use_container_width=True)
+                st.dataframe(fp_veic.to_frame().style.format("R$ {:,.2f}"), width="stretch")
         else:
             st.warning("⚠️ Parquet `df_veiculos_custo_fp_BUD.parquet` não encontrado.")
 
@@ -624,7 +624,7 @@ def render():
                 soma_fp_veiculo,
             ]
         })
-        st.dataframe(comparacao.style.format({'Valor (R$)': "R$ {:,.2f}"}), use_container_width=True)
+        st.dataframe(comparacao.style.format({'Valor (R$)': "R$ {:,.2f}"}), width="stretch")
 
         # Alerta principal
         st.divider()
@@ -652,7 +652,7 @@ def render():
         if df_cpu_veic is not None:
             _resumo_df(df_cpu_veic, 'df_veiculos_cpu_BUD')
 
-            st.dataframe(df_cpu_veic, use_container_width=True, height=400)
+            st.dataframe(df_cpu_veic, width="stretch", height=400)
 
             # Pivot Veículo × Período
             st.divider()
@@ -664,7 +664,7 @@ def render():
                 cols_ord = [m for m in ORDEM_MESES if m in pivot_cpu.columns]
                 if cols_ord:
                     pivot_cpu = pivot_cpu[cols_ord]
-                st.dataframe(pivot_cpu.style.format("R$ {:,.2f}"), use_container_width=True)
+                st.dataframe(pivot_cpu.style.format("R$ {:,.2f}"), width="stretch")
 
             # Volume usado
             st.divider()
@@ -676,14 +676,14 @@ def render():
                 cols_ord = [m for m in ORDEM_MESES if m in pivot_vol.columns]
                 if cols_ord:
                     pivot_vol = pivot_vol[cols_ord]
-                st.dataframe(pivot_vol.style.format("{:,.0f}"), use_container_width=True)
+                st.dataframe(pivot_vol.style.format("{:,.0f}"), width="stretch")
 
             # Alertas volumes zero
             if 'Volume' in df_cpu_veic.columns:
                 zeros = df_cpu_veic[df_cpu_veic['Volume'] == 0]
                 if len(zeros) > 0:
                     st.warning(f"⚠️ {len(zeros)} linhas com Volume = 0 (CPU será 0):")
-                    st.dataframe(zeros[['Veículo', 'Período', 'Volume']], use_container_width=True)
+                    st.dataframe(zeros[['Veículo', 'Período', 'Volume']], width="stretch")
         else:
             st.warning("⚠️ Parquet `df_veiculos_cpu_BUD.parquet` não encontrado.")
 

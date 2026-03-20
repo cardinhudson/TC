@@ -1633,7 +1633,8 @@ def _executar_regra_notificacao(
             logger.exception("Falha e-mail consolidado regra=%s", regra.get("id", ""))
 
     if notif.get("teams"):
-        webhook = config.get("teams_webhook_url", "")
+        from tc_core.secrets import get_secret
+        webhook = get_secret("SCI_TEAMS_WEBHOOK_URL") or config.get("teams_webhook_url", "")
         if webhook:
             from alertas.notifications_teams import send_alert_teams_consolidated
             try:
