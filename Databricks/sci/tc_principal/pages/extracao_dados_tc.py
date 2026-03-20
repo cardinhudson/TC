@@ -66,7 +66,6 @@ except ImportError:
 
 PASTA_TC = os.path.join(_DATA_ROOT, 'TC_Principal')
 RATEIOS_PATH = os.path.join(_ROOT, 'rateios_manuais.json')
-CONFIG_FONTES_PATH = os.path.join(_ROOT, 'config_fontes.json')
 
 PARQUETS_BUDGET = [
     'df_principal_BUD.parquet',
@@ -631,204 +630,10 @@ def _salvar_rateios(rateios: dict):
         json.dump(rateios, f, indent=2)
 
 
-# ════════════════════════════════════════════
-# CONFIGURAÇÃO DE FONTES (SharePoint)
-# ════════════════════════════════════════════
-
-def _carregar_config_fontes() -> dict:
-    if os.path.exists(CONFIG_FONTES_PATH):
-        with open(CONFIG_FONTES_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"caminho_base_sharepoint": "", "caminhos_por_ano": {}}
 
 
-def _salvar_config_fontes(config: dict):
-    with open(CONFIG_FONTES_PATH, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
 
 
-def _normalizar_caminho_local(caminho: str) -> str:
-    """Normaliza caminhos locais do Windows para validação consistente.
-
-    IMPORTANTE: aplica NFC unicode para evitar falha de isdir() em caminhos
-    com caracteres acentuados vindos de text_input do browser (que pode
-    entregar NFD, incompatível com a API de arquivos do Windows).
-    """
-    c = unicodedata.normalize('NFC', caminho.strip())
-    return os.path.normpath(os.path.expandvars(os.path.expanduser(c)))
-
-
-_SP_DEFAULTS = [
-    r"C:\Users\u235107\Stellantis\GEIB - GEIB\Partagei_2026\1 - SÍNTESE\2 - REPORTING CPPR\13 - SCI",
-    r"C:\Users\u235107\Stellantis\GEIB - GEIB\Partagei_2026\1 - SÍNTESE\2 - REPORTING CPPR\13 - SCI\2026",
-]
-
-
-def _resolver_pasta_sharepoint(ano: int) -> str | None:
-    """Retorna o caminho local da pasta SharePoint para o ano, ou None.
-
-    Tenta, em ordem:
-    1. Override específico por ano em config_fontes.json
-    2. Caminho base do config (pasta-mãe ou já pasta do ano)
-    3. Caminhos default fixos para o ambiente do u235107
-    """
-    if is_cloud():
-        return None  # SharePoint local não existe em ambiente cloud
-    config = _carregar_config_fontes()
-    # 1. Override específico por ano
-    pasta = config.get('caminhos_por_ano', {}).get(str(ano), '').strip()
-    if pasta and not _eh_url_sharepoint(pasta):
-        for variante in _gerar_variantes_unicode(pasta):
-            if os.path.isdir(variante):
-                return variante
-
-    # 2. Caminho base configurado
-    base = config.get('caminho_base_sharepoint', '').strip()
-    if base and not _eh_url_sharepoint(base):
-        candidatos = list({base, os.path.join(base, str(ano))})
-        for candidato in candidatos:
-            for variante in _gerar_variantes_unicode(candidato):
-                if os.path.isdir(variante):
-                    return variante
-
-    # 3. Defaults fixos (fallback para quando nenhum config está salvo ou o
-    #    browser entregou o caminho com encoding diferente)
-    for default in _SP_DEFAULTS:
-        # tentar primeiro subpasta do ano, depois a própria pasta
-        for candidato in (os.path.join(default, str(ano)), default):
-            for variante in _gerar_variantes_unicode(candidato):
-                if os.path.isdir(variante):
-                    return variante
-
-    return None
-
-
-def _gerar_variantes_unicode(caminho: str) -> list[str]:
-    """Retorna variantes NFC e NFD do caminho normalizado.
-
-    O Windows aceita NFC; garante que tentamos ambos para robustez contra
-    text_input do browser que pode retornar NFD para caracteres acentuados.
-    """
-    nfc = _normalizar_caminho_local(caminho)
-    try:
-        nfd = os.path.normpath(
-            os.path.expandvars(
-                os.path.expanduser(
-                    unicodedata.normalize('NFD', caminho.strip())
-                )
-            )
-        )
-    except Exception:
-        nfd = nfc
-    return [nfc] if nfc == nfd else [nfc, nfd]
-
-
-def _caminho_sharepoint_esperado(ano: int) -> str | None:
-    """Retorna o caminho que será tentado para o ano informado."""
-    config = _carregar_config_fontes()
-    override = config.get('caminhos_por_ano', {}).get(str(ano), '').strip()
-    if override and not _eh_url_sharepoint(override):
-        return _normalizar_caminho_local(override)
-    base = config.get('caminho_base_sharepoint', '').strip()
-    if base and not _eh_url_sharepoint(base):
-        base_norm = _normalizar_caminho_local(base)
-        if os.path.basename(base_norm.rstrip('\\/')) == str(ano):
-            return base_norm
-        return os.path.join(base_norm, str(ano))
-    # fallback: defaults do ambiente
-    for default in _SP_DEFAULTS:
-        candidato = default if os.path.basename(default) == str(ano) else os.path.join(default, str(ano))
-        return _normalizar_caminho_local(candidato)
-    return None
-
-
-def _eh_url_sharepoint(texto: str) -> bool:
-    """Detecta se o texto é uma URL do SharePoint em vez de caminho local."""
-    t = texto.strip().lower()
-    return t.startswith(('http://', 'https://')) or 'sharepoint.com' in t
-
-
-def _detectar_onedrive_local() -> str | None:
-    """Tenta detectar a pasta do OneDrive/SharePoint sincronizada localmente."""
-    # Variáveis de ambiente
-    for var in ('OneDriveCommercial', 'OneDrive'):
-        val = os.environ.get(var, '').strip()
-        if val and os.path.isdir(val):
-            return val
-    # Pastas comuns no perfil do usuário
-    home = os.path.expanduser('~')
-    for nome in os.listdir(home):
-        caminho = os.path.join(home, nome)
-        if os.path.isdir(caminho) and 'onedrive' in nome.lower():
-            return caminho
-    return None
-
-
-def _buscar_excel_sharepoint(ano: int) -> tuple[bool, str]:
-    """Tenta copiar o Excel da pasta SharePoint para dados/TC_Principal/{ano}/.
-
-    Retorna (sucesso, mensagem).
-    """
-    if is_cloud():
-        return False, (
-            "Busca do SharePoint não disponível em ambiente cloud.\n"
-            "Use o **upload de arquivo** ou **dispare o pipeline** pelo Databricks."
-        )
-    pasta_sp = _resolver_pasta_sharepoint(ano)
-    if not pasta_sp:
-        config = _carregar_config_fontes()
-        base = config.get('caminho_base_sharepoint', '').strip()
-        if not base:
-            return False, "Caminho do SharePoint não configurado. Configure na barra lateral."
-        if _eh_url_sharepoint(base):
-            onedrive = _detectar_onedrive_local()
-            msg = (
-                "❌ Você informou uma **URL do SharePoint** em vez de um caminho local.\n\n"
-                "O sistema precisa do caminho da pasta sincronizada no seu computador.\n\n"
-                "**Como encontrar o caminho correto:**\n"
-                "1. Abra o SharePoint no navegador\n"
-                "2. Clique em **Sincronizar** (botão no topo)\n"
-                "3. O OneDrive criará uma pasta local (ex: `C:\\Users\\...\\Stellantis\\GEIB\\...`)\n"
-                "4. Navegue até a pasta que contém as subpastas por ano (2025, 2026...)\n"
-                "5. Copie o caminho da barra de endereços do Explorador de Arquivos\n"
-            )
-            if onedrive:
-                msg += f"\n📁 OneDrive detectado em: `{onedrive}`"
-            return False, msg
-        caminho_esperado = _caminho_sharepoint_esperado(ano) or base
-        return False, f"Pasta do SharePoint não encontrada: {caminho_esperado}"
-
-    # Procurar o arquivo na pasta SharePoint
-    caminho_origem = None
-    for nome in _EXCEL_CANDIDATOS:
-        candidato = os.path.join(pasta_sp, nome)
-        if os.path.exists(candidato):
-            caminho_origem = candidato
-            break
-
-    if not caminho_origem:
-        return False, (
-            f"Arquivo não encontrado na pasta SharePoint:\n"
-            f"   Pasta: {pasta_sp}\n"
-            f"   Nomes buscados: {', '.join(_EXCEL_CANDIDATOS)}"
-        )
-
-    # Copiar para destino
-    pasta_destino = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano))
-    os.makedirs(pasta_destino, exist_ok=True)
-    destino = os.path.join(pasta_destino, 'Reporting veículos.xlsx')
-
-    tam_origem = os.path.getsize(caminho_origem) / (1024 * 1024)
-    dt_origem = datetime.fromtimestamp(os.path.getmtime(caminho_origem))
-
-    shutil.copy2(caminho_origem, destino)
-
-    return True, (
-        f"✅ Arquivo copiado do SharePoint com sucesso!\n"
-        f"   Origem: {caminho_origem}\n"
-        f"   Destino: {destino}\n"
-        f"   Tamanho: {tam_origem:.1f} MB | Data: {dt_origem:%d/%m/%Y %H:%M}"
-    )
 
 
 
@@ -850,7 +655,7 @@ def _enviar_excel_ao_cloud(ano: int) -> tuple[bool, str]:
         return False, (
             f"Arquivo local não encontrado:\n"
             f"   Pastas: {pastas_busca}\n\n"
-            f"Primeiro faça o **upload** ou **busque do SharePoint**, "
+            f"Primeiro faça o **upload**, "
             f"depois envie ao cloud."
         )
 
@@ -1001,55 +806,6 @@ def render():
         _salvar_rateios({"QY": r_qy, "GS": r_gs, "SM": r_sm})
         st.sidebar.success("✅ Rateios salvos!")
 
-    # Configuração de fontes (SharePoint / caminho local)
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📂 Fonte de Dados (SharePoint)")
-    st.sidebar.caption(
-        "Informe o **caminho local** da pasta sincronizada do SharePoint "
-        "(via OneDrive/Teams). Não use links da web (https://...).\n\n"
-        "Exemplo: `C:\\Users\\...\\Stellantis\\GEIB\\..\\SCI`"
-    )
-    _cfg_fontes = _carregar_config_fontes()
-    # Mostrar o valor salvo; se vazio, mostrar o default para orientar o usuário
-    _sp_base_salvo = _cfg_fontes.get('caminho_base_sharepoint', '')
-    _sp_base_placeholder = _SP_DEFAULTS[0] if _SP_DEFAULTS else ''
-    _sp_base = st.sidebar.text_input(
-        "📁 Pasta base local (sincronizada)",
-        value=_sp_base_salvo or _sp_base_placeholder,
-        key='cfg_sp_base',
-        help="Pasta-mãe sincronizada via OneDrive/Teams. Subpastas com o ano (ex: .../2025/, .../2026/) serão buscadas automaticamente.",
-    )
-    # Alerta se usuário digitou URL
-    if _sp_base.strip() and _eh_url_sharepoint(_sp_base):
-        st.sidebar.error(
-            "⚠️ Isso é uma URL da web, não um caminho local!\n\n"
-            "Clique em **Sincronizar** no SharePoint e use o caminho "
-            "da pasta que o OneDrive criar no seu computador."
-        )
-    _sp_ano_salvo = _cfg_fontes.get('caminhos_por_ano', {}).get(str(ano_selecionado), '')
-    _sp_ano_placeholder = _SP_DEFAULTS[1] if len(_SP_DEFAULTS) > 1 else ''
-    _sp_ano_default = _sp_ano_salvo or (_SP_DEFAULTS[1] if len(_SP_DEFAULTS) > 1 else '')
-    _sp_ano_override = st.sidebar.text_input(
-        f"📁 Pasta específica para {ano_selecionado} (opcional)",
-        value=_sp_ano_default,
-        placeholder=_sp_ano_placeholder,
-        key='cfg_sp_ano',
-        help="Se preenchida, esta pasta será usada no lugar de {base}/{ano}/.",
-    )
-    if st.sidebar.button("💾 Salvar Config. Fontes", type="primary", use_container_width=True):
-        # Só sobrescreve se o usuário digitou algo — nunca apaga com string vazia
-        novo_base = _sp_base.strip()
-        if novo_base:
-            _cfg_fontes['caminho_base_sharepoint'] = novo_base
-        novo_override = _sp_ano_override.strip()
-        if novo_override:
-            _cfg_fontes.setdefault('caminhos_por_ano', {})[str(ano_selecionado)] = novo_override
-        elif str(ano_selecionado) in _cfg_fontes.get('caminhos_por_ano', {}):
-            # Só remove se campo estava preenchido e foi apagado intencionalmente
-            pass
-        _salvar_config_fontes(_cfg_fontes)
-        st.sidebar.success("✅ Configuração de fontes salva!")
-
     # ═══════════════════════════════════════
     #  TABS
     # ═══════════════════════════════════════
@@ -1152,97 +908,6 @@ def render():
 
         st.divider()
 
-        # ── Importar e Publicar no Databricks ──
-        st.markdown("### 📂 Importar e Publicar no Databricks")
-
-        _pasta_excel = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
-        _excel_candidatos = [
-            os.path.join(_pasta_excel, 'Reporting veículos.xlsx'),
-            os.path.join(_pasta_excel, 'Reporting_veiculos.xlsx'),
-            os.path.join(_pasta_excel, 'Reporting veiculos.xlsx'),
-        ]
-        _excel_local = next((p for p in _excel_candidatos if os.path.isfile(p)), None)
-        _tem_excel = _excel_local is not None
-
-        if _tem_excel:
-            _tam = os.path.getsize(_excel_local) / (1024 * 1024)
-            _dt = datetime.fromtimestamp(os.path.getmtime(_excel_local))
-            st.caption(
-                f"📄 Excel: `{os.path.basename(_excel_local)}` — "
-                f"{_tam:.1f} MB | {_dt:%d/%m/%Y %H:%M}"
-            )
-        else:
-            st.caption("⚠️ Nenhum Excel local encontrado.")
-
-        if not is_cloud():
-            _pasta_sp_resolvida = _resolver_pasta_sharepoint(int(ano_selecionado))
-            if _pasta_sp_resolvida:
-                st.caption(f"📁 SharePoint: `{_pasta_sp_resolvida}`")
-            else:
-                _cfg_f = _carregar_config_fontes()
-                _base_f = _cfg_f.get('caminho_base_sharepoint', '').strip()
-                if not _base_f:
-                    st.caption("ℹ️ Pasta SharePoint não configurada — configure na barra lateral.")
-                else:
-                    _esperado = _caminho_sharepoint_esperado(int(ano_selecionado)) or _base_f
-                    st.caption(f"⚠️ Pasta não encontrada: `{_esperado}`")
-            st.caption(
-                "Ao clicar, o sistema busca o Excel na pasta SharePoint (barra lateral), "
-                "copia para a pasta local e envia ao Databricks."
-            )
-        else:
-            st.caption(
-                "Ao clicar, o Excel já salvo (upload acima) será publicado no Workspace Databricks."
-            )
-
-        if st.button(
-            "📥 Importar e Publicar no Databricks",
-            key="btn_importar_publicar_tc",
-            type="primary",
-            use_container_width=True,
-        ):
-            if not is_cloud():
-                # LOCAL: buscar do SharePoint + enviar ao cloud
-                with st.spinner("Buscando do SharePoint..."):
-                    ok_sp, msg_sp = _buscar_excel_sharepoint(int(ano_selecionado))
-                if ok_sp:
-                    st.success(msg_sp)
-                else:
-                    st.warning(msg_sp)
-                # Enviar ao cloud (re-detectar Excel após busca)
-                _excel_atualizado = next(
-                    (p for p in _excel_candidatos if os.path.isfile(p)), None,
-                )
-                if _excel_atualizado:
-                    with st.spinner("Enviando ao Databricks Workspace..."):
-                        ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
-                    if ok_c:
-                        st.success(msg_c)
-                    else:
-                        st.error(msg_c)
-                    st.rerun()
-                else:
-                    st.warning(
-                        "⚠️ Nenhum Excel encontrado. Faça upload acima "
-                        "ou configure o SharePoint na barra lateral."
-                    )
-            else:
-                # CLOUD: publicar Excel existente
-                _uploader = st.session_state.get("upload_reporting_tc")
-                if _uploader is not None:
-                    os.makedirs(pasta_ano, exist_ok=True)
-                    with open(destino, "wb") as f:
-                        f.write(_uploader.getbuffer())
-                    st.info(f"📥 Arquivo do upload salvo em cache: `{destino}`")
-                with st.spinner("Enviando ao Databricks Workspace..."):
-                    ok_cloud, msg_cloud = _enviar_excel_ao_cloud(int(ano_selecionado))
-                if ok_cloud:
-                    st.success(msg_cloud)
-                else:
-                    st.error(msg_cloud)
-
-        st.divider()
-
         # ── Pré-validação ──
         st.markdown("### 🔎 Pré-validação (recomendado)")
         col_v1, col_v2 = st.columns([1, 3])
@@ -1311,7 +976,6 @@ def render():
         col_b1, col_b2, col_b3 = st.columns(3)
         houve_sucesso_processamento = False
 
-        # ── Busca automática do SharePoint antes de processar ──
         _deve_processar_local = not bloqueio_escrita_cloud
 
         executar_reais = False
@@ -1386,14 +1050,6 @@ def render():
                     _renderizar_painel_status_cloud(run_id, key_suffix='tab2_new')
                 except Exception as exc:
                     st.error(f"❌ Não foi possível disparar o pipeline: {exc}")
-
-        # ── Busca automática do SharePoint quando usuário clica processar (somente local) ──
-        if not is_cloud() and _deve_processar_local and (executar_reais or executar_budget or executar_ambos):
-            ok_sp, msg_sp = _buscar_excel_sharepoint(int(ano_selecionado))
-            if ok_sp:
-                st.success(msg_sp)
-            elif _resolver_pasta_sharepoint(int(ano_selecionado)):
-                st.warning(msg_sp)
 
         # ── Processamento REAIS ──
         if (
