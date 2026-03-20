@@ -669,6 +669,17 @@ if is_main_page:
     st.title("🏭 Dashboard TC Estendido Porto Real")
     st.subheader("Análise de dados agrupados por Oficina e Período")
 
+    # ── Banner de dados recém-atualizados ──
+    _ext_ts = st.session_state.get('ultima_extracao_ts')
+    if _ext_ts:
+        from datetime import datetime as _dt
+        _ext_dt = _dt.fromtimestamp(_ext_ts)
+        st.success(
+            f"✅ Dados atualizados pela extração de "
+            f"{_ext_dt.strftime('%d/%m/%Y %H:%M:%S')}",
+            icon="✅",
+        )
+
     st.markdown("---")
 
 # Funções de banco de dados SQLite (definir ANTES de usar - disponíveis para todas as páginas)

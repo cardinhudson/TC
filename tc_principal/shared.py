@@ -732,6 +732,47 @@ def load_custo_fp_veiculo_forecast_fresh():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  INVALIDAÇÃO SELETIVA DE CACHE
+# ═══════════════════════════════════════════════════════════════
+
+def invalidar_cache_dados():
+    """Limpa seletivamente o cache dos data loaders (parquets).
+
+    Diferente de ``st.cache_data.clear()`` que limpa TUDO (incluindo
+    filtros e opções com TTL longo), esta função invalida apenas as
+    funções que carregam dados de parquet — garantindo que a próxima
+    leitura reflita os arquivos mais recentes sem perder caches de UX.
+    """
+    import time as _time
+
+    _loaders = [
+        obter_timestamp_parquets, descobrir_anos_tc_principal,
+        load_principal, load_volume_bud, load_volume_actual,
+        load_tempo_veiculos, load_dea_dedicado, load_volume_fa,
+        load_tc_sapiens,
+        load_fp_sem_da_veiculos, load_percentual_rateio_veiculos,
+        load_custo_rateado_veiculos, load_custo_fp_veiculo, load_cpu_veiculo,
+        load_principal_real, load_volume_fa_real, load_tempo_veiculos_real,
+        load_volume_veiculos_real, load_comparativo,
+        load_custo_fp_veiculo_real, load_cpu_veiculo_real,
+        load_percentual_rateio_veiculos_real, load_dea_dedicado_real,
+        load_historico_principal, load_historico_volume,
+        load_historico_custo_fp_veiculo,
+        load_historico_principal_bud, load_historico_volume_bud,
+        load_historico_custo_fp_veiculo_bud,
+        load_forecast_completo, load_forecast_volume,
+        load_custo_fp_veiculo_forecast,
+    ]
+    for fn in _loaders:
+        try:
+            fn.clear()
+        except Exception:
+            pass
+
+    st.session_state['ultima_extracao_ts'] = _time.time()
+
+
+# ═══════════════════════════════════════════════════════════════
 #  HELPERS DE PERÍODO
 # ═══════════════════════════════════════════════════════════════
 

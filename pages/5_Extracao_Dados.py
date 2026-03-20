@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import shutil
 import subprocess
+import time as _time
 from datetime import datetime
 from versionamento import obter_versao_atual
 import sys
@@ -202,7 +203,14 @@ def _renderizar_painel_status_cloud_ext(
     elif not is_terminal:
         st.info(f"⏳ **Pipeline em execução** — Estado: `{life}`")
     elif result == 'SUCCESS':
-        st.success("✅ **Processamento concluído!** Acesse a Home TC Ext.")
+        st.success("✅ **Processamento concluído!**")
+        st.cache_data.clear()
+        st.session_state['ultima_extracao_ts'] = _time.time()
+        st.page_link(
+            "tc_ext/pages/home_ext.py",
+            label="📊 Ver gráficos atualizados",
+            icon="📊",
+        )
     else:
         msg = status.get('state_message') or result or 'Falha'
         st.error(f"❌ **Pipeline encerrado com erro** — {msg}")
@@ -1110,6 +1118,7 @@ with tab2:
                     status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
                     st.json(resultado)
                     st.cache_data.clear()
+                    st.session_state['ultima_extracao_ts'] = _time.time()
                     houve_sucesso_processamento = True
             except Exception as e:
                 progress_bar.progress(0)
@@ -1145,6 +1154,7 @@ with tab2:
                     status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
                     st.json(resultado)
                     st.cache_data.clear()
+                    st.session_state['ultima_extracao_ts'] = _time.time()
                     houve_sucesso_processamento = True
             except Exception as e:
                 progress_bar.progress(0)
@@ -1153,6 +1163,12 @@ with tab2:
 
     if houve_sucesso_processamento:
         _executar_alertas_pos_extracao()
+
+        st.page_link(
+            "tc_ext/pages/home_ext.py",
+            label="📊 Ver gráficos atualizados",
+            icon="📊",
+        )
 
         # Consolidação visual
         st.divider()

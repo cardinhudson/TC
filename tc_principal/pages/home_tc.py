@@ -441,6 +441,17 @@ def render():
     injetar_css_global()
     render_header()
 
+    # ── Banner de dados recém-atualizados ──
+    _ext_ts = st.session_state.get('ultima_extracao_ts')
+    if _ext_ts:
+        from datetime import datetime as _dt
+        _ext_dt = _dt.fromtimestamp(_ext_ts)
+        st.success(
+            f"✅ Dados atualizados pela extração de "
+            f"{_ext_dt.strftime('%d/%m/%Y %H:%M:%S')}",
+            icon="✅",
+        )
+
     st.title("🏭 Dashboard TC Veículos")
     st.subheader("Custo de Produção de Veículos • Real")
 
