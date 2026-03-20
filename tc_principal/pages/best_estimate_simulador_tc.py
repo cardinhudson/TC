@@ -2531,7 +2531,7 @@ with tab_visualizar:
 
 with tab_adicionar:
     st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
-    st.info("📝 Preencha a tabela abaixo com os custos. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor > 0 gerará uma linha no forecast. O rateio por veículo será aplicado automaticamente na geração do forecast.")
+    st.info("📝 Preencha a tabela abaixo com os custos. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
 
     # Obter opções dinâmicas
     oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
@@ -2578,13 +2578,13 @@ with tab_adicionar:
         if idx_mes <= indice_ultimo_mes:
             # Mês já realizado — bloquear edição
             editor_column_config[mes] = st.column_config.NumberColumn(
-                f"🔒 {mes}", default=0.0, min_value=0.0, format="R$ %.2f",
+                f"🔒 {mes}", default=0.0, format="R$ %.2f",
                 width="small", disabled=True,
                 help=f"{MESES_COMPLETOS[mes]} já realizado — não editável"
             )
         else:
             editor_column_config[mes] = st.column_config.NumberColumn(
-                mes, default=0.0, min_value=0.0, format="R$ %.2f", width="small"
+                mes, default=0.0, format="R$ %.2f", width="small"
             )
 
     # Editor
@@ -2605,7 +2605,7 @@ with tab_adicionar:
                 continue
             for mes in MESES_EDITOR:
                 valor = row.get(mes, 0)
-                if pd.notna(valor) and float(valor) > 0:
+                if pd.notna(valor) and float(valor) != 0:
                     info_acc = {}
                     acc = row.get('Account')
                     if pd.notna(acc) and str(acc).strip():
@@ -2661,7 +2661,7 @@ with tab_adicionar:
                 tem_valor = False
                 for mes in MESES_EDITOR:
                     valor = row.get(mes, 0)
-                    if pd.notna(valor) and float(valor) > 0:
+                    if pd.notna(valor) and float(valor) != 0:
                         tem_valor = True
                         periodo_completo = MESES_COMPLETOS[mes]
                         
@@ -2696,7 +2696,7 @@ with tab_adicionar:
                         linhas_novas.append(novo_custo)
                 
                 if not tem_valor and pd.notna(row.get('Oficina')):
-                    erros.append(f"Linha {idx_row+1}: nenhum mês com valor > 0")
+                    erros.append(f"Linha {idx_row+1}: nenhum mês com valor preenchido")
 
             if erros:
                 for e in erros:

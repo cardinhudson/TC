@@ -26,6 +26,7 @@ from tc_core.databricks_jobs import (
     upload_file_to_workspace,
 )
 from tc_principal.ui_components import injetar_css_global, render_header
+from tc_principal.shared import invalidar_cache_dados
 
 _PIPELINE_RUN_KEY = 'tc_pipeline_cloud_run'
 _EXCEL_CANDIDATOS = (
@@ -127,7 +128,13 @@ def _renderizar_painel_status_cloud(run_id: int, key_suffix: str = '') -> None:
     elif not is_terminal:
         st.info(f"⏳ **Pipeline em execução** — Estado: `{life}`")
     elif result == 'SUCCESS':
-        st.success("✅ **Processamento concluído com sucesso!** Acesse a Home para ver os dados.")
+        st.success("✅ **Processamento concluído com sucesso!**")
+        invalidar_cache_dados()
+        st.page_link(
+            "tc_principal/pages/home_tc.py",
+            label="📊 Ver gráficos atualizados",
+            icon="📊",
+        )
     else:
         msg = status.get('state_message') or result or 'Falha desconhecida'
         st.error(f"❌ **Pipeline encerrado com erro** — {msg}")
@@ -1088,8 +1095,14 @@ def render():
                             hist_msgs = _consolidar_historico_tc_principal()
                             status_text_hist.success("✅ Histórico consolidado!")
 
-                            # Limpar cache para forçar releitura dos parquets atualizados
-                            st.cache_data.clear()
+                            # Invalidar cache seletivamente (mantém filtros/opções)
+                            invalidar_cache_dados()
+
+                            st.page_link(
+                                "tc_principal/pages/home_tc.py",
+                                label="📊 Ver gráficos atualizados",
+                                icon="📊",
+                            )
 
                             with st.expander("📁 Arquivos gerados", expanded=False):
                                 if 'arquivos' in resultado:
@@ -1167,8 +1180,14 @@ def render():
                             hist_msgs = _consolidar_historico_tc_principal()
                             status_text_hist_b.success("✅ Histórico consolidado!")
 
-                            # Limpar cache para forçar releitura dos parquets atualizados
-                            st.cache_data.clear()
+                            # Invalidar cache seletivamente (mantém filtros/opções)
+                            invalidar_cache_dados()
+
+                            st.page_link(
+                                "tc_principal/pages/home_tc.py",
+                                label="📊 Ver gráficos atualizados",
+                                icon="📊",
+                            )
 
                             with st.expander("📁 Arquivos gerados", expanded=False):
                                 if 'arquivos' in resultado:
