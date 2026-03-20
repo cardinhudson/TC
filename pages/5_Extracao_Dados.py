@@ -18,23 +18,7 @@ from tc_core.databricks_jobs import (
     upload_file_to_workspace,
 )
 
-# Importar resolver de pasta SharePoint e config do TC Principal (evita duplicação)
-try:
-    from tc_principal.pages.extracao_dados_tc import (
-        _resolver_pasta_sharepoint as _resolver_pasta_sp,
-        _carregar_config_fontes,
-        _salvar_config_fontes,
-        _SP_DEFAULTS,
-        _eh_url_sharepoint,
-    )
-    _SHAREPOINT_DISPONIVEL = True
-except Exception:
-    _resolver_pasta_sp = None
-    _carregar_config_fontes = None
-    _salvar_config_fontes = None
-    _SP_DEFAULTS = []
-    _eh_url_sharepoint = lambda t: t.strip().lower().startswith(('http://', 'https://'))
-    _SHAREPOINT_DISPONIVEL = False
+
 
 # Adicionar o diretório raiz ao path para importar os módulos de processamento
 _ROOT = str(get_base_path())
@@ -257,81 +241,6 @@ def _renderizar_painel_status_cloud_ext(
         st.rerun()
 
 
-_EXT_EXCELS_MAP = {
-    "Dados SAPIENS.xlsx": ["Dados SAPIENS.xlsx", "Dados Sapiens.xlsx", "Dados SAPIENS.xls"],
-    "Reporting fluxo anexo.xlsx": [
-        "Reporting fluxo anexo.xlsx",
-        "Reporting Fluxo Anexo.xlsx",
-        "Reporting Fluxo Anexo.xls",
-        "Reporting fluxo anexo.xls",
-    ],
-}
-
-
-def _buscar_excels_sharepoint_ext(ano: int) -> tuple[bool, str]:
-    """Copia os Excels do TC Ext da pasta SharePoint local para dados/TC_Ext/{ano}/.
-
-    Retorna (sucesso, mensagem).
-    """
-    if is_cloud():
-        return False, (
-            "Busca do SharePoint não disponível em ambiente cloud.\n"
-            "Use o **upload de arquivo** ou **dispare o pipeline** pelo Databricks."
-        )
-    if not _SHAREPOINT_DISPONIVEL or _resolver_pasta_sp is None:
-        return False, "Módulo de resolução de pasta SharePoint não disponível."
-
-    pasta_sp = _resolver_pasta_sp(ano)
-    if not pasta_sp:
-        return False, (
-            f"Pasta SharePoint não encontrada para o ano {ano}.\n"
-            "Configure o caminho na página de extração TC Principal (barra lateral)."
-        )
-
-    pasta_destino = os.path.join(_DATA_ROOT, "TC_Ext", str(ano))
-    os.makedirs(pasta_destino, exist_ok=True)
-
-    msgs: list[str] = []
-    algum_ok = False
-    resultados_cloud: list[tuple[str, str]] = []  # (destino_local, nome_arquivo)
-
-    for nome_destino, candidatos in _EXT_EXCELS_MAP.items():
-        origem = None
-        for cand in candidatos:
-            p = os.path.join(pasta_sp, cand)
-            if os.path.exists(p):
-                origem = p
-                break
-        if origem is None:
-            msgs.append(
-                f"⚠️ `{nome_destino}` não encontrado na pasta SharePoint.\n"
-                f"   Nomes buscados: {', '.join(candidatos)}\n"
-                f"   Pasta: {pasta_sp}"
-            )
-            continue
-        destino = os.path.join(pasta_destino, nome_destino)
-        try:
-            shutil.copy2(origem, destino)
-            msgs.append(f"✅ Copiado: `{nome_destino}` ← `{origem}`")
-            algum_ok = True
-            resultados_cloud.append((destino, nome_destino))
-        except Exception as exc:
-            msgs.append(f"❌ Erro ao copiar `{nome_destino}`: {exc}")
-
-    # Enviar ao cloud os arquivos copiados com sucesso
-    for dest_local, nome in resultados_cloud:
-        ok_c, msg_c = _enviar_ext_ao_cloud(dest_local, ano, nome)
-        if ok_c:
-            msgs.append(f"☁️ Cloud: `{nome}` enviado com sucesso.")
-        else:
-            msgs.append(f"⚠️ Cloud falhou para `{nome}`: {msg_c}")
-
-    resumo = "\n".join(msgs)
-    if algum_ok:
-        return True, resumo
-    return False, resumo
-
-
 try:
     from processamento_dados import processar_completo as processar_dados_reais_completo
     from processamento_dados_BUD import processar_completo_bud as processar_dados_budget_completo
@@ -545,59 +454,6 @@ st.sidebar.info("""
 Os módulos Python são convertidos dos notebooks `.ipynb` mantendo toda a lógica original.
 Use o botão na página principal para verificar se estão atualizados.
 """)
-
-# Sidebar — config SharePoint (compartilhado com TC Principal/Veículos)
-if _SHAREPOINT_DISPONIVEL and _carregar_config_fontes is not None:
-    st.sidebar.divider()
-    st.sidebar.subheader("📂 Pastas SharePoint")
-    st.sidebar.caption(
-        "Informe o **caminho local** da pasta sincronizada do SharePoint "
-        "(via OneDrive/Teams). Não use links da web (https://...).\n\n"
-        "Exemplo: `C:\\Users\\...\\Stellantis\\GEIB\\..\\SCI`"
-    )
-    _cfg_sp = _carregar_config_fontes()
-    _base_sp_atual = _cfg_sp.get("caminho_base_sharepoint", "")
-    _sp_base_placeholder = _SP_DEFAULTS[0] if _SP_DEFAULTS else ""
-    _nova_base = st.sidebar.text_input(
-        "📁 Pasta base local (sincronizada)",
-        value=_base_sp_atual or _sp_base_placeholder,
-        key="sidebar_sp_base_ext",
-        help="Pasta-mãe sincronizada via OneDrive/Teams. Subpastas com o ano serão buscadas automaticamente.",
-    )
-    if _nova_base.strip() and _eh_url_sharepoint(_nova_base):
-        st.sidebar.error(
-            "⚠️ Isso é uma URL da web, não um caminho local!\n\n"
-            "Clique em **Sincronizar** no SharePoint e use o caminho "
-            "da pasta que o OneDrive criar no seu computador."
-        )
-    _ano_sp_atual = _cfg_sp.get("caminhos_por_ano", {}).get(str(ano_selecionado), "")
-    _sp_ano_placeholder = _SP_DEFAULTS[1] if len(_SP_DEFAULTS) > 1 else ""
-    _sp_ano_default = _ano_sp_atual or (_SP_DEFAULTS[1] if len(_SP_DEFAULTS) > 1 else "")
-    _novo_ano = st.sidebar.text_input(
-        f"📁 Pasta específica para {ano_selecionado} (opcional)",
-        value=_sp_ano_default,
-        key="sidebar_sp_ano_ext",
-        placeholder=_sp_ano_placeholder,
-        help="Se preenchida, esta pasta será usada no lugar de {base}/{ano}/.",
-    )
-    if st.sidebar.button("💾 Salvar Config. Fontes", type="primary", use_container_width=True, key="sidebar_sp_save_ext"):
-        novo_base = _nova_base.strip()
-        if novo_base:
-            _cfg_sp["caminho_base_sharepoint"] = novo_base
-        novo_override = _novo_ano.strip()
-        if novo_override:
-            _cfg_sp.setdefault("caminhos_por_ano", {})[str(ano_selecionado)] = novo_override
-        elif str(ano_selecionado) in _cfg_sp.get("caminhos_por_ano", {}):
-            del _cfg_sp["caminhos_por_ano"][str(ano_selecionado)]
-        _salvar_config_fontes(_cfg_sp)
-        st.sidebar.success("✅ Salvo!")
-        st.rerun()
-elif is_cloud():
-    st.sidebar.divider()
-    st.sidebar.caption(
-        "📂 **SharePoint** não disponível no cloud. "
-        "Use o upload de arquivo na página principal."
-    )
 
 # ==========================================
 # FUNÇÕES DE VALIDAÇÃO
@@ -1080,101 +936,6 @@ with tab1:
         key_uploader="upload_rateio_unificado",
         help_text="Arquivo 'Reporting fluxo anexo.xlsx' (contém abas para REAIS e/ou BUDGET)",
     )
-
-    # ─────────────────────────────────────────────────────
-    # SEÇÃO UNIFICADA: Status e Importação de Dados
-    # ─────────────────────────────────────────────────────
-    st.divider()
-    st.markdown("### 📂 Importar e Publicar no Databricks")
-
-    # Status dos 2 Excels (sempre visível, local e cloud)
-    _pasta_ano_ext = os.path.join(_DATA_ROOT, "TC_Ext", str(ano_selecionado))
-    _nomes_excels = ["Dados SAPIENS.xlsx", "Reporting fluxo anexo.xlsx"]
-    _excels_presentes: dict[str, str] = {}
-
-    for _nome in _nomes_excels:
-        _caminho = os.path.join(_pasta_ano_ext, _nome)
-        if os.path.exists(_caminho):
-            _excels_presentes[_nome] = _caminho
-            _tam = os.path.getsize(_caminho) / (1024 * 1024)
-            _dt = datetime.fromtimestamp(os.path.getmtime(_caminho))
-            st.caption(f"📄 {_nome}: {_tam:.1f} MB | {_dt:%d/%m/%Y %H:%M}")
-        else:
-            st.caption(f"⚠️ {_nome}: não encontrado em `TC_Ext/{ano_selecionado}/`")
-
-    # Info SharePoint (apenas local)
-    if not is_cloud() and _SHAREPOINT_DISPONIVEL and _resolver_pasta_sp is not None:
-        _pasta_sp_ext = _resolver_pasta_sp(int(ano_selecionado))
-        if _pasta_sp_ext:
-            st.caption(f"📁 SharePoint: `{_pasta_sp_ext}`")
-        else:
-            st.caption("⚠️ Pasta SharePoint não configurada — use a barra lateral.")
-
-    if not is_cloud():
-        st.caption(
-            "Ao clicar, o sistema busca os Excels na pasta SharePoint (barra lateral), "
-            "copia para a pasta local e envia ao Databricks."
-        )
-    else:
-        st.caption(
-            "Ao clicar, os Excels já salvos (upload acima) serão publicados no Workspace Databricks."
-        )
-
-    # Botão único: IMPORTAR E PUBLICAR NO DATABRICKS
-    if st.button(
-        "📥 Importar e Publicar no Databricks",
-        key="btn_importar_publicar_ext",
-        use_container_width=True,
-        type="primary",
-    ):
-        if not is_cloud():
-            # LOCAL: buscar SharePoint (se disponível) + enviar ao cloud
-            if _SHAREPOINT_DISPONIVEL and _resolver_pasta_sp is not None:
-                with st.spinner("Buscando do SharePoint..."):
-                    ok_sp, msg_sp = _buscar_excels_sharepoint_ext(int(ano_selecionado))
-                if ok_sp:
-                    st.success(msg_sp)
-                else:
-                    st.warning(msg_sp)
-
-            # Recarregar lista de Excels após eventual busca do SP
-            _excels_para_enviar = {
-                n: os.path.join(_pasta_ano_ext, n)
-                for n in _nomes_excels
-                if os.path.exists(os.path.join(_pasta_ano_ext, n))
-            }
-            if _excels_para_enviar:
-                for _nome_arq, _caminho_arq in _excels_para_enviar.items():
-                    with st.spinner(f"Enviando {_nome_arq} ao Databricks..."):
-                        ok_c, msg_c = _enviar_ext_ao_cloud(
-                            _caminho_arq, int(ano_selecionado), _nome_arq,
-                        )
-                    if ok_c:
-                        st.success(msg_c)
-                    else:
-                        st.error(msg_c)
-                st.rerun()
-            else:
-                st.warning(
-                    "⚠️ Nenhum Excel encontrado. Faça upload acima "
-                    "ou configure o SharePoint na barra lateral."
-                )
-        else:
-            # CLOUD: publicar Excels existentes no Workspace
-            if _excels_presentes:
-                for _nome_arq, _caminho_arq in _excels_presentes.items():
-                    with st.spinner(f"Publicando {_nome_arq}..."):
-                        ok_c, msg_c = _enviar_ext_ao_cloud(
-                            _caminho_arq, int(ano_selecionado), _nome_arq,
-                        )
-                    if ok_c:
-                        st.success(msg_c)
-                    else:
-                        st.error(msg_c)
-            else:
-                st.warning(
-                    "⚠️ Nenhum Excel encontrado. Faça upload acima."
-                )
 
     # ─────────────────────────────────────────────────────
     # Pré-validação (mesmo padrão do TC Veículos)

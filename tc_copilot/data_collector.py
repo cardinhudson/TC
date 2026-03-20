@@ -1513,6 +1513,194 @@ def formatar_contexto_parquet(
     return "\n".join(blocos)
 
 
+def formatar_contexto_parquet_periodo(
+    ano: int, meses: list[int], taxa_conversao: float = 1.0,
+) -> str:
+    """
+    Gera contexto textual consolidado para um período de múltiplos meses.
+
+    Agrega dados de todos os meses solicitados como um único período,
+    mantendo o mesmo formato de saída que ``formatar_contexto_parquet``.
+
+    Args:
+        ano: Ano dos dados.
+        meses: Lista de números de meses (ex: [1, 2, 3] para Jan–Mar).
+        taxa_conversao: Fator de conversão monetária.
+    """
+    if not meses:
+        return "⚠️ Nenhum mês especificado para o período."
+    if len(meses) == 1:
+        return formatar_contexto_parquet(ano, meses[0], taxa_conversao)
+
+    meses = sorted(meses)
+    nome_primeiro = _nome_mes(meses[0])
+    nome_ultimo = _nome_mes(meses[-1])
+    label_periodo = f"{nome_primeiro}–{nome_ultimo}/{ano}"
+
+    # Coletar dados de cada mês
+    dados_por_mes = {}
+    for m in meses:
+        dados_por_mes[m] = coletar_dados_mes(ano, m)
+
+    # --- Agregar DataFrames: concatenar dados de todos os meses ---
+    def _concat_key(chave: str) -> pd.DataFrame | None:
+        frames = [d.get(chave) for d in dados_por_mes.values()
+                  if d.get(chave) is not None and not d.get(chave).empty]
+        if not frames:
+            return None
+        return pd.concat(frames, ignore_index=True)
+
+    custo_real_agg = _concat_key("custo_real")
+    custo_bud_agg = _concat_key("custo_bud")
+    custo_real_ant_agg = _concat_key("custo_real_ant")
+    volume_real_agg = _concat_key("volume_real")
+    volume_bud_agg = _concat_key("volume_bud")
+    volume_actual_agg = _concat_key("volume_actual")
+    cpu_real_agg = _concat_key("cpu_real")
+    cpu_bud_agg = _concat_key("cpu_bud")
+
+    # Volume totais
+    vol_real = float(volume_real_agg["Volume"].sum()) if volume_real_agg is not None and "Volume" in volume_real_agg.columns else 0.0
+    vol_bud = float(volume_bud_agg["Volume"].sum()) if volume_bud_agg is not None and "Volume" in volume_bud_agg.columns else 0.0
+    vol_actual = float(volume_actual_agg["Volume"].sum()) if volume_actual_agg is not None and "Volume" in volume_actual_agg.columns else 0.0
+
+    # Custo FP totais
+    fp_real = _safe_sum(custo_real_agg, "Custo FP")
+    fp_bud = _safe_sum(custo_bud_agg, "Custo FP")
+
+    # Flex Budget soma por mês
+    flex_total = 0.0
+    for m in meses:
+        d = dados_por_mes[m]
+        flex_total += calcular_flex_budget_mes(d, d["mes_nome"])
+
+    # Ano anterior (mesmos meses)
+    hist_vol = carregar_historico_volume()
+    hist_custo = carregar_historico_principal()
+    ano_ant = ano - 1
+    vol_ano_ant = 0.0
+    desp_ano_ant = 0.0
+    custo_real_ano_ant_frames = []
+    for m in meses:
+        m_nome = _nome_mes(m)
+        vol_ano_ant += _volume_ano_anterior(hist_vol, ano_ant, m_nome)
+        desp_ano_ant += _despesa_ano_anterior(hist_custo, ano_ant, m_nome)
+        if hist_custo is not None and not hist_custo.empty:
+            mask = pd.Series(True, index=hist_custo.index)
+            if "Ano" in hist_custo.columns:
+                mask = mask & (hist_custo["Ano"] == ano_ant)
+            if "Período" in hist_custo.columns:
+                mask = mask & (hist_custo["Período"] == m_nome)
+            df_ant = hist_custo.loc[mask]
+            if not df_ant.empty:
+                custo_real_ano_ant_frames.append(df_ant)
+    custo_real_ano_ant_agg = (
+        pd.concat(custo_real_ano_ant_frames, ignore_index=True)
+        if custo_real_ano_ant_frames else None
+    )
+
+    # Aplicar conversão monetária
+    if taxa_conversao != 1.0:
+        colunas_monetarias = [
+            "Custo FP", "Custo FA", "Despesa Primaria",
+            "Flex_Bud", "Flex_Bud_FA", "Flex_Bud_FP",
+        ]
+        for df in (custo_real_agg, custo_bud_agg, custo_real_ant_agg, custo_real_ano_ant_agg):
+            if df is not None and not df.empty:
+                for col in colunas_monetarias:
+                    if col in df.columns:
+                        df[col] = df[col] * taxa_conversao
+        fp_real *= taxa_conversao
+        fp_bud *= taxa_conversao
+        flex_total *= taxa_conversao
+
+    # --- Montar blocos de saída no mesmo formato ---
+    blocos = [
+        f"=== DADOS DO PERÍODO {nome_primeiro.upper()}–{nome_ultimo.upper()}/{ano} ===",
+        f"(Consolidado de {len(meses)} meses: {', '.join(_nome_mes(m) for m in meses)})",
+        "",
+    ]
+
+    # Volume
+    blocos.append("--- 📊 VOLUME DO PERÍODO ---")
+    blocos.append(f"Volume Real Total: {_fmt(vol_real, 0)} un.")
+    blocos.append(f"Volume Budget Total: {_fmt(vol_bud, 0)} un.")
+    blocos.append(f"Volume Actual Total: {_fmt(vol_actual, 0)} un.")
+    blocos.append(f"Δ Real vs Budget: {_var_abs(vol_real, vol_bud)} un. ({_pct(vol_real, vol_bud)})")
+    if vol_ano_ant > 0:
+        blocos.append(f"Δ Real vs Ano Anterior: {_var_abs(vol_real, vol_ano_ant)} un. ({_pct(vol_real, vol_ano_ant)})")
+    blocos.append("")
+
+    # Custo FP / Flex
+    blocos.append("--- 💰 CUSTO FP DO PERÍODO ---")
+    blocos.append(f"Custo FP Real: {_fmt_k(fp_real)}")
+    blocos.append(f"Custo FP Budget: {_fmt_k(fp_bud)}")
+    blocos.append(f"Flex Budget: {_fmt_k(flex_total)}")
+    blocos.append(f"Δ Real vs Budget: {_var_k(fp_real, fp_bud)} ({_pct(fp_real, fp_bud)})")
+    blocos.append(f"Δ Real vs Flex: {_var_k(fp_real, flex_total)} ({_pct(fp_real, flex_total)})")
+    blocos.append("")
+
+    # Drill-down comparativos
+    blocos.append("--- 📈 COMPARATIVOS DO PERÍODO ---")
+
+    # Real vs Budget (Flex)
+    if custo_bud_agg is not None and not custo_bud_agg.empty:
+        # Criar df_flex agregado ajustando por proporção
+        vol_ratio = vol_actual / vol_bud if vol_bud != 0 else 1.0
+        df_flex_agg = _flex_adjust_df(custo_bud_agg, vol_actual, vol_bud)
+        blocos.append("▸ Real vs Flex Budget (período):")
+        blocos.append(_drill_down_completo(
+            custo_real_agg, df_flex_agg, "Flex Budget",
+            col_ref="Custo FP", tipo="flex", volume=vol_real,
+        ))
+        blocos.append("")
+        blocos.append("▸ Real vs Budget (período):")
+        blocos.append(_drill_down_completo(
+            custo_real_agg, custo_bud_agg, "Budget",
+            col_ref="Custo FP", tipo="budget", volume=vol_real,
+        ))
+        blocos.append("")
+
+    # Real vs Ano Anterior
+    if custo_real_ano_ant_agg is not None and not custo_real_ano_ant_agg.empty:
+        blocos.append(f"▸ Real vs Mesmo Período de {ano_ant}:")
+        blocos.append(_drill_down_completo(
+            custo_real_agg, custo_real_ano_ant_agg, f"Real {ano_ant}",
+            col_ref="Custo FP", tipo="ano_anterior", volume=vol_real,
+        ))
+        blocos.append("")
+
+    # Oficinas
+    oficinas_df = custo_real_agg
+    if oficinas_df is not None and not oficinas_df.empty and "Oficina" in oficinas_df.columns:
+        oficinas_list = sorted(oficinas_df["Oficina"].dropna().unique().tolist())
+        oficinas_list = [o for o in oficinas_list if str(o).strip()]
+        if oficinas_list:
+            blocos.append("--- 🏭 ANÁLISE POR OFICINA (PERÍODO) ---")
+            for ofc in oficinas_list:
+                ofc_real = custo_real_agg[custo_real_agg["Oficina"] == ofc]
+                fp_ofc = _safe_sum(ofc_real, "Custo FP")
+                blocos.append(f"\n🏭 {ofc}: Custo FP = {_fmt_k(fp_ofc)}")
+                if custo_bud_agg is not None and "Oficina" in custo_bud_agg.columns:
+                    ofc_bud = custo_bud_agg[custo_bud_agg["Oficina"] == ofc]
+                    fp_ofc_bud = _safe_sum(ofc_bud, "Custo FP")
+                    blocos.append(f"   Δ vs Budget: {_var_k(fp_ofc, fp_ofc_bud)} ({_pct(fp_ofc, fp_ofc_bud)})")
+
+    # Resumo mês a mês (visão rápida)
+    blocos.append("")
+    blocos.append("--- 📅 VISÃO MÊS A MÊS (resumo) ---")
+    for m in meses:
+        d = dados_por_mes[m]
+        m_nome = d["mes_nome"]
+        v_mes = _volume_total(d["volume_real"])
+        fp_mes = _safe_sum(d["custo_real"], "Custo FP")
+        if taxa_conversao != 1.0:
+            fp_mes *= taxa_conversao
+        blocos.append(f"  {m_nome}: Volume={_fmt(v_mes, 0)} un., Custo FP={_fmt_k(fp_mes)}")
+
+    return "\n".join(blocos)
+
+
 def formatar_dados_resumo_executivo(dados: dict, variacoes: dict) -> str:
     """
     Compila dados-chave para o Resumo Executivo (seção 0).

@@ -40,6 +40,7 @@ from tc_copilot.config import (
 )
 
 import re as _re
+from datetime import datetime as _datetime
 
 # ═══════════════════════════════════════════════════════════════
 #  INFERÊNCIA DE MÊS A PARTIR DA PERGUNTA
@@ -47,7 +48,7 @@ import re as _re
 
 _MESES_MAP: dict[str, int] = {
     # pt-BR
-    "janeiro": 1, "fevereiro": 2, "março": 3, "abril": 4,
+    "janeiro": 1, "fevereiro": 2, "março": 3, "marco": 3, "abril": 4,
     "maio": 5, "junho": 6, "julho": 7, "agosto": 8,
     "setembro": 9, "outubro": 10, "novembro": 11, "dezembro": 12,
     # abreviações pt-BR
@@ -119,6 +120,151 @@ def _inferir_mes_da_pergunta(pergunta: str, meses_disponiveis: list[int]) -> int
     return meses_disponiveis[-1] if meses_disponiveis else 1
 
 
+# ═══════════════════════════════════════════════════════════════
+#  INFERÊNCIA DE ANO A PARTIR DA PERGUNTA
+# ═══════════════════════════════════════════════════════════════
+
+_ANO_ANTERIOR_KEYWORDS = [
+    "ano passado", "ano anterior", "last year", "previous year",
+    "año pasado", "año anterior",
+]
+
+
+def _inferir_ano_da_pergunta(pergunta: str, anos_disponiveis: list[int]) -> int:
+    """Extrai o ano mencionado na pergunta (regex local, sem LLM).
+
+    Detecta:
+      - 4 dígitos no range 2020-2039 (ex: "2025", "2026")
+      - "ano passado", "ano anterior", "last year"
+    Se não encontrar, retorna o primeiro ano da lista (mais recente).
+    """
+    texto = pergunta.lower().strip()
+
+    # Checar keywords de "ano anterior"
+    for kw in _ANO_ANTERIOR_KEYWORDS:
+        if kw in texto:
+            ano_ant = _datetime.now().year - 1
+            if ano_ant in anos_disponiveis:
+                return ano_ant
+            break
+
+    # Checar ano explícito (4 dígitos, range 2020-2039)
+    match = _re.search(r"\b(20[2-3]\d)\b", texto)
+    if match:
+        ano = int(match.group(1))
+        if ano in anos_disponiveis:
+            return ano
+
+    # Fallback: primeiro ano (mais recente)
+    return anos_disponiveis[0] if anos_disponiveis else _datetime.now().year
+
+
+# ═══════════════════════════════════════════════════════════════
+#  INFERÊNCIA DE PERÍODO (MULTI-MÊS)
+# ═══════════════════════════════════════════════════════════════
+
+_TRIMESTRES = {
+    "q1": [1, 2, 3], "q2": [4, 5, 6], "q3": [7, 8, 9], "q4": [10, 11, 12],
+    "1º trimestre": [1, 2, 3], "2º trimestre": [4, 5, 6],
+    "3º trimestre": [7, 8, 9], "4º trimestre": [10, 11, 12],
+    "primeiro trimestre": [1, 2, 3], "segundo trimestre": [4, 5, 6],
+    "terceiro trimestre": [7, 8, 9], "quarto trimestre": [10, 11, 12],
+    "1st quarter": [1, 2, 3], "2nd quarter": [4, 5, 6],
+    "3rd quarter": [7, 8, 9], "4th quarter": [10, 11, 12],
+}
+
+_SEMESTRES = {
+    "1º semestre": list(range(1, 7)), "2º semestre": list(range(7, 13)),
+    "primeiro semestre": list(range(1, 7)), "segundo semestre": list(range(7, 13)),
+    "1st half": list(range(1, 7)), "2nd half": list(range(7, 13)),
+}
+
+# Mapa inverso nome→número (reusar _MESES_MAP)
+_MESES_NOME_PARA_NUM = _MESES_MAP  # alias
+
+
+def _inferir_periodo_da_pergunta(
+    pergunta: str, meses_disponiveis: list[int],
+) -> list[int]:
+    """Detecta um ou mais meses na pergunta do usuário.
+
+    Padrões reconhecidos (em ordem de prioridade):
+      1. YTD / acumulado
+      2. Trimestres (Q1, Q2, "1º trimestre")
+      3. Semestres ("1º semestre")
+      4. Range: "janeiro a março", "de jan a mar"
+      5. Enumeração: "janeiro e fevereiro", "jan, fev e mar"
+      6. "últimos N meses"
+      7. Mês único (fallback para lista unitária)
+
+    Retorna lista de meses (int) filtrados contra meses_disponiveis.
+    Se nada for encontrado, retorna [último_mês_disponível].
+    """
+    texto = pergunta.lower().strip()
+
+    # 1) YTD / acumulado / "ano inteiro"
+    if _re.search(r"\b(ytd|acumulado|year[ -]to[ -]date|ano inteiro|ano completo|full year)\b", texto):
+        resultado = [m for m in meses_disponiveis]
+        if resultado:
+            return resultado
+
+    # 2) Trimestres
+    for label, meses in _TRIMESTRES.items():
+        if label in texto:
+            resultado = [m for m in meses if m in meses_disponiveis]
+            if resultado:
+                return resultado
+
+    # 3) Semestres
+    for label, meses in _SEMESTRES.items():
+        if label in texto:
+            resultado = [m for m in meses if m in meses_disponiveis]
+            if resultado:
+                return resultado
+
+    # 4) "últimos N meses"
+    match_ultimos = _re.search(
+        r"\b[úu]ltimos?\s+(\d+)\s+m[eê]s(?:es)?\b", texto,
+    )
+    if match_ultimos:
+        n = int(match_ultimos.group(1))
+        if meses_disponiveis and n > 0:
+            return meses_disponiveis[-n:]
+
+    # 5) Range: "janeiro a março", "de jan a mar", "jan-mar"
+    nomes_sorted = sorted(_MESES_MAP.items(), key=lambda x: -len(x[0]))
+    nomes_pattern = "|".join(_re.escape(n) for n, _ in nomes_sorted)
+    match_range = _re.search(
+        rf"\b({nomes_pattern})\s*(?:a|até|to|[-–])\s*({nomes_pattern})\b",
+        texto,
+    )
+    if match_range:
+        m_inicio = _MESES_MAP.get(match_range.group(1))
+        m_fim = _MESES_MAP.get(match_range.group(2))
+        if m_inicio and m_fim and m_inicio <= m_fim:
+            resultado = [m for m in range(m_inicio, m_fim + 1) if m in meses_disponiveis]
+            if resultado:
+                return resultado
+
+    # 6) Enumeração: "janeiro e fevereiro", "jan, fev e mar"
+    meses_encontrados = []
+    for nome, num in nomes_sorted:
+        if _re.search(rf"\b{_re.escape(nome)}\b", texto):
+            if num not in meses_encontrados and num in meses_disponiveis:
+                meses_encontrados.append(num)
+    if len(meses_encontrados) >= 2:
+        return sorted(meses_encontrados)
+
+    # 7) Mês único
+    if len(meses_encontrados) == 1:
+        return meses_encontrados
+
+    # Fallback: último mês disponível
+    if meses_disponiveis:
+        return [meses_disponiveis[-1]]
+    return [1]
+
+
 
 def render():
     st.header("🤖 TC Copilot")
@@ -158,6 +304,7 @@ def _render_chatbot():
         descobrir_anos_disponiveis,
         descobrir_meses_disponiveis,
         formatar_contexto_parquet,
+        formatar_contexto_parquet_periodo,
     )
     from tc_copilot.llm_integration import responder_consulta_live
     from tc_copilot.prompts import obter_nome_mes
@@ -235,11 +382,19 @@ def _render_chatbot():
 
     col_ano, col_mes = st.columns(2)
     with col_ano:
-        ano = st.selectbox("Ano", anos, key="chat_ano")
+        opcoes_anos_display = ["(inferir da pergunta)"] + [str(a) for a in anos]
+        ano_label = st.selectbox("Ano", opcoes_anos_display, index=0, key="chat_ano")
+        if ano_label == "(inferir da pergunta)":
+            ano_numero = None
+            # Usar primeiro ano (mais recente) para popular meses inicialmente
+            ano_para_meses = anos[0]
+        else:
+            ano_numero = int(ano_label)
+            ano_para_meses = ano_numero
     with col_mes:
-        meses_disp = descobrir_meses_disponiveis(ano)
+        meses_disp = descobrir_meses_disponiveis(ano_para_meses)
         if not meses_disp:
-            st.warning(f"Nenhum mês com dados para {ano}.")
+            st.warning(f"Nenhum mês com dados para {ano_para_meses}.")
             return
         opcoes_meses = {obter_nome_mes(m, "pt-BR"): m for m in meses_disp}
         # Primeira opção vazia para inferir da pergunta
@@ -247,7 +402,7 @@ def _render_chatbot():
         mes_label = st.selectbox(
             "Mês",
             opcoes_display,
-            index=len(opcoes_display) - 1,  # Default: último mês
+            index=0,  # Default: inferir da pergunta
             key="chat_mes",
         )
         if mes_label == "(inferir da pergunta)":
@@ -256,8 +411,9 @@ def _render_chatbot():
             mes_numero = opcoes_meses[mes_label]
 
     # ── Histórico de chat ──
+    _chat_ano = ano_numero if ano_numero is not None else "auto"
     _chat_mes = mes_numero if mes_numero is not None else "auto"
-    chat_key = f"copilot_chat_{ano}_{_chat_mes}"
+    chat_key = f"copilot_chat_{_chat_ano}_{_chat_mes}"
     if chat_key not in st.session_state:
         st.session_state[chat_key] = []
 
@@ -269,7 +425,12 @@ def _render_chatbot():
             st.markdown(msg["content"].replace("$", "\\$"))
 
     # ── Input do usuário ──
-    _input_label = f"Pergunte sobre {mes_label}/{ano}..." if mes_numero else f"Pergunte sobre {ano} (mês será inferido)..."
+    _display_ano = ano_label if ano_numero else "(ano inferido)"
+    _input_label = (
+        f"Pergunte sobre {mes_label}/{_display_ano}..."
+        if mes_numero
+        else f"Pergunte sobre {_display_ano} (mês/período será inferido)..."
+    )
     pergunta = st.chat_input(
         _input_label,
         key="copilot_chat_input",
@@ -284,12 +445,27 @@ def _render_chatbot():
         # Buscar contexto dos parquets e responder
         with st.chat_message("assistant"):
             with st.spinner("Consultando dados..."):
-                # Inferir mês da pergunta se não selecionado
-                _mes_efetivo = mes_numero
-                _mes_inferido = False
-                if _mes_efetivo is None:
-                    _mes_efetivo = _inferir_mes_da_pergunta(pergunta, meses_disp)
-                    _mes_inferido = True
+                # --- Inferir ano da pergunta se não selecionado ---
+                _ano_efetivo = ano_numero if ano_numero is not None else _inferir_ano_da_pergunta(pergunta, anos)
+                _ano_inferido = ano_numero is None
+
+                # Recalcular meses disponíveis para o ano efetivo
+                if _ano_inferido:
+                    _meses_disp_efetivo = descobrir_meses_disponiveis(_ano_efetivo)
+                    if not _meses_disp_efetivo:
+                        _meses_disp_efetivo = meses_disp
+                        _ano_efetivo = ano_para_meses
+                else:
+                    _meses_disp_efetivo = meses_disp
+
+                # --- Inferir período (mês ou multi-mês) ---
+                _periodo_inferido = False
+                if mes_numero is not None:
+                    # Mês explícito selecionado
+                    _meses_efetivos = [mes_numero]
+                else:
+                    _meses_efetivos = _inferir_periodo_da_pergunta(pergunta, _meses_disp_efetivo)
+                    _periodo_inferido = True
 
                 # Configurar moeda antes de formatar contexto
                 moeda = st.session_state.get("copilot_moeda", "EUR")
@@ -301,13 +477,28 @@ def _render_chatbot():
                 taxa_conversao = taxas.get(moeda, 1.0)
                 configurar_moeda_formatacao(moeda, simbolo)
 
-                contexto = formatar_contexto_parquet(ano, _mes_efetivo, taxa_conversao=taxa_conversao)
-                if _mes_inferido:
-                    _nome_mes_inf = obter_nome_mes(_mes_efetivo, "pt-BR")
-                    contexto = (
-                        f"\u26a0\ufe0f Mês inferido da pergunta: {_nome_mes_inf}/{ano}\n\n"
-                        + contexto
+                # --- Montar contexto (single-month ou multi-month) ---
+                if len(_meses_efetivos) == 1:
+                    contexto = formatar_contexto_parquet(
+                        _ano_efetivo, _meses_efetivos[0], taxa_conversao=taxa_conversao,
                     )
+                else:
+                    contexto = formatar_contexto_parquet_periodo(
+                        _ano_efetivo, _meses_efetivos, taxa_conversao=taxa_conversao,
+                    )
+
+                # Prefixo informativo sobre inferência
+                if _periodo_inferido:
+                    nomes_meses = [obter_nome_mes(m, "pt-BR") for m in _meses_efetivos]
+                    if len(nomes_meses) == 1:
+                        _info = f"⚠️ Mês inferido da pergunta: {nomes_meses[0]}/{_ano_efetivo}"
+                    else:
+                        _info = f"⚠️ Período inferido da pergunta: {nomes_meses[0]}–{nomes_meses[-1]}/{_ano_efetivo}"
+                    if _ano_inferido:
+                        _info += f" (ano inferido: {_ano_efetivo})"
+                    contexto = _info + "\n\n" + contexto
+                elif _ano_inferido:
+                    contexto = f"⚠️ Ano inferido da pergunta: {_ano_efetivo}\n\n" + contexto
 
                 modelo = st.session_state.get("copilot_modelo", "gpt-4o-mini")
                 idioma = st.session_state.get("copilot_idioma", "pt-BR")
@@ -341,11 +532,12 @@ def _render_chatbot():
     if not historico:
         st.markdown("**💡 Sugestões de perguntas:**")
         sugestoes = [
-            f"Quais foram os maiores desvios de Labor em {mes_label} de {ano}?",
+            f"Quais foram os maiores desvios de Labor em {mes_label} de {ano_para_meses}?",
             f"Qual oficina teve maior impacto no custo em {mes_label}?",
             f"Compare Labor, Burden e D&A vs Flex Budget em {mes_label}",
             f"Quais modelos tiveram maior variação de volume vs mês anterior?",
             "Houve alguma anomalia significativa nos custos?",
+            f"Quais os maiores gastos do Q1 {ano_para_meses}?",
         ]
         for sug in sugestoes:
             if st.button(f"💡 {sug}", key=f"sug_{hash(sug)}"):
