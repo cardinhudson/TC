@@ -27,6 +27,7 @@ _DATA_ROOT = str(get_data_root())
 
 from tc_principal.shared import (
     ORDEM_MESES, CORES_VEICULOS, COLUNAS_MONETARIAS,
+    COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button,
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_tempo_veiculos_real,
@@ -598,9 +599,9 @@ def render():
     # ════════════════════════════════════════
     #  TABS
     # ════════════════════════════════════════
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🚗 TC Veículos", "📈 Volume",
-        "🏭 Custos por Oficina", "📉 Análise Flex",
+        "📉 Análise Flex",
         "🚗 Tempo de Produção", "📋 Dados Detalhados",
     ])
 
@@ -2207,7 +2208,7 @@ def render():
                     'Volume:Q',
                     title='Volume',
                     scale=alt.Scale(scheme='greens'),
-                    legend=alt.Legend(orient='right', titleFontSize=10, labelFontSize=9)
+                    legend=alt.Legend(orient='right', titleFontSize=10, labelFontSize=12)
                 ),
                 tooltip=[
                     alt.Tooltip('Período:N', title='Período'),
@@ -2217,7 +2218,7 @@ def render():
 
             # Rótulos nas barras
             rotulos_bud = bar_bud.mark_text(
-                align='center', dy=-10, fontSize=9, color='black'
+                align='center', dy=-10, fontSize=12, color='black'
             ).encode(text=alt.Text('Volume:Q', format=','))
 
             layers_vol = [bar_bud, rotulos_bud]
@@ -2253,7 +2254,7 @@ def render():
                     )
                     # Rótulos na linha
                     rotulos_act = alt.Chart(df_va_per).mark_text(
-                        align='center', dy=-15, fontSize=9, color='#FF6B35',
+                        align='center', dy=-15, fontSize=12, color='#FF6B35',
                         fontWeight='bold'
                     ).encode(
                         x=alt.X('Período:N', sort=ordem_per),
@@ -2301,7 +2302,7 @@ def render():
                     'Volume:Q',
                     title='Volume Budget',
                     scale=alt.Scale(scheme='greens'),
-                    legend=alt.Legend(orient='right', titleFontSize=10, labelFontSize=9)
+                    legend=alt.Legend(orient='right', titleFontSize=10, labelFontSize=12)
                 ),
                 tooltip=[
                     alt.Tooltip('Veículo:N', title='Veículo'),
@@ -2311,7 +2312,7 @@ def render():
 
             # Rótulos nas barras
             rotulos_veic = bar_veic.mark_text(
-                align='center', dy=-10, fontSize=9, color='black'
+                align='center', dy=-10, fontSize=12, color='black'
             ).encode(text=alt.Text('Volume:Q', format=','))
 
             layers_veic = [bar_veic, rotulos_veic]
@@ -2507,180 +2508,25 @@ def render():
         else:
             st.warning("Dados de volume não encontrados.")
 
-    # ── TAB 3: Custos por Oficina ──
+    # ── TAB 3: Análise Flex ──
     with tab3:
-        st.subheader("Custos por Oficina")
-
-        df_oficina = df.groupby('Oficina', as_index=False).agg({
-            c: 'sum' for c in cols_val + ['Rateio FA'] if c in df.columns
-        })
-        if 'Rateio FA' in df_oficina.columns:
-            df_oficina['Rateio FA'] = df.groupby('Oficina')['Rateio FA'].mean().values
-        df_oficina = df_oficina.sort_values('Custo FP', ascending=False)
-
-        if tipo == 'CPU (Custo por Unidade)' and df_vol_bud is not None and 'Oficina' in df_vol_bud.columns:
-            vol_ofi = df_vol_bud.groupby('Oficina', as_index=False)['Volume'].sum()
-            df_oficina = df_oficina.merge(vol_ofi, on='Oficina', how='left')
-            df_oficina['Volume'] = df_oficina['Volume'].fillna(0)
-            for c in cols_val:
-                if c in df_oficina.columns:
-                    df_oficina[c] = calcular_cpu(df_oficina[c], df_oficina['Volume'])
-
-        # KPIs de resumo: Top 3 Oficinas
-        top3 = df_oficina.nlargest(3, 'Custo FP')
-        ko1, ko2, ko3, ko4 = st.columns(4)
-        with ko1:
-            render_kpi("Total Custo FP", f"{simbolo} {df_oficina['Custo FP'].sum():,.2f}{sufixo}")
-        if len(top3) >= 1:
-            with ko2:
-                render_kpi(f"#{1} {top3.iloc[0]['Oficina']}", f"{simbolo} {top3.iloc[0]['Custo FP']:,.2f}{sufixo}")
-        if len(top3) >= 2:
-            with ko3:
-                render_kpi(f"#{2} {top3.iloc[1]['Oficina']}", f"{simbolo} {top3.iloc[1]['Custo FP']:,.2f}{sufixo}")
-        if len(top3) >= 3:
-            with ko4:
-                render_kpi(f"#{3} {top3.iloc[2]['Oficina']}", f"{simbolo} {top3.iloc[2]['Custo FP']:,.2f}{sufixo}")
-
-        render_kpi_spacer()
-
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-            # Gráfico de barras simples de Custo FP por Oficina
-            bar_ofi = (alt.Chart(df_oficina).mark_bar(
-                color='#4A90E2', cornerRadiusTopLeft=3, cornerRadiusTopRight=3
-            ).encode(
-                x=alt.X('Oficina:N', sort='-y', title='Oficina'),
-                y=alt.Y('Custo FP:Q', title=f'{label_valor} ({simbolo}{sufixo})'),
-                tooltip=['Oficina:N', alt.Tooltip('Custo FP:Q', format=',.2f', title='Custo FP')],
-            ).properties(height=450, title='Custo FP por Oficina'))
-            st.altair_chart(bar_ofi, use_container_width=True)
-
-        with col_b:
-            if 'Rateio FA' in df_oficina.columns:
-                df_rat = df_oficina[['Oficina', 'Rateio FA']].copy()
-                df_rat['Rateio %'] = df_rat['Rateio FA'] * 100
-                bar_rat = (alt.Chart(df_rat).mark_bar(
-                    cornerRadiusTopLeft=3, cornerRadiusTopRight=3,
-                ).encode(
-                    x=alt.X('Oficina:N', sort='-y'),
-                    y=alt.Y('Rateio %:Q', title='Rateio FA (%)'),
-                    color=alt.condition(
-                        alt.datum['Rateio %'] > 0, alt.value('#27ae60'), alt.value('#f44336'),
-                    ),
-                    tooltip=['Oficina:N', alt.Tooltip('Rateio %:Q', format='.2f')],
-                ).properties(height=450, title='Rateio FA por Oficina'))
-                st.altair_chart(bar_rat, use_container_width=True)
-
-        # Tabela com Custo FP
-        show = df_oficina[['Oficina', 'Custo FP']].copy()
-        if 'Rateio FA' in df_oficina.columns:
-            show['Rateio FA %'] = df_oficina['Rateio FA'].apply(
-                lambda x: f"{x*100:.2f}%"
-            )
-        st.markdown(
-            criar_tabela_html(show, linha_total=False, simbolo=simbolo),
-            unsafe_allow_html=True,
-        )
-
-        # ── Tabela Pivotada Oficina × Período ──
-        with st.expander("📊 Resumo BUD vs Flex por Oficina × Período"):
-            if df_flex is not None and 'Oficina' in df.columns:
-                # Agrupar por Oficina e Período para BUD (usar df_bud) e Flex
-                df_pivot_base = df_bud.groupby(
-                    ['Oficina', 'Período'], as_index=False
-                )['Custo FP'].sum()
-
-                # Preparar pivot BUD
-                piv_bud = df_pivot_base.pivot_table(
-                    index='Oficina',
-                    columns='Período',
-                    values='Custo FP',
-                    aggfunc='sum',
-                )
-                # Ordenar colunas por ORDEM_MESES
-                cols_ord = [m for m in ORDEM_MESES if m in piv_bud.columns]
-                piv_bud = piv_bud[cols_ord]
-                piv_bud['Ano'] = piv_bud.sum(axis=1)
-
-                # Linha Total
-                piv_bud.loc['Total'] = piv_bud.sum()
-                piv_bud.index.name = 'Oficina'
-
-                # Formatar valores
-                fmt_bud = piv_bud.copy()
-                for col in fmt_bud.columns:
-                    fmt_bud[col] = fmt_bud[col].apply(
-                        lambda x: f"{simbolo} {x:,.0f}" if pd.notna(x) else "—"
-                    )
-
-                st.markdown("**📦 Budget (BUD)**")
-                st.dataframe(fmt_bud, width="stretch")
-
-                # Flex Budget por Oficina × Período (se disponível)
-                if 'Custo' in df_bud.columns:
-                    # Calcular Flex por Oficina × Período (usando Budget)
-                    df_flex_base = df_bud.copy()
-                    df_flex_base['Custo_str'] = df_flex_base['Custo'].astype(
-                        str
-                    ).str.lower()
-                    df_flex_base['is_fixo'] = df_flex_base['Custo_str'].str.startswith(
-                        'fix'
-                    )
-                    df_flex_base['Custo_Fixo'] = df_flex_base.apply(
-                        lambda r: r['Custo FP'] if r['is_fixo'] else 0, axis=1
-                    )
-                    df_flex_base['Custo_NaoFixo'] = df_flex_base.apply(
-                        lambda r: r['Custo FP'] if not r['is_fixo'] else 0, axis=1
-                    )
-
-                    df_fixo = df_flex_base.groupby(
-                        ['Oficina', 'Período'], as_index=False
-                    )['Custo_Fixo'].sum()
-                    df_nfixo = df_flex_base.groupby(
-                        ['Oficina', 'Período'], as_index=False
-                    )['Custo_NaoFixo'].sum()
-
-                    # Merge com proporção de volume (df_flex)
-                    df_flex_merged = df_fixo.merge(
-                        df_nfixo, on=['Oficina', 'Período'], how='outer'
-                    ).fillna(0)
-                    df_flex_merged = df_flex_merged.merge(
-                        df_flex[['Período', 'Proporcao']], on='Período', how='left'
-                    )
-                    df_flex_merged['Proporcao'] = df_flex_merged['Proporcao'].fillna(1)
-                    df_flex_merged['Flex_Bud'] = (
-                        df_flex_merged['Custo_Fixo']
-                        + df_flex_merged['Custo_NaoFixo'] * df_flex_merged['Proporcao']
-                    )
-
-                    piv_flex = df_flex_merged.pivot_table(
-                        index='Oficina',
-                        columns='Período',
-                        values='Flex_Bud',
-                        aggfunc='sum',
-                    )
-                    piv_flex = piv_flex[[m for m in ORDEM_MESES if m in piv_flex.columns]]
-                    piv_flex['Ano'] = piv_flex.sum(axis=1)
-                    piv_flex.loc['Total'] = piv_flex.sum()
-                    piv_flex.index.name = 'Oficina'
-
-                    fmt_flex = piv_flex.copy()
-                    for col in fmt_flex.columns:
-                        fmt_flex[col] = fmt_flex[col].apply(
-                            lambda x: f"{simbolo} {x:,.0f}" if pd.notna(x) else "—"
-                        )
-
-                    st.markdown("**📈 Flex Budget**")
-                    st.dataframe(fmt_flex, width="stretch")
-            else:
-                st.info("Dados de Flex Budget não disponíveis.")
-
-    # ── TAB 4: Análise Flex ──
-    with tab4:
         st.subheader("Análise Flex — Fixo vs Variável")
 
         if df_flex is not None and 'Custo' in df.columns:
+            # ── Filtros locais ──
+            _fx_c1, _fx_c2 = st.columns(2)
+            with _fx_c1:
+                _fx_ofc_opts = sorted(df['Oficina'].dropna().unique()) if 'Oficina' in df.columns else []
+                _fx_ofc_sel = st.multiselect("🏭 Oficina", _fx_ofc_opts, default=[], key="flex_oficina")
+            with _fx_c2:
+                _fx_veic_opts = sorted(df['Type 06'].dropna().unique()) if 'Type 06' in df.columns else []
+                _fx_veic_sel = st.multiselect("🚗 Veículo", _fx_veic_opts, default=[], key="flex_veiculo")
+            df_flex_local = df.copy()
+            if _fx_ofc_sel:
+                df_flex_local = df_flex_local[df_flex_local['Oficina'].isin(_fx_ofc_sel)]
+            if _fx_veic_sel:
+                df_flex_local = df_flex_local[df_flex_local['Type 06'].isin(_fx_veic_sel)]
+
             # KPIs de Flex no topo
             bud_total_t4 = df_flex['Custo_Total_Bud'].sum()
             flex_total_t4 = df_flex['Flex_Bud'].sum()
@@ -2699,7 +2545,7 @@ def render():
 
             render_kpi_spacer()
             # Decompor custos por categoria (Fixo / Não-Fixo)
-            df_cat = df.copy()
+            df_cat = df_flex_local.copy()
             df_cat['Custo_str'] = df_cat['Custo'].astype(str).str.lower()
             df_cat['Categoria'] = df_cat['Custo_str'].apply(
                 lambda x: 'Fixo' if x.startswith('fix') else 'Variável'
@@ -2730,11 +2576,21 @@ def render():
                     tooltip=['Período:N', 'Categoria:N',
                              alt.Tooltip('Custo FP:Q', format=',.0f')],
                 ).properties(height=400, title='Custo FP por Categoria'))
-                st.altair_chart(bar_cat, use_container_width=True)
+                text_cat = (alt.Chart(df_cat_agg).mark_text(
+                    align='center', dy=-8, fontSize=12, color='black'
+                ).encode(
+                    x=alt.X('Período:N', sort=ordem_per),
+                    y=alt.Y('Custo FP:Q', stack=True),
+                    text=alt.Text('Custo FP:Q', format=',.0f'),
+                    order=alt.Order('Categoria:N'),
+                ))
+                st.altair_chart(bar_cat + text_cat, use_container_width=True)
 
             with col_b:
                 # Gráfico pizza
                 df_cat_total = df_cat.groupby('Categoria', as_index=False)['Custo FP'].sum()
+                df_cat_total['pct'] = (df_cat_total['Custo FP'] / df_cat_total['Custo FP'].sum() * 100).round(1)
+                df_cat_total['label'] = df_cat_total['pct'].apply(lambda x: f"{x:.1f}%")
                 pie_cat = (alt.Chart(df_cat_total).mark_arc(innerRadius=50).encode(
                     theta=alt.Theta('Custo FP:Q'),
                     color=alt.Color('Categoria:N',
@@ -2744,7 +2600,13 @@ def render():
                                     )),
                     tooltip=['Categoria:N', alt.Tooltip('Custo FP:Q', format=',')],
                 ).properties(height=400, title='Participação por Categoria'))
-                st.altair_chart(pie_cat, use_container_width=True)
+                pie_text = (alt.Chart(df_cat_total).mark_text(
+                    radius=90, fontSize=12, fontWeight='bold'
+                ).encode(
+                    theta=alt.Theta('Custo FP:Q', stack=True),
+                    text='label:N',
+                ))
+                st.altair_chart(pie_cat + pie_text, use_container_width=True)
 
             # Tabela resumo
             st.markdown("**📊 Resumo por Categoria**")
@@ -2789,10 +2651,10 @@ def render():
         else:
             st.info("Dados de categoria (Custo) não disponíveis para análise Flex.")
 
-    # ── TAB 5: Tempo de Produção / Custo FP por Veículo ──
-    with tab5:
+    # ── TAB 4: Tempo de Produção / Custo FP por Veículo ──
+    with tab4:
         # ── Filtros no topo da aba ──
-        _col_filtro1, _col_filtro2, _ = st.columns([1.5, 1.5, 3])
+        _col_filtro1, _col_filtro2, _col_filtro3, _col_filtro4 = st.columns([1.5, 1.5, 1.5, 1.5])
         with _col_filtro1:
             unidade_tempo = st.radio(
                 "🕒 Unidade de tempo",
@@ -2807,15 +2669,28 @@ def render():
                 horizontal=True,
                 key="home_fonte_dados_tempo"
             )
+        with _col_filtro3:
+            _tp_ofc_opts = sorted(df['Oficina'].dropna().unique()) if 'Oficina' in df.columns else []
+            _tp_ofc_sel = st.multiselect("🏭 Oficina", _tp_ofc_opts, default=[], key="tempo_prod_oficina")
+        with _col_filtro4:
+            _tp_veic_opts = sorted(df['Type 06'].dropna().unique()) if 'Type 06' in df.columns else []
+            _tp_veic_sel = st.multiselect("🚗 Veículo", _tp_veic_opts, default=[], key="tempo_prod_veiculo")
         fator_tempo = 1.0 if unidade_tempo == "Minutos" else 1.0 / 60.0
         label_tempo = "min" if unidade_tempo == "Minutos" else "h"
 
-        st.subheader("Custo FP por Veículo")
+        # Aplicar filtros locais
+        _df_tp = df.copy()
+        if _tp_ofc_sel:
+            _df_tp = _df_tp[_df_tp['Oficina'].isin(_tp_ofc_sel)]
+        if _tp_veic_sel and 'Type 06' in _df_tp.columns:
+            _df_tp = _df_tp[_df_tp['Type 06'].isin(_tp_veic_sel)]
+
+        st.subheader("💰 Custo FP por Veículo")
 
         # Custo FP por Veículo (análogo ao TC Ext por Veíc)
-        if 'Veículo' in df.columns:
-            df_veic = df.groupby('Veículo', as_index=False).agg({
-                c: 'sum' for c in cols_val if c in df.columns
+        if 'Veículo' in _df_tp.columns:
+            df_veic = _df_tp.groupby('Veículo', as_index=False).agg({
+                c: 'sum' for c in cols_val if c in _df_tp.columns
             })
             df_veic = df_veic.sort_values('Custo FP', ascending=False)
 
@@ -2945,7 +2820,7 @@ def render():
 
                     # Rótulo de total no topo
                     labels_evo = alt.Chart(df_evo).mark_text(
-                        align='center', dy=-10, fontSize=9, color='#7C3AED', fontWeight='bold'
+                        align='center', dy=-10, fontSize=12, color='#7C3AED', fontWeight='bold'
                     ).encode(
                         x=alt.X('Período:N', sort=ordem_per_evo),
                         y=alt.Y('Total:Q'),
@@ -3072,7 +2947,7 @@ def render():
                     tooltip=['Oficina:N', alt.Tooltip('Tempo Veic:Q', format=',.1f')],
                 ).properties(height=400, title=f'Tempo Veículo por Oficina ({label_tempo})'))
                 labels_tv = bar_tv.mark_text(
-                    align='center', dy=-10, fontSize=9, color='#7C3AED'
+                    align='center', dy=-10, fontSize=12, color='#7C3AED'
                 ).encode(text=alt.Text('Tempo Veic:Q', format=',.1f'))
                 st.altair_chart(bar_tv + labels_tv, use_container_width=True)
 
@@ -3098,7 +2973,7 @@ def render():
                         tooltip=['Oficina:N', 'Tipo:N', alt.Tooltip('Tempo:Q', format=',.1f')],
                     ).properties(height=400, title=f'Tempo Veículo vs Tempo FA ({label_tempo})'))
                     labels_comp = bar_comp.mark_text(
-                        align='center', dy=-10, fontSize=9, color='black'
+                        align='center', dy=-10, fontSize=12, color='black'
                     ).encode(text=alt.Text('Tempo:Q', format=',.1f'))
                     st.altair_chart(bar_comp + labels_comp, use_container_width=True)
 
@@ -3155,8 +3030,8 @@ def render():
         else:
             st.info("Dados de tempo de produção não disponíveis.")
 
-    # ── TAB 6: Dados Detalhados ──
-    with tab6:
+    # ── TAB 5: Dados Detalhados ──
+    with tab5:
         st.subheader("📋 Dados Detalhados")
 
         # Seletor de visualização: Total ou Fixo/Variável
@@ -3247,6 +3122,51 @@ def render():
                 "home_be", ano, simbolo, sufixo,
                 expanded=False, modo=modo_tab6,
             )
+
+        # ═══════════════════════════════════════════════════════
+        # 🪄 DADOS BE DETALHADOS (tabela com todas as colunas)
+        # ═══════════════════════════════════════════════════════
+        if _df_be_para_tabela is not None and not _df_be_para_tabela.empty:
+            st.markdown("---")
+            st.markdown("## 🪄 Dados BE Detalhados")
+            with st.expander("🪄 Tabela BE — Todos os Dados", expanded=False):
+                _be_det = _df_be_para_tabela.copy()
+                # Filtros locais
+                _fc1, _fc2, _fc3 = st.columns(3)
+                with _fc1:
+                    _be_ofc_opts = sorted(_be_det['Oficina'].dropna().unique()) if 'Oficina' in _be_det.columns else []
+                    _be_ofc_sel = st.multiselect("🏭 Oficina", _be_ofc_opts, default=[], key="be_det_oficina")
+                with _fc2:
+                    _be_per_opts = sorted(_be_det['Período'].dropna().unique()) if 'Período' in _be_det.columns else []
+                    _be_per_default = [m for m in _be_per_opts if str(m).lower().startswith('mar')]
+                    _be_per_sel = st.multiselect("📅 Período", _be_per_opts, default=_be_per_default, key="be_det_periodo")
+                with _fc3:
+                    _be_tipo_opts = sorted(_be_det['Tipo'].dropna().unique()) if 'Tipo' in _be_det.columns else []
+                    _be_tipo_sel = st.multiselect("🏷️ Tipo", _be_tipo_opts, default=[], key="be_det_tipo")
+                if _be_ofc_sel:
+                    _be_det = _be_det[_be_det['Oficina'].isin(_be_ofc_sel)]
+                if _be_per_sel:
+                    _be_det = _be_det[_be_det['Período'].isin(_be_per_sel)]
+                if _be_tipo_sel:
+                    _be_det = _be_det[_be_det['Tipo'].isin(_be_tipo_sel)]
+                st.caption(f"📊 {len(_be_det):,} linhas × {len(_be_det.columns)} colunas")
+                st.dataframe(_be_det, width="stretch", height=500)
+                # Download
+                try:
+                    from io import BytesIO as _BytesIO
+                    _buf = _BytesIO()
+                    with pd.ExcelWriter(_buf, engine='openpyxl') as _w:
+                        _be_det.to_excel(_w, index=False, sheet_name='BE_Detalhado')
+                    st.download_button(
+                        "📥 Baixar BE Detalhado (Excel)",
+                        data=_buf.getvalue(),
+                        file_name=f"TC_BE_Detalhado_{ano}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_be_det",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"❌ Erro ao gerar Excel: {e}")
 
         # ═══════════════════════════════════════════════════════
         # 🚗 TABELAS TC POR VEÍCULOS
@@ -3491,35 +3411,83 @@ def render():
                     _df_sap_filt = _df_sap_filt[_df_sap_filt['Type 05'].isin(_t05_sel)]
 
                 st.caption(f"📊 {len(_df_sap_filt):,} linhas × {len(_df_sap_filt.columns)} colunas")
+                _df_sap_filt = reordenar_colunas_be(_df_sap_filt)
                 st.dataframe(_df_sap_filt, width="stretch", height=500)
 
                 # ── Download Excel ──
-                if st.button(
-                    "📥 Baixar Sapiens Detalhado (Excel)",
-                    key="dl_sapiens_det",
-                    use_container_width=True,
-                ):
-                    with st.spinner("Gerando arquivo…"):
-                        try:
-                            downloads = os.path.join(
-                                os.path.expanduser("~"), "Downloads",
-                            )
-                            os.makedirs(downloads, exist_ok=True)
-                            fname = f"TC_Sapiens_Detalhado_{ano}.xlsx"
-                            fpath = os.path.join(downloads, fname)
-                            with pd.ExcelWriter(fpath, engine='openpyxl') as w:
-                                _df_sap_filt.to_excel(
-                                    w, index=False, sheet_name='Sapiens',
-                                )
-                            st.success(f"✅ Arquivo salvo em: {fpath}")
-                            st.info(f"📁 Verifique sua pasta Downloads: {downloads}")
-                        except Exception as e:
-                            st.error(f"❌ Erro ao gerar Excel: {e}")
+                try:
+                    from io import BytesIO as _BytesIO
+                    fname = f"TC_Sapiens_Detalhado_{ano}.xlsx"
+                    buf = _BytesIO()
+                    with pd.ExcelWriter(buf, engine='openpyxl') as w:
+                        _df_sap_filt.to_excel(
+                            w, index=False, sheet_name='Sapiens',
+                        )
+                    st.download_button(
+                        "📥 Baixar Sapiens Detalhado (Excel)",
+                        data=buf.getvalue(),
+                        file_name=fname,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_sapiens_det",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"❌ Erro ao gerar Excel: {e}")
         else:
             st.info(
                 "ℹ️ Dados Sapiens detalhados não disponíveis. "
                 "Execute o processamento Real na página **Extração de Dados** para gerar."
             )
+
+        # ═══════════════════════════════════════════════════════
+        # 🪄 DADOS BE DETALHADOS
+        # ═══════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("## 🪄 Dados BE Detalhados")
+        try:
+            _be_fc_path = os.path.join(
+                str(get_data_root()), "TC_Principal", "Forecast", "forecast_completo.parquet"
+            )
+            if os.path.exists(_be_fc_path):
+                _df_be_raw = pd.read_parquet(_be_fc_path)
+                if 'Tipo' in _df_be_raw.columns:
+                    _df_be_raw = _df_be_raw[_df_be_raw['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])].copy()
+                if not _df_be_raw.empty:
+                    _df_be_raw = reordenar_colunas_be(_df_be_raw)
+                    with st.expander("🪄 Tabela BE — Todos os Dados", expanded=False):
+                        _be2 = _df_be_raw.copy()
+                        _bc1, _bc2, _bc3 = st.columns(3)
+                        with _bc1:
+                            _be2_ofc = sorted(_be2['Oficina'].dropna().unique()) if 'Oficina' in _be2.columns else []
+                            _be2_ofc_s = st.multiselect("🏭 Oficina", _be2_ofc, default=[], key="be_det_oficina_tc")
+                        with _bc2:
+                            _be2_per = sorted(_be2['Período'].dropna().unique()) if 'Período' in _be2.columns else []
+                            _be2_per_default = [m for m in _be2_per if str(m).lower().startswith('mar')]
+                            _be2_per_s = st.multiselect("📅 Período", _be2_per, default=_be2_per_default, key="be_det_periodo_tc")
+                        with _bc3:
+                            _be2_tipo = sorted(_be2['Tipo'].dropna().unique()) if 'Tipo' in _be2.columns else []
+                            _be2_tipo_s = st.multiselect("🏷️ Tipo", _be2_tipo, default=[], key="be_det_tipo_tc")
+                        if _be2_ofc_s:
+                            _be2 = _be2[_be2['Oficina'].isin(_be2_ofc_s)]
+                        if _be2_per_s:
+                            _be2 = _be2[_be2['Período'].isin(_be2_per_s)]
+                        if _be2_tipo_s:
+                            _be2 = _be2[_be2['Tipo'].isin(_be2_tipo_s)]
+                        st.caption(f"📊 {len(_be2):,} linhas × {len(_be2.columns)} colunas")
+                        st.dataframe(_be2, width="stretch", height=500)
+                        _hoje = datetime.now().strftime('%Y%m%d')
+                        download_excel_button(
+                            st, _be2,
+                            "📥 Baixar BE Detalhado (Excel)",
+                            f"TC_Principal_BE_Detalhado_{ano}_{_hoje}.xlsx",
+                            "dl_be_det_tc",
+                        )
+                else:
+                    st.info("ℹ️ Nenhum dado BE encontrado. Gere um Forecast no Best Estimate Simulador.")
+            else:
+                st.info("ℹ️ Arquivo forecast_completo.parquet não encontrado.")
+        except Exception as _e:
+            st.error(f"❌ Erro ao carregar BE Detalhados: {_e}")
 
     st.divider()
 

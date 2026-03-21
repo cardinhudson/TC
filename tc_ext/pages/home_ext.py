@@ -28,6 +28,7 @@ from tc_core.finance.currency_db import (
 from tc_core.utils.portabilidade import get_data_root as _get_data_root
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
+from tc_principal.shared import COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button
 
 
 def _tc_ext_data_root() -> str:
@@ -3174,7 +3175,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 f'{coluna}:Q',
                 title=coluna,
                 scale=alt.Scale(scheme='blues'),
-                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=9)
+                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=12)
             ),
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
@@ -3199,7 +3200,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
         ).transform_filter(
@@ -3503,7 +3504,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                                         title='Legenda', 
                                         orient='bottom', 
                                         titleFontSize=10, 
-                                        labelFontSize=9,
+                                        labelFontSize=12,
                                         titleAnchor='middle',
                                         direction='horizontal',
                                         symbolType='square'
@@ -3565,7 +3566,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                                 baseline='bottom',
                                 dy=-15,
                                 color='#FF6B35',
-                                fontSize=9,
+                                fontSize=12,
                                 fontWeight='bold'
                             ).encode(
                                 x=alt.X(
@@ -3697,7 +3698,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     align='center',
                     baseline='bottom',
                     dy=-12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X(
@@ -3723,7 +3724,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     align='center',
                     baseline='top',
                     dy=12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X(
@@ -3842,7 +3843,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                 'Volume:Q',
                 title='Volume',
                 scale=alt.Scale(scheme='greens'),
-                legend=alt.Legend(title='Volume', orient='right', titleFontSize=10, labelFontSize=9)
+                legend=alt.Legend(title='Volume', orient='right', titleFontSize=10, labelFontSize=12)
             ),
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
@@ -3860,7 +3861,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -3920,7 +3921,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                             'Tipo:N',
                             title='Legenda',
                             scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
-                            legend=alt.Legend(title='Legenda', orient='right', titleFontSize=10, labelFontSize=9)
+                            legend=alt.Legend(title='Legenda', orient='right', titleFontSize=10, labelFontSize=12)
                         ),
                         strokeDash=alt.StrokeDash(
                             'Tipo:N',
@@ -3970,7 +3971,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                         baseline='bottom',
                         dy=-15,
                         color='#FF6B35',
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X(
@@ -4095,7 +4096,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -4192,7 +4193,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                                     title='Legenda',
                                     orient='right',
                                     titleFontSize=10,
-                                    labelFontSize=9
+                                    labelFontSize=12
                                 )
                             ),
                             strokeDash=alt.StrokeDash(
@@ -4231,7 +4232,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                             align='center',
                             baseline='bottom',
                             dy=-15,
-                            fontSize=9,
+                            fontSize=12,
                             fontWeight='bold'
                         ).encode(
                             x=alt.X('Veículo:N', sort=ordem_veiculos_budget, scale=alt.Scale(domain=ordem_veiculos_budget), title='Veículo'),
@@ -4320,7 +4321,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -4385,7 +4386,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
                                     title='Legenda',
                                     orient='right',
                                     titleFontSize=10,
-                                    labelFontSize=9
+                                    labelFontSize=12
                                 )
                             ),
                             strokeDash=alt.StrokeDash(
@@ -4422,7 +4423,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
                             align='center',
                             baseline='bottom',
                             dy=-15,
-                            fontSize=9,
+                            fontSize=12,
                             fontWeight='bold'
                         ).encode(
                             x=alt.X('Oficina:N', sort=ordem_oficinas_budget, scale=alt.Scale(domain=ordem_oficinas_budget), title='Oficina'),
@@ -7637,7 +7638,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 text=alt.Text(f'{coluna}:Q', format=',.2f')
             )
@@ -8104,7 +8105,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                                     baseline='bottom',
                                     dy=-20,
                                     color='#FF6B35',
-                                    fontSize=9,
+                                    fontSize=12,
                                     fontWeight='bold'
                                 ).encode(
                                     x=alt.X('Oficina:N', sort=ordem_oficinas),
@@ -8158,7 +8159,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         title='Legenda',
                         orient='bottom',
                         titleFontSize=10,
-                        labelFontSize=9,
+                        labelFontSize=12,
                         titleAnchor='middle',
                         direction='horizontal',
                         symbolType='square'
@@ -8185,7 +8186,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 x=alt.X('Oficina:N', sort=ordem_oficinas_barras, title='Oficina'),
                 text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -8282,7 +8283,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         align='center',
                         baseline='bottom',
                         dy=-12,
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
@@ -8304,7 +8305,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         align='center',
                         baseline='top',
                         dy=12,
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
@@ -8621,7 +8622,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                                                 title='Legenda',
                                                 orient='bottom',
                                                 titleFontSize=10,
-                                                labelFontSize=9,
+                                                labelFontSize=12,
                                                 titleAnchor='middle',
                                                 direction='horizontal',
                                                 symbolType='square'
@@ -8672,7 +8673,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                             baseline='bottom',
                             dy=-15,
                             color='#FF6B35',
-                            fontSize=9,
+                            fontSize=12,
                             fontWeight='bold'
                         ).encode(
                             x=alt.X('Veículo:N', sort=ordem_veiculos),
@@ -8810,7 +8811,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 x=alt.X('Veículo:N', sort=ordem_veiculos_barras, title='Veículo'),
                 text=alt.Text(f'{coluna}:Q', format=formato)
@@ -8821,7 +8822,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 text=alt.Text(f'{coluna}:Q', format=formato)
             )
@@ -8900,7 +8901,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                     align='center',
                     baseline='bottom',
                     dy=-12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
@@ -8922,7 +8923,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                     align='center',
                     baseline='top',
                     dy=12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
@@ -9917,80 +9918,61 @@ if is_main_page:
                         st.dataframe(df_oficina_display, width="stretch")
             
             # Botão de download da tabela (dentro do expander, fora do loop)
-            if st.button(
-                "📥 Baixar Tabela por Veículo e Oficina (Excel)",
-                width="stretch",
-                key="download_tabela_veiculo_oficina"
-            ):
-                with st.spinner("Gerando arquivo da tabela..."):
-                    try:
-                        # Criar DataFrame completo para download (com todas as oficinas e totais)
-                        df_download_list = []
-                            
-                        for oficina in sorted(oficinas):
-                            # Dados da oficina (sem formatação para manter valores numéricos)
-                            df_oficina_download = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                                
-                            # Adicionar linha de total da oficina
-                            linha_total_download = {'Oficina': oficina, 'Veículo': 'TOTAL'}
-                            if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
-                                df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
-                                for col in colunas_periodos:
-                                    if col in df_oficina_download.columns:
-                                        if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_base_of.columns:
-                                            df_p = df_base_of[df_base_of['Período_Ano'] == col]
-                                        else:
-                                            df_p = df_base_of[df_base_of['Período'] == col]
+                from io import BytesIO as _BytesIO
+                df_download_list = []
+                    
+                for oficina in sorted(oficinas):
+                    # Dados da oficina (sem formatação para manter valores numéricos)
+                    df_oficina_download = df_tabela[df_tabela['Oficina'] == oficina].copy()
+                        
+                    # Adicionar linha de total da oficina
+                    linha_total_download = {'Oficina': oficina, 'Veículo': 'TOTAL'}
+                    if tipo_visualizacao == "CPU (Custo por Unidade)" and df_real_agr_cpu is not None:
+                        df_base_of = df_real_agr_cpu[df_real_agr_cpu['Oficina'] == oficina].copy()
+                        for col in colunas_periodos:
+                            if col in df_oficina_download.columns:
+                                if coluna_periodo_pivot == 'Período_Ano' and 'Período_Ano' in df_base_of.columns:
+                                    df_p = df_base_of[df_base_of['Período_Ano'] == col]
+                                else:
+                                    df_p = df_base_of[df_base_of['Período'] == col]
 
-                                        total_p = float(pd.to_numeric(df_p['Total'], errors='coerce').fillna(0).sum())
-                                        vol_p = float(pd.to_numeric(df_p['Volume'], errors='coerce').fillna(0).sum())
-                                        linha_total_download[col] = (total_p / vol_p) if vol_p not in (0, None) else 0.0
+                                total_p = float(pd.to_numeric(df_p['Total'], errors='coerce').fillna(0).sum())
+                                vol_p = float(pd.to_numeric(df_p['Volume'], errors='coerce').fillna(0).sum())
+                                linha_total_download[col] = (total_p / vol_p) if vol_p not in (0, None) else 0.0
 
-                                if 'Total' in df_oficina_download.columns:
-                                    total_geral = float(pd.to_numeric(df_base_of['Total'], errors='coerce').fillna(0).sum())
-                                    vol_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
-                                    linha_total_download['Total'] = (total_geral / vol_geral) if vol_geral not in (0, None) else 0.0
-                            else:
-                                df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
-                                df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
-                                for col in df_oficina_numerico.columns:
-                                    if col != 'Veículo':
-                                        total_col = df_oficina_numerico[col].sum()
-                                        linha_total_download[col] = total_col
-                            
-                            # Adicionar dados da oficina
-                            df_download_list.append(df_oficina_download)
-                            # Adicionar linha de total
-                            df_download_list.append(pd.DataFrame([linha_total_download]))
-                            
-                        # Concatenar todos os DataFrames
-                        df_download = pd.concat(df_download_list, ignore_index=True)
-                            
-                        # Obter pasta Downloads do usuário
-                        downloads_path = os.path.join(
-                            os.path.expanduser("~"), "Downloads"
-                        )
-                        tipo_nome = "CPU" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Custo_Total"
-                        file_name = f"TC_Ext_tabela_veiculo_oficina_{tipo_nome}.xlsx"
-                        file_path = os.path.join(downloads_path, file_name)
-                            
-                        # Salvar arquivo diretamente na pasta Downloads
-                        with pd.ExcelWriter(
-                            file_path, engine='openpyxl'
-                        ) as writer:
-                            df_download.to_excel(
-                                writer, index=False, sheet_name='Veiculo_Oficina'
-                            )
-                            
-                        st.success(
-                            f"✅ Arquivo salvo com sucesso em: {file_path}"
-                        )
-                        st.info(
-                            f"📁 Verifique sua pasta Downloads: {downloads_path}"
-                        )
-                    except Exception as e:
-                        st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
-            else:
+                        if 'Total' in df_oficina_download.columns:
+                            total_geral = float(pd.to_numeric(df_base_of['Total'], errors='coerce').fillna(0).sum())
+                            vol_geral = float(pd.to_numeric(df_base_of['Volume'], errors='coerce').fillna(0).sum())
+                            linha_total_download['Total'] = (total_geral / vol_geral) if vol_geral not in (0, None) else 0.0
+                    else:
+                        df_oficina_numerico = df_tabela[df_tabela['Oficina'] == oficina].copy()
+                        df_oficina_numerico = df_oficina_numerico.drop(columns=['Oficina'])
+                        for col in df_oficina_numerico.columns:
+                            if col != 'Veículo':
+                                total_col = df_oficina_numerico[col].sum()
+                                linha_total_download[col] = total_col
+                    
+                    df_download_list.append(df_oficina_download)
+                    df_download_list.append(pd.DataFrame([linha_total_download]))
+                    
+                df_download = pd.concat(df_download_list, ignore_index=True)
+                    
+                tipo_nome = "CPU" if tipo_visualizacao == "CPU (Custo por Unidade)" else "Custo_Total"
+                file_name = f"TC_Ext_tabela_veiculo_oficina_{tipo_nome}.xlsx"
+                buf = _BytesIO()
+                with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+                    df_download.to_excel(
+                        writer, index=False, sheet_name='Veiculo_Oficina'
+                    )
+                st.download_button(
+                    "📥 Baixar Tabela por Veículo e Oficina (Excel)",
+                    data=buf.getvalue(),
+                    file_name=file_name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_tabela_veiculo_oficina",
+                    use_container_width=True,
+                )
+            if not (tem_veiculo and tem_oficina and tem_periodo):
                 colunas_faltando = []
                 if not tem_veiculo:
                     colunas_faltando.append("Veículo")
@@ -10711,6 +10693,56 @@ if is_main_page:
                         st.info(f"📁 Verifique sua pasta Downloads: {downloads_path}")
                     except Exception as e:
                         st.error(f"❌ Erro ao salvar arquivo: {str(e)}")
+
+        # ═══════════════════════════════════════════════════════
+        # 🪄 DADOS BE DETALHADOS (TC Ext)
+        # ═══════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("## 🪄 Dados BE Detalhados")
+        try:
+            _be_path = os.path.join(_tc_ext_data_root(), "Forecast", "forecast_completo.parquet")
+            if os.path.exists(_be_path):
+                _df_be_ext = pd.read_parquet(_be_path)
+                # Filtrar apenas linhas BE / BE Manual
+                if 'Tipo' in _df_be_ext.columns:
+                    _df_be_ext = _df_be_ext[_df_be_ext['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])].copy()
+                if not _df_be_ext.empty:
+                    _df_be_ext = reordenar_colunas_be(_df_be_ext)
+                    with st.expander("🪄 Tabela BE — Todos os Dados", expanded=False):
+                        _be_det = _df_be_ext.copy()
+                        # Filtros locais
+                        _fc1, _fc2, _fc3 = st.columns(3)
+                        with _fc1:
+                            _be_ofc_opts = sorted(_be_det['Oficina'].dropna().unique()) if 'Oficina' in _be_det.columns else []
+                            _be_ofc_sel = st.multiselect("🏭 Oficina", _be_ofc_opts, default=[], key="be_det_oficina_ext")
+                        with _fc2:
+                            _be_per_opts = sorted(_be_det['Período'].dropna().unique()) if 'Período' in _be_det.columns else []
+                            _be_per_default = [m for m in _be_per_opts if str(m).lower().startswith('mar')]
+                            _be_per_sel = st.multiselect("📅 Período", _be_per_opts, default=_be_per_default, key="be_det_periodo_ext")
+                        with _fc3:
+                            _be_tipo_opts = sorted(_be_det['Tipo'].dropna().unique()) if 'Tipo' in _be_det.columns else []
+                            _be_tipo_sel = st.multiselect("🏷️ Tipo", _be_tipo_opts, default=[], key="be_det_tipo_ext")
+                        if _be_ofc_sel:
+                            _be_det = _be_det[_be_det['Oficina'].isin(_be_ofc_sel)]
+                        if _be_per_sel:
+                            _be_det = _be_det[_be_det['Período'].isin(_be_per_sel)]
+                        if _be_tipo_sel:
+                            _be_det = _be_det[_be_det['Tipo'].isin(_be_tipo_sel)]
+                        st.caption(f"📊 {len(_be_det):,} linhas × {len(_be_det.columns)} colunas")
+                        st.dataframe(_be_det, width="stretch", height=500)
+                        _hoje_ext = datetime.now().strftime('%Y%m%d')
+                        download_excel_button(
+                            st, _be_det,
+                            "📥 Baixar BE Detalhado (Excel)",
+                            f"TC_Ext_BE_Detalhado_{_hoje_ext}.xlsx",
+                            "dl_be_det_ext",
+                        )
+                else:
+                    st.info("ℹ️ Nenhum dado BE encontrado. Gere um Forecast no Best Estimate Simulador.")
+            else:
+                st.info("ℹ️ Arquivo de forecast não encontrado. Gere um Forecast no Best Estimate Simulador.")
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao carregar dados BE: {e}")
 
     # ==========================================
     # TAB 5: Detalhe Budget

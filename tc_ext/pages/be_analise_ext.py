@@ -3416,7 +3416,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 f'{coluna}:Q',
                 title=coluna,
                 scale=alt.Scale(scheme='blues'),
-                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=9)
+                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=12)
             ),
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
@@ -3441,7 +3441,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
         ).transform_filter(
@@ -3745,7 +3745,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                                         title='Legenda', 
                                         orient='bottom', 
                                         titleFontSize=10, 
-                                        labelFontSize=9,
+                                        labelFontSize=12,
                                         titleAnchor='middle',
                                         direction='horizontal',
                                         symbolType='square'
@@ -3807,7 +3807,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                                 baseline='bottom',
                                 dy=-15,
                                 color='#FF6B35',
-                                fontSize=9,
+                                fontSize=12,
                                 fontWeight='bold'
                             ).encode(
                                 x=alt.X(
@@ -3939,7 +3939,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     align='center',
                     baseline='bottom',
                     dy=-12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X(
@@ -3965,7 +3965,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     align='center',
                     baseline='top',
                     dy=12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X(
@@ -4084,7 +4084,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                 'Volume:Q',
                 title='Volume',
                 scale=alt.Scale(scheme='greens'),
-                legend=alt.Legend(title='Volume', orient='right', titleFontSize=10, labelFontSize=9)
+                legend=alt.Legend(title='Volume', orient='right', titleFontSize=10, labelFontSize=12)
             ),
             tooltip=[
                 alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
@@ -4102,7 +4102,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -4162,7 +4162,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                             'Tipo:N',
                             title='Legenda',
                             scale=alt.Scale(domain=['Volume Budget'], range=['#FF6B35']),
-                            legend=alt.Legend(title='Legenda', orient='right', titleFontSize=10, labelFontSize=9)
+                            legend=alt.Legend(title='Legenda', orient='right', titleFontSize=10, labelFontSize=12)
                         ),
                         strokeDash=alt.StrokeDash(
                             'Tipo:N',
@@ -4212,7 +4212,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                         baseline='bottom',
                         dy=-15,
                         color='#FF6B35',
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X(
@@ -4337,7 +4337,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -4434,7 +4434,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                                     title='Legenda',
                                     orient='right',
                                     titleFontSize=10,
-                                    labelFontSize=9
+                                    labelFontSize=12
                                 )
                             ),
                             strokeDash=alt.StrokeDash(
@@ -4473,7 +4473,7 @@ def create_volume_veiculo_chart(df_data, df_budget_vol=None, df_despesas=None):
                             align='center',
                             baseline='bottom',
                             dy=-15,
-                            fontSize=9,
+                            fontSize=12,
                             fontWeight='bold'
                         ).encode(
                             x=alt.X('Veículo:N', sort=ordem_veiculos_budget, scale=alt.Scale(domain=ordem_veiculos_budget), title='Veículo'),
@@ -4562,7 +4562,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
             baseline='middle',
             dy=-10,
             color='black',
-            fontSize=9
+            fontSize=12
         ).encode(
             text=alt.Text('Volume:Q', format=',.0f')
         )
@@ -4627,7 +4627,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
                                     title='Legenda',
                                     orient='right',
                                     titleFontSize=10,
-                                    labelFontSize=9
+                                    labelFontSize=12
                                 )
                             ),
                             strokeDash=alt.StrokeDash(
@@ -4664,7 +4664,7 @@ def create_volume_oficina_chart(df_data, df_budget_vol=None, df_despesas=None):
                             align='center',
                             baseline='bottom',
                             dy=-15,
-                            fontSize=9,
+                            fontSize=12,
                             fontWeight='bold'
                         ).encode(
                             x=alt.X('Oficina:N', sort=ordem_oficinas_budget, scale=alt.Scale(domain=ordem_oficinas_budget), title='Oficina'),
@@ -7773,7 +7773,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 text=alt.Text(f'{coluna}:Q', format=',.2f')
             )
@@ -8237,7 +8237,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                                     baseline='bottom',
                                     dy=-20,
                                     color='#FF6B35',
-                                    fontSize=9,
+                                    fontSize=12,
                                     fontWeight='bold'
                                 ).encode(
                                     x=alt.X('Oficina:N', sort=ordem_oficinas),
@@ -8291,7 +8291,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         title='Legenda',
                         orient='bottom',
                         titleFontSize=10,
-                        labelFontSize=9,
+                        labelFontSize=12,
                         titleAnchor='middle',
                         direction='horizontal',
                         symbolType='square'
@@ -8318,7 +8318,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 x=alt.X('Oficina:N', sort=ordem_oficinas_barras, title='Oficina'),
                 text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -8415,7 +8415,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         align='center',
                         baseline='bottom',
                         dy=-12,
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
@@ -8437,7 +8437,7 @@ def create_oficina_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budge
                         align='center',
                         baseline='top',
                         dy=12,
-                        fontSize=9,
+                        fontSize=12,
                         fontWeight='bold'
                     ).encode(
                         x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
@@ -8878,7 +8878,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                                                 title='Legenda',
                                                 orient='bottom',
                                                 titleFontSize=10,
-                                                labelFontSize=9,
+                                                labelFontSize=12,
                                                 titleAnchor='middle',
                                                 direction='horizontal',
                                                 symbolType='square'
@@ -8929,7 +8929,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                                         baseline='bottom',
                                         dy=-15,
                                         color='#FF6B35',
-                                        fontSize=9,
+                                        fontSize=12,
                                         fontWeight='bold'
                                     ).encode(
                                         x=alt.X('Veículo:N', sort=ordem_veiculos),
@@ -9067,7 +9067,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 x=alt.X('Veículo:N', sort=ordem_veiculos_barras, title='Veículo'),
                 text=alt.Text(f'{coluna}:Q', format=formato)
@@ -9078,7 +9078,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                 baseline='middle',
                 dy=-10,
                 color='black',
-                fontSize=9
+                fontSize=12
             ).encode(
                 text=alt.Text(f'{coluna}:Q', format=formato)
             )
@@ -9156,7 +9156,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                     align='center',
                     baseline='bottom',
                     dy=-12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
@@ -9178,7 +9178,7 @@ def create_total_chart(df_data, coluna, tipo_viz, moeda_simbolo="R$", df_budget=
                     align='center',
                     baseline='top',
                     dy=12,
-                    fontSize=9,
+                    fontSize=12,
                     fontWeight='bold'
                 ).encode(
                     x=alt.X('Veículo:N', sort=ordem_veiculos_delta),

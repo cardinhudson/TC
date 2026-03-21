@@ -60,6 +60,7 @@ from tc_principal.shared import (
     COLUNAS_MONETARIAS,
     load_forecast_completo, load_forecast_volume,
     ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
+    reordenar_colunas_be, download_excel_button,
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header, render_sidebar_global, render_inline_summary_metrics,
@@ -369,24 +370,16 @@ def _render_sapiens_table_waterfall(df_sapiens_base, ano_label, key_prefix):
         st.caption(f"📊 {len(df_sap_filt):,} linhas × {len(df_sap_filt.columns)} colunas")
         if df_sap_filt.empty:
             st.warning("⚠️ Nenhuma linha encontrada com os filtros locais selecionados.")
+        df_sap_filt = reordenar_colunas_be(df_sap_filt)
         st.dataframe(df_sap_filt, use_container_width=True, height=500)
 
-        if st.button(
+        _hoje_wf = datetime.now().strftime('%Y%m%d')
+        download_excel_button(
+            st, df_sap_filt,
             "📥 Baixar Sapiens Detalhado (Excel)",
-            key=f"{key_prefix}_download",
-            use_container_width=True,
-        ):
-            with st.spinner("Gerando arquivo…"):
-                try:
-                    downloads = os.path.join(os.path.expanduser("~"), "Downloads")
-                    os.makedirs(downloads, exist_ok=True)
-                    fname = f"TC_Sapiens_Detalhado_{ano_label}.xlsx"
-                    fpath = os.path.join(downloads, fname)
-                    with pd.ExcelWriter(fpath, engine='openpyxl') as writer:
-                        df_sap_filt.to_excel(writer, index=False, sheet_name='Sapiens')
-                    st.success(f"✅ Arquivo salvo em: {fpath}")
-                except Exception as exc:
-                    st.error(f"❌ Erro ao gerar Excel: {exc}")
+            f"TC_Sapiens_Detalhado_{ano_label}_{_hoje_wf}.xlsx",
+            f"{key_prefix}_download",
+        )
 
 
 def _render_sapiens_section_waterfall(ano_label, key_prefix):
@@ -693,7 +686,7 @@ def _build_office_waterfall_figure(
 
     office_count = len(office_labels)
     tick_angle = -90 if office_count > 18 else (-55 if office_count > 10 else -38)
-    tick_size = 7 if office_count > 18 else (8 if office_count > 10 else 9)
+    tick_size = 10 if office_count > 18 else (11 if office_count > 10 else 12)
     bottom_margin = 155 if office_count > 18 else (120 if office_count > 10 else 95)
 
     labels = [str(label_inicial)]
@@ -3018,7 +3011,7 @@ else:
                                 tickwidth=1,
                                 ticks="outside",
                                 title=dict(font=dict(size=10)),
-                                tickfont=dict(size=9)
+                                tickfont=dict(size=12)
                             ),
                             yaxis=dict(
                                 showgrid=False,
@@ -3035,7 +3028,7 @@ else:
                                 range=[y_min, y_max],
                                 tickformat=",.0f",
                                 title=dict(font=dict(size=10)),
-                                tickfont=dict(size=9)
+                                tickfont=dict(size=12)
                             ),
                             annotations=annotations_custom if annotations_custom else []
                         )
@@ -5037,7 +5030,7 @@ else:
                                             tickwidth=1,
                                             ticks="outside",
                                             title=dict(font=dict(size=10)),
-                                            tickfont=dict(size=9)
+                                            tickfont=dict(size=12)
                                         ),
                                         yaxis=dict(
                                             showgrid=False,
@@ -5047,7 +5040,7 @@ else:
                                             linewidth=1,
                                             range=[y_min, y_max],
                                             title=dict(font=dict(size=10)),
-                                            tickfont=dict(size=9)
+                                            tickfont=dict(size=12)
                                         )
                                     )
                                         

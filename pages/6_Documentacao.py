@@ -7,7 +7,6 @@ import os
 import base64
 import sys
 from datetime import datetime
-from tc_core.presentation_docs import render_presentation_section
 from tc_core.utils.portabilidade import get_base_path, get_data_root
 from versionamento import obter_versao_atual
 
@@ -296,6 +295,2144 @@ def _renderizar_markdown_em_expanders(md: str, expanded_first: bool = True) -> N
         with st.expander(titulo, expanded=expanded_first and indice == 0):
             st.markdown(conteudo)
 
+
+def _render_doc_regras_tc_ext() -> None:
+    with st.expander("🔢 **Cálculos Principais e Métricas Fundamentais**", expanded=True):
+        st.markdown(r"""
+### 📊 CPU (Custo por Unidade)
+
+O CPU é sempre calculado como razão entre o custo total agregado e o volume total agregado do mesmo perímetro.
+
+**Ordem exata do cálculo**
+1. Filtrar o conjunto de custo conforme oficina, veículo, período, Type 05, Type 06, Account e demais filtros ativos.
+2. Filtrar o conjunto de volume usando exatamente o mesmo perímetro lógico do custo.
+3. Agregar custos no nível exibido na tela: linha, grupo, período ou total.
+4. Agregar volumes no mesmo nível exibido na tela.
+5. Calcular o CPU como custo agregado dividido pelo volume agregado.
+6. Só depois formatar, converter moeda ou exibir em tabela/gráfico.
+
+**Por que essa ordem é obrigatória**
+- CPU é uma razão. Somar ou tirar média de CPUs já calculados gera distorção.
+- Se o volume for agregado em um perímetro diferente do custo, o denominador deixa de representar o numerador.
+- Se inverter a ordem e calcular CPU por linha antes do agrupamento, o resultado final deixa de ser auditável.
+
+**Fórmula explícita**
+
+$$
+CPU = \frac{\sum Custo}{\sum Volume}
+$$
+
+Onde:
+- $\sum Custo$ é a soma dos custos após todos os filtros e agrupamentos.
+- $\sum Volume$ é a soma dos volumes do mesmo perímetro.
+
+**O que entra no cálculo**
+- Valores monetários já filtrados.
+- Volumes das mesmas combinações exibidas.
+
+**O que não entra**
+- Volume de oficinas, veículos ou períodos que ficaram fora do filtro.
+- Média de CPU por linha.
+
+**Nível em que o cálculo acontece**
+- Linha detalhada: custo da linha dividido pelo volume da linha, se a linha já tiver granularidade compatível.
+- Grupo/período/total: sempre por agregação prévia de custo e volume.
+
+**Exemplo numérico completo**
+
+Considere duas linhas no mesmo período:
+- Linha A: custo de R$ 120.000 e volume de 3.000 unidades.
+- Linha B: custo de R$ 80.000 e volume de 1.000 unidades.
+
+Passo a passo:
+1. Soma do custo: R$ 120.000 + R$ 80.000 = R$ 200.000.
+2. Soma do volume: 3.000 + 1.000 = 4.000 unidades.
+3. CPU correto: R$ 200.000 / 4.000 = R$ 50,00 por unidade.
+
+Se alguém invertesse a ordem:
+1. CPU da linha A = R$ 120.000 / 3.000 = R$ 40,00.
+2. CPU da linha B = R$ 80.000 / 1.000 = R$ 80,00.
+3. Média simples incorreta = (40 + 80) / 2 = R$ 60,00.
+
+O valor correto é R$ 50,00, não R$ 60,00.
+
+### 💰 Custo Total, deltas e ratios
+
+O custo total exibido em qualquer visual é sempre a soma simples dos valores monetários válidos do perímetro filtrado.
+
+**Ordem exata do cálculo**
+1. Aplicar todos os filtros da tela.
+2. Agrupar no nível de visualização.
+3. Somar o campo monetário.
+4. Calcular deltas e ratios sobre os totais já agregados.
+
+**Fórmulas explícitas**
+
+$$
+Custo\ Total = \sum Custo_i
+$$
+
+$$
+Delta_{Flex-BUD} = Flex\ Bud - BUD
+$$
+
+$$
+Delta_{Real-Flex} = Real - Flex\ Bud
+$$
+
+$$
+Ratio = \frac{Real}{Flex\ Bud}
+$$
+
+**Exemplo numérico completo**
+- Budget original: R$ 600.000.
+- Flex Bud: R$ 645.000.
+- Real: R$ 670.000.
+
+Resultados:
+- Delta Flex vs BUD = 645.000 - 600.000 = R$ 45.000.
+- Delta Real vs Flex = 670.000 - 645.000 = R$ 25.000.
+- Ratio = 670.000 / 645.000 = 1,0388 = 103,88%.
+
+Interpretação:
+- O orçamento flexível ficou R$ 45.000 acima do budget original por efeito de volume.
+- O realizado ainda ficou R$ 25.000 acima do esperado flexível.
+        """)
+
+    with st.expander("🔄 **Cálculo de Flex Bud (Budget Flexível)**", expanded=False):
+        st.markdown(r"""
+### 📋 Conceito operacional
+
+O Flex Bud do TC Ext ajusta apenas a parcela de Custo Variável do budget pela proporção entre volume realizado e volume budget. A lógica implementada em produção segue a mesma ideia da função de cálculo do módulo compartilhado:
+
+$$
+Flex\ Bud = Custo\ Fixo + (Custo\ Vari\'{a}vel \times \frac{Volume\ Actual}{Volume\ Budget})
+$$
+
+### 1. Real x Budget
+
+**Ordem exata do cálculo**
+1. Filtrar o dataframe principal de budget no perímetro selecionado.
+2. Classificar cada linha como fixa ou Custo Variável pela coluna Custo.
+3. Somar o custo fixo por período.
+4. Somar o custo total por período.
+5. Calcular Custo Variável como total menos fixo.
+6. Somar volume budget por período.
+7. Somar volume actual por período.
+8. Calcular a proporção $Volume\ Actual / Volume\ Budget$.
+9. Aplicar a proporção somente ao Custo Variável.
+10. Somar custo fixo e Custo Variável flexibilizado.
+
+**Por que essa ordem é necessária**
+- A separação entre fixo e Custo Variável precisa ocorrer antes da flexibilização; se a proporção for aplicada ao total, o fixo é inflado ou reduzido indevidamente.
+- O volume é agregado por período antes da divisão para evitar distorção de granularidade.
+- O Custo Variável é derivado do total menos o fixo para garantir fechamento do número final.
+
+**Fórmulas explícitas**
+
+$$
+Custo\ Vari\'{a}vel = Custo\ Total\ Budget - Custo\ Fixo
+$$
+
+$$
+Propor\c{c}\tilde{a}o = \frac{Volume\ Actual}{Volume\ Budget}
+$$
+
+$$
+Flex\ Bud = Custo\ Fixo + (Custo\ Vari\'{a}vel \times Propor\c{c}\tilde{a}o)
+$$
+
+**O que entra no cálculo**
+- Custo budget do período.
+- Classificação entre custo fixo e Custo Variável.
+- Volume budget agregado do período.
+- Volume actual agregado do mesmo período.
+
+**O que não entra**
+- Volume de outro período.
+- Linhas fora do filtro.
+- Reclassificação manual de custo fora da coluna Custo.
+
+**Nível do cálculo**
+- Primeiro por período.
+- Depois pode ser convertido para CPU dividindo o Flex Bud pelo volume actual do período.
+
+**Exemplo numérico completo**
+- Período: Março.
+- Custo fixo budget: R$ 180.000.
+- Custo total budget: R$ 500.000.
+- Portanto Custo Variável budget: R$ 320.000.
+- Volume budget: 40.000 unidades.
+- Volume actual: 46.000 unidades.
+
+Passo a passo:
+1. Proporção = 46.000 / 40.000 = 1,15.
+2. Parcela fixa permanece R$ 180.000.
+3. Parcela de Custo Variável flexibilizada = 320.000 × 1,15 = R$ 368.000.
+4. Flex Bud = 180.000 + 368.000 = R$ 548.000.
+
+Se o realizado do período foi R$ 560.000:
+- Delta Real vs Flex = 560.000 - 548.000 = R$ 12.000.
+
+Em CPU:
+- CPU Flex = 548.000 / 46.000 = R$ 11,91 por unidade.
+- CPU Real = 560.000 / 46.000 = R$ 12,17 por unidade.
+
+### 2. Real x Real no Waterfall
+
+No waterfall entre dois meses reais, a lógica é análoga, mas o custo de referência é o mês inicial e a proporção de volume compara mês final contra mês inicial.
+
+**Ordem exata do cálculo**
+1. Filtrar o mês inicial.
+2. Separar custo fixo e Custo Variável do mês inicial.
+3. Agregar volume do mês inicial.
+4. Agregar volume do mês final.
+5. Calcular a proporção $V_2 / V_1$.
+6. Manter o fixo do mês inicial.
+7. Recalcular apenas a parcela de Custo Variável com a nova proporção.
+8. Somar as duas parcelas e comparar contra o mês final realizado.
+
+**Exemplo numérico completo**
+- Mês 1: custo fixo R$ 90.000, Custo Variável R$ 210.000, volume 30.000.
+- Mês 2: volume 36.000.
+
+Passo a passo:
+1. Proporção = 36.000 / 30.000 = 1,20.
+2. Fixo flexado = R$ 90.000.
+3. Custo Variável flexado = 210.000 × 1,20 = R$ 252.000.
+4. Flex do mês 1 no volume do mês 2 = 90.000 + 252.000 = R$ 342.000.
+
+Se o mês 2 real foi R$ 350.000, o delta operacional puro é de R$ 8.000.
+        """)
+
+    with st.expander("📊 **Cálculo de Volumes**", expanded=False):
+        st.markdown(r"""
+### 📁 Papel do volume no sistema
+
+Volume não é dado auxiliar decorativo. Ele sustenta CPU, Flex Bud, gráficos comparativos e análises de diluição de custo.
+
+**Ordem exata do cálculo de volume para uso analítico**
+1. Carregar a base de volume correta do contexto: histórico, ano corrente, budget ou actual.
+2. Aplicar o mesmo perímetro lógico dos dados de custo.
+3. Agrupar volume no nível necessário: período, veículo, oficina ou combinação equivalente.
+4. Somar os volumes válidos.
+5. Entregar esse volume agregado para CPU, Flex Bud ou forecast.
+
+**Por que essa ordem é necessária**
+- O volume é o denominador do CPU e a base de proporção do Flex Bud.
+- Se o volume for filtrado com um universo maior ou menor que o custo, o resultado monetário por unidade fica contaminado.
+- Se o agrupamento ocorrer em um nível incompatível, o sistema compara numerador e denominador de naturezas diferentes.
+
+**Fórmula explícita**
+
+$$
+Volume\ Total = \sum Volume_i
+$$
+
+**O que entra**
+- Apenas linhas de volume alinhadas ao perímetro de custo.
+- Volume do período efetivamente selecionado.
+
+**O que não entra**
+- Volume de oficinas ou veículos que não aparecem na seleção atual.
+- Volume de períodos futuros quando a tela é histórica.
+
+**Exemplo numérico completo**
+
+Seleção na tela:
+- Oficina = Pintura.
+- Período = Abril.
+- Veículos = A e B.
+
+Volumes da base filtrada:
+- Veículo A: 12.000 unidades.
+- Veículo B: 8.000 unidades.
+- Veículo C: 5.000 unidades, mas fora do filtro.
+
+Resultado correto:
+1. Volume total = 12.000 + 8.000 = 20.000 unidades.
+2. Se o custo total filtrado for R$ 900.000, o CPU correto = 900.000 / 20.000 = R$ 45,00.
+
+Erro clássico:
+1. Usar também o veículo C no denominador.
+2. Volume incorreto = 25.000 unidades.
+3. CPU incorreto = 900.000 / 25.000 = R$ 36,00.
+
+O desvio de R$ 9,00 por unidade nasce apenas de um perímetro incorreto.
+        """)
+
+    with st.expander("💱 **Moeda e Taxas de Câmbio**", expanded=False):
+        st.markdown(r"""
+### 💱 Ordem entre fator, moeda e cálculo
+
+No SCI, fator visual e moeda são transformações de apresentação. O cálculo econômico continua ancorado no valor base em BRL e na sequência correta de agregação.
+
+**Ordem exata**
+1. Carregar o valor monetário base em BRL.
+2. Agregar no nível exibido.
+3. Converter moeda, se a visualização pedir USD ou EUR.
+4. Aplicar fator visual K ou M somente para exibição de custo total.
+5. Se a visualização for CPU, dividir custo agregado pelo volume agregado e manter fator visual como Nenhum.
+
+**Por que essa ordem é necessária**
+- Converter moeda antes ou depois da soma preserva o total desde que a taxa seja única, mas aplicar fator visual antes do CPU quebra a escala do resultado.
+- CPU já é uma razão monetária por unidade; usar K ou M nele altera a interpretação da unidade.
+
+**Fórmula explícita de conversão**
+
+$$
+Valor_{moeda} = Valor_{BRL} \times Taxa_{moeda}
+$$
+
+**Exemplo numérico completo**
+- Custo agregado em BRL: R$ 2.400.000.
+- Taxa USD: 0,20.
+
+Conversão:
+1. Valor em USD = 2.400.000 × 0,20 = US$ 480.000.
+2. Se a visualização pedir fator K, o número exibido vira 480 K.
+
+Se o volume do mesmo período for 60.000 unidades:
+1. CPU em BRL = 2.400.000 / 60.000 = R$ 40,00.
+2. CPU em USD = 480.000 / 60.000 = US$ 8,00.
+
+O que não pode ser feito:
+1. Aplicar fator K no custo antes do CPU.
+2. Fazer 2.400 K / 60.000 = 0,04 e exibir como se fosse US$ 8,00 ou R$ 40,00.
+        """)
+
+    with st.expander("🔍 **Filtros e Perímetros de Análise**", expanded=False):
+        st.markdown(r"""
+### 🎛️ Regras de perímetro
+
+Toda métrica do TC Ext depende do mesmo perímetro lógico entre custo, volume e budget.
+
+**Ordem exata de aplicação**
+1. Definir ano e período.
+2. Aplicar filtros estruturais: oficina, veículo, USI, centro de custo, conta e classificações.
+3. Aplicar filtros textuais ou avançados, quando existirem.
+4. Gerar o dataframe principal filtrado.
+5. Extrair dele o universo de dimensões necessário para sincronizar budget e volume.
+6. Recalcular totais, CPU, Flex e gráficos apenas com esse perímetro sincronizado.
+
+**Por que essa ordem é necessária**
+- O dataframe principal define o universo econômico da análise.
+- Budget e volume são subordinados a esse universo; se forem filtrados antes por critérios diferentes, a comparação deixa de ser justa.
+
+**Exemplo numérico completo**
+
+Filtro desejado:
+- Ano 2025.
+- Oficina = Montagem.
+- Type 06 = Energia.
+
+Após filtrar, o sistema encontra:
+- Real: R$ 300.000.
+- Budget: R$ 280.000.
+- Volume actual: 15.000.
+- Volume budget: 14.000.
+
+Proporção correta de Flex = 15.000 / 14.000 = 1,0714.
+
+Se o budget tivesse sido filtrado sem respeitar a oficina, poderia entrar volume budget de 20.000 e o Flex cair para uma proporção de 0,75, completamente incompatível com o real analisado.
+        """)
+
+
+def _render_doc_regras_tc_veiculos() -> None:
+    with st.expander("💰 Cadeia de Custos", expanded=True):
+        st.markdown(r"""
+### 🔗 Sequência lógica da cadeia de custos do TC Veículos
+
+O TC Veículos não começa no CPU. Ele começa na despesa primária, passa pelo rateio FA, isola o Fluxo Principal, separa a D&A dedicada e só depois rateia por veículo.
+
+**Ordem exata do cálculo**
+1. Carregar a despesa primária da oficina e período.
+2. Calcular o Rateio FA de cada oficina e período.
+3. Calcular o Custo FA como despesa primária multiplicada pelo Rateio FA.
+4. Calcular o Custo FP como despesa primária menos custo FA.
+5. Carregar ou distribuir D&A dedicada.
+6. Calcular FP sem Dedicada como Custo FP menos D&A dedicada.
+7. Calcular o percentual de rateio por veículo via tempo de produção.
+8. Ratear o FP sem Dedicada por veículo.
+9. Somar a D&A dedicada do veículo ao valor rateado.
+10. Só então calcular o CPU por veículo.
+
+**Por que essa ordem é necessária**
+- Se o rateio por veículo for feito antes de separar FA e FP, o veículo absorve custo em uma base errada.
+- Se a D&A dedicada não for destacada antes do rateio, ela é distribuída duas vezes ou no universo errado.
+- O CPU depende do custo final do veículo, portanto só pode vir no fim.
+
+**Fórmulas explícitas**
+
+$$
+Custo\ FA = Despesa\ Primaria \times Rateio\ FA
+$$
+
+$$
+Custo\ FP = Despesa\ Primaria - Custo\ FA
+$$
+
+$$
+FP\ sem\ Dedicada = Custo\ FP - D\&A\ dedicada
+$$
+
+$$
+Custo\ Rateado_{veic} = FP\ sem\ Dedicada \times Percentual_{veic}
+$$
+
+$$
+Custo\ FP\ Veiculo = Custo\ Rateado_{veic} + D\&A\ dedicada_{veic}
+$$
+
+**Exemplo numérico completo**
+- Despesa primária da oficina no mês: R$ 1.000.000.
+- Rateio FA: 25%.
+- D&A dedicada do veículo X: R$ 30.000.
+- Percentual do veículo X no rateio por tempo: 40%.
+
+Passo a passo:
+1. Custo FA = 1.000.000 × 25% = R$ 250.000.
+2. Custo FP = 1.000.000 - 250.000 = R$ 750.000.
+3. FP sem Dedicada = 750.000 - 30.000 = R$ 720.000.
+4. Custo rateado do veículo X = 720.000 × 40% = R$ 288.000.
+5. Custo FP Veículo X = 288.000 + 30.000 = R$ 318.000.
+
+Esse é o custo que seguirá para o CPU do veículo X.
+        """)
+
+    with st.expander("🚗 Rateio por Veículo", expanded=False):
+        st.markdown(r"""
+### ⏱️ Regra de rateio por tempo
+
+O rateio por veículo distribui o custo da oficina usando o tempo consumido por cada veículo dentro da mesma oficina e do mesmo período.
+
+**Ordem exata do cálculo**
+1. Calcular Tempo Veic de cada veículo como EST × Volume.
+2. Somar o tempo total da oficina no período.
+3. Calcular o percentual de cada veículo dividindo seu tempo pelo total.
+4. Aplicar esse percentual ao FP sem Dedicada.
+5. Validar se a soma dos percentuais da oficina no período fecha em 100%.
+
+**Fórmulas explícitas**
+
+$$
+Tempo\ Veic = EST \times Volume
+$$
+
+$$
+Percentual_{veic} = \frac{Tempo\ Veic_{veic}}{\sum Tempo\ Veic_{oficina, periodo}}
+$$
+
+$$
+Custo\ Rateado_{veic} = FP\ sem\ Dedicada \times Percentual_{veic}
+$$
+
+**O que entra**
+- Tempo do veículo na mesma oficina e período.
+- FP sem Dedicada do mesmo grupo.
+
+**O que não entra**
+- Tempo de outra oficina.
+- Tempo de outro período.
+- D&A dedicada, que já é adicionada depois.
+
+**Exemplo numérico completo**
+
+Oficina Solda em Maio:
+- Veículo A: EST 2,0 horas, volume 5.000 → tempo = 10.000.
+- Veículo B: EST 1,5 horas, volume 4.000 → tempo = 6.000.
+- Veículo C: EST 1,0 hora, volume 2.000 → tempo = 2.000.
+
+Passo a passo:
+1. Tempo total = 10.000 + 6.000 + 2.000 = 18.000.
+2. Percentual A = 10.000 / 18.000 = 55,56%.
+3. Percentual B = 6.000 / 18.000 = 33,33%.
+4. Percentual C = 2.000 / 18.000 = 11,11%.
+
+Se o FP sem Dedicada da oficina for R$ 900.000:
+- A recebe R$ 500.040.
+- B recebe R$ 299.970.
+- C recebe R$ 99.990.
+
+O fechamento fica compatível com o total original, salvo pequenas diferenças de arredondamento visual.
+        """)
+
+    with st.expander("📊 Flex Budget", expanded=False):
+        st.markdown(r"""
+### 📈 Flex Budget no TC Veículos
+
+No TC Veículos, o budget flexível segue a mesma lógica estrutural do TC Ext: custo fixo fica constante e o Custo Variável é ajustado pela relação entre volume actual e volume budget.
+
+**Ordem exata do cálculo**
+1. Agregar volume budget por período.
+2. Agregar volume actual por período.
+3. Agregar custo budget por período.
+4. Identificar a parcela fixa pela coluna Custo.
+5. Calcular a parcela não fixa como total menos fixo.
+6. Calcular a proporção de volume.
+7. Aplicar a proporção somente à parcela não fixa.
+8. Somar fixo e Custo Variável flexibilizado.
+
+**Fórmula explícita**
+
+$$
+Flex\ Bud = Custo\ Fixo + (Custo\ N\tilde{a}o\ Fixo \times \frac{Vol\ Actual}{Vol\ Budget})
+$$
+
+**Exemplo numérico completo**
+- Custo budget fixo: R$ 250.000.
+- Custo budget total: R$ 700.000.
+- Custo Variável: R$ 450.000.
+- Volume budget: 50.000 unidades.
+- Volume actual: 55.000 unidades.
+
+Passo a passo:
+1. Proporção = 55.000 / 50.000 = 1,10.
+2. Custo Variável flexibilizado = 450.000 × 1,10 = R$ 495.000.
+3. Flex Bud total = 250.000 + 495.000 = R$ 745.000.
+
+Se o realizado for R$ 760.000:
+- Delta Real vs Flex = 760.000 - 745.000 = R$ 15.000.
+        """)
+
+    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
+        st.markdown(r"""
+### 🧮 CPU do TC Veículos
+
+O CPU do TC Veículos é calculado depois de concluído o custo final do veículo. Em dados consolidados, ele usa custo agregado e volume agregado. Em dados rateados, ele usa o custo final do veículo dividido pelo volume do próprio veículo.
+
+**Ordem exata do cálculo**
+1. Concluir cadeia de custos até Custo FP Veículo.
+2. Carregar o volume do mesmo veículo e período.
+3. Agregar custo e volume no nível exibido.
+4. Dividir custo agregado por volume agregado.
+
+**Fórmula explícita**
+
+$$
+CPU_{veiculo} = \frac{Custo\ FP\ Veiculo}{Volume}
+$$
+
+**Exemplo numérico completo**
+- Custo FP Veículo X: R$ 318.000.
+- Volume do veículo X: 6.000 unidades.
+
+Resultado:
+- CPU = 318.000 / 6.000 = R$ 53,00 por unidade.
+
+Se dois veículos forem agrupados:
+- Veículo X: R$ 318.000 e 6.000 unidades.
+- Veículo Y: R$ 182.000 e 4.000 unidades.
+
+CPU correto do grupo:
+1. Custo agregado = 318.000 + 182.000 = R$ 500.000.
+2. Volume agregado = 6.000 + 4.000 = 10.000.
+3. CPU do grupo = 500.000 / 10.000 = R$ 50,00.
+
+Não é correto fazer média simples entre R$ 53,00 e R$ 45,50.
+        """)
+
+    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
+        st.markdown(r"""
+### 📌 O que cada KPI mede
+
+Os KPIs do topo e do resumo não são números independentes. Eles seguem a mesma cadeia econômica do pipeline.
+
+**Ordem exata dos KPIs de topo**
+1. Somar despesa primária.
+2. Somar custo FA.
+3. Somar custo FP.
+4. Somar D&A dedicada.
+5. Somar FP sem Dedicada.
+6. Separar, quando necessário, linhas de Redis como subconjunto específico.
+
+**Exemplo numérico completo**
+- Despesa primária: R$ 3.000.000.
+- Custo FA: R$ 800.000.
+- Custo FP: R$ 2.200.000.
+- D&A dedicada: R$ 150.000.
+- FP sem Dedicada: R$ 2.050.000.
+
+Fechamento esperado:
+- Custo FP = 3.000.000 - 800.000 = 2.200.000.
+- FP sem Dedicada = 2.200.000 - 150.000 = 2.050.000.
+
+Se qualquer KPI não fechar nessa sequência, o erro está na cadeia anterior, não no card em si.
+        """)
+
+    with st.expander("🎛️ Filtros", expanded=False):
+        st.markdown(r"""
+### 🔍 Regras dos filtros do TC Veículos
+
+**Ordem exata**
+1. Escolher se a análise é consolidada ou por veículo.
+2. Se veículo = Todos, usar bases consolidadas.
+3. Se veículo específico, usar bases rateadas por veículo.
+4. Aplicar oficina, período e demais filtros sobre a base já correta.
+5. Sincronizar volume e budget com o mesmo universo.
+
+**Por que essa ordem é necessária**
+- O filtro de veículo muda a fonte de dados. Não é apenas um filtro visual.
+- Se o usuário escolher um veículo específico, o sistema precisa sair do consolidado e entrar no parquet rateado; filtrar depois não corrige essa diferença estrutural.
+
+**Exemplo prático**
+- Veículo = Todos → usar df_principal e df_principal_BUD.
+- Veículo = CC21 → usar df_veiculos_custo_fp e df_veiculos_custo_fp_BUD.
+
+Se essa troca de base não acontecer, o usuário enxerga custo consolidado com rótulo de veículo específico, o que é incorreto.
+        """)
+
+    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
+        st.markdown(r"""
+### 🔮 Lógica de forecast do Best Estimate
+
+O forecast parte da média histórica, ajusta o efeito de volume pela sensibilidade e depois aplica os fatores monetários de inflação e produtividade.
+
+**Ordem exata do cálculo**
+1. Selecionar os períodos históricos que entram na média.
+2. Calcular a média mensal histórica por combinação de chaves.
+3. Calcular o volume médio histórico da mesma combinação.
+4. Obter o volume do mês futuro.
+5. Calcular a proporção de volume futuro versus histórico.
+6. Transformar a proporção em variação percentual.
+7. Aplicar a sensibilidade correspondente ao tipo de custo ou ao Type 06.
+8. Aplicar inflação conforme configuração global ou por Type 06.
+9. Aplicar produtividade conforme configuração global ou por Type 06.
+10. Gravar o forecast da linha.
+11. Consolidar linhas históricas, BE e BE Manual.
+
+**Fórmulas explícitas**
+
+$$
+Propor\c{c}\tilde{a}o\ de\ Volume = \frac{Volume\ Futuro}{Volume\ M\acute{e}dio\ Hist\acute{o}rico}
+$$
+
+$$
+Varia\c{c}\tilde{a}o\ Percentual = Propor\c{c}\tilde{a}o - 1
+$$
+
+$$
+Varia\c{c}\tilde{a}o\ Ajustada = Varia\c{c}\tilde{a}o\ Percentual \times Sensibilidade
+$$
+
+$$
+Fator\ Monet\acute{a}rio = (1 + Infla\c{c}\tilde{a}o) \times (1 - Produtividade)
+$$
+
+$$
+Forecast = M\acute{e}dia\ Hist\acute{o}rica \times (1 + Varia\c{c}\tilde{a}o\ Ajustada) \times Fator\ Monet\acute{a}rio
+$$
+
+**Exemplo numérico completo**
+- Média histórica: R$ 100.000.
+- Volume médio histórico: 10.000 unidades.
+- Volume futuro: 11.500 unidades.
+- Sensibilidade: 80%.
+- Inflação: 4%.
+- Produtividade: 3%.
+
+Passo a passo:
+1. Proporção = 11.500 / 10.000 = 1,15.
+2. Variação percentual = 1,15 - 1 = 0,15.
+3. Variação ajustada = 0,15 × 0,80 = 0,12.
+4. Fator de variação = 1,12.
+5. Fator monetário = (1 + 0,04) × (1 - 0,03) = 1,0088.
+6. Forecast = 100.000 × 1,12 × 1,0088 = R$ 112.985,60.
+
+Na prática operacional do sistema, a produtividade reduz o custo projetado após o ajuste de volume e é aplicada como redutor multiplicativo, não como uma simples subtração manual no final.
+
+### 💰 BE Manual
+
+O BE Manual entra como linha separada no consolidado final. Ele não substitui o forecast calculado; ele é somado como camada adicional, podendo ainda ser rateado por veículo conforme os percentuais vigentes do arquivo de rateio.
+        """)
+
+
+def _render_doc_tabelas_graficos_tc_ext() -> None:
+    with st.expander("📌 CPU e regra de agregação", expanded=True):
+        st.markdown(r"""
+### 📊 Por que tabela e gráfico divergem quando o CPU é calculado errado
+
+No TC Ext, tabela e gráfico só fecham entre si quando ambos usam o mesmo dataframe agregado e aplicam a mesma regra de CPU: custo agregado dividido por volume agregado.
+
+**Ordem exata do cálculo para qualquer visualização em CPU**
+1. Aplicar os filtros da tela.
+2. Agregar o custo no nível da visualização.
+3. Agregar o volume no mesmo nível.
+4. Calcular o CPU sobre os agregados.
+5. Renderizar tabela, gráfico ou KPI.
+
+**Por que essa ordem é necessária**
+- Tabela e gráfico podem ter apresentações diferentes, mas não podem ter bases diferentes.
+- Se um visual usar CPU por linha e outro usar CPU agregado, ambos mostrarão números distintos para o mesmo período.
+
+**Fórmula explícita**
+
+$$
+CPU = \frac{\sum Custo}{\sum Volume}
+$$
+
+**Exemplo numérico completo**
+
+Abril filtrado:
+- Linha 1: R$ 300.000 e 6.000 unidades.
+- Linha 2: R$ 150.000 e 2.000 unidades.
+
+Tabela e gráfico corretos:
+1. Custo total = 300.000 + 150.000 = R$ 450.000.
+2. Volume total = 6.000 + 2.000 = 8.000.
+3. CPU do período = 450.000 / 8.000 = R$ 56,25.
+
+Erro clássico:
+1. CPU linha 1 = 50,00.
+2. CPU linha 2 = 75,00.
+3. Média simples = 62,50.
+
+Se um visual usar R$ 56,25 e o outro R$ 62,50, o problema não está no gráfico: está na ordem de cálculo.
+
+### 📋 O que entra e o que não entra
+
+**Entra**
+- Custo e volume do mesmo filtro.
+- Agregação no nível exibido.
+
+**Não entra**
+- Média de CPUs já calculados.
+- Volume fora do universo filtrado.
+- Fator K ou M aplicado antes do CPU.
+    """)
+
+    with st.expander("📌 Governança do ano completo (12 meses)", expanded=False):
+        st.markdown(r"""
+### 📅 Regra de ano completo
+
+Quando a visualização trabalha com ano completo, o sistema precisa comparar os 12 meses usando uma convenção única de agregação e ordenação.
+
+**Ordem exata da governança**
+1. Identificar os 12 meses válidos do ano selecionado.
+2. Garantir a ordenação calendário de Janeiro a Dezembro.
+3. Agregar custo e volume mês a mês.
+4. Calcular métricas mensais.
+5. Calcular o total anual somente após concluir os 12 meses.
+
+**Por que essa ordem é necessária**
+- O total anual não é um décimo terceiro mês; ele é a soma coerente dos 12 meses.
+- Se faltar mês, o ano completo fica parcial.
+- Se a ordenação ficar alfabética, a leitura temporal vira inconsistente.
+
+**Exemplo numérico completo**
+
+Suponha quatro meses já calculados:
+- Janeiro: R$ 100.000.
+- Fevereiro: R$ 120.000.
+- Março: R$ 110.000.
+- Abril: R$ 130.000.
+
+O acumulado parcial é R$ 460.000. O total anual correto só existe depois da soma de Janeiro a Dezembro. O sistema não deve misturar acumulado parcial com ano fechado.
+
+### 🔒 Regra de fechamento entre tabela e gráfico
+
+Tabela e gráfico devem mostrar os mesmos 12 pontos e o mesmo total anual. Se um deles excluir meses vazios e o outro mantiver zero explícito, a leitura comparativa do ano muda.
+    """)
+
+
+def _render_doc_tabelas_graficos_tc_veiculos() -> None:
+    with st.expander("📊 Análise Flex por Categoria", expanded=True):
+        st.markdown(r"""
+### 🧾 Como ler a tabela Flex por Account
+
+Na análise por categoria, a tabela não mostra apenas colunas decorativas. Cada coluna nasce de uma ordem lógica fixa.
+
+**Ordem exata do cálculo da tabela**
+1. Carregar o budget no perímetro da análise.
+2. Carregar o realizado no mesmo perímetro.
+3. Calcular o Flex Bud do período.
+4. Agregar tudo por Type 05, Type 06 e Account.
+5. Exibir as colunas derivadas: BUD, Flex Bud, Real, deltas e ratio.
+
+**Fórmulas explícitas**
+
+$$
+Flex\ Bud - BUD = Flex\ Bud - BUD
+$$
+
+$$
+Total - Flex\ Bud = Real - Flex\ Bud
+$$
+
+$$
+Total / Flex\ Bud = \frac{Real}{Flex\ Bud}
+$$
+
+**Exemplo numérico completo**
+- Account 450001.
+- BUD = R$ 200.000.
+- Flex Bud = R$ 218.000.
+- Real = R$ 226.000.
+
+Resultados:
+- Flex Bud - BUD = 218.000 - 200.000 = R$ 18.000.
+- Total - Flex Bud = 226.000 - 218.000 = R$ 8.000.
+- Total / Flex Bud = 226.000 / 218.000 = 103,67%.
+
+**O que entra**
+- Valor agregado da conta no período.
+- Classificação já consolidada por Type 05 e Type 06.
+
+**O que não entra**
+- Mistura entre contas diferentes antes da agregação da linha exibida.
+    """)
+
+    with st.expander("📈 Gráficos do TC Veículos", expanded=False):
+        st.markdown(r"""
+### 📉 Regra de fechamento entre barras, linha e delta
+
+No gráfico principal do TC Veículos, a barra mostra o real, a linha mostra o Flex Bud e o delta é a diferença entre os dois. Todos precisam sair do mesmo agregado por período.
+
+**Ordem exata do cálculo do gráfico**
+1. Agregar Real por período.
+2. Agregar Flex Bud por período.
+3. Calcular delta por período como Real menos Flex Bud.
+4. Enviar esses três vetores para o gráfico.
+
+**Fórmulas explícitas**
+
+$$
+Delta_{periodo} = Real_{periodo} - Flex\ Bud_{periodo}
+$$
+
+**Exemplo numérico completo**
+
+Junho:
+- Real = R$ 1.120.000.
+- Flex Bud = R$ 1.050.000.
+- Delta = R$ 70.000.
+
+Leitura correta do visual:
+- Barra em 1.120.000.
+- Linha em 1.050.000.
+- Faixa de delta em +70.000.
+
+Se o gráfico estiver em CPU, os mesmos valores precisam antes ser convertidos para custo agregado dividido por volume agregado do período. Não se deve desenhar a barra com CPU médio de linha.
+
+### 🎨 Cores e semântica
+
+- Cores ajudam leitura, mas não alteram a regra econômica.
+- Histórico e BE podem ter cores diferentes; a base numérica continua sendo a mesma lógica de agregação.
+    """)
+
+    with st.expander("📋 Tabs Disponíveis", expanded=False):
+        st.markdown(r"""
+### 🗂️ O que cada tab consome
+
+Cada tab do TC Veículos existe para uma granularidade analítica específica. A escolha da tab altera o recorte do dado, não a regra central de cálculo.
+
+**Resumo funcional**
+- TC Veículos: KPIs e comparação Real versus Flex por período.
+- Análise Flex: hierarquia Type 05 → Type 06 → Account.
+- Volume: confronto entre budget e realizado, inclusive por veículo.
+- Custos por Oficina: distribuição do custo no nível da oficina.
+- Tempo de Produção: base do rateio percentual por veículo.
+- Dados Detalhados: rastreabilidade linha a linha.
+
+**Por que isso importa para auditoria**
+- Um número que aparece em uma tab precisa reconciliar com outra, mas nem sempre no mesmo nível de agrupamento.
+- O usuário deve primeiro verificar a granularidade da tab antes de comparar dois valores aparentemente iguais.
+    """)
+
+
+def _render_doc_arquitetura_tc_ext() -> None:
+    with st.expander("🏗️ Camadas da Arquitetura do TC Ext", expanded=True):
+        st.markdown("""
+### Visão estrutural
+
+O TC Ext é organizado em quatro camadas que precisam permanecer coerentes entre si:
+
+1. Entrada e processamento: arquivos Excel, notebooks de extração e geração de parquets.
+2. Persistência: pastas anuais, histórico consolidado, Budget e Forecast.
+3. Camada compartilhada: utilitários em tc_core para paths, filtros, moeda, fator, cache e componentes de UI.
+4. Consumo analítico: Home, Waterfall, Best Estimate, alertas e documentação.
+
+### Estrutura lógica do projeto
+
+```text
+TC/
+├── app.py
+├── pages/
+├── tc_ext/
+├── tc_principal/
+├── tc_core/
+├── tc_copilot/
+├── alertas/
+└── dados/
+    ├── TC_Ext/
+    │   ├── {ANO}/
+    │   ├── Forecast/
+    │   └── historico_consolidado/
+    └── TC_Principal/
+```
+
+### Papel de cada bloco
+- app.py: portal, menu, controle de navegação e bootstrap do ambiente.
+- pages/: páginas legadas, incluindo Waterfall e esta documentação.
+- tc_ext/: regras e páginas do TC Ext.
+- tc_core/: contratos comuns de paths, schemas, cache, componentes e helpers de cálculo.
+- dados/TC_Ext/: fonte persistida de Real, Budget, histórico e Forecast.
+        """)
+
+    with st.expander("🧱 Fluxo arquitetural do dado ao número exibido", expanded=False):
+        st.markdown("""
+### Sequência obrigatória
+
+1. O usuário ou job processa Excel bruto.
+2. O processamento grava parquets anuais e históricos.
+3. As páginas carregam parquets via loaders compartilhados.
+4. Os filtros recortam o mesmo perímetro para custo e volume.
+5. Os agrupamentos são feitos antes de qualquer cálculo derivado de CPU ou Flex.
+6. Só depois a interface monta KPI, tabela, gráfico e exportação.
+
+### Por que isso importa
+- Se a UI calcular antes da agregação, o número fica visualmente plausível, mas matematicamente errado.
+- Se loaders diferentes usarem pastas diferentes, Real, Budget e histórico deixam de conversar.
+- Se a camada compartilhada for ignorada, surge divergência entre página, executável e cloud.
+        """)
+
+    with st.expander("📁 Contratos de pastas e artefatos", expanded=False):
+        st.markdown("""
+### Contrato de persistência do TC Ext
+
+Ano corrente:
+- dados/TC_Ext/{ANO}/df_final.parquet
+- dados/TC_Ext/{ANO}/df_vol.parquet
+- dados/TC_Ext/{ANO}/df_ke5z_group.parquet
+
+Budget:
+- dados/TC_Ext/{ANO}/BUD/df_final_BUD.parquet
+- dados/TC_Ext/{ANO}/BUD/df_vol_BUD.parquet
+- dados/TC_Ext/{ANO}/BUD/df_ke5z_group_BUD.parquet
+
+Histórico consolidado:
+- dados/TC_Ext/historico_consolidado/df_final_historico.parquet
+- dados/TC_Ext/historico_consolidado/df_vol_historico.parquet
+- dados/TC_Ext/historico_consolidado/BUD/df_final_historico_BUD.parquet
+
+Forecast:
+- dados/TC_Ext/Forecast/forecast_completo.parquet
+- dados/TC_Ext/Forecast/custos_especificos.parquet
+
+Esses caminhos formam o contrato usado por desenvolvimento local, executável e cloud.
+        """)
+
+
+def _render_doc_arquitetura_tc_veiculos() -> None:
+    with st.expander("🚗 Arquitetura funcional do TC Veículos", expanded=True):
+        st.markdown("""
+### Visão de alto nível
+
+O TC Veículos tem uma arquitetura mais analítica porque precisa preservar a cadeia de composição de custo até o veículo.
+
+### Camadas
+1. Entrada: Reporting veículos.xlsx e insumos auxiliares por ano.
+2. Processamento Budget: processamento_dados_veiculos_BUD.py.
+3. Processamento Real: processamento_dados_veiculos.py.
+4. Persistência: parquets principais, por veículo, CPU, tempos, D&A e comparativos.
+5. Consumo: páginas em tc_principal/pages, alertas, Home e Best Estimate.
+        """)
+
+    with st.expander("📂 Parquets e contratos críticos", expanded=False):
+        st.markdown("""
+### Budget
+- df_principal_BUD.parquet
+- df_vol_veiculos_BUD.parquet
+- df_tempo_veiculos_BUD.parquet
+- df_dea_dedicado_BUD.parquet
+- df_veiculos_custo_fp_BUD.parquet
+- df_veiculos_cpu_BUD.parquet
+
+### Real
+- df_principal.parquet
+- df_tc_sapiens.parquet
+- df_vol_veiculos_actual.parquet
+- df_tempo_veiculos.parquet
+- df_dea_dedicado.parquet
+- df_veiculos_custo_fp.parquet
+- df_veiculos_cpu.parquet
+
+Quando o filtro de veículo é aplicado, o app troca o dataset consumido e passa da visão consolidada para a visão rateada.
+        """)
+
+    with st.expander("⚙️ Ordem arquitetural do pipeline", expanded=False):
+        st.markdown("""
+1. Ler abas obrigatórias do Excel.
+2. Normalizar nomes, períodos e tipos.
+3. Calcular custos intermediários: despesa primária, FA, FP, D&A dedicado e FP sem dedicada.
+4. Calcular tempo por veículo.
+5. Transformar tempo em percentual de rateio.
+6. Ratear custo ao veículo.
+7. Calcular custo FP do veículo.
+8. Calcular CPU por veículo a partir de custo agregado e volume agregado.
+9. Persistir parquets do ano e consolidar histórico.
+        """)
+
+
+def _render_doc_especificacao_tc_ext() -> None:
+    with st.expander("🧾 Especificação técnica do TC Ext", expanded=True):
+        st.markdown(r"""
+### Objetivo técnico
+
+O TC Ext deve responder três perguntas sem exigir leitura do código:
+1. Qual é o custo total do perímetro filtrado?
+2. Como esse custo se compara a Budget, Flex Bud ou período anterior?
+3. Qual volume sustenta o cálculo de CPU exibido?
+
+### Entidades principais
+- Custo: valor monetário base para agrupamentos.
+- Volume: denominador dos cálculos de CPU.
+- Período: mês/ano ou agregações maiores.
+- Custo fixo/variável: classificação usada no Flex Bud.
+- Dimensões analíticas: Oficina, Type 05, Type 06, Account e demais filtros.
+
+### Regras técnicas imutáveis
+1. CPU sempre nasce de $\sum custo / \sum volume$.
+2. Flex Bud sempre é calculado em custo total antes de qualquer conversão para CPU.
+3. O filtro aplicado ao custo precisa ter equivalente lógico no volume.
+4. Conversão de moeda e fator são etapas finais de apresentação, não de negócio.
+        """)
+
+    with st.expander("📐 Sequência técnica de cálculo e renderização", expanded=False):
+        st.markdown(r"""
+### Pipeline da consulta
+1. Carregar Real, Budget e volumes.
+2. Aplicar filtros de negócio.
+3. Agregar no nível da visualização.
+4. Calcular Flex Bud em custo total.
+5. Calcular deltas monetários.
+6. Se o modo for CPU, dividir cada bloco agregado por seu volume agregado.
+7. Só então formatar e plotar.
+
+### Exemplo de auditoria
+
+Suponha:
+- Real = R$ 900.000
+- Budget = R$ 840.000
+- Volume Real = 45.000
+- Volume Budget = 42.000
+- Budget fixo = R$ 240.000
+- Budget variável = R$ 600.000
+
+Passos:
+1. $\rho = 45.000 / 42.000 = 1,0714286$
+2. Flex variável = 600.000 × 1,0714286 = R$ 642.857,16
+3. Flex total = 240.000 + 642.857,16 = R$ 882.857,16
+4. CPU Real = 900.000 / 45.000 = R$ 20,00
+5. CPU Flex = 882.857,16 / 45.000 = R$ 19,62
+6. Delta Real vs Flex = R$ 17.142,84 em total ou R$ 0,38 em CPU
+        """)
+
+
+def _render_doc_especificacao_tc_veiculos() -> None:
+    with st.expander("🚗 Especificação técnica do TC Veículos", expanded=True):
+        st.markdown(r"""
+### Objetivo técnico
+
+No TC Veículos, a especificação precisa preservar a rastreabilidade entre oficina, conta, veículo e volume produzido.
+
+### Unidades lógicas do sistema
+- Linha de custo original: nasce da extração Real ou Budget.
+- Linha rateada por veículo: valor redistribuído pela lógica de tempo/proporção.
+- Linha de D&A dedicado: permanece vinculada diretamente ao veículo/oficina correspondente.
+- Linha de CPU: nasce sempre da relação entre custo FP do veículo e volume do veículo.
+
+### Contrato funcional
+1. Sem filtro de veículo o usuário enxerga visão consolidada.
+2. Com filtro de veículo, a análise passa a operar sobre bases rateadas.
+3. Flex Bud respeita a mesma classificação Fixo/Variável na visão por veículo.
+4. Alertas e Best Estimate reutilizam o mesmo contrato de granularidade.
+        """)
+
+    with st.expander("🔎 Exemplo auditável por veículo", expanded=False):
+        st.markdown(r"""
+### Cenário
+
+Uma oficina possui:
+- FP sem dedicada = R$ 500.000
+- D&A dedicado do veículo A = R$ 80.000
+- Tempo total da oficina = 10.000 horas
+- Tempo do veículo A = 2.500 horas
+- Volume do veículo A = 5.000 unidades
+
+### Ordem exata
+1. Percentual de rateio do veículo A = 2.500 / 10.000 = 25%
+2. Custo rateado ao veículo A = 500.000 × 25% = R$ 125.000
+3. Custo FP do veículo A = 125.000 + 80.000 = R$ 205.000
+4. CPU do veículo A = 205.000 / 5.000 = R$ 41,00 por unidade
+
+Se a D&A for rateada junto com FP sem dedicada ou se o CPU for calculado antes da consolidação do custo por veículo, o número final deixa de fechar com a lógica implementada.
+        """)
+
+
+def _render_doc_visao_geral_tecnica() -> None:
+    metricas_core = {
+        "Arquivos Core": 62,
+        "Linhas Core": 84674,
+        "Telas": 15,
+        "Blocos": 7,
+    }
+    metricas_workspace = {
+        "Arquivos Workspace": 296,
+        "Linhas Workspace": 306426,
+    }
+
+    df_arquivos = pd.DataFrame(
+        {
+            "Camada": ["Núcleo", "Workspace ampliado"],
+            "Arquivos Python": [
+                metricas_core["Arquivos Core"],
+                metricas_workspace["Arquivos Workspace"],
+            ],
+        }
+    ).set_index("Camada")
+    df_loc = pd.DataFrame(
+        {
+            "Camada": ["Núcleo", "Workspace ampliado"],
+            "Linhas de código": [
+                metricas_core["Linhas Core"],
+                metricas_workspace["Linhas Workspace"],
+            ],
+        }
+    ).set_index("Camada")
+
+    st.markdown(
+        """
+    <style>
+        .sci-tech-hero {
+            background: radial-gradient(circle at top left, #284b63 0%, #13293d 42%, #0b1f2a 100%);
+            border: 1px solid rgba(168, 218, 220, 0.18);
+            border-radius: 24px;
+            padding: 26px 28px;
+            color: #f8fafc;
+            box-shadow: 0 18px 45px rgba(11, 31, 42, 0.28);
+            margin-bottom: 1rem;
+        }
+        .sci-tech-chip {
+            display: inline-block;
+            margin: 0 10px 10px 0;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 0.80rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: #dbeafe;
+            background: rgba(125, 211, 252, 0.10);
+            border: 1px solid rgba(125, 211, 252, 0.22);
+        }
+        .sci-kpi-card {
+            min-height: 152px;
+            border-radius: 22px;
+            padding: 18px 18px 16px 18px;
+            background: linear-gradient(160deg, #102a43 0%, #1f4e5f 52%, #2c7a7b 100%);
+            border: 1px solid rgba(148, 210, 189, 0.18);
+            box-shadow: 0 14px 35px rgba(16, 42, 67, 0.18);
+            color: white;
+            margin-bottom: 0.8rem;
+        }
+        .sci-kpi-value {
+            font-size: 2.15rem;
+            line-height: 1;
+            font-weight: 800;
+            margin: 8px 0 6px 0;
+            letter-spacing: -0.03em;
+        }
+        .sci-kpi-label {
+            font-size: 0.86rem;
+            color: #d9f3f4;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .sci-kpi-note {
+            font-size: 0.84rem;
+            color: #e6fffb;
+            opacity: 0.92;
+        }
+        .sci-stack-card {
+            min-height: 128px;
+            border-radius: 20px;
+            padding: 16px 16px 14px 16px;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef6fb 100%);
+            border: 1px solid rgba(31, 78, 95, 0.12);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            margin-bottom: 0.8rem;
+        }
+        .sci-stack-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #12344d;
+            margin-bottom: 0.2rem;
+        }
+        .sci-stack-note {
+            font-size: 0.84rem;
+            color: #486581;
+            line-height: 1.45;
+        }
+        .sci-flow-wrap {
+            border-radius: 24px;
+            padding: 18px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f2f7fb 100%);
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            margin: 0.8rem 0 1rem 0;
+        }
+        .sci-flow-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: stretch;
+            justify-content: space-between;
+        }
+        .sci-flow-node {
+            flex: 1 1 140px;
+            min-height: 112px;
+            border-radius: 18px;
+            padding: 16px 14px;
+            background: linear-gradient(160deg, #0f4c5c 0%, #2c7a7b 100%);
+            color: white;
+            box-shadow: 0 12px 24px rgba(15, 76, 92, 0.14);
+        }
+        .sci-flow-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+        .sci-flow-note {
+            font-size: 0.82rem;
+            opacity: 0.92;
+            line-height: 1.35;
+        }
+        .sci-flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2c7a7b;
+            font-size: 1.6rem;
+            font-weight: 800;
+            min-width: 26px;
+        }
+        .sci-stage-card {
+            min-height: 120px;
+            border-radius: 18px;
+            padding: 16px 14px;
+            background: linear-gradient(180deg, #fffdf7 0%, #fff4d6 100%);
+            border: 1px solid rgba(194, 120, 3, 0.16);
+            margin-bottom: 0.8rem;
+        }
+        .sci-stage-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: #8d5b00;
+        }
+        .sci-stage-note {
+            font-size: 0.83rem;
+            color: #7c5e10;
+            margin-top: 0.35rem;
+            line-height: 1.4;
+        }
+        .sci-value-card {
+            min-height: 148px;
+            border-radius: 20px;
+            padding: 18px 16px;
+            background: linear-gradient(160deg, #111827 0%, #1f2937 100%);
+            color: #f9fafb;
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            box-shadow: 0 12px 26px rgba(17, 24, 39, 0.18);
+        }
+        .sci-value-title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 0.35rem;
+        }
+        .sci-value-note {
+            font-size: 0.84rem;
+            color: #d1d5db;
+            line-height: 1.45;
+        }
+        .sci-subtitle {
+            font-size: 0.92rem;
+            color: #486581;
+            margin-bottom: 0.4rem;
+        }
+    </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+    <div class="sci-tech-hero">
+        <div style="font-size: 0.82rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #8bd3dd; margin-bottom: 8px;">
+            Plataforma técnica integrada
+        </div>
+        <div style="font-size: 2.55rem; line-height: 1.02; font-weight: 900; max-width: 860px; margin-bottom: 12px;">
+            O SCI já opera como sistema de engenharia, dados, cloud e inteligência aplicada.
+        </div>
+        <div style="font-size: 1rem; line-height: 1.55; color: #dbeafe; max-width: 920px; margin-bottom: 16px;">
+            Mais do que um painel, o SCI conecta processamento, persistência, análise executiva,
+            simulação, automação e IA em uma única base técnica coerente.
+        </div>
+        <span class="sci-tech-chip">Dados estruturados</span>
+        <span class="sci-tech-chip">Cloud ready</span>
+        <span class="sci-tech-chip">Forecast + alertas</span>
+        <span class="sci-tech-chip">TC Copilot</span>
+        <span class="sci-tech-chip">Governança e rastreabilidade</span>
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Escala do sistema")
+    st.markdown(
+        "<div class='sci-subtitle'>Números conservadores do projeto atual para mostrar dimensão real, não marketing vazio.</div>",
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+    cards_kpi = [
+        (
+            col1,
+            "Arquivos core",
+            f"{metricas_core['Arquivos Core']}",
+            "núcleo principal da aplicação",
+        ),
+        (
+            col2,
+            "Linhas core",
+            "84k+",
+            "código Python no núcleo do produto",
+        ),
+        (
+            col3,
+            "Telas",
+            f"{metricas_core['Telas']}",
+            "jornadas Streamlit em operação",
+        ),
+        (
+            col4,
+            "Blocos",
+            f"{metricas_core['Blocos']}",
+            "camadas centrais de responsabilidade",
+        ),
+    ]
+
+    for coluna, rotulo, valor, nota in cards_kpi:
+        with coluna:
+            st.markdown(
+                f"""
+            <div class="sci-kpi-card">
+                <div class="sci-kpi-label">{rotulo}</div>
+                <div class="sci-kpi-value">{valor}</div>
+                <div class="sci-kpi-note">{nota}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    col_chart1, col_chart2 = st.columns(2)
+    with col_chart1:
+        st.markdown("**Arquivos Python**")
+        st.bar_chart(df_arquivos, color="#2c7a7b")
+        st.caption("62 no núcleo principal e 296 no workspace ampliado atual.")
+
+    with col_chart2:
+        st.markdown("**Linhas de código Python**")
+        st.bar_chart(df_loc, color="#1d4ed8")
+        st.caption("84 mil+ no núcleo do produto e 306 mil+ no ecossistema ampliado.")
+
+    st.markdown("### Stack tecnológico")
+    st.markdown(
+        "<div class='sci-subtitle'>Ferramentas escolhidas para sustentar interface, cloud, dados, automação, exportação e IA sem inflar a complexidade para o usuário final.</div>",
+        unsafe_allow_html=True,
+    )
+
+    tecnologia_cards = [
+        ("🐍 Python", "Linguagem-base do SCI, unificando regras, processamento, integração e app."),
+        ("📺 Streamlit", "Camada de interface analítica com velocidade alta de evolução de produto."),
+        ("☁️ Databricks Apps", "Execução cloud do app com publicação e operação corporativa."),
+        ("❄️ Snowflake", "Camada de dados e integração analítica no ecossistema ampliado."),
+        ("🧬 Git / GitHub Enterprise", "Versionamento, governança de mudança e rastreabilidade do código."),
+        ("🤖 Serving Endpoints", "Base de APIs e recursos de IA usados pelo TC Copilot."),
+        ("🐼 pandas + numpy", "Transformação, modelagem e manipulação intensiva de dados."),
+        ("📈 Altair + Plotly", "Visualização interativa, comparativos e leitura executiva dos números."),
+        ("📦 openpyxl + PyArrow", "Exportação Excel e persistência rápida em Parquet."),
+    ]
+
+    for linha_inicio in range(0, len(tecnologia_cards), 3):
+        cols = st.columns(3)
+        for coluna, (titulo, descricao) in zip(cols, tecnologia_cards[linha_inicio:linha_inicio + 3]):
+            with coluna:
+                st.markdown(
+                    f"""
+                <div class="sci-stack-card">
+                    <div class="sci-stack-title">{titulo}</div>
+                    <div class="sci-stack-note">{descricao}</div>
+                </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown("### Arquitetura em uma leitura")
+    st.markdown(
+        "<div class='sci-subtitle'>Sem entrar em regra funcional detalhada, esta é a espinha dorsal que sustenta o SCI como plataforma.</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+    <div class="sci-flow-wrap">
+        <div class="sci-flow-row">
+            <div class="sci-flow-node">
+                <div class="sci-flow-title">📥 Fonte</div>
+                <div class="sci-flow-note">Excel, bases corporativas e insumos operacionais entram no pipeline com estrutura controlada.</div>
+            </div>
+            <div class="sci-flow-arrow">→</div>
+            <div class="sci-flow-node">
+                <div class="sci-flow-title">⚙️ Processamento</div>
+                <div class="sci-flow-note">Normalização, transformação, persistência e publicação em fluxo repetível.</div>
+            </div>
+            <div class="sci-flow-arrow">→</div>
+            <div class="sci-flow-node">
+                <div class="sci-flow-title">💾 Armazenamento</div>
+                <div class="sci-flow-note">Parquets, históricos, budget e forecast sustentam leitura rápida e auditável.</div>
+            </div>
+            <div class="sci-flow-arrow">→</div>
+            <div class="sci-flow-node">
+                <div class="sci-flow-title">📊 Análise</div>
+                <div class="sci-flow-note">Camadas analíticas transformam o dado bruto em sinal executivo e operacional.</div>
+            </div>
+            <div class="sci-flow-arrow">→</div>
+            <div class="sci-flow-node">
+                <div class="sci-flow-title">🖥️ Interface</div>
+                <div class="sci-flow-note">O usuário recebe uma experiência contínua entre leitura, comparação, forecast, alertas e IA.</div>
+            </div>
+        </div>
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_data, col_rules, col_view, col_sim, col_ai = st.columns(5)
+    pilares = [
+        (col_data, "Dados", "bases, histórico e persistência"),
+        (col_rules, "Regras", "contratos e lógica compartilhada"),
+        (col_view, "Visualização", "dashboards e leitura executiva"),
+        (col_sim, "Simulação", "forecast e cenários"),
+        (col_ai, "IA", "copilot e resposta inteligente"),
+    ]
+    for coluna, titulo, nota in pilares:
+        with coluna:
+            st.markdown(
+                f"""
+            <div style="border-radius: 16px; padding: 14px 12px; background: #f8fbff; border: 1px solid rgba(18, 52, 77, 0.10); text-align: center; margin-bottom: 0.6rem;">
+                <div style="font-size: 0.95rem; font-weight: 800; color: #12344d;">{titulo}</div>
+                <div style="font-size: 0.78rem; color: #627d98; margin-top: 4px;">{nota}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("### Maturidade do SCI")
+    st.markdown(
+        "<div class='sci-subtitle'>O projeto já combina operação real, cloud, automação, forecast, alertas e IA. A leitura correta é sistema em produção e evolução contínua.</div>",
+        unsafe_allow_html=True,
+    )
+
+    etapas = [
+        ("📚 Base estruturada", "Dados consolidados, histórico, budget e governança de persistência."),
+        ("☁️ Cloud ativa", "Execução no Databricks Apps com publicação e sincronização controladas."),
+        ("🔮 Forecast", "Simulação e projeção integradas ao produto."),
+        ("🚨 Alertas", "Monitoramento ativo e priorização do que mais importa."),
+        ("🤖 TC Copilot", "IA aplicada para ampliar interpretação, produtividade e explicação."),
+    ]
+    cols = st.columns(5)
+    for coluna, (titulo, nota) in zip(cols, etapas):
+        with coluna:
+            st.markdown(
+                f"""
+            <div class="sci-stage-card">
+                <div class="sci-stage-title">{titulo}</div>
+                <div class="sci-stage-note">{nota}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("### Por que isso tem valor técnico")
+    col_v1, col_v2, col_v3 = st.columns(3)
+    valores = [
+        (
+            col_v1,
+            "📄 Sai da planilha",
+            "Substitui controles dispersos por uma base reproduzível, organizada e muito menos frágil.",
+        ),
+        (
+            col_v2,
+            "🔒 Reduz risco operacional",
+            "Centraliza regra, histórico, visualização e publicação em um fluxo governado.",
+        ),
+        (
+            col_v3,
+            "📈 Escala com consistência",
+            "A arquitetura permite crescer para novas plantas, novos módulos e novos ambientes sem recomeçar do zero.",
+        ),
+    ]
+    for coluna, titulo, nota in valores:
+        with coluna:
+            st.markdown(
+                f"""
+            <div class="sci-value-card">
+                <div class="sci-value-title">{titulo}</div>
+                <div class="sci-value-note">{nota}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _render_doc_tc_cloud() -> None:
+    with st.expander("🏗️ Arquitetura cloud validada", expanded=True):
+        st.markdown("""
+### Separação operacional
+
+O ambiente Databricks estável foi estruturado em dois blocos:
+
+```text
+/Workspace/.../Drafts/sci
+├── dados/
+├── notebooks/
+├── jobs/
+├── src/
+└── workspace_publish/
+
+/Workspace/.../Drafts/sci_app/sci_app
+├── app.py
+├── pages/
+├── tc_core/
+├── tc_principal/
+├── tc_ext/
+├── tc_copilot/
+└── alertas/
+```
+
+Essa separação impede mistura entre app, pipeline e dados pesados.
+        """)
+
+    with st.expander("🚗 Fluxo do TC Veículos no Databricks", expanded=False):
+        st.markdown("""
+1. Excel é colocado em dados/TC_Principal/{ANO}/.
+2. Scripts Real e Budget processam as abas necessárias.
+3. Parquets são gravados no workspace.
+4. O app sobe definindo SCI_SHARED_DATA_ROOT antes de importar páginas.
+5. A Home do TC Veículos lê os mesmos parquets usados localmente.
+        """)
+
+    with st.expander("🧰 Notebooks, jobs e checklist anti-regressão", expanded=False):
+        st.markdown("""
+Notebooks validados:
+1. 00_validar_ambiente_databricks.py
+2. 01_criar_tabelas_delta.py
+3. 03_processar_e_publicar_delta.py
+4. 05_validacao_pos_job.py
+5. 06_ui_consulta_workspace.py
+
+Regras para não regredir:
+- app.py precisa configurar o ambiente antes de importar páginas;
+- uploads no Workspace devem continuar via SDK com remoção prévia quando necessário;
+- o fluxo local não deve sobrescrever silenciosamente o que está estável no cloud.
+        """)
+
+    with st.expander("🔁 Sincronização local e remota", expanded=False):
+        st.markdown("""
+Quando o Databricks App estiver mais atualizado ou mais estável que a cópia local, o remoto passa a ser a referência operacional.
+
+Fluxo seguro:
+1. puxar o app remoto;
+2. atualizar a cópia TC-Cloud;
+3. propagar para a raiz do repositório e espelhos locais;
+4. validar que o conjunto publicado continua consistente.
+        """)
+
+
+def _render_doc_apresentacao_styles() -> None:
+    st.markdown(
+        """
+    <style>
+        .sci-slide-hero {
+            padding: 1.6rem 1.7rem;
+            background: linear-gradient(135deg, #0b1f2a 0%, #164e63 52%, #99f6e4 100%);
+            border-radius: 20px;
+            margin-bottom: 1rem;
+            color: white;
+            border: 1px solid rgba(153, 246, 228, 0.18);
+            box-shadow: 0 18px 40px rgba(11, 31, 42, 0.18);
+        }
+        .sci-slide-kicker {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 800;
+            color: #ccfbf1;
+            margin-bottom: 0.55rem;
+        }
+        .sci-slide-title {
+            font-size: 2rem;
+            line-height: 1.05;
+            font-weight: 900;
+            margin-bottom: 0.45rem;
+        }
+        .sci-slide-subtitle {
+            font-size: 0.98rem;
+            line-height: 1.55;
+            color: #ecfeff;
+            max-width: 920px;
+        }
+        .sci-slide-card {
+            min-height: 138px;
+            border-radius: 18px;
+            padding: 16px 15px;
+            background: linear-gradient(180deg, #fbfdff 0%, #eef6fb 100%);
+            border: 1px solid rgba(22, 78, 99, 0.12);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+            margin-bottom: 0.8rem;
+        }
+        .sci-slide-card-title {
+            font-size: 0.94rem;
+            font-weight: 800;
+            color: #12344d;
+            margin-bottom: 0.25rem;
+        }
+        .sci-slide-card-body {
+            font-size: 0.84rem;
+            color: #486581;
+            line-height: 1.45;
+        }
+        .sci-slide-flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 0.6rem 0 1rem 0;
+        }
+        .sci-slide-flow-step {
+            flex: 1 1 140px;
+            min-height: 92px;
+            border-radius: 16px;
+            padding: 14px 13px;
+            background: linear-gradient(160deg, #12344d 0%, #1f6f8b 100%);
+            color: white;
+            box-shadow: 0 12px 24px rgba(18, 52, 77, 0.12);
+        }
+        .sci-slide-flow-step strong {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.92rem;
+        }
+        .sci-slide-flow-arrow {
+            font-size: 1.45rem;
+            font-weight: 900;
+            color: #0f766e;
+            padding: 0 2px;
+        }
+        .sci-slide-example {
+            border-radius: 16px;
+            padding: 14px 15px;
+            background: linear-gradient(180deg, #fffdf7 0%, #fff5d6 100%);
+            border: 1px solid rgba(194, 120, 3, 0.18);
+            margin-top: 0.7rem;
+            margin-bottom: 0.4rem;
+        }
+        .sci-slide-example-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: #8d5b00;
+            margin-bottom: 0.3rem;
+        }
+        .sci-slide-example-body {
+            font-size: 0.84rem;
+            color: #7c5e10;
+            line-height: 1.45;
+        }
+        .sci-slide-notes {
+            border-radius: 14px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px dashed rgba(71, 85, 105, 0.28);
+            font-size: 0.83rem;
+            color: #475569;
+            margin-top: 0.7rem;
+        }
+        .sci-slide-chip {
+            display: inline-block;
+            margin: 0 10px 10px 0;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(20, 184, 166, 0.10);
+            border: 1px solid rgba(20, 184, 166, 0.16);
+            color: #115e59;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+    </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_doc_apresentacao_cards(cards, columns_per_row=3) -> None:
+    if not cards:
+        return
+    chunk = max(1, min(columns_per_row, len(cards)))
+    for start in range(0, len(cards), chunk):
+        row = cards[start:start + chunk]
+        cols = st.columns(len(row))
+        for col, card in zip(cols, row):
+            with col:
+                st.markdown(
+                    f"""
+                <div class="sci-slide-card">
+                    <div class="sci-slide-card-title">{card['title']}</div>
+                    <div class="sci-slide-card-body">{card['body']}</div>
+                </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+def _render_doc_apresentacao_flow(steps) -> None:
+    if not steps:
+        return
+    parts = []
+    for index, step in enumerate(steps):
+        parts.append(
+            f"""
+        <div class="sci-slide-flow-step">
+            <strong>{step['title']}</strong>
+            <span>{step['body']}</span>
+        </div>
+            """
+        )
+        if index < len(steps) - 1:
+            parts.append('<div class="sci-slide-flow-arrow">→</div>')
+    st.markdown(
+        f"<div class=\"sci-slide-flow\">{''.join(parts)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_doc_apresentacao_example(title, body) -> None:
+    if not title and not body:
+        return
+    st.markdown(
+        f"""
+    <div class="sci-slide-example">
+        <div class="sci-slide-example-title">{title}</div>
+        <div class="sci-slide-example-body">{body}</div>
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _get_doc_apresentacao_slides():
+    return [
+        {
+            'numero': 1,
+            'titulo': 'Slide 1 — Plataforma SCI',
+            'kicker': 'Etapa 1 • Visão de plataforma',
+            'headline': 'SCI consolida leitura, explicação, projeção e monitoramento em uma única camada operacional.',
+            'subtitle': 'O projeto deixa de ser um conjunto de planilhas e passa a operar como plataforma de decisão com dados confiáveis, regras consistentes e narrativa executiva pronta para ação.',
+            'bullets': [
+                'Um ponto único para custo, volume, flex, waterfall, forecast, alertas e IA.',
+                'Mesma base técnica suporta leitura operacional e visão executiva.',
+                'Reduz tempo entre identificar um desvio e tomar uma decisão.',
+            ],
+            'cards': [
+                {'title': 'Entender', 'body': 'Consolida custo, volume e contexto na mesma conversa.'},
+                {'title': 'Explicar', 'body': 'Waterfall e flex mostram a causa, não só o número.'},
+                {'title': 'Projetar', 'body': 'Best Estimate transforma histórico em cenário futuro.'},
+                {'title': 'Monitorar', 'body': 'Alertas e relatórios encurtam o ciclo de reação.'},
+            ],
+            'flow': [
+                {'title': 'Fonte', 'body': 'Excel, SAP e bases corporativas'},
+                {'title': 'Tratamento', 'body': 'Validação, regras e persistência'},
+                {'title': 'Leitura', 'body': 'Dashboards e análises executivas'},
+                {'title': 'Ação', 'body': 'Forecast, alertas e comunicação'},
+            ],
+            'notes': 'Abrir posicionando o SCI como sistema de decisão, não como dashboard isolado.',
+            'layout': 'executive-cards',
+            'expanded': True,
+        },
+        {
+            'numero': 2,
+            'titulo': 'Slide 2 — Equipe do SCI',
+            'custom_renderer': 'team',
+            'notes': 'Reapresentar a equipe exatamente como já existe na documentação, preservando conteúdo e contexto.',
+            'layout': 'embedded-section',
+        },
+        {
+            'numero': 3,
+            'titulo': 'Slide 3 — Visão Geral Técnica',
+            'custom_renderer': 'tech-overview',
+            'notes': 'Mostrar dimensão real do sistema e distinguir núcleo do produto versus workspace ampliado.',
+            'layout': 'embedded-section',
+        },
+        {
+            'numero': 4,
+            'titulo': 'Slide 4 — Arquitetura funcional do app',
+            'kicker': 'Navegação executiva',
+            'headline': 'A estrutura do SCI já está organizada para o usuário percorrer diagnóstico, explicação e ação em uma trilha única.',
+            'subtitle': 'A navegação foi desenhada para levar do contexto geral aos módulos analíticos e, depois, para mecanismos de sustentação e comunicação.',
+            'bullets': [
+                'Home e módulos centrais concentram a leitura do negócio.',
+                'Waterfall e Best Estimate explicam presente e futuro com a mesma base.',
+                'Alertas, relatórios, copilot e documentação fecham governança e escala.',
+            ],
+            'cards': [
+                {'title': 'Home', 'body': 'KPIs, contexto e leitura rápida do desvio.'},
+                {'title': 'TC Ext', 'body': 'Análise por oficina, conta, período e flex.'},
+                {'title': 'TC Veículos', 'body': 'Cadeia de custo até o veículo e CPU.'},
+                {'title': 'Waterfall', 'body': 'Explica a ponte Budget → Flex → Real.'},
+                {'title': 'Best Estimate', 'body': 'Projeta cenário futuro com premissas ajustáveis.'},
+                {'title': 'Alertas e Relatórios', 'body': 'Transformam desvio em comunicação acionável.'},
+                {'title': 'TC Copilot', 'body': 'Adiciona resposta rápida e síntese inteligente.'},
+                {'title': 'Documentação', 'body': 'Preserva regra, arquitetura e onboarding técnico.'},
+            ],
+            'flow': [
+                {'title': 'Home', 'body': 'Contexto executivo'},
+                {'title': 'TC Ext / Veículos', 'body': 'Leitura analítica'},
+                {'title': 'Waterfall / BE', 'body': 'Causa e projeção'},
+                {'title': 'Alertas / Copilot', 'body': 'Escala e ação'},
+            ],
+            'notes': 'Conduzir a leitura como arquitetura de produto, não como lista de telas.',
+            'layout': 'app-map',
+        },
+        {
+            'numero': 5,
+            'titulo': 'Slide 5 — Extração e processamento',
+            'kicker': 'Base confiável antes da análise',
+            'headline': 'O número só ganha legitimidade quando entra validado, tratado e persistido no formato certo.',
+            'subtitle': 'O pipeline reduz retrabalho, garante rastreabilidade e separa claramente fonte, tratamento, persistência e consumo no app.',
+            'bullets': [
+                'Entrada de Excel/SAP é normalizada antes de qualquer visualização.',
+                'Parquet vira contrato de velocidade, consistência e reuso entre local, EXE e cloud.',
+                'Flex Budget já nasce apoiado em custo fixo, custo variável e volume coerente.',
+            ],
+            'flow': [
+                {'title': 'Excel / SAP', 'body': 'Fontes operacionais e corporativas'},
+                {'title': 'Validação', 'body': 'Abas, colunas e período corretos'},
+                {'title': 'Tratamento', 'body': 'Normalização, merge e rateio'},
+                {'title': 'Parquet', 'body': 'Persistência auditável e rápida'},
+                {'title': 'App', 'body': 'Consumo unificado nos módulos'},
+            ],
+            'formula': r'Flex\ Bud = Custo\ Fixo + (Custo\ Variavel \times \frac{Volume\ Real}{Volume\ Budget})',
+            'example_title': 'Exemplo executivo',
+            'example_body': 'Se o budget tem R$ 180 mil fixos, R$ 320 mil variáveis, volume budget de 40 mil e volume real de 46 mil, o flex fica em R$ 548 mil.',
+            'notes': 'Enfatizar que a confiança do SCI nasce do pipeline, não do gráfico.',
+            'layout': 'flow-formula',
+        },
+        {
+            'numero': 6,
+            'titulo': 'Slide 6 — Waterfall e leitura do desvio',
+            'kicker': 'Explicação antes da reação',
+            'headline': 'Waterfall traduz o desvio em causa econômica: quanto veio de volume, quanto veio da operação.',
+            'subtitle': 'A leitura executiva deixa de ser “estamos acima do budget” e passa a ser “quanto era esperado no volume real e quanto ainda ficou fora da curva”.',
+            'bullets': [
+                'Budget é a referência original do plano.',
+                'Flex corrige o esperado para o volume efetivamente realizado.',
+                'Real mostra o que ainda ficou acima ou abaixo do esperado operacional.',
+            ],
+            'flow': [
+                {'title': 'Budget', 'body': 'Plano original'},
+                {'title': 'Flex', 'body': 'Plano ajustado pelo volume'},
+                {'title': 'Real', 'body': 'Resultado efetivo'},
+            ],
+            'formula': r'Delta\ Operacional = Real - Flex\ Bud',
+            'example_title': 'Exemplo executivo',
+            'example_body': 'Budget de R$ 600 mil, Flex de R$ 645 mil e Real de R$ 670 mil mostram dois sinais: R$ 45 mil explicados por volume e R$ 25 mil ainda ligados à operação.',
+            'notes': 'Fechar o slide dizendo que o waterfall muda a conversa de cobrança para diagnóstico.',
+            'layout': 'flow-formula',
+        },
+        {
+            'numero': 7,
+            'titulo': 'Slide 7 — Etapa 2: diferenciais escaláveis',
+            'kicker': 'Etapa 2 • Ouro operacional',
+            'headline': 'Depois da plataforma, o SCI avança para o que o torna difícil de substituir: granularidade, projeção, alertas e IA aplicada.',
+            'subtitle': 'A segunda etapa mostra os blocos que elevam o projeto de painel analítico para sistema com inteligência operacional e potencial multi-planta.',
+            'cards': [
+                {'title': 'Granularidade', 'body': 'Rateio e custo real até o veículo.'},
+                {'title': 'Antecipação', 'body': 'Best Estimate projeta cenário futuro.'},
+                {'title': 'Comunicação', 'body': 'Alertas e relatórios aceleram resposta.'},
+                {'title': 'IA', 'body': 'Copilot encurta interpretação e acesso ao contexto.'},
+            ],
+            'notes': 'Usar este slide como transição clara entre visão macro e diferenciais do SCI.',
+            'layout': 'stage-break',
+        },
+        {
+            'numero': 8,
+            'titulo': 'Slide 8 — TC Veículos: rateio e custo real',
+            'kicker': 'Granularidade produtiva',
+            'headline': 'No TC Veículos, o SCI reconstrói a cadeia econômica até o veículo para explicar onde o custo realmente nasce.',
+            'subtitle': 'Essa trilha preserva o fechamento entre despesa primária, fluxo anexo, fluxo principal, D&A dedicada e custo final rateado por veículo.',
+            'bullets': [
+                'A cadeia separa o que é FA, o que é FP e o que fica dedicado ao veículo.',
+                'O rateio usa tempo de produção para distribuir o custo onde ele realmente foi consumido.',
+                'O CPU final passa a ser auditável no nível do veículo.',
+            ],
+            'flow': [
+                {'title': 'Despesa Primária', 'body': 'Base econômica da oficina'},
+                {'title': 'Redis / FA', 'body': 'Separação do fluxo anexo'},
+                {'title': 'FP Real', 'body': 'Fluxo principal líquido'},
+                {'title': 'Rateio por veículo', 'body': 'Tempo de produção'},
+                {'title': 'CPU', 'body': 'Custo final por unidade'},
+            ],
+            'formula': r'Custo\ FP = Despesa\ Primaria - Custo\ FA',
+            'example_title': 'Exemplo executivo',
+            'example_body': 'Com despesa primária de R$ 1,0 mi, rateio FA de 25%, D&A dedicada de R$ 30 mil e percentual do veículo de 40%, o custo final do veículo fica em R$ 318 mil.',
+            'notes': 'Posicionar este bloco como diferencial estrutural do SCI frente a análises apenas consolidadas.',
+            'layout': 'flow-formula',
+        },
+        {
+            'numero': 9,
+            'titulo': 'Slide 9 — Best Estimate',
+            'kicker': 'Antecipação e cenário',
+            'headline': 'Best Estimate transforma histórico em previsão operacional com volume, sensibilidade, inflação, produtividade e impacto manual controlado.',
+            'subtitle': 'O forecast não é um chute agregado: ele nasce da média histórica, ajusta o efeito de volume, aplica o bloco monetário e preserva a camada de BE Manual como complemento explícito.',
+            'bullets': [
+                'Permite comparar cenário futuro no mesmo layout usado para analisar o realizado.',
+                'Produtividade reduz o custo projetado no mesmo bloco monetário da inflação.',
+                'BE Manual entra como camada adicional, sem contaminar a média histórica.',
+            ],
+            'flow': [
+                {'title': 'Histórico', 'body': 'Meses válidos para média'},
+                {'title': 'Coeficientes', 'body': 'Volume, sensibilidade e produtividade'},
+                {'title': 'Forecast', 'body': 'BE e BE Manual'},
+                {'title': 'Análise', 'body': 'Leitura futura no app'},
+            ],
+            'formula': r'BE = Media\ Historica \times Fator\ de\ Variacao \times (1 + Inflacao) \times (1 - Produtividade)',
+            'example_title': 'Exemplo executivo',
+            'example_body': 'Média histórica de R$ 100 mil, volume futuro 15% acima do histórico, sensibilidade de 80%, inflação de 4% e produtividade de 3% levam o forecast para cerca de R$ 112,9 mil.',
+            'notes': 'Fechar mostrando que o SCI não apenas explica o passado, mas ajuda a dirigir o fechamento futuro.',
+            'layout': 'flow-formula',
+        },
+        {
+            'numero': 10,
+            'titulo': 'Slide 10 — TC Copilot',
+            'kicker': 'IA aplicada',
+            'headline': 'TC Copilot adiciona uma camada de interpretação e comunicação rápida sobre a mesma base de regras do SCI.',
+            'subtitle': 'O objetivo não é substituir a análise, mas reduzir o tempo para responder perguntas, sintetizar resultados e escalar comunicação entre áreas e plantas.',
+            'bullets': [
+                'Chatbot técnico responde com base na documentação e nos contratos do sistema.',
+                'Relatórios diários e executivos encurtam a preparação de comunicação.' ,
+                'Abre caminho para operação multi-planta com a mesma linguagem analítica.',
+            ],
+            'cards': [
+                {'title': 'Chatbot', 'body': 'Responde perguntas sobre regras, arquitetura e operação.'},
+                {'title': 'Relatório diário', 'body': 'Resume variações e pontos de atenção.'},
+                {'title': 'Relatório executivo', 'body': 'Transforma detalhe técnico em síntese gerencial.'},
+                {'title': 'Escala', 'body': 'Facilita replicação entre áreas e futuras plantas.'},
+            ],
+            'flow': [
+                {'title': 'Pergunta', 'body': 'Usuário ou rotina'},
+                {'title': 'Contexto', 'body': 'Documentação e regras'},
+                {'title': 'Síntese', 'body': 'Resposta ou relatório'},
+                {'title': 'Ação', 'body': 'Decisão e comunicação'},
+            ],
+            'notes': 'Posicionar o copilot como acelerador de produtividade e governança do conhecimento.',
+            'layout': 'executive-cards',
+        },
+        {
+            'numero': 11,
+            'titulo': 'Slide 11 — Relatórios e Central de Alertas',
+            'kicker': 'Monitoramento acionável',
+            'headline': 'SCI fecha o ciclo quando transforma desvio em alerta priorizado e comunicação pronta para a organização.',
+            'subtitle': 'A central consolida ranking hierárquico, regras de severidade, validação e canais de envio, reduzindo o tempo entre detectar um problema e alinhá-lo com os stakeholders.',
+            'bullets': [
+                'Alertas priorizam o que mais pesa no resultado em vez de gerar ruído disperso.',
+                'Há validação técnica do cálculo antes do envio para e-mail ou Teams.',
+                'Relatórios ajudam a manter repetibilidade e escala da comunicação.',
+            ],
+            'cards': [
+                {'title': 'Dados', 'body': 'Real, budget, flex e ranking consolidado.'},
+                {'title': 'Regras', 'body': 'Thresholds, filtros e severidade.'},
+                {'title': 'Comunicação', 'body': 'Teams, e-mail e uso interno no app.'},
+            ],
+            'flow': [
+                {'title': 'Dados', 'body': 'Base atualizada'},
+                {'title': 'Regras', 'body': 'Motor de alerta'},
+                {'title': 'Ranking', 'body': 'Type 05 → Type 06 → Account → Oficina'},
+                {'title': 'Ação', 'body': 'Monitoramento, e-mail e Teams'},
+            ],
+            'notes': 'Enquadrar alertas como instrumento de foco gerencial e não só automação de envio.',
+            'layout': 'executive-cards',
+        },
+        {
+            'numero': 12,
+            'titulo': 'Slide 12 — Fechamento executivo',
+            'kicker': 'Mensagem final para COO',
+            'headline': 'SCI já se comporta como base de governança de custo industrial com capacidade real de escala.',
+            'subtitle': 'O projeto combina dados, regras, interface, cloud, forecast, alertas e IA em uma arquitetura que aumenta autonomia, reduz risco operacional e prepara expansão futura.',
+            'cards': [
+                {'title': 'Impacto', 'body': 'Transforma leitura de custo em capacidade de decisão.'},
+                {'title': 'Governança', 'body': 'Mantém regra, histórico e narrativa no mesmo lugar.'},
+                {'title': 'Escala', 'body': 'Pronto para crescer em módulos, plantas e canais.'},
+                {'title': 'Autonomia', 'body': 'Menos dependência de controles manuais e interpretação dispersa.'},
+            ],
+            'bullets': [
+                'Mais rastreabilidade para fechamento e explicação do resultado.',
+                'Mais velocidade para identificar, explicar e reagir ao desvio.',
+                'Mais consistência para expandir a solução sem recomeçar do zero.',
+            ],
+            'notes': 'Fechar como plataforma de governança operacional e crescimento, não apenas como entrega de dashboard.',
+            'layout': 'closing',
+        },
+    ]
+
+
+def _render_doc_apresentacao_slide(slide) -> None:
+    custom_renderer = slide.get('custom_renderer')
+    if custom_renderer == 'team':
+        _render_doc_equipe_sci()
+    elif custom_renderer == 'tech-overview':
+        st.markdown(
+            """
+        <span class="sci-slide-chip">Núcleo do produto = arquivos Python centrais que sustentam a operação</span>
+        <span class="sci-slide-chip">Workspace ampliado = ecossistema estendido de desenvolvimento, suporte e automação</span>
+            """,
+            unsafe_allow_html=True,
+        )
+        _render_doc_visao_geral_tecnica()
+    else:
+        st.markdown(
+            f"""
+        <div class="sci-slide-hero">
+            <div class="sci-slide-kicker">{slide.get('kicker', '')}</div>
+            <div class="sci-slide-title">{slide.get('headline', '')}</div>
+            <div class="sci-slide-subtitle">{slide.get('subtitle', '')}</div>
+        </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        bullets = slide.get('bullets', [])
+        if bullets:
+            st.markdown('### Mensagem do slide')
+            st.markdown('\n'.join([f'- {bullet}' for bullet in bullets]))
+
+        _render_doc_apresentacao_cards(
+            slide.get('cards', []),
+            columns_per_row=slide.get('columns_per_row', 4),
+        )
+
+        _render_doc_apresentacao_flow(slide.get('flow', []))
+
+        if slide.get('formula'):
+            st.latex(slide['formula'])
+
+        if slide.get('example_title') or slide.get('example_body'):
+            _render_doc_apresentacao_example(
+                slide.get('example_title', ''),
+                slide.get('example_body', ''),
+            )
+
+    st.markdown(
+        f"""
+    <div class="sci-slide-notes">
+        <strong>Speaker note:</strong> {slide.get('notes', '')}<br>
+        <strong>Contrato do slide:</strong> layout = {slide.get('layout', 'executive')}; pronto para mapeamento futuro em um único PPTX.
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_doc_apresentacao_visual() -> None:
+    _render_doc_apresentacao_styles()
+    slides = _get_doc_apresentacao_slides()
+
+    st.markdown("""
+<div style="padding: 1.6rem; background: linear-gradient(135deg, #0f172a 0%, #164e63 55%, #99f6e4 100%); border-radius: 18px; margin-bottom: 1.4rem; color: white; border: 1px solid rgba(153, 246, 228, 0.16);">
+    <h2 style="color: white; margin: 0;">🎤 Apresentação executiva do SCI</h2>
+    <p style="color: #ecfeff; margin: 0.55rem 0 0 0; max-width: 920px;">
+        Trilha institucional do projeto em formato de slides reais dentro da documentação, já estruturada com contrato semântico para futura exportação em um único PPTX.
+    </p>
+</div>
+    """, unsafe_allow_html=True)
+
+    tab_roteiro, tab_slides = st.tabs(["🎤 Roteiro", "🧩 Slides"])
+
+    with tab_roteiro:
+        st.markdown("""
+### Etapa 1 — Plataforma
+
+1. SCI como plataforma única de leitura, explicação, projeção e monitoramento.
+2. Equipe do SCI reapresentada como base do projeto.
+3. Dimensão técnica do sistema e distinção entre núcleo e workspace ampliado.
+4. Arquitetura funcional do app e trilha de navegação executiva.
+5. Extração, processamento e contrato de dados.
+6. Waterfall como leitura da causa do desvio.
+
+### Etapa 2 — Diferenciais escaláveis
+
+7. Transição para os blocos de ouro do SCI.
+8. TC Veículos com rateio e custo real até o veículo.
+9. Best Estimate com volume, sensibilidade, inflação, produtividade e BE Manual.
+10. TC Copilot como camada de interpretação e comunicação.
+11. Relatórios e Central de Alertas como motor de foco e resposta.
+12. Fechamento executivo com impacto, governança, escala e autonomia.
+        """)
+
+    with tab_slides:
+        st.caption(
+            "Cada slide abaixo preserva título, layout, bullets, cards, fluxo, exemplo e speaker note para suportar exportação futura em um único arquivo PPTX."
+        )
+        for slide in slides:
+            with st.expander(slide['titulo'], expanded=slide.get('expanded', False)):
+                _render_doc_apresentacao_slide(slide)
+
+
+def _render_doc_build_exe_completo() -> None:
+    st.markdown("""
+### Guia completo embutido
+
+O build oficial do SCI é feito com PyInstaller usando SCI.spec. O arquivo centraliza dependências de import dinâmico, recursos estáticos e metadados que o build simplificado não garante sozinho.
+
+### Ordem operacional recomendada
+1. Ativar o ambiente virtual.
+2. Garantir que app.py esteja sem BOM.
+3. Executar o build oficial.
+4. Validar que dist/Stellantis-Cost-Intelligence/_internal/ contém módulos, dados e recursos.
+5. Testar o executável navegando pelas páginas críticas.
+
+### Comando principal
+
+```powershell
+C:/User/U235107/GitHub/TC/.venv/Scripts/python.exe -m PyInstaller --clean --noconfirm SCI.spec
+```
+
+### Recursos obrigatórios no _internal
+- pages/
+- tc_core/
+- tc_principal/
+- tc_ext/
+- tc_copilot/
+- alertas/
+- dados/
+- .streamlit/
+- arquivos JSON, imagens e scripts de processamento
+- pacote st_aggrid e streamlit_aggrid-*.dist-info quando necessário
+
+### Validação final
+- abrir o executável;
+- confirmar carregamento de páginas, principalmente TC Veículos, Documentação e Extração;
+- validar leitura de parquets e ausência de erro de import dinâmico.
+    """)
+
 # Funções para persistir dados da equipe
 def salvar_dados_equipe(dados):
     """Salva os dados da equipe em arquivo JSON"""
@@ -378,47 +2515,15 @@ def carregar_foto_base64(foto_base64):
         pass
     return None
 
-# Sidebar com índices
-st.sidebar.markdown("## 📑 Índice")
-st.sidebar.markdown("---")
 
-modulo_doc = "📌 Ambos (TC Ext + Veículos)"
-
-# Criar índices no sidebar
-indice_selecionado = st.sidebar.radio(
-    "Selecione a seção:",
-    [
-        "👥 Equipe do SCI",
-        "📐 Regras e Cálculo",
-        "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
-        "🏗️ Arquitetura e Estrutura",
-        "🧾 Especificação Técnica",
-        "📥 Guia de Extração de Dados",
-        "🔮 Guia de Best Estimate",
-        "☁️ TC Cloud",
-        "📊 Apresentação Visual",
-        "💬 Chatbot de Documentação",
-        "🔔 Sistema de Alertas",
-        "📦 Guia de Build (EXE)",
-        "🚀 Próximos Passos",
-    ],
-    key="indice_documentacao"
-)
-
-st.markdown("---")
-
-# ==========================================
-# SEÇÃO 1: EQUIPE DO PROJETO
-# ==========================================
-if indice_selecionado == "👥 Equipe do SCI":
+def _render_doc_equipe_sci() -> None:
     st.header("👥 Equipe do SCI")
-    
+
     st.markdown("""
     Esta seção apresenta os membros da equipe responsáveis pelo desenvolvimento
     e manutenção do **Stellantis Cost Intelligence (SCI)** — suas funções no projeto e perfis profissionais.
     """)
 
-    # CSS para cards da equipe
     st.markdown("""
     <style>
         .team-badge-fullstack {
@@ -478,8 +2583,6 @@ if indice_selecionado == "👥 Equipe do SCI":
     st.markdown("---")
 
     dados_equipe = carregar_dados_equipe()
-
-    # ── Definição dos membros ──
     membros = [
         {
             'key': 'hudson',
@@ -510,7 +2613,6 @@ if indice_selecionado == "👥 Equipe do SCI":
         desc_papel = dados_m.get('descricao_papel', '')
 
         with col:
-            # ── Cabeçalho: nome + badge ──
             st.subheader(f"{membro['icone']} {membro['nome']}")
 
             if papel:
@@ -525,7 +2627,6 @@ if indice_selecionado == "👥 Equipe do SCI":
                     unsafe_allow_html=True,
                 )
 
-            # ── Upload da foto (oculto por padrão) ──
             with st.expander("📸 Upload da foto", expanded=False):
                 foto_up = st.file_uploader(
                     f"📸 Foto de {membro['nome']}",
@@ -564,7 +2665,6 @@ if indice_selecionado == "👥 Equipe do SCI":
                     unsafe_allow_html=True,
                 )
 
-            # ── Edição ──
             with st.expander(
                 f"✏️ Editar informações", expanded=False
             ):
@@ -612,7 +2712,6 @@ if indice_selecionado == "👥 Equipe do SCI":
                             st.success("✅ Salvo com sucesso!")
                             st.rerun()
 
-            # ── Perfil Profissional ──
             with st.expander("👨‍💻 Perfil Profissional", expanded=False):
                 if dados_m.get('cargo') and dados_m.get('empresa'):
                     st.write(
@@ -659,7 +2758,7 @@ if indice_selecionado == "👥 Equipe do SCI":
     - Cadeia completa: Despesa Primária → Custo FA → Custo FP → D&A → FP sem Dedicada
     - Rateio proporcional por veículo (tempo de produção)
     - 6 tabs especializadas: TC Veículos, Análise Flex, Volume, Custos por Oficina, Tempo de Produção, Dados Detalhados
-    - Best Estimate: simulador de premissas (sensibilidade, inflação, volume) com geração de Forecast
+    - Best Estimate: simulador de premissas (sensibilidade, inflação, produtividade, volume) com geração de Forecast
     - Análise de Best Estimate: layout da Home alimentado por dados de Forecast
 
     **🔧 Capacidades Transversais**
@@ -680,6 +2779,49 @@ if indice_selecionado == "👥 Equipe do SCI":
         except TypeError:
             st.image("SCI_faixa.png", use_container_width=True)
 
+# Sidebar com índices
+st.sidebar.markdown("## 📑 Índice")
+st.sidebar.markdown("---")
+
+modulo_doc = "📌 Ambos (TC Ext + Veículos)"
+
+# Criar índices no sidebar
+indice_selecionado = st.sidebar.radio(
+    "Selecione a seção:",
+    [
+        "👥 Equipe do SCI",
+        "📘 Visão Geral Técnica",
+        "📐 Regras e Cálculo",
+        "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)",
+        "🏗️ Arquitetura e Estrutura",
+        "🧾 Especificação Técnica",
+        "📥 Guia de Extração de Dados",
+        "🔮 Guia de Best Estimate",
+        "☁️ TC Cloud",
+        "📊 Apresentação Visual",
+        "💬 Chatbot de Documentação",
+        "🔔 Sistema de Alertas",
+        "📦 Guia de Build (EXE)",
+        "🚀 Próximos Passos",
+    ],
+    key="indice_documentacao"
+)
+
+st.markdown("---")
+
+# ==========================================
+# SEÇÃO 1: EQUIPE DO PROJETO
+# ==========================================
+if indice_selecionado == "👥 Equipe do SCI":
+    _render_doc_equipe_sci()
+
+# ==========================================
+# SEÇÃO 1.5: VISÃO GERAL TÉCNICA
+# ==========================================
+elif indice_selecionado == "📘 Visão Geral Técnica":
+    st.header("📘 Visão Geral Técnica")
+    _render_doc_visao_geral_tecnica()
+
 # ==========================================
 # TC VEÍCULOS: REGRAS E CÁLCULO
 # ==========================================
@@ -687,81 +2829,19 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc.startswith("�
     st.header("📐 Regras e Cálculo — TC Ext + TC Veículos")
 
     st.subheader("📊 TC Estendido")
-    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
-    if _err_ext:
-        st.error(_err_ext)
-    else:
-        with st.expander("📐 Regras e Cálculo — TC Estendido", expanded=True):
-            st.markdown(
-                _extrair_secao_por_heading(_md_ext, ["## 2) Regras e Cálculo — TC Estendido"])
-            )
-
-    _caminho_flex = os.path.join(get_base_path(), "DOCUMENTACAO_FLEX_BUD_ANO_COMPLETO.md")
-    _md_flex, _err_flex, _mtime_flex = _carregar_markdown(_caminho_flex)
-    if not _err_flex:
-        with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
-            st.markdown(
-                _extrair_secao_por_heading(
-                    _md_flex,
-                    ["## 7) Flex Bud — Ano Completo e Governança"],
-                )
-            )
+    _render_doc_regras_tc_ext()
 
     st.markdown("---")
 
     st.subheader("🚗 TC Veículos")
-    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
-    if _err_veic:
-        st.error(_err_veic)
-        st.stop()
-
-    with st.expander("💰 Cadeia de Custos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 2) Cadeia de Custos TC Veículos"]))
-    with st.expander("🚗 Rateio por Veículo", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 3) Processo de Rateio por Veículo"]))
-    with st.expander("📊 Flex Budget", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 4) Flex Budget (TC Veículos)"]))
-    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 5) CPU (Custo por Unidade)"]))
-    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 6) KPIs do TC Veículos"]))
-    with st.expander("🎛️ Filtros", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md_veic, ["## 7) Filtros do TC Veículos"]))
-    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md_veic,
-                ["## 9) Premissas do Simulador Best Estimate"],
-            )
-        )
+    _render_doc_regras_tc_veiculos()
 
     st.stop()
 
 elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC Veículos":
     st.header("📐 Regras e Cálculo — TC Veículos")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
-    with st.expander("💰 Cadeia de Custos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Cadeia de Custos TC Veículos"]))
-    with st.expander("🚗 Rateio por Veículo", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Processo de Rateio por Veículo"]))
-    with st.expander("📊 Flex Budget", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 4) Flex Budget (TC Veículos)"]))
-    with st.expander("📈 CPU (Custo por Unidade)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 5) CPU (Custo por Unidade)"]))
-    with st.expander("🎯 KPIs (Topo e Resumo)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 6) KPIs do TC Veículos"]))
-    with st.expander("🎛️ Filtros", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Filtros do TC Veículos"]))
-    with st.expander("🔮 Best Estimate — Premissas", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 9) Premissas do Simulador Best Estimate"]))
+    _render_doc_regras_tc_veiculos()
 
     st.stop()
 
@@ -910,22 +2990,22 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         st.markdown("""
         ### 🔮 Premissas do Simulador BE
 
-        O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflação**
-        e **volume** para projetar cenários futuros:
+        O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflação**,
+        **produtividade** e **volume** para projetar cenários futuros:
 
         **Fórmula Geral:**
         ```
-        BE = Média_Histórica × Fator_Variação × Fator_Inflação
+        BE = Média_Histórica × Fator_Variação × Fator_Monetário
         ```
 
         Onde:
         - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
-        - `Fator_Inflação` = 1 + (Inflação / 100)
+        - `Fator_Monetário` = (1 + Inflação / 100) × (1 - Produtividade / 100)
         - `Variação_Volume` = (Volume_Futuro / Volume_Médio_Histórico) − 1
 
         **Sensibilidade (impacto do volume no custo):**
         - Controla o quanto a variação de volume afeta o custo
-        - Pode ser configurada por oficina (Type 06) ou global
+        - Pode ser configurada globalmente por tipo de custo ou de forma detalhada por Type 06
         - Custo Fixo: sensibilidade = 0% → custo não varia com o volume
         - Custo Variável: sensibilidade = 100% → custo varia proporcionalmente ao volume
 
@@ -940,15 +3020,28 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         - É aplicada **após** o ajuste por sensibilidade
         - Fórmula: `Custo_Final = Custo_Ajustado_Sensibilidade × (1 + Inflação/100)`
 
+        **Produtividade:**
+        - Representa ganho de eficiência que **reduz** o custo projetado
+        - Pode ser configurada globalmente ou por Type 06
+        - É aplicada no mesmo bloco monetário da inflação, como fator redutor multiplicativo
+        - Exemplo: produtividade de 5% reduz o custo projetado em 5% após o ajuste de volume
+
         **Resultado por tipo de custo:**
-        - **Custo Fixo BE** = Média Histórica × (1 + Inflação%) — sem ajuste de volume
-        - **Custo Variável BE** = Média Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%)
+        - **Custo Fixo BE** = Média Histórica × (1 + Inflação%) × (1 - Produtividade%) — sem ajuste de volume
+        - **Custo Variável BE** = Média Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%) × (1 - Produtividade%)
+
+        **Persistência das configurações:**
+        - O simulador salva o último conjunto aplicado em `config_forecast.json`
+        - O arquivo persiste modo global/detalhado, sensibilidades, inflação e produtividade
 
         ### 📊 Geração de Forecast
 
         O simulador gera arquivos em `dados/TC_Principal/Forecast/`:
-        - `forecast_completo.parquet` — Dados projetados mês a mês
-        - `premissas.json` — Premissas utilizadas (sensibilidade, inflação, volume)
+        - `forecast_completo.parquet` — Consolidado final com histórico + BE + BE Manual
+        - `forecast_historico.parquet` — Histórico sem os meses previstos, evitando duplicidade com a previsão
+        - `forecast_previsao.parquet` — Apenas períodos futuros de BE e BE Manual
+        - `forecast_veiculos_custo_fp.parquet` — Forecast rateado por veículo para os fluxos que exigem granularidade veicular
+        - `config_forecast.json` — Configurações aplicadas (modo, sensibilidade, inflação, produtividade)
 
         Estes dados alimentam a página **Best Estimate (Análise)**, que usa o mesmo
         layout da Home (com gráficos e KPIs) mas com dados de Forecast.
@@ -960,16 +3053,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
 elif indice_selecionado == "📐 Regras e Cálculo":
     st.header("📐 Regras e Cálculo — TC Estendido")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
-    with st.expander("📐 Regras e Cálculo — TC Estendido", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 2) Regras e Cálculo — TC Estendido"]))
-    with st.expander("📌 Flex Bud — Governança (Ano Completo)", expanded=False):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 7) Flex Bud — Ano Completo e Governança"]))
+    _render_doc_regras_tc_ext()
     st.stop()
 
     # Conteúdo antigo removido: esta seção agora é renderizada diretamente do Markdown oficial.
@@ -2440,51 +4524,19 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
     st.header("🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU) — TC Ext + TC Veículos")
 
     st.subheader("📊 TC Estendido")
-    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
-    if _err_ext:
-        st.error(_err_ext)
-    else:
-        with st.expander("📊 TC Estendido", expanded=True):
-            st.markdown(
-                _extrair_secao_por_heading(
-                    _md_ext,
-                    [
-                        "## 4) Visualizações — TC Estendido",
-                        "## 4) Visualizações",
-                    ],
-                )
-            )
+    _render_doc_tabelas_graficos_tc_ext()
 
     st.markdown("---")
 
     st.subheader("🚗 TC Veículos")
-    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
-    if _err_veic:
-        st.error(_err_veic)
-    else:
-        with st.expander("🚗 TC Veículos", expanded=False):
-            st.markdown(
-                _extrair_secao_por_heading(
-                    _md_veic,
-                    ["## 8) Visualizações e Gráficos"],
-                )
-            )
+    _render_doc_tabelas_graficos_tc_veiculos()
 
     st.stop()
 
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)" and modulo_doc == "🚗 TC Veículos":
     st.header("🧮 Cálculo por Tabelas/Gráficos — TC Veículos")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
-    with st.expander("🚗 Visualizações e Gráficos — TC Veículos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 8) Visualizações e Gráficos"]))
+    _render_doc_tabelas_graficos_tc_veiculos()
     st.stop()
 
     st.info(
@@ -2568,60 +4620,13 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
 elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)":
     st.header("🧮 Cálculo por Tabelas/Gráficos — TC Estendido")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
     st.markdown(
         "Esta seção explica os pontos que mais geram divergência entre **tabela** e **gráfico** "
         "no TC Ext (Normal vs CPU)."
     )
 
-    with st.expander("📌 CPU e regra de agregação", expanded=True):
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md,
-                ["## 2) Regras e Cálculo — TC Estendido"],
-            )
-        )
-
-    with st.expander("📌 Governança do ano completo (12 meses)", expanded=False):
-        st.markdown(
-            _extrair_secao_por_heading(
-                _md,
-                ["## 7) Flex Bud — Ano Completo e Governança"],
-            )
-        )
+    _render_doc_tabelas_graficos_tc_ext()
     st.stop()
-
-    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    if not os.path.exists(caminho_doc):
-        st.error(f"Arquivo não encontrado: {caminho_doc}")
-    else:
-        try:
-            with open(caminho_doc, "r", encoding="utf-8") as f:
-                conteudo = f.read()
-
-            def _extrair_trecho(md: str) -> str:
-                start_token = "### 9.6 Guia de cálculo por visualização"
-                start = md.find(start_token)
-                if start == -1:
-                    start_token = "## 9) Gráficos e tabelas"
-                    start = md.find(start_token)
-                if start == -1:
-                    return "⚠️ Não encontrei a seção de cálculos no arquivo de especificação."
-
-                end = md.find("\n## ", start + 1)
-                if end == -1:
-                    end = len(md)
-                return md[start:end].strip()
-
-            st.markdown("---")
-            st.markdown(_extrair_trecho(conteudo))
-        except Exception as e:
-            st.error(f"Erro ao carregar/parsear especificação: {e}")
 
 # ==========================================
 # TC VEÍCULOS: ARQUITETURA E ESTRUTURA
@@ -2630,48 +4635,19 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc.star
     st.header("🏗️ Arquitetura e Estrutura — TC Ext + TC Veículos")
 
     st.subheader("📊 TC Estendido")
-    _caminho_ext = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md_ext, _err_ext, _mtime_ext = _carregar_markdown(_caminho_ext)
-    if _err_ext:
-        st.error(_err_ext)
-    else:
-        with st.expander("📊 TC Estendido", expanded=True):
-            st.markdown(
-                _extrair_secao_por_heading(
-                    _md_ext,
-                    ["## 3) Arquitetura — TC Estendido"],
-                )
-            )
+    _render_doc_arquitetura_tc_ext()
 
     st.markdown("---")
 
     st.subheader("🚗 TC Veículos")
-    _caminho_veic = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md_veic, _err_veic, _mtime_veic = _carregar_markdown(_caminho_veic)
-    if _err_veic:
-        st.error(_err_veic)
-    else:
-        with st.expander("🚗 TC Veículos", expanded=False):
-            st.markdown(
-                _extrair_secao_por_heading(
-                    _md_veic,
-                    ["## 10) Arquitetura TC Veículos"],
-                )
-            )
+    _render_doc_arquitetura_tc_veiculos()
 
     st.stop()
 
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "🚗 TC Veículos":
     st.header("🏗️ Arquitetura e Estrutura — TC Veículos")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
-    with st.expander("🏗️ Arquitetura TC Veículos", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 10) Arquitetura TC Veículos"]))
+    _render_doc_arquitetura_tc_veiculos()
     st.stop()
 
     st.info(
@@ -2698,8 +4674,11 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
         │   ├── df_veiculos_custo_fp.parquet         # Custo FP Real rateado
         │   └── df_veiculos_cpu.parquet              # CPU Real
         ├── Forecast/
-        │   ├── forecast_completo.parquet            # Projeção BE mês a mês
-        │   └── premissas.json                       # Premissas do simulador
+        │   ├── forecast_completo.parquet            # Consolidado final com histórico + BE + BE Manual
+        │   ├── forecast_historico.parquet           # Histórico sem os meses previstos
+        │   ├── forecast_previsao.parquet            # Apenas períodos futuros
+        │   ├── forecast_veiculos_custo_fp.parquet   # Forecast rateado por veículo
+        │   └── config_forecast.json                 # Configurações persistidas do simulador
         └── historico_consolidado/
             ├── df_principal_historico.parquet        # Multi-ano consolidado
             └── BUD/
@@ -2834,14 +4813,7 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura" and modulo_doc == "
 elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
     st.header("🏗️ Arquitetura e Estrutura — TC Estendido")
 
-    _caminho = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    _md, _err, _mtime = _carregar_markdown(_caminho)
-    if _err:
-        st.error(_err)
-        st.stop()
-
-    with st.expander("🏗️ Arquitetura — TC Estendido", expanded=True):
-        st.markdown(_extrair_secao_por_heading(_md, ["## 3) Arquitetura — TC Estendido"]))
+    _render_doc_arquitetura_tc_ext()
     st.stop()
     
     st.markdown("""
@@ -2992,7 +4964,10 @@ elif indice_selecionado == "🏗️ Arquitetura e Estrutura":
                 ├── historico_consolidado/
                 └── Forecast/                   # 🔮 Outputs do Best Estimate (TC Veículos)
                     ├── forecast_completo.parquet
-                    └── premissas.json
+                    ├── forecast_historico.parquet
+                    ├── forecast_previsao.parquet
+                    ├── forecast_veiculos_custo_fp.parquet
+                    └── config_forecast.json
             ```
             """)
             
@@ -3265,46 +5240,18 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc.starts
     st.header("🧾 Especificação Técnica — TC Ext + TC Veículos")
 
     st.subheader("📊 TC Estendido")
-    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-    if not os.path.exists(caminho_doc):
-        st.error(f"Arquivo não encontrado: {caminho_doc}")
-    else:
-        try:
-            mtime_doc = os.path.getmtime(caminho_doc)
-            conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
-            _renderizar_markdown_em_expanders(conteudo)
-        except Exception as e:
-            st.error(f"Erro ao carregar especificação: {e}")
+    _render_doc_especificacao_tc_ext()
 
     st.markdown("---")
     st.subheader("🚗 TC Veículos")
-    caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-    if not os.path.exists(caminho_doc_tc):
-        st.error(f"Arquivo não encontrado: {caminho_doc_tc}")
-    else:
-        try:
-            mtime_tc = os.path.getmtime(caminho_doc_tc)
-            conteudo_tc = _ler_arquivo_texto_cacheado(caminho_doc_tc, mtime_tc)
-            _renderizar_markdown_em_expanders(conteudo_tc, expanded_first=False)
-        except Exception as e:
-            st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+    _render_doc_especificacao_tc_veiculos()
 
     st.stop()
 
 elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "🚗 TC Veículos":
     st.header("🧾 Especificação Técnica — TC Veículos")
 
-    _caminho_doc_tc = os.path.join(get_base_path(), "DOCUMENTACAO_TC_PRINCIPAL.md")
-
-    if not os.path.exists(_caminho_doc_tc):
-        st.error(f"Arquivo não encontrado: {_caminho_doc_tc}")
-    else:
-        try:
-            _mtime_tc = os.path.getmtime(_caminho_doc_tc)
-            _conteudo_tc = _ler_arquivo_texto_cacheado(_caminho_doc_tc, _mtime_tc)
-            _renderizar_markdown_em_expanders(_conteudo_tc)
-        except Exception as e:
-            st.error(f"Erro ao carregar especificação TC Veículos: {e}")
+    _render_doc_especificacao_tc_veiculos()
 
 # ==========================================
 # SEÇÃO 3: ESPECIFICAÇÃO TÉCNICA (REESCRITA)
@@ -3312,28 +5259,7 @@ elif indice_selecionado == "🧾 Especificação Técnica" and modulo_doc == "�
 elif indice_selecionado == "🧾 Especificação Técnica":
     st.header("🧾 Especificação Técnica — TC Estendido")
 
-    st.markdown(
-        """
-        Esta seção consolida uma **especificação técnica completa** em formato Markdown.
-        O objetivo é permitir que você reescreva o projeto com IA preservando:
-        - funcionalidades
-        - regras de cálculo (CPU/Flex Bud)
-        - fontes de dados e contratos (schemas)
-        - comportamento de filtros e gráficos
-        """
-    )
-
-    caminho_doc = os.path.join(get_base_path(), "DOCUMENTACAO_SISTEMA_TC.md")
-
-    if not os.path.exists(caminho_doc):
-        st.error(f"Arquivo não encontrado: {caminho_doc}")
-    else:
-        try:
-            mtime_doc = os.path.getmtime(caminho_doc)
-            conteudo = _ler_arquivo_texto_cacheado(caminho_doc, mtime_doc)
-            _renderizar_markdown_em_expanders(conteudo)
-        except Exception as e:
-            st.error(f"Erro ao carregar especificação: {e}")
+    _render_doc_especificacao_tc_ext()
 
 # ==========================================
 # SEÇÃO 4: GUIA DE EXTRAÇÃO DE DADOS
@@ -3349,6 +5275,45 @@ elif indice_selecionado == "📥 Guia de Extração de Dados":
     </p>
     </div>
     """, unsafe_allow_html=True)
+
+    with st.expander("🧭 **Ordem exata da extração e pontos de auditoria**", expanded=True):
+        st.markdown(r"""
+### Sequência obrigatória do processo
+
+1. Definir ano e tipo de processamento.
+2. Resolver caminho dos arquivos de entrada na ordem de prioridade.
+3. Validar existência das abas e colunas mínimas.
+4. Ler a base principal de custo.
+5. Ler a base de classificação e identificar Fixo/Variável.
+6. Ler rateio e transformar meses em linhas.
+7. Aplicar merges pelas chaves corretas.
+8. Calcular valores por veículo ou por linha consolidada.
+9. Ler volume e anexar ao mesmo perímetro lógico.
+10. Persistir arquivos do ano.
+11. Consolidar histórico, sempre por concatenação controlada.
+
+### O que quebra se inverter
+- Se o volume entrar antes da normalização de período, o merge falha silenciosamente.
+- Se o histórico for salvo antes da validação do ano corrente, a base consolidada fica contaminada.
+- Se o rateio for aplicado sem chaves Oficina + Período coerentes, o valor por veículo vira arbitrário.
+
+### Exemplo auditável de merge
+
+Suponha uma linha de custo:
+- Oficina = Montagem
+- Período = Janeiro
+- Valor = R$ 100.000
+
+E rateio do mesmo par Oficina + Período:
+- Veículo A = 60%
+- Veículo B = 40%
+
+Resultado correto:
+- Veículo A = R$ 60.000
+- Veículo B = R$ 40.000
+
+Se o merge usasse só Oficina e ignorasse Período, Janeiro poderia capturar o rateio de Fevereiro e o valor final deixaria de ser auditável.
+        """)
 
     with st.expander("🚗 **TC Veículos — Pipeline completo (Real e Budget)**", expanded=False):
         st.markdown("""
@@ -5106,28 +7071,73 @@ df_final['Volume'] = df_final['Volume'].fillna(0)
 elif indice_selecionado == "🔮 Guia de Best Estimate":
     st.header("🔮 Guia de Best Estimate — TC Ext + TC Veículos")
 
+    with st.expander("🧮 **Ordem exata do cálculo do Best Estimate**", expanded=True):
+        st.markdown(r"""
+### Sequência obrigatória
+
+1. Selecionar os períodos históricos que entram na média.
+2. Excluir meses anômalos, se aplicável.
+3. Calcular média histórica de custo no mesmo nível analítico exibido.
+4. Calcular volume médio histórico no mesmo perímetro.
+5. Definir volume futuro por período.
+6. Calcular proporção de volume futuro versus volume histórico.
+7. Aplicar sensibilidade sobre a variação de volume.
+8. Aplicar o fator monetário com inflação e produtividade.
+9. Somar custos manuais apenas como linhas adicionais, nunca misturando com a média histórica original.
+
+### Fórmula geral
+
+$$
+BE = Média\ Histórica \times (1 + ((\frac{Volume\ Futuro}{Volume\ Histórico} - 1) \times Sensibilidade)) \times (1 + Inflação) \times (1 - Produtividade)
+$$
+
+### Exemplo numérico completo
+
+- Média histórica = R$ 100.000
+- Volume histórico = 1.000
+- Volume futuro = 1.150
+- Sensibilidade = 80%
+- Inflação = 5%
+- Produtividade = 2%
+
+Passos:
+1. Proporção de volume = 1.150 / 1.000 = 1,15
+2. Variação de volume = 1,15 - 1 = 0,15
+3. Variação ajustada = 0,15 × 0,80 = 0,12
+4. Fator de volume = 1 + 0,12 = 1,12
+5. Fator monetário = (1 + 0,05) × (1 - 0,02) = 1,029
+6. BE = 100.000 × 1,12 × 1,029 = R$ 115.248
+
+### BE Manual
+
+Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linha separada identificada como BE Manual. O consolidado final do período passa a ser R$ 123.248, mas o valor projetado pelo modelo continua R$ 115.248.
+        """)
+
     with st.expander("🚗 **TC Veículos — Resumo operacional (Simulador + consumo na Home)**", expanded=False):
         st.markdown("""
         ### 🔮 O que é o Best Estimate (TC Veículos)
 
         O Best Estimate (BE) projeta custos futuros a partir da média histórica já realizada,
-        ajustada por premissas de **sensibilidade**, **inflação** e **volume**.
+        ajustada por premissas de **sensibilidade**, **inflação**, **produtividade** e **volume**.
 
         **Onde configurar e gerar o Forecast:**
         - Página Streamlit: `pages/2 - Best Estimate - Simulador.py`
         - Lógica principal: `tc_principal/pages/best_estimate_simulador_tc.py`
 
         **Arquivos gerados:**
-        - `dados/TC_Principal/Forecast/forecast_completo.parquet` (coluna `Tipo = 'BE'`)
-        - `dados/TC_Principal/Forecast/premissas.json`
+        - `dados/TC_Principal/Forecast/forecast_completo.parquet` — consolidado final consumido na análise
+        - `dados/TC_Principal/Forecast/forecast_historico.parquet` — histórico sem os meses previstos
+        - `dados/TC_Principal/Forecast/forecast_previsao.parquet` — apenas períodos futuros de BE e BE Manual
+        - `dados/TC_Principal/Forecast/forecast_veiculos_custo_fp.parquet` — base rateada por veículo
+        - `dados/TC_Principal/Forecast/config_forecast.json` — parâmetros persistidos do simulador
 
         **Onde o Forecast é consumido/analisado:**
         - `tc_principal/pages/home_tc.py` (tabs) — compara Real vs BE no layout da Home
 
         **Pontos de atenção (operacional):**
         - Se o Forecast parecer "não atualizar", confirme que o `forecast_completo.parquet` foi regravado.
-        - Se a granularidade por veículo depender de rateio, a função `ratear_be_por_veiculo()` (em `tc_principal/shared.py`)
-          é aplicada nos fluxos que exigem visão por veículo.
+        - `forecast_historico.parquet` exclui os meses previstos para evitar duplicação quando é combinado com `forecast_previsao.parquet`.
+        - Se a granularidade por veículo depender de rateio, a função `ratear_be_por_veiculo()` (em `tc_principal/shared.py`) gera `forecast_veiculos_custo_fp.parquet` a partir do consolidado usando percentuais de rateio e D&A dedicado do Real.
         """)
     
     st.markdown("""
@@ -5146,7 +7156,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
     1. [O que é Best Estimate?](#o-que-e-best-estimate)
     2. [Teoria e Conceitos Fundamentais](#teoria-conceitos)
     3. [Cálculo de Médias Históricas](#calculo-medias)
-    4. [Sensibilidade e Inflação](#sensibilidade-inflacao)
+    4. [Sensibilidade, Inflação e Produtividade](#sensibilidade-inflacao)
     5. [Fórmulas e Lógica de Cálculo](#formulas-logica)
     6. [Tipos de Custos: Fixo vs Variável](#tipos-custos)
     7. [Volume e Proporções](#volume-proporcoes)
@@ -5187,6 +7197,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - **Dados históricos** (médias de períodos anteriores)
         - **Ajustes por sensibilidade** (resposta a variações de volume)
         - **Ajustes por inflação** (correção monetária)
+        - **Ajustes por produtividade** (ganhos de eficiência que reduzem o custo projetado)
         - **Classificação de custos** (Fixo vs Variável)
         
         **Objetivo Principal:**
@@ -5228,7 +7239,12 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - É aplicada como um fator multiplicador sobre o custo ajustado por sensibilidade
         - Permite correção monetária para períodos futuros
         
-        **4. Princípio da Proporcionalidade de Volume:**
+        **4. Princípio da Produtividade:**
+        - Produtividade representa ganho operacional e atua como redutor do custo previsto
+        - Pode ser aplicada globalmente ou por Type 06
+        - É combinada multiplicativamente com a inflação, compondo um único fator monetário
+
+        **5. Princípio da Proporcionalidade de Volume:**
         - A variação de volume impacta diferentemente custos fixos e variáveis
         - Custos fixos são "diluídos" quando o volume aumenta (CPU diminui)
         - Custos variáveis aumentam proporcionalmente ao volume
@@ -5294,8 +7310,8 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         st.markdown("---")
         
-        # Seção 4: Sensibilidade e Inflação
-        st.markdown("## ⚙️ SENSIBILIDADE E INFLAÇÃO {#sensibilidade-inflacao}")
+        # Seção 4: Sensibilidade, Inflação e Produtividade
+        st.markdown("## ⚙️ SENSIBILIDADE, INFLAÇÃO E PRODUTIVIDADE {#sensibilidade-inflacao}")
         
         st.markdown("""
         ### Sensibilidade ao Volume
@@ -5357,6 +7373,33 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         Custo_final = 10.500 * (1 + 0.05) = R$ 11.025
         ```
         """)
+
+        st.markdown("""
+        ### Produtividade
+
+        **Conceito:**
+        Produtividade representa ganho de eficiência operacional e reduz o custo previsto.
+
+        **Aplicação:**
+        - Pode ser configurada globalmente ou por Type 06
+        - É aplicada após o ajuste de volume, no mesmo bloco monetário da inflação
+        - Fórmula operacional do sistema: `Fator_Monetário = (1 + Inflação/100) × (1 - Produtividade/100)`
+
+        **Exemplo:**
+        ```
+        Custo ajustado por volume: R$ 10.500
+        Inflação: 5%
+        Produtividade: 3%
+
+        Fator_monetário = (1 + 0.05) * (1 - 0.03) = 1.0185
+        Custo_final = 10.500 * 1.0185 = R$ 10.694,25
+        ```
+
+        **Leitura correta:**
+        - Inflação pressiona o custo para cima
+        - Produtividade compensa parte dessa pressão
+        - O efeito final depende da combinação multiplicativa dos dois fatores
+        """)
         
         st.markdown("---")
         
@@ -5368,13 +7411,13 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         **Fórmula Geral (linha a linha):**
         ```
-        Best_Estimate = Média_Histórica * Fator_Variação * Fator_Inflação
+        Best_Estimate = Média_Histórica * Fator_Variação * Fator_Monetário
         ```
         
         **Onde:**
         - `Média_Histórica` = Média dos custos históricos para a combinação de chaves
         - `Fator_Variação` = 1 + (Variação_Percentual_Volume * Sensibilidade)
-        - `Fator_Inflação` = 1 + (Inflação / 100)
+        - `Fator_Monetário` = (1 + Inflação / 100) × (1 - Produtividade / 100)
         
         **Cálculo Detalhado Passo a Passo:**
         
@@ -5403,14 +7446,14 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         fator_variação = 1.0 + variação_ajustada
         ```
         
-        **5. Calcular Fator de Inflação:**
+        **5. Calcular Fator Monetário:**
         ```
-        fator_inflação = 1.0 + (inflação / 100.0)
+        fator_monetário = (1.0 + (inflação / 100.0)) * (1.0 - (produtividade / 100.0))
         ```
         
         **6. Calcular Best Estimate Final:**
         ```
-        Best_Estimate = Média_Histórica * fator_variação * fator_inflação
+        Best_Estimate = Média_Histórica * fator_variação * fator_monetário
         ```
         """)
         
@@ -5422,6 +7465,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             - Volume do mês futuro: 1.100 unidades
             - Tipo de custo: Variável (sensibilidade = 100%)
             - Inflação: 5%
+            - Produtividade: 2%
             
             **Cálculo:**
             
@@ -5445,21 +7489,21 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             fator_variação = 1.0 + 0.1 = 1.1
             ```
             
-            **Passo 5:** Fator de inflação
+            **Passo 5:** Fator monetário
             ```
-            fator_inflação = 1.0 + (5/100) = 1.05
+            fator_monetário = (1.0 + 0.05) * (1.0 - 0.02) = 1.029
             ```
             
             **Passo 6:** Best Estimate
             ```
-            Best_Estimate = 10.000 * 1.1 * 1.05 = R$ 11.550
+            Best_Estimate = 10.000 * 1.1 * 1.029 = R$ 11.319
             ```
             
             **Interpretação:**
-            O custo previsto é R$ 11.550, representando:
+            O custo previsto é R$ 11.319, representando:
             - Aumento de 10% devido ao aumento de volume (de 1.000 para 1.100 unidades)
-            - Aumento adicional de 5% devido à inflação
-            - Total: 15.5% de aumento sobre a média histórica
+            - Aumento monetário de 5% por inflação parcialmente compensado por 2% de produtividade
+            - Total: 13,19% de aumento sobre a média histórica
             """)
         
         st.markdown("---")
@@ -5468,31 +7512,31 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         st.markdown("## 💰 TIPOS DE CUSTOS: FIXO VS VARIÁVEL {#tipos-custos}")
         
         st.markdown("""
-        ### Classificação de Custos
-        
-        **Custos Fixos:**
-        - **Características:** Não variam com o volume de produção
-        - **Sensibilidade:** 0% (zero por cento)
-        - **Exemplos:** Aluguel, salários fixos, depreciação, seguros
-        - **Comportamento no Best Estimate:**
-          - Média histórica é mantida (sem ajuste por volume)
-          - Apenas inflação é aplicada
-          - Fórmula: `Best_Estimate_Fixo = Média_Histórica_Fixo * (1 + Inflação/100)`
-        
-        **Custos Variáveis:**
-        - **Características:** Variam proporcionalmente ao volume de produção
-        - **Sensibilidade:** 100% (cem por cento)
-        - **Exemplos:** Matéria-prima, energia variável, comissões, peças de reposição
-        - **Comportamento no Best Estimate:**
-          - Média histórica é ajustada pela proporção de volume
-          - Inflação é aplicada sobre o valor ajustado
-          - Fórmula: `Best_Estimate_Variável = Média_Histórica_Variável * (Volume_Futuro/Volume_Histórico) * (1 + Inflação/100)`
-        
-        **Identificação no Sistema:**
-        - A coluna `Custo` (ou `Tipo_Custo`) contém os valores: `'Fixo'` ou `'Variável'`
-        - Esta classificação vem do merge com a Base Conso (Dados SAPIENS.xlsx)
-        - Cada linha de dados deve ter esta classificação para o cálculo correto
-        """)
+                ### Classificação de Custos
+
+                **Custos Fixos:**
+                - **Características:** Não variam com o volume de produção
+                - **Sensibilidade:** 0% (zero por cento)
+                - **Exemplos:** Aluguel, salários fixos, depreciação, seguros
+                - **Comportamento no Best Estimate:**
+                    - Média histórica é mantida (sem ajuste por volume)
+                    - Aplicam-se apenas os fatores monetários de inflação e produtividade
+                    - Fórmula: `Best_Estimate_Fixo = Média_Histórica_Fixo * (1 + Inflação/100) * (1 - Produtividade/100)`
+
+                **Custos Variáveis:**
+                - **Características:** Variam proporcionalmente ao volume de produção
+                - **Sensibilidade:** 100% (cem por cento)
+                - **Exemplos:** Matéria-prima, energia variável, comissões, peças de reposição
+                - **Comportamento no Best Estimate:**
+                    - Média histórica é ajustada pela proporção de volume
+                    - Inflação e produtividade são aplicadas sobre o valor já ajustado por volume
+                    - Fórmula: `Best_Estimate_Variável = Média_Histórica_Variável * (Volume_Futuro/Volume_Histórico) * (1 + Inflação/100) * (1 - Produtividade/100)`
+
+                **Identificação no Sistema:**
+                - A coluna `Custo` (ou `Tipo_Custo`) contém os valores: `'Fixo'` ou `'Variável'`
+                - Esta classificação vem do merge com a Base Conso (Dados SAPIENS.xlsx)
+                - Cada linha de dados deve ter esta classificação para o cálculo correto
+                """)
         
         st.markdown("---")
         
@@ -5515,18 +7559,18 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         **Interpretação da Proporção:**
         - `proporção > 1.0`: Volume futuro é maior que o histórico → Custos variáveis aumentam
         - `proporção < 1.0`: Volume futuro é menor que o histórico → Custos variáveis diminuem
-        - `proporção = 1.0`: Volume futuro igual ao histórico → Sem ajuste por volume (apenas inflação)
+        - `proporção = 1.0`: Volume futuro igual ao histórico → Sem ajuste por volume, restando apenas os fatores monetários
         
         **Impacto nos Custos:**
-        - **Custos Fixos:** Não são afetados pela proporção (sensibilidade = 0%)
-        - **Custos Variáveis:** São multiplicados pela proporção (sensibilidade = 100%)
-        - **Custos Semi-Variáveis:** São multiplicados por `1 + (proporção - 1) * sensibilidade`
+        - **Custos Fixos:** Não são afetados pela proporção (sensibilidade = 0%), mas ainda sofrem inflação e produtividade
+        - **Custos Variáveis:** São multiplicados pela proporção (sensibilidade = 100%) e depois ajustados por inflação e produtividade
+        - **Custos Semi-Variáveis:** São multiplicados por `1 + (proporção - 1) * sensibilidade` e depois passam pelo fator monetário
         """)
         
         st.success("""
         **✅ Este capítulo descreve completamente a teoria e funcionamento do Best Estimate.**
         Use estas informações para entender como as previsões são calculadas e como os parâmetros
-        (sensibilidade, inflação, períodos históricos) impactam os resultados.
+        (sensibilidade, inflação, produtividade e períodos históricos) impactam os resultados.
         """)
     
     # ==========================================
@@ -5560,7 +7604,9 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             ├── forecast_historico.parquet  # Histórico de forecasts gerados
             ├── forecast_previsao.parquet   # Previsões futuras
             ├── df_final_historico_forecast.parquet  # Dados históricos filtrados para forecast
-            └── df_vol_historico.parquet    # Volumes históricos para cálculo
+            ├── df_vol_historico.parquet    # Volumes históricos para cálculo
+            ├── custos_especificos.parquet  # Linhas BE Manual persistidas
+            └── config_forecast.json        # Configurações persistidas do simulador
         ```
         
         **Características:**
@@ -5578,29 +7624,34 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         st.markdown("### Sequência Completa do Processo")
         
         with st.expander("**1️⃣ Configuração de Parâmetros**", expanded=False):
-            st.markdown("""
-            **Onde**: Página 2 (Simulador) ou Página 3 (Análise)
-            
-            **Processo**:
-            1. Usuário seleciona **períodos históricos** para calcular a média
-               - Exemplo: Janeiro 2024, Fevereiro 2024, Março 2024
-               - Períodos podem ser excluídos se anômalos
-            
-            2. Usuário configura **sensibilidades**:
-               - Sensibilidade para custos fixos (geralmente 0%)
-               - Sensibilidade para custos variáveis (geralmente 100%)
-               - Sensibilidades específicas por Type 06 (opcional)
-            
-            3. Usuário configura **inflação**:
-               - Percentual de inflação anual (ex: 5%)
-               - Pode ser aplicada globalmente ou por Type 06
-            
-            4. Usuário seleciona **períodos futuros** para forecast:
-               - Exemplo: Abril 2024, Maio 2024, Junho 2024
-               - Volumes futuros são informados ou calculados
-            
-            **Resultado**: Sistema tem todos os parâmetros necessários para calcular o forecast
-            """)
+                st.markdown("""
+                **Onde**: Página 2 (Simulador) ou Página 3 (Análise)
+
+                **Processo**:
+                1. Usuário seleciona **períodos históricos** para calcular a média
+                    - Exemplo: Janeiro 2024, Fevereiro 2024, Março 2024
+                    - Períodos podem ser excluídos se anômalos
+
+                2. Usuário configura **sensibilidades**:
+                    - Sensibilidade para custos fixos (geralmente 0%)
+                    - Sensibilidade para custos variáveis (geralmente 100%)
+                    - Sensibilidades específicas por Type 06 (opcional)
+
+                3. Usuário configura **inflação**:
+                    - Percentual de inflação anual (ex: 5%)
+                    - Pode ser aplicada globalmente ou por Type 06
+
+                4. Usuário configura **produtividade**:
+                    - Ganho de eficiência que reduz o custo projetado
+                    - Pode ser aplicada globalmente ou por Type 06
+                    - É combinada com a inflação no fator monetário final
+
+                5. Usuário seleciona **períodos futuros** para forecast:
+                    - Exemplo: Abril 2024, Maio 2024, Junho 2024
+                    - Volumes futuros são informados ou calculados
+
+                **Resultado**: Sistema tem todos os parâmetros necessários para calcular o forecast e persistir as configurações em `config_forecast.json`
+                """)
         
         with st.expander("**2️⃣ Carregamento de Dados Históricos**", expanded=False):
             st.markdown("""
@@ -5649,69 +7700,77 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             """)
         
         with st.expander("**4️⃣ Cálculo do Forecast**", expanded=False):
-            st.markdown("""
-            **Onde**: Função `calcular_forecast_completo()` nas páginas 2 e 3
-            
-            **Processo (linha a linha)**:
-            1. **Para cada linha do forecast**:
-               - Obtém média histórica da combinação de chaves
-               - Obtém volume do mês futuro
-               - Obtém volume médio histórico
-            
-            2. **Calcula proporção de volume**:
-               ```
-               proporção = Volume_Mês_Futuro / Volume_Médio_Histórico
-               ```
-            
-            3. **Calcula variação percentual**:
-               ```
-               variação = proporção - 1.0
-               ```
-            
-            4. **Aplica sensibilidade**:
-               - Se `Tipo_Custo == 'Fixo'`: usa `sensibilidade_fixo`
-               - Se `Tipo_Custo == 'Variável'`: usa `sensibilidade_variavel`
-               - Se modo Type 06: usa sensibilidade específica do Type 06
-               ```
-               variação_ajustada = variação * sensibilidade
-               ```
-            
-            5. **Calcula forecast**:
-               ```
-               fator_variação = 1.0 + variação_ajustada
-               fator_inflação = 1.0 + (inflação / 100.0)
-               forecast = Média_Histórica * fator_variação * fator_inflação
-               ```
-            
-            **Resultado**: DataFrame completo com forecast linha a linha
-            """)
+                st.markdown("""
+                **Onde**: Função `calcular_forecast_completo()` nas páginas 2 e 3
+
+                **Processo (linha a linha)**:
+                1. **Para cada linha do forecast**:
+                    - Obtém média histórica da combinação de chaves
+                    - Obtém volume do mês futuro
+                    - Obtém volume médio histórico
+
+                2. **Calcula proporção de volume**:
+                    ```
+                    proporção = Volume_Mês_Futuro / Volume_Médio_Histórico
+                    ```
+
+                3. **Calcula variação percentual**:
+                    ```
+                    variação = proporção - 1.0
+                    ```
+
+                4. **Aplica sensibilidade**:
+                    - Se `Tipo_Custo == 'Fixo'`: usa `sensibilidade_fixo`
+                    - Se `Tipo_Custo == 'Variável'`: usa `sensibilidade_variavel`
+                    - Se modo Type 06: usa sensibilidade específica do Type 06
+                    ```
+                    variação_ajustada = variação * sensibilidade
+                    ```
+
+                5. **Calcula fator monetário e forecast**:
+                    ```
+                    fator_variação = 1.0 + variação_ajustada
+                    fator_monetário = (1.0 + (inflação / 100.0)) * (1.0 - (produtividade / 100.0))
+                    forecast = Média_Histórica * fator_variação * fator_monetário
+                    ```
+
+                6. **Prioridade das premissas monetárias**:
+                    - Se houver configuração detalhada por Type 06, ela prevalece
+                    - Na ausência dela, o sistema usa inflação e produtividade globais
+
+                **Resultado**: DataFrame completo com forecast linha a linha
+                """)
         
         with st.expander("**5️⃣ Salvamento dos Arquivos**", expanded=False):
-            st.markdown("""
-            **Onde**: Função de salvamento nas páginas 2 e 3
-            
-            **Processo**:
-            1. **Verificar/Criar pasta Forecast**:
+                st.markdown("""
+                **Onde**: Função de salvamento nas páginas 2 e 3
+
+                **Processo**:
+                1. **Verificar/Criar pasta Forecast**:
                     - Verifica se `dados/TC_Ext/Forecast/` existe
-               - Se não existe, cria automaticamente: `os.makedirs(pasta_forecast, exist_ok=True)`
-            
-            2. **Salvar forecast_completo.parquet**:
-               - Arquivo principal com todas as linhas do forecast
-               - Substitui arquivo anterior (não concatena)
-               - Localização: `dados/TC_Ext/Forecast/forecast_completo.parquet`
-            
-            3. **Salvar forecast_historico.parquet** (se aplicável):
-               - Histórico de forecasts gerados anteriormente
-               - Pode ser concatenado com novo forecast
-            
-            4. **Salvar forecast_previsao.parquet** (se aplicável):
-               - Apenas previsões futuras (sem dados históricos)
-            
-            **IMPORTANTE**: 
-            - Arquivos são **substituídos** a cada geração (não concatenados como histórico)
-            - Cada geração cria um forecast novo baseado nas configurações atuais
-            - Arquivos antigos são sobrescritos
-            """)
+                    - Se não existe, cria automaticamente: `os.makedirs(pasta_forecast, exist_ok=True)`
+
+                2. **Salvar forecast_completo.parquet**:
+                    - Arquivo principal com todas as linhas do forecast
+                    - Substitui arquivo anterior (não concatena)
+                    - Localização: `dados/TC_Ext/Forecast/forecast_completo.parquet`
+
+                3. **Salvar forecast_historico.parquet** (se aplicável):
+                    - Histórico sem os períodos que estão sendo previstos
+                    - Evita duplicação ao ser combinado com `forecast_previsao.parquet`
+
+                4. **Salvar forecast_previsao.parquet** (se aplicável):
+                    - Apenas previsões futuras (sem dados históricos)
+
+                5. **Salvar config_forecast.json**:
+                    - Persiste o modo global/detalhado
+                    - Guarda sensibilidade, inflação e produtividade aplicadas
+
+                **IMPORTANTE**:
+                - Arquivos são **substituídos** a cada geração (não concatenados como histórico)
+                - Cada geração cria um forecast novo baseado nas configurações atuais
+                - O resultado é sobrescrito, mas a configuração aplicada permanece disponível para a próxima abertura
+                """)
         
         st.markdown("---")
         
@@ -5732,6 +7791,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - Exclusão de meses específicos (multiselect)
         - Configuração de sensibilidades (fixo, variável, Type 06)
         - Configuração de inflação (global e por Type 06)
+        - Configuração de produtividade (global e por Type 06)
         - Seleção de períodos futuros para forecast
         
         **2. Visualização em Tempo Real:**
@@ -5747,11 +7807,12 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         **4. Salvamento de Forecast:**
         - Botão para salvar forecast calculado
         - Salva em `dados/TC_Ext/Forecast/forecast_completo.parquet`
+        - Persiste parâmetros em `dados/TC_Ext/Forecast/config_forecast.json`
         - Substitui forecast anterior
         
         **5. Análise de Sensibilidade:**
         - Permite testar diferentes valores de sensibilidade
-        - Visualiza impacto de mudanças nos parâmetros
+        - Visualiza impacto de mudanças de sensibilidade, inflação e produtividade
         - Útil para cenários "what-if"
         
         **6. Custos Específicos (BE Manual):**
@@ -5858,7 +7919,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         **4. Comparações:**
         - Permite comparar BE vs histórico dentro do mesmo layout de análise
-        - Facilita validar premissas (sensibilidade/inflação) pela variação temporal
+        - Facilita validar premissas (sensibilidade/inflação/produtividade) pela variação temporal
         
         **5. Integração com o simulador:**
         - O simulador gera/salva os arquivos em `dados/TC_Ext/Forecast/`
@@ -5903,7 +7964,8 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                 │       │       ├──> Obter Volume Futuro
                 │       │       ├──> Calcular Proporção
                 │       │       ├──> Aplicar Sensibilidade
-                │       │       └──> Aplicar Inflação
+                │       │       ├──> Aplicar Inflação
+                │       │       └──> Aplicar Produtividade
                 │       │
                 │       └──> DataFrame Completo com Forecast
                 │
@@ -5911,12 +7973,13 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                         │
                         ├──> forecast_completo.parquet
                         ├──> forecast_historico.parquet
-                        └──> forecast_previsao.parquet
+                        ├──> forecast_previsao.parquet
+                        └──> config_forecast.json
         ```
         
         **Características do Fluxo:**
         - **Tempo Real:** Forecast é calculado em tempo real com configurações atuais
-        - **Não Persistente:** Configurações (sensibilidade, inflação) não são salvas, apenas o resultado
+        - **Persistência de Parâmetros:** Sensibilidade, inflação e produtividade aplicadas ficam salvas em `config_forecast.json`
         - **Substituição:** Cada geração substitui o forecast anterior
         - **Independência:** Cada página pode gerar seu próprio forecast
         """)
@@ -5937,9 +8000,9 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         **2. forecast_historico.parquet**
         - **Conteúdo**: Histórico de forecasts gerados anteriormente
-        - **Estrutura**: Similar ao forecast_completo, mas com múltiplos forecasts
-        - **Uso**: Análise de evolução de forecasts ao longo do tempo
-        - **Atualização**: Pode ser concatenado ou substituído (depende da implementação)
+        - **Estrutura**: Base histórica usada no consolidado, sem os períodos que estão sendo previstos
+        - **Uso**: Evita duplicação ao juntar histórico com `forecast_previsao.parquet`
+        - **Atualização**: Substituído a cada geração
         
         **3. forecast_previsao.parquet**
         - **Conteúdo**: Apenas previsões futuras (sem dados históricos)
@@ -5965,6 +8028,12 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         - **Uso**: Armazena custos específicos que são integrados ao forecast final
         - **Atualização**: Criado/modificado ao adicionar ou excluir custos específicos
         - **Localização**: `dados/TC_Ext/Forecast/custos_especificos.parquet`
+
+        **7. config_forecast.json**
+        - **Conteúdo**: Modo de configuração e últimos parâmetros aplicados
+        - **Estrutura**: JSON com sensibilidade, inflação e produtividade globais e/ou por Type 06
+        - **Uso**: Recarrega automaticamente as premissas na próxima abertura do simulador
+        - **Atualização**: Sobrescrito quando o usuário aplica nova configuração
         """)
         
         st.markdown("---")
@@ -6009,6 +8078,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                - Selecionar períodos históricos (ex: últimos 3 meses)
                - Configurar sensibilidades (Fixo: 0%, Variável: 100%)
                - Configurar inflação (ex: 5%)
+                    - Configurar produtividade (ex: 2%)
                - Selecionar períodos futuros (ex: próximos 6 meses)
             
             2. **Informar Volumes Futuros**:
@@ -6046,7 +8116,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
             
             2. **Acessar Página 2 ou 3**:
                - Selecionar novos períodos históricos (incluindo os mais recentes)
-               - Manter ou ajustar sensibilidades e inflação
+                    - Manter ou ajustar sensibilidades, inflação e produtividade
             
             3. **Gerar Novo Forecast**:
                - Clicar em "Gerar Forecast" ou "Salvar Forecast"
@@ -6063,7 +8133,7 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         
         with st.expander("**Cenário 3: Testar Diferentes Cenários (What-If)**", expanded=False):
             st.markdown("""
-            **Situação**: Quer testar impacto de diferentes volumes ou inflações
+            **Situação**: Quer testar impacto de diferentes volumes, inflações ou ganhos de produtividade
             
             **Passo a Passo**:
             
@@ -6084,8 +8154,13 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
                - Alterar percentual de inflação
                - Ver impacto em todos os custos
                - Comparar cenários
+
+                5. **Testar Ganhos de Produtividade**:
+                    - Alterar produtividade global ou por Type 06
+                    - Medir quanto do aumento monetário é compensado por eficiência
+                    - Comparar com os cenários anteriores
             
-            5. **Salvar Cenário Escolhido**:
+                6. **Salvar Cenário Escolhido**:
                - Após decidir qual cenário usar
                - Configurar parâmetros finais
                - Salvar forecast
@@ -6201,20 +8276,14 @@ elif indice_selecionado == "☁️ TC Cloud":
             """
         )
 
-    caminho_doc_cloud = os.path.join(get_base_path(), "DOCUMENTACAO_TC_CLOUD.md")
-    conteudo_cloud, erro_cloud, mtime_cloud = _carregar_markdown(caminho_doc_cloud)
-
-    if erro_cloud:
-        st.error(erro_cloud)
-    else:
-        _renderizar_markdown_em_expanders(conteudo_cloud, expanded_first=False)
+    _render_doc_tc_cloud()
 
 # ==========================================
 # SEÇÃO 7: APRESENTAÇÃO VISUAL
 # ==========================================
 elif indice_selecionado == "📊 Apresentação Visual":
-    st.header("📊 Apresentação Visual - 5 Minutos")
-    render_presentation_section(str(versao_atual), data_atualizacao)
+    st.header("📊 Apresentação Visual")
+    _render_doc_apresentacao_visual()
 
 # ==========================================
 # SEÇÃO 8: CHATBOT DE DOCUMENTAÇÃO
@@ -6552,7 +8621,7 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 20px; border-radius: 10px; margin-bottom: 16px; color: white;">
         <h2 style="color: white; margin: 0;">📦 SCI — Guia de Empacotamento (EXE)</h2>
-        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial (mesmo conteúdo do arquivo <code>GUIA_EXECUTAVEL.md</code>)</p>
+        <p style="color: #a0c4ff; margin: 0.5rem 0 0 0;">Passo a passo oficial embutido nesta página, sem dependência externa.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -6695,23 +8764,8 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
         """
         )
 
-    with st.expander("8) Guia completo (GUIA_EXECUTAVEL.md)", expanded=False):
-        try:
-            guia_path = os.path.join(get_base_path(), "GUIA_EXECUTAVEL.md")
-            if os.path.exists(guia_path):
-                guia_mtime = os.path.getmtime(guia_path)
-                st.caption(
-                    f"Fonte: {guia_path} | Atualizado em: {_formatar_mtime(guia_mtime)}"
-                )
-                st.markdown(_ler_arquivo_texto_cacheado(guia_path, guia_mtime))
-            else:
-                st.warning(
-                    "GUIA_EXECUTAVEL.md não foi encontrado. "
-                    "No modo executável, ele deve estar dentro de _internal/. "
-                    "Recrie o executável usando build_exe.bat."
-                )
-        except Exception as e:
-            st.error(f"Erro ao carregar GUIA_EXECUTAVEL.md: {e}")
+    with st.expander("8) Guia completo embutido", expanded=False):
+        _render_doc_build_exe_completo()
 
 # ==========================================
 # ==========================================

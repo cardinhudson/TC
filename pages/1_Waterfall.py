@@ -426,7 +426,7 @@ def _build_office_waterfall_figure_ext(
 
     office_count = len(office_labels)
     tick_angle = -90 if office_count > 18 else (-55 if office_count > 10 else -38)
-    tick_size = 7 if office_count > 18 else (8 if office_count > 10 else 9)
+    tick_size = 10 if office_count > 18 else (11 if office_count > 10 else 12)
     bottom_margin = 155 if office_count > 18 else (120 if office_count > 10 else 95)
 
     labels = [str(label_inicial)]
@@ -2597,7 +2597,7 @@ else:
                                 tickwidth=1,
                                 ticks="outside",
                                 title=dict(font=dict(size=10)),
-                                tickfont=dict(size=9)
+                                tickfont=dict(size=12)
                             ),
                             yaxis=dict(
                                 showgrid=False,
@@ -2614,7 +2614,7 @@ else:
                                 range=[y_min, y_max],
                                 tickformat=",.0f",
                                 title=dict(font=dict(size=10)),
-                                tickfont=dict(size=9)
+                                tickfont=dict(size=12)
                             ),
                             annotations=annotations_custom if annotations_custom else []
                         )
@@ -4588,7 +4588,7 @@ else:
                                                 tickwidth=1,
                                                 ticks="outside",
                                                 title=dict(font=dict(size=10)),
-                                                tickfont=dict(size=9)
+                                                tickfont=dict(size=12)
                                             ),
                                             yaxis=dict(
                                                 showgrid=False,
@@ -4598,7 +4598,7 @@ else:
                                                 linewidth=1,
                                                 range=[y_min, y_max],
                                                 title=dict(font=dict(size=10)),
-                                                tickfont=dict(size=9)
+                                                tickfont=dict(size=12)
                                             )
                                         )
                                         

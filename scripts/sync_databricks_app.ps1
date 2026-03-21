@@ -195,6 +195,14 @@ $LocalPath = [System.IO.Path]::GetFullPath($LocalPath)
 
 Import-LocalEnvFile -EnvFilePath (Join-Path $RepoRoot ".env")
 
+if ([string]::IsNullOrWhiteSpace($Profile)) {
+    if (-not [string]::IsNullOrWhiteSpace($env:SCI_DATABRICKS_PROFILE)) {
+        $Profile = $env:SCI_DATABRICKS_PROFILE
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:DATABRICKS_CONFIG_PROFILE)) {
+        $Profile = $env:DATABRICKS_CONFIG_PROFILE
+    }
+}
+
 if (-not (Test-Path $LocalPath)) {
     throw "Pasta local nao encontrada: $LocalPath"
 }
@@ -224,6 +232,8 @@ if (-not [string]::IsNullOrWhiteSpace($Profile)) {
     $importArgs += "--profile"
     $importArgs += $Profile
 }
+
+$authArgs = @($importArgs)
 
 function Invoke-WorkspaceImportTree {
     param(
@@ -267,20 +277,47 @@ function Invoke-WorkspaceImportTree {
     }
 }
 
+function Test-DatabricksAuth {
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabricksExe,
+        [string[]]$DatabricksArgs
+    )
+
+    $authOutput = & $DatabricksExe @DatabricksArgs current-user me 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $profileMsg = if ([string]::IsNullOrWhiteSpace($Profile)) {
+            "Sem profile explicito. Configure DATABRICKS_CONFIG_PROFILE/SCI_DATABRICKS_PROFILE ou use -Profile."
+        } else {
+            "Profile atual: '$Profile'. Verifique se ele existe e esta autenticado no .databrickscfg."
+        }
+        throw "Databricks CLI sem autenticacao valida. $profileMsg`nSaida do CLI: $authOutput"
+    }
+}
+
 if ($Watch) {
     $syncArgs += "sync"
     $syncArgs += "--watch"
     $syncArgs += $LocalPath
     $syncArgs += $WorkspacePath
 
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
     Write-Host "Sincronizando app Databricks (modo watch)" -ForegroundColor Cyan
     Write-Host "Local: $LocalPath" -ForegroundColor Gray
     Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
     & $databricksCmd @syncArgs
 } else {
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
     Write-Host "Sincronizando app Databricks (upload direto)" -ForegroundColor Cyan
     Write-Host "Local: $LocalPath" -ForegroundColor Gray
     Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
     Invoke-WorkspaceImportTree -LocalRoot $LocalPath -RemoteRoot $WorkspacePath -DatabricksExe $databricksCmd -DatabricksArgs $importArgs
 
     # Deploy automático após upload (modo SNAPSHOT)

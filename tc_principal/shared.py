@@ -8,6 +8,7 @@ import sys as _sys
 import streamlit as st
 import pandas as pd
 import numpy as np
+from io import BytesIO
 import os
 import json
 import unicodedata
@@ -17,6 +18,54 @@ from tc_core.constants import ORDEM_MESES  # noqa: F401 — re-exportado para as
 from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_core.data_source import read_table
 from tc_core.feature_flags import get_flag
+
+# ═══════════════════════════════════════════════════════════════
+#  ORDEM CANÔNICA DE COLUNAS — BE DETALHADO (24 colunas)
+# ═══════════════════════════════════════════════════════════════
+COLUNAS_BE_DETALHADO = [
+    'Mes', 'Período', 'Nºconta', 'Centrocst', 'Nºdoc.ref.', 'Dt.lçto.',
+    'Valor', 'QTD', 'Type 05', 'Type 06', 'Account', 'USI', 'Oficina',
+    'Doc.compra', 'Texto breve', 'Fornecedor', 'Material', 'Usuário',
+    'Fornec.', 'Tipo', 'Custo', 'massa FA - Actual', 'massa FP - Actual',
+    'Total',
+]
+
+
+def reordenar_colunas_be(df: pd.DataFrame, colunas=None) -> pd.DataFrame:
+    """Reordena *df* conforme COLUNAS_BE_DETALHADO.
+
+    Colunas ausentes são criadas com valor vazio.
+    Colunas extras (não listadas) são mantidas ao final.
+    """
+    if df is None or df.empty:
+        return df
+    ordem = list(colunas or COLUNAS_BE_DETALHADO)
+    for col in ordem:
+        if col not in df.columns:
+            df[col] = ''
+    extras = [c for c in df.columns if c not in ordem]
+    return df[ordem + extras]
+
+
+def download_excel_button(
+    st_mod, df: pd.DataFrame, label: str, file_name: str, key: str,
+) -> None:
+    """Botão de download Excel via BytesIO (sem gravar no servidor)."""
+    try:
+        buf = BytesIO()
+        with pd.ExcelWriter(buf, engine='openpyxl') as w:
+            df.to_excel(w, index=False, sheet_name='Dados')
+        st_mod.download_button(
+            label,
+            data=buf.getvalue(),
+            file_name=file_name,
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            key=key,
+            use_container_width=True,
+        )
+    except Exception as e:
+        st_mod.error(f"❌ Erro ao gerar Excel: {e}")
+
 
 # ═══════════════════════════════════════════════════════════════
 #  RAIZ DO PROJETO (compatível com EXE PyInstaller)
@@ -1312,28 +1361,22 @@ def render_secao_tabela_detalhe(
                             _st, df_total_reag, colunas_num,
                         )
 
-        # ── Download Excel ──
-        if _st.button(
-            f"📥 Baixar {titulo} (Excel)",
-            key=f"dl_{page_key}_{ano}",
-            use_container_width=True,
-        ):
-            with _st.spinner("Gerando arquivo…"):
-                try:
-                    downloads = os.path.join(
-                        os.path.expanduser("~"), "Downloads",
-                    )
-                    os.makedirs(downloads, exist_ok=True)
-                    nome_limpo = titulo.replace(' ', '_').replace('/', '_')
-                    fname = f"TC_Veiculos_{nome_limpo}_{ano}.xlsx"
-                    fpath = os.path.join(downloads, fname)
-                    with pd.ExcelWriter(fpath, engine='openpyxl') as w:
-                        df_pivot.to_excel(
-                            w, index=False, sheet_name=nome_limpo[:31],
-                        )
-                    _st.success(f"✅ Arquivo salvo em: {fpath}")
-                    _st.info(
-                        f"📁 Verifique sua pasta Downloads: {downloads}"
-                    )
-                except Exception as e:
-                    _st.error(f"❌ Erro ao gerar Excel: {e}")
+        # ── Download Excel (via browser) ──
+        try:
+            nome_limpo = titulo.replace(' ', '_').replace('/', '_')
+            fname = f"TC_Veiculos_{nome_limpo}_{ano}.xlsx"
+            buf = BytesIO()
+            with pd.ExcelWriter(buf, engine='openpyxl') as w:
+                df_pivot.to_excel(
+                    w, index=False, sheet_name=nome_limpo[:31],
+                )
+            _st.download_button(
+                f"📥 Baixar {titulo} (Excel)",
+                data=buf.getvalue(),
+                file_name=fname,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"dl_{page_key}_{ano}",
+                use_container_width=True,
+            )
+        except Exception as e:
+            _st.error(f"❌ Erro ao gerar Excel: {e}")

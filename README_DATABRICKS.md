@@ -156,6 +156,13 @@ Requisitos locais:
 - `.env` na raiz com `DATABRICKS_HOST` e `DATABRICKS_TOKEN`
 - `databricks-sdk` e `python-dotenv` instalados no ambiente Python
 
+Perfis multiplos do Databricks CLI:
+
+- E possivel manter mais de um usuario no arquivo `.databrickscfg`, por exemplo `[antigo]` e `[atual]`.
+- O script `scripts/sync_databricks_app.ps1` aceita `-Profile <nome>`.
+- Os wrappers `sync_app.bat` e `sync_and_run.bat` tambem aceitam perfil por argumento ou pela variavel `SCI_DATABRICKS_PROFILE`.
+- Exemplo: `sync_app.bat watch atual` ou `sync_and_run.bat atual`.
+
 Observacao: o utilitario fica fora de `scripts/` e fora das pastas espelhadas
 do app para nao ser removido no proximo pull exato.
 

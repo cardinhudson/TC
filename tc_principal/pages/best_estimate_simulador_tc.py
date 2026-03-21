@@ -13,6 +13,7 @@ import altair as alt
 import os
 import numpy as np
 import re
+import json
 import shutil
 from datetime import datetime, timedelta
 
@@ -24,6 +25,24 @@ from tc_principal.shared import (
     ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
     load_dea_dedicado_real,
 )
+
+# --- Config Forecast persistence ---
+_CONFIG_FORECAST_TC_PATH = os.path.join(_DATA_ROOT, "TC_Principal", "Forecast", "config_forecast.json")
+
+
+def _salvar_config_forecast_tc(cfg: dict) -> None:
+    """Persiste configurações de forecast em JSON."""
+    os.makedirs(os.path.dirname(_CONFIG_FORECAST_TC_PATH), exist_ok=True)
+    with open(_CONFIG_FORECAST_TC_PATH, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def _carregar_config_forecast_tc() -> dict | None:
+    """Carrega configurações persistidas, se existirem."""
+    if os.path.exists(_CONFIG_FORECAST_TC_PATH):
+        with open(_CONFIG_FORECAST_TC_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
 
 # st_aggrid é opcional: se a página for executada fora do .venv, pode não existir.
 # Mantemos a funcionalidade principal (forecast) mesmo sem AgGrid.
@@ -312,6 +331,10 @@ try:
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")
     st.stop()
+
+# 🔧 CORREÇÃO: Remover linhas BE Manual de df_total para não contaminar agregações/gráficos/resumos
+if df_total is not None and 'Tipo' in df_total.columns:
+    df_total = df_total[df_total['Tipo'] != 'BE Manual'].copy()
 
 # Filtros na sidebar
 st.sidebar.markdown("---")
@@ -1576,14 +1599,12 @@ config_sensibilidade_temp = {
     'sensibilidade_fixo': None,
     'sensibilidade_variavel': None,
     'inflacao_global': None,
+    'produtividade_global': None,
     'sensibilidades_type06': None,
-    'inflacao_type06': None
+    'inflacao_type06': None,
+    'produtividade_type06': None
 }
 
-# Sliders de sensibilidade
-st.markdown("### 🎚️ Sensibilidade à Variação de Volume")
-
-# Verificar se Type 06 existe nos dados
 if 'Type 06' in df_filtrado.columns:
     # Obter valores únicos de Type 06
     type06_valores = sorted(df_filtrado['Type 06'].dropna().unique().tolist())
@@ -1609,16 +1630,19 @@ if 'Type 06' in df_filtrado.columns:
         if modo_config == "🌐 Global (Fixo/Variável)":
             # Modo global (original)
             
-            # Inicializar session_state para modo global
+            # Inicializar session_state para modo global (com config persistida)
+            _cfg_p = _carregar_config_forecast_tc()
             if 'sensibilidade_fixo_aplicada_tc' not in st.session_state:
-                st.session_state.sensibilidade_fixo_aplicada_tc = 0.0
+                st.session_state.sensibilidade_fixo_aplicada_tc = (_cfg_p or {}).get('sensibilidade_fixo', 0.0)
             if 'sensibilidade_variavel_aplicada_tc' not in st.session_state:
-                st.session_state.sensibilidade_variavel_aplicada_tc = 1.0
+                st.session_state.sensibilidade_variavel_aplicada_tc = (_cfg_p or {}).get('sensibilidade_variavel', 1.0)
             if 'inflacao_global_aplicada_tc' not in st.session_state:
-                st.session_state.inflacao_global_aplicada_tc = 0.0
+                st.session_state.inflacao_global_aplicada_tc = (_cfg_p or {}).get('inflacao_global', 0.0)
+            if 'produtividade_global_aplicada_tc' not in st.session_state:
+                st.session_state.produtividade_global_aplicada_tc = (_cfg_p or {}).get('produtividade_global', 0.0)
             
-            # Layout em 3 colunas: Fixo, Variável, Inflação
-            col_sens1, col_sens2, col_infl = st.columns(3)
+            # Layout em 4 colunas: Fixo, Variável, Inflação, Produtividade
+            col_sens1, col_sens2, col_infl, col_prod = st.columns(4)
             
             with col_sens1:
                 sensibilidade_fixo_temp = st.slider(
@@ -1656,10 +1680,24 @@ if 'Type 06' in df_filtrado.columns:
                 st.info(f"📊 Inflação: **{inflacao_global_temp:.2f}%**")
                 st.caption("💡 Aplicada uma vez no 1º mês e mantida nos demais")
             
+            with col_prod:
+                produtividade_global_temp = st.slider(
+                    "⚡ Produtividade Global",
+                    min_value=0.0,
+                    max_value=20.0,
+                    value=st.session_state.produtividade_global_aplicada_tc,
+                    step=0.5,
+                    format="%.2f",
+                    help="Ganho de produtividade que reduz o custo projetado"
+                )
+                st.info(f"⚡ Produtividade: **{produtividade_global_temp:.2f}%**")
+                st.caption("💡 Reduz o custo projetado no forecast")
+            
             # Armazenar valores temporários para aplicar depois no botão unificado
             config_sensibilidade_temp['sensibilidade_fixo'] = sensibilidade_fixo_temp
             config_sensibilidade_temp['sensibilidade_variavel'] = sensibilidade_variavel_temp
             config_sensibilidade_temp['inflacao_global'] = inflacao_global_temp
+            config_sensibilidade_temp['produtividade_global'] = produtividade_global_temp
             
             # Usar valores aplicados (se existirem) ou temporários
             if 'sensibilidade_fixo_aplicada_tc' in st.session_state:
@@ -1676,6 +1714,11 @@ if 'Type 06' in df_filtrado.columns:
                 inflacao_global = st.session_state.inflacao_global_aplicada_tc
             else:
                 inflacao_global = inflacao_global_temp
+            
+            if 'produtividade_global_aplicada_tc' in st.session_state:
+                produtividade_global = st.session_state.produtividade_global_aplicada_tc
+            else:
+                produtividade_global = produtividade_global_temp
             
             # Criar dicionário de sensibilidades (None = usar global)
             sensibilidades_type06 = None
@@ -1712,12 +1755,15 @@ if 'Type 06' in df_filtrado.columns:
                 st.session_state.valores_temp_sens_tc = {}
             if 'valores_temp_infl_tc' not in st.session_state:
                 st.session_state.valores_temp_infl_tc = {}
+            if 'valores_temp_prod_tc' not in st.session_state:
+                st.session_state.valores_temp_prod_tc = {}
             if 'widget_key_counter_tc' not in st.session_state:
                 st.session_state.widget_key_counter_tc = 0
             
-            # Criar dicionários para armazenar sensibilidades e inflação
+            # Criar dicionários para armazenar sensibilidades, inflação e produtividade
             sensibilidades_type06 = {}
             inflacao_type06 = {}
+            produtividade_type06 = {}
             
             # Botões de ação rápida NO TOPO
             st.markdown("##### ⚡ Ações Rápidas - Sensibilidade")
@@ -1745,20 +1791,22 @@ if 'Type 06' in df_filtrado.columns:
                 if st.button("🧹 Limpar Configurações", use_container_width=True, key="btn_limpar_tc"):
                     st.session_state.sensibilidades_aplicadas_tc = None
                     st.session_state.inflacao_aplicada_tc = None
+                    st.session_state.produtividade_aplicada_tc = None
                     st.session_state.valores_temp_sens_tc = {}
                     st.session_state.valores_temp_infl_tc = {}
+                    st.session_state.valores_temp_prod_tc = {}
                     st.success("Configurações limpas!")
                     st.rerun()
             
             # Botões de ação rápida para INFLAÇÃO
-            st.markdown("##### 📈 Ações Rápidas - Inflação")
-            st.markdown("Digite o valor de inflação e clique no botão para aplicar a todas as linhas:")
+            st.markdown("##### 📈 Ações Rápidas - Inflação e Produtividade")
+            st.markdown("Digite os valores e clique nos botões para aplicar a todas as linhas:")
             
-            col_infl_input, col_infl_btn1, col_infl_btn2 = st.columns([2, 1, 1])
+            col_infl_input, col_infl_btn1, col_infl_btn2, col_prod_input, col_prod_btn1, col_prod_btn2 = st.columns([1.5, 0.7, 0.7, 1.5, 0.7, 0.7])
             
             with col_infl_input:
                 inflacao_rapida = st.number_input(
-                    "Inflação para todas as linhas (%)",
+                    "Inflação todas (%)",
                     min_value=0.0,
                     max_value=100.0,
                     value=0.0,
@@ -1769,37 +1817,61 @@ if 'Type 06' in df_filtrado.columns:
                 )
             
             with col_infl_btn1:
-                st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
-                if st.button("📈 Aplicar a Todas", use_container_width=True, key="btn_aplicar_inflacao_tc"):
-                    # Aplicar o novo valor a todas as linhas
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("📈 Aplicar", use_container_width=True, key="btn_aplicar_inflacao_tc"):
                     for type06 in type06_valores:
                         st.session_state.valores_temp_infl_tc[type06] = inflacao_rapida
-                    # Incrementar contador para forçar recriação dos widgets
                     st.session_state.widget_key_counter_tc += 1
                     st.rerun()
             
             with col_infl_btn2:
-                st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
-                if st.button("🔄 Zerar Inflação", use_container_width=True, key="btn_zerar_inflacao_tc"):
-                    # Aplicar zero a todas as linhas
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🔄 Zerar", use_container_width=True, key="btn_zerar_inflacao_tc"):
                     for type06 in type06_valores:
                         st.session_state.valores_temp_infl_tc[type06] = 0.0
-                    # Incrementar contador para forçar recriação dos widgets
+                    st.session_state.widget_key_counter_tc += 1
+                    st.rerun()
+            
+            with col_prod_input:
+                prod_rapida = st.number_input(
+                    "Produtividade todas (%)",
+                    min_value=0.0,
+                    max_value=50.0,
+                    value=0.0,
+                    step=0.5,
+                    format="%.2f",
+                    key="prod_rapida_input_tc",
+                    help="Ganho de produtividade que reduz o custo projetado"
+                )
+            
+            with col_prod_btn1:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("⚡ Aplicar", use_container_width=True, key="btn_aplicar_prod_tc"):
+                    for type06 in type06_valores:
+                        st.session_state.valores_temp_prod_tc[type06] = prod_rapida
+                    st.session_state.widget_key_counter_tc += 1
+                    st.rerun()
+            
+            with col_prod_btn2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🔄 Zerar", use_container_width=True, key="btn_zerar_prod_tc"):
+                    for type06 in type06_valores:
+                        st.session_state.valores_temp_prod_tc[type06] = 0.0
                     st.session_state.widget_key_counter_tc += 1
                     st.rerun()
             
             st.markdown("---")
             
             # Criar tabela interativa com sliders
-            st.markdown("##### Tabela de Sensibilidades e Inflação")
+            st.markdown("##### Tabela de Sensibilidades, Inflação e Produtividade")
             
             st.info("""
-            💡 **Inflação**: Digite o percentual de inflação que será aplicado **uma única vez** no primeiro mês da previsão.
-            Exemplo: 5% significa que o custo aumentará 5% a partir do primeiro mês e manterá esse valor ajustado nos meses seguintes.
+            💡 **Inflação**: Percentual aplicado uma única vez no primeiro mês da previsão.
+            **Produtividade**: Ganho de eficiência que reduz o custo projetado (ex: 5% = redução de 5%).
             """)
             
             # Cabeçalho da tabela
-            col_header1, col_header2, col_header3, col_header4, col_header5, col_header6 = st.columns([2, 2.5, 1.5, 2.5, 1, 1.5])
+            col_header1, col_header2, col_header3, col_header4, col_header5, col_header6, col_header7 = st.columns([2, 2.5, 1, 2, 0.8, 1.2, 1.2])
             with col_header1:
                 st.markdown("**Type 05**")
             with col_header2:
@@ -1812,6 +1884,8 @@ if 'Type 06' in df_filtrado.columns:
                 st.markdown("**%**")
             with col_header6:
                 st.markdown("**Inflação %**")
+            with col_header7:
+                st.markdown("**Prod. %**")
             
             st.markdown("---")
             
@@ -1840,8 +1914,12 @@ if 'Type 06' in df_filtrado.columns:
                 if type06 in st.session_state.valores_temp_infl_tc:
                     valor_padrao_infl = st.session_state.valores_temp_infl_tc[type06]
                 
+                valor_padrao_prod = 0.0
+                if type06 in st.session_state.valores_temp_prod_tc:
+                    valor_padrao_prod = st.session_state.valores_temp_prod_tc[type06]
+                
                 # Criar linha da tabela (mais compacta)
-                col1, col2, col3, col4, col5, col6 = st.columns([2, 2.5, 1.5, 2.5, 1, 1.5])
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([2, 2.5, 1, 2, 0.8, 1.2, 1.2])
                 
                 with col1:
                     st.markdown(f"<small>{type05_valor}</small>", unsafe_allow_html=True)
@@ -1887,6 +1965,21 @@ if 'Type 06' in df_filtrado.columns:
                     inflacao_type06[type06] = inflacao
                     # Atualizar valor temporário
                     st.session_state.valores_temp_infl_tc[type06] = inflacao
+                
+                with col7:
+                    widget_key_prod = f"prod_{type06}_{st.session_state.widget_key_counter_tc}"
+                    produtividade = st.number_input(
+                        "Prod. %",
+                        min_value=0.0,
+                        max_value=50.0,
+                        value=valor_padrao_prod,
+                        step=0.5,
+                        format="%.2f",
+                        key=widget_key_prod,
+                        label_visibility="collapsed"
+                    )
+                    produtividade_type06[type06] = produtividade
+                    st.session_state.valores_temp_prod_tc[type06] = produtividade
             
             # Botão para aplicar configurações
             st.markdown("---")
@@ -1896,10 +1989,13 @@ if 'Type 06' in df_filtrado.columns:
                 st.session_state.sensibilidades_aplicadas_tc = None
             if 'inflacao_aplicada_tc' not in st.session_state:
                 st.session_state.inflacao_aplicada_tc = None
+            if 'produtividade_aplicada_tc' not in st.session_state:
+                st.session_state.produtividade_aplicada_tc = None
             
             # Armazenar valores temporários para aplicar depois no botão unificado
             config_sensibilidade_temp['sensibilidades_type06'] = sensibilidades_type06.copy() if sensibilidades_type06 else None
             config_sensibilidade_temp['inflacao_type06'] = inflacao_type06.copy() if inflacao_type06 else None
+            config_sensibilidade_temp['produtividade_type06'] = produtividade_type06.copy() if produtividade_type06 else None
             
             # Usar configurações aplicadas (se existirem) ou temporárias
             if st.session_state.sensibilidades_aplicadas_tc is not None:
@@ -2610,7 +2706,7 @@ with tab_visualizar:
 
 with tab_adicionar:
     st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
-    st.info("📝 Preencha a tabela abaixo com os custos. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
+    st.info("📝 Preencha a tabela abaixo com os custos **em KR$ (milhares de R$)**. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
 
     # Obter opções dinâmicas
     oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
@@ -2657,13 +2753,13 @@ with tab_adicionar:
         if idx_mes <= indice_ultimo_mes:
             # Mês já realizado — bloquear edição
             editor_column_config[mes] = st.column_config.NumberColumn(
-                f"🔒 {mes}", default=0.0, format="R$ %.2f",
+                f"🔒 {mes}", default=0.0, format="KR$ %.2f",
                 width="small", disabled=True,
                 help=f"{MESES_COMPLETOS[mes]} já realizado — não editável"
             )
         else:
             editor_column_config[mes] = st.column_config.NumberColumn(
-                mes, default=0.0, format="R$ %.2f", width="small"
+                mes, default=0.0, format="KR$ %.2f", width="small"
             )
 
     # Editor
@@ -2694,7 +2790,7 @@ with tab_adicionar:
                     linhas_preview.append({
                         'Oficina': row['Oficina'],
                         'Período': MESES_COMPLETOS[mes],
-                        'Custo FP (R$)': float(valor),
+                        'Custo FP (KR$)': float(valor),
                         'Account': acc if pd.notna(acc) else '',
                         'Type 06': info_acc.get('Type 06', ''),
                         'Type 05': info_acc.get('Type 05', ''),
@@ -2707,7 +2803,7 @@ with tab_adicionar:
             id_cols = [c for c in ['Oficina', 'Account', 'Type 05', 'Type 06', 'Custo'] if c in df_preview.columns]
             df_pivot = df_preview.pivot_table(
                 index=id_cols, columns='Período',
-                values='Custo FP (R$)', aggfunc='sum'
+                values='Custo FP (KR$)', aggfunc='sum'
             ).reset_index()
             # Ordenar colunas de meses
             meses_ordem = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -2716,7 +2812,7 @@ with tab_adicionar:
             df_pivot = df_pivot[id_cols + cols_meses]
             df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
             # Formatar valores
-            fmt_cfg = {m: st.column_config.NumberColumn(m, format='R$ %.2f') for m in cols_meses + ['Total']}
+            fmt_cfg = {m: st.column_config.NumberColumn(m, format='KR$ %.2f') for m in cols_meses + ['Total']}
             st.dataframe(df_pivot, hide_index=True, width="stretch", column_config=fmt_cfg)
 
     # Botão Salvar
@@ -2757,7 +2853,7 @@ with tab_adicionar:
                         novo_custo = {
                             'Oficina': row['Oficina'],
                             'Período': periodo_completo,
-                            'Custo FP': float(valor),
+                            'Custo FP': float(valor) * 1000,  # KR$ → R$
                             'Custo': info_acc.get('Custo', ''),
                             'Descricao': row.get('Descrição', 'Sem descrição') if pd.notna(row.get('Descrição')) else 'Sem descrição',
                             'Ano': ano_para_custo,
@@ -2940,12 +3036,28 @@ if aplicar_config_forecast:
         st.session_state.sensibilidade_variavel_aplicada_tc = config_sensibilidade_temp['sensibilidade_variavel']
     if config_sensibilidade_temp['inflacao_global'] is not None:
         st.session_state.inflacao_global_aplicada_tc = config_sensibilidade_temp['inflacao_global']
+    if config_sensibilidade_temp.get('produtividade_global') is not None:
+        st.session_state.produtividade_global_aplicada_tc = config_sensibilidade_temp['produtividade_global']
     
     # Modo Detalhado
     if config_sensibilidade_temp['sensibilidades_type06'] is not None:
         st.session_state.sensibilidades_aplicadas_tc = config_sensibilidade_temp['sensibilidades_type06']
     if config_sensibilidade_temp['inflacao_type06'] is not None:
         st.session_state.inflacao_aplicada_tc = config_sensibilidade_temp['inflacao_type06']
+    if config_sensibilidade_temp.get('produtividade_type06') is not None:
+        st.session_state.produtividade_aplicada_tc = config_sensibilidade_temp['produtividade_type06']
+
+    # Persistir configurações em JSON
+    _salvar_config_forecast_tc({
+        'modo': st.session_state.get('modo_config_sensibilidade_tc', 'global'),
+        'sensibilidade_fixo': st.session_state.get('sensibilidade_fixo_aplicada_tc', 0.0),
+        'sensibilidade_variavel': st.session_state.get('sensibilidade_variavel_aplicada_tc', 1.0),
+        'inflacao_global': st.session_state.get('inflacao_global_aplicada_tc', 0.0),
+        'produtividade_global': st.session_state.get('produtividade_global_aplicada_tc', 0.0),
+        'sensibilidades_type06': st.session_state.get('sensibilidades_aplicadas_tc'),
+        'inflacao_type06': st.session_state.get('inflacao_aplicada_tc'),
+        'produtividade_type06': st.session_state.get('produtividade_aplicada_tc'),
+    })
 
     # 🔧 CORREÇÃO: Evitar que configurações detalhadas antigas interfiram no modo Global.
     # Se o usuário aplicou no modo Global, forçar o uso dos sliders globais limpando os dicts por Type 06.
@@ -2953,6 +3065,7 @@ if aplicar_config_forecast:
     if modo_sel == 'global':
         st.session_state.sensibilidades_aplicadas_tc = None
         st.session_state.inflacao_aplicada_tc = None
+        st.session_state.produtividade_aplicada_tc = None
 
     # Registrar o modo efetivamente aplicado
     st.session_state.modo_sensibilidade_aplicado_tc = modo_sel or st.session_state.get('modo_sensibilidade_aplicado_tc', 'global')
@@ -3418,6 +3531,12 @@ if aplicar_config_forecast:
                     if 'Tipo' in df_base_completo.columns:
                         if 'Forecast' in df_base_completo['Tipo'].values:
                             df_base_completo.loc[df_base_completo['Tipo'] == 'Forecast', 'Tipo'] = 'BE'
+                        # 🔧 CORREÇÃO: Remover linhas de forecast/manual para usar apenas histórico real na base da média
+                        linhas_antes_filtro_tipo = len(df_base_completo)
+                        df_base_completo = df_base_completo[~df_base_completo['Tipo'].isin(['BE', 'BE Manual', 'Forecast'])].copy()
+                        linhas_removidas_tipo = linhas_antes_filtro_tipo - len(df_base_completo)
+                        if linhas_removidas_tipo > 0:
+                            adicionar_mensagem("info", f"🔧 Fallback: {linhas_removidas_tipo:,} linhas BE/BE Manual removidas para manter apenas histórico real")
                 else:
                     st.error(f"❌ Arquivo base não encontrado: {caminho_base_original}")
                     st.error("ℹ️ Por favor, verifique se o arquivo existe na pasta 'dados/TC_Principal/historico_consolidado/'")
@@ -3714,6 +3833,17 @@ if aplicar_config_forecast:
                     adicionar_mensagem("success", f"✅ Filtro por ano aplicado (via Período): {ano_referencia_media} - {linhas_antes_filtro_ano:,} → {len(df_base_para_media):,} linhas ({linhas_removidas:,} removidas)")
             else:
                 adicionar_mensagem("warning", f"⚠️ Ano de referência não encontrado! Usando todos os períodos sem filtro por ano.")
+            
+            # 🔧 CORREÇÃO CRÍTICA: Excluir linhas de forecast/manual da base da média
+            # Custos manuais (BE Manual) e forecast calculado (BE) NÃO devem entrar no cálculo da média histórica.
+            # Apenas dados reais (Tipo='Histórico' ou sem coluna Tipo) alimentam a média.
+            if 'Tipo' in df_base_para_media.columns:
+                tipos_excluir = ['BE', 'BE Manual', 'Forecast']
+                linhas_antes_filtro_tipo_media = len(df_base_para_media)
+                df_base_para_media = df_base_para_media[~df_base_para_media['Tipo'].isin(tipos_excluir)].copy()
+                linhas_removidas_tipo_media = linhas_antes_filtro_tipo_media - len(df_base_para_media)
+                if linhas_removidas_tipo_media > 0:
+                    adicionar_mensagem("info", f"🔧 Filtro pré-média: {linhas_removidas_tipo_media:,} linhas BE/BE Manual removidas da base de cálculo da média")
             
             # Calcular média histórica por chave única (MESMA LÓGICA DO FORECAST COPY linha 6212-6217)
             # 🔧 CORREÇÃO: Sempre usar coluna 'Custo FP' (nunca 'Despesa Primaria')
@@ -4987,7 +5117,17 @@ if aplicar_config_forecast:
                     
                     # Calcular forecast
                     fator_variacao = 1.0 + variacao_ajustada
-                    fator_inflacao = 1.0 + inflacao_percentual
+                    # Produtividade por Type 06 (se disponível) ou global
+                    _prod_t06_dict = st.session_state.get('produtividade_aplicada_tc', None)
+                    if _prod_t06_dict and 'Type 06' in df_forecast_completo.columns:
+                        _t06_val = df_forecast_completo.loc[idx, 'Type 06']
+                        if pd.notna(_t06_val) and _t06_val in _prod_t06_dict and _prod_t06_dict[_t06_val] > 0:
+                            produtividade_pct = _prod_t06_dict[_t06_val] / 100.0
+                        else:
+                            produtividade_pct = (st.session_state.get('produtividade_global_aplicada_tc', 0.0) or 0.0) / 100.0
+                    else:
+                        produtividade_pct = (st.session_state.get('produtividade_global_aplicada_tc', 0.0) or 0.0) / 100.0
+                    fator_inflacao = (1.0 + inflacao_percentual) * (1.0 - produtividade_pct)
                     forecast = media_historica * fator_variacao * fator_inflacao
                     
                     df_forecast_completo.loc[idx, periodo] = forecast
@@ -5357,6 +5497,7 @@ if aplicar_config_forecast:
                                 linha_custo['Despesa Primaria'] = valor_rateado
                                 linha_custo[veiculo_pct] = rateio
                                 linha_custo['Tipo'] = 'BE Manual'
+                                linha_custo['Texto breve'] = custo_row.get('Descricao', custo_row.get('Descrição', 'Custo Específico'))
                                 
                                 if 'Ano' not in linha_custo or pd.isna(linha_custo.get('Ano')):
                                     partes = periodo_str.split(' ', 1)
@@ -5438,7 +5579,7 @@ if aplicar_config_forecast:
                 
                 df_limpo = df.copy()
                 
-                colunas_para_remover = ['Nºconta', 'Nºdoc.ref.', 'Dt.lçto.', 'QTD', 'Nºdoc.ref', 'Doc.compra', 'Texto breve', 'Material', 'Usuário']
+                colunas_para_remover = ['Nºconta', 'Nºdoc.ref.', 'Dt.lçto.', 'QTD', 'Nºdoc.ref', 'Doc.compra', 'Material', 'Usuário']
                 colunas_normalizacao = ['Período_Norm', 'Período_Normalizado', 'Period_Norm', 'Period_Normalizado']
                 colunas_para_remover.extend(colunas_normalizacao)
                 colunas_para_remover = [col for col in colunas_para_remover if col != 'Custo']
