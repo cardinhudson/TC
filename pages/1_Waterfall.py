@@ -215,6 +215,67 @@ def _filter_detail_by_pairs_ext(df_base, df_pairs):
     return df_out[df_out['Período'].astype(str).isin(periodos)].copy()
 
 
+def _build_top_gastos_por_categoria_ext(
+    df_sapiens, cat_labels, cat_column, valor_col, moeda_simbolo, sufixo,
+    n_hover=10, n_tabela=10,
+):
+    """Pré-calcula TOP gastos por categoria para tooltip analítico do Waterfall.
+
+    Retorna dict {categoria: {hover_str, df_top}} com:
+    - hover_str: HTML com TOP 10 (Texto breve | Oficina | Valor | %) + "Outros gastos"
+    - df_top: DataFrame TOP 10 para tabela drill-down
+    """
+    result = {}
+    if df_sapiens is None or df_sapiens.empty or not valor_col:
+        return result
+    if cat_column not in df_sapiens.columns or 'Texto breve' not in df_sapiens.columns:
+        return result
+    if valor_col not in df_sapiens.columns:
+        return result
+    df_sap = df_sapiens.copy()
+    df_sap[valor_col] = pd.to_numeric(df_sap[valor_col], errors='coerce').fillna(0)
+    df_sap['_cat_norm'] = df_sap[cat_column].astype(str).str.strip()
+    df_sap['_texto'] = df_sap['Texto breve'].astype(str).str.strip().str[:80]
+    _has_oficina = 'Oficina' in df_sap.columns and cat_column != 'Oficina'
+    if _has_oficina:
+        df_sap['_oficina'] = df_sap['Oficina'].astype(str).str.strip()
+    for cat in cat_labels:
+        cat_str = str(cat).strip()
+        df_cat = df_sap.loc[df_sap['_cat_norm'] == cat_str]
+        if df_cat.empty:
+            result[cat_str] = {'hover_str': '', 'df_top': pd.DataFrame()}
+            continue
+        total_cat = df_cat[valor_col].sum()
+        abs_total = abs(total_cat) if total_cat != 0 else 1
+        grp_cols = ['_texto'] + (['_oficina'] if _has_oficina else [])
+        agg = df_cat.groupby(grp_cols, as_index=False)[valor_col].sum()
+        agg = agg.sort_values(valor_col, ascending=False)
+        top = agg.head(n_hover)
+        top_sum = top[valor_col].sum()
+        outros_val = total_cat - top_sum
+        df_top = top.copy()
+        df_top['%'] = (df_top[valor_col] / abs_total * 100).round(1)
+        if _has_oficina:
+            df_top = df_top.rename(columns={'_texto': 'Texto breve', '_oficina': 'Oficina', valor_col: 'Valor'})
+            df_top = df_top[['Texto breve', 'Oficina', 'Valor', '%']]
+        else:
+            df_top = df_top.rename(columns={'_texto': 'Texto breve', valor_col: 'Valor'})
+            df_top = df_top[['Texto breve', 'Valor', '%']]
+        lines = []
+        for idx, (_, row) in enumerate(top.iterrows()):
+            txt = row['_texto'] if len(row['_texto']) <= 40 else row['_texto'][:37] + '...'
+            val = row[valor_col]
+            pct = val / abs_total * 100
+            ofc_part = f" | {row['_oficina']}" if _has_oficina else ''
+            lines.append(f"{idx+1}. {txt}{ofc_part} | {moeda_simbolo} {val:,.0f}{sufixo} ({pct:.1f}%)")
+        if abs(outros_val) > 0.01:
+            pct_outros = outros_val / abs_total * 100
+            lines.append(f"Outros (fora do Top {n_hover}): {moeda_simbolo} {outros_val:,.0f}{sufixo} ({pct_outros:.1f}%)")
+        hover_str = '<br>'.join(lines)
+        result[cat_str] = {'hover_str': hover_str, 'df_top': df_top}
+    return result
+
+
 def _build_office_waterfall_figure_ext(
     df_m1,
     df_m2,
@@ -230,6 +291,7 @@ def _build_office_waterfall_figure_ext(
     fator_conversao,
     value_column,
     flex_delta_override=None,
+    top_gastos_dict=None,
 ):
     def _normalize_oficina_label(valor):
         texto = str(valor).strip() if pd.notna(valor) else ''
@@ -472,14 +534,20 @@ def _build_office_waterfall_figure_ext(
         else:
             acumulado += float(value)
             tipo_barra = 'Impacto da oficina'
-        hover_texts.append(
-            '<br>'.join([
-                f'<b>{label}</b>',
-                f'Tipo: {tipo_barra}',
-                f'Valor: {moeda_simbolo} {value:,.2f}{sufixo}',
-                f'Acumulado: {moeda_simbolo} {acumulado:,.2f}{sufixo}',
-            ])
-        )
+        parts = [
+            f'<b>{label}</b>',
+            f'Tipo: {tipo_barra}',
+            f'Valor: {moeda_simbolo} {value:,.2f}{sufixo}',
+            f'Acumulado: {moeda_simbolo} {acumulado:,.2f}{sufixo}',
+        ]
+        if top_gastos_dict and measure == 'relative' and label != str(label_flex):
+            top_entry = top_gastos_dict.get(str(label).strip(), {})
+            top_str = top_entry.get('hover_str', '')
+            if top_str:
+                parts.append('──────────')
+                parts.append('<b>TOP 10 gastos:</b>')
+                parts.append(top_str)
+        hover_texts.append('<br>'.join(parts))
 
     cor_verde = '#1e8449'
     cor_vermelha = '#ff5733'
@@ -513,11 +581,50 @@ def _build_office_waterfall_figure_ext(
             y=y_pos,
             text=texto,
             showarrow=False,
-            font=dict(color=cor_texto, size=9),
+            font=dict(color=cor_texto, size=11),
             xref='x',
             yref='y',
             yshift=yshift,
         ))
+
+    # ── Calcular range do eixo Y para garantir que rótulos sempre apareçam ──
+    y_min, y_max = 0, 1
+    if values:
+        cumulative_r = 0
+        all_y_pos = []
+        for m, v in zip(measures, values):
+            if m == 'absolute':
+                cumulative_r = float(v)
+                all_y_pos.append(cumulative_r)
+            elif m == 'relative':
+                cumulative_r += float(v)
+                all_y_pos.append(cumulative_r)
+            elif m == 'total':
+                all_y_pos.append(float(v))
+        if all_y_pos:
+            min_bar = min(all_y_pos)
+            max_bar = max(all_y_pos)
+            min_ann, max_ann = min_bar, max_bar
+            for ann in annotations:
+                y_a = ann['y']
+                ys = ann.get('yshift', 0)
+                if ys > 0:
+                    top = y_a + abs(y_a) * 0.08
+                    if top > max_ann:
+                        max_ann = top
+                elif ys < 0:
+                    bot = y_a - abs(y_a) * 0.08
+                    if bot < min_ann:
+                        min_ann = bot
+            span = max_ann - min_ann
+            if span > 0:
+                y_min = min_ann - span * 0.10
+                y_max = max_ann + span * 0.10
+            else:
+                y_min = min_ann * 0.90 if min_ann > 0 else min_ann * 1.10
+                y_max = max_ann * 1.10 if max_ann > 0 else max_ann * 0.90
+            if min_bar >= 0 and y_min < 0:
+                y_min = 0
 
     fig = go.Figure(
         go.Waterfall(
@@ -576,7 +683,7 @@ def _build_office_waterfall_figure_ext(
         tickfont=dict(size=tick_size),
         automargin=True,
     )
-    fig.update_yaxes(showgrid=False, zeroline=True, zerolinecolor='rgba(120,120,120,0.25)')
+    fig.update_yaxes(showgrid=False, zeroline=True, zerolinecolor='rgba(120,120,120,0.25)', range=[y_min, y_max])
     return fig
 
 
@@ -801,6 +908,31 @@ def _render_post_waterfall_panel_ext(
 
     with col_chart:
         st.markdown("<div style='margin-bottom:16px;'><h5 style='margin:0;'>🏭 Waterfall por Oficina</h5></div>", unsafe_allow_html=True)
+        # ── Pré-calcular TOP 10 gastos por oficina ──
+        _sufixo_top = ''
+        if fator_conversao == 'K (milhares)':
+            _sufixo_top = ' K'
+        elif fator_conversao == 'M (Milhões)':
+            _sufixo_top = ' M'
+        _top_gastos_ext = {}
+        if df_detail_source is not None and not df_detail_source.empty:
+            _df_pairs_top = _build_selected_period_pairs_ext(df_m1, df_m2)
+            _df_det_top = _filter_detail_by_pairs_ext(df_detail_source, _df_pairs_top)
+            if _df_det_top is not None and not _df_det_top.empty:
+                if _ofic_sel and "Todos" not in _ofic_sel and 'Oficina' in _df_det_top.columns:
+                    _df_det_top = _df_det_top[_df_det_top['Oficina'].astype(str).isin(_ofic_sel)].copy()
+                if _acct_sel and "Todos" not in _acct_sel and 'Account' in _df_det_top.columns:
+                    _df_det_top = _df_det_top[_df_det_top['Account'].astype(str).isin(_acct_sel)].copy()
+                _vc_top = None
+                for _cand in ['Despesa Primaria', 'Total', 'Valor']:
+                    if _cand in _df_det_top.columns:
+                        _vc_top = _cand
+                        break
+                if _vc_top:
+                    _all_oficinas_ext = sorted(_df_det_top['Oficina'].astype(str).str.strip().unique().tolist()) if 'Oficina' in _df_det_top.columns else []
+                    _top_gastos_ext = _build_top_gastos_por_categoria_ext(
+                        _df_det_top, _all_oficinas_ext, 'Oficina', _vc_top, moeda_simbolo, _sufixo_top,
+                    )
         fig_oficinas = _build_office_waterfall_figure_ext(
             df_m1=df_m1,
             df_m2=df_m2,
@@ -816,12 +948,30 @@ def _render_post_waterfall_panel_ext(
             fator_conversao=fator_conversao,
             value_column=value_column,
             flex_delta_override=flex_delta_override,
+            top_gastos_dict=_top_gastos_ext,
         )
         if fig_oficinas is None:
             st.info('Nao ha dados suficientes por oficina para montar o grafico neste recorte.')
         else:
             plotly_chart_safe(fig_oficinas)
             st.caption('Vermelho indica aumento de custo; verde indica ganho/queda de custo.')
+
+        # ── Tabela TOP 10 interativa por oficina (drill-down) ──
+        if _top_gastos_ext:
+            _oficinas_com_top = [o for o in (_all_oficinas_ext if '_all_oficinas_ext' in dir() else []) if _top_gastos_ext.get(o, {}).get('df_top') is not None and not _top_gastos_ext[o]['df_top'].empty]
+            if _oficinas_com_top:
+                with st.expander('📋 Drill-down: TOP 10 gastos por Oficina', expanded=False):
+                    _sel_ofc_top = st.selectbox(
+                        'Selecione a oficina:', _oficinas_com_top,
+                        key=f'top10_oficina_ext_{key_prefix}',
+                    )
+                    if _sel_ofc_top and _sel_ofc_top in _top_gastos_ext:
+                        _df_t10 = _top_gastos_ext[_sel_ofc_top]['df_top'].copy()
+                        _df_t10['Valor'] = _df_t10['Valor'].apply(lambda x: f'{moeda_simbolo} {x:,.2f}{_sufixo_top}')
+                        _df_t10['%'] = _df_t10['%'].apply(lambda x: f'{x:.1f}%')
+                        _df_t10.index = range(1, len(_df_t10) + 1)
+                        _df_t10.index.name = '#'
+                        st.dataframe(_df_t10, use_container_width=True)
 
     with col_table:
         st.markdown('##### 📄 Detalhe Sapiens')
@@ -2350,7 +2500,7 @@ else:
                                     text_fmt_abs = f"{value:,.1f}"
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt_abs,
-                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=15,
+                                    showarrow=False, font=dict(color=cor_azul, size=11), yshift=15,
                                     xref="x", yref="y"
                                 ))
                             elif measure == "relative":
@@ -2370,7 +2520,7 @@ else:
                                 
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt,
-                                    showarrow=False, font=dict(color=cor_texto, size=8), yshift=yshift_val,
+                                    showarrow=False, font=dict(color=cor_texto, size=11), yshift=yshift_val,
                                     xref="x", yref="y", yanchor="middle" if value >= 0 else "middle"
                                 ))
                                 cumulative += value
@@ -2383,10 +2533,24 @@ else:
                                     text_fmt_total = f"{value:,.1f}"
                                 annotations_custom.append(dict(
                                     x=label, y=y_pos, text=text_fmt_total,
-                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=20,
+                                    showarrow=False, font=dict(color=cor_azul, size=11), yshift=20,
                                     xref="x", yref="y", yanchor="bottom"
                                 ))
                         
+                        # ── Pré-calcular TOP 10 gastos por categoria (Advanced Real) ──
+                        _top_adv_ext = {}
+                        _sufixo_adv = ''
+                        if fator_conversao:
+                            if fator_conversao == 'K (milhares)':
+                                _sufixo_adv = ' K'
+                            elif fator_conversao == 'M (Milhões)':
+                                _sufixo_adv = ' M'
+                        _df_adv_combined = pd.concat([df_m1, df_m2], ignore_index=True) if (not df_m1.empty or not df_m2.empty) else pd.DataFrame()
+                        if not _df_adv_combined.empty and col_valor in _df_adv_combined.columns and 'Texto breve' in _df_adv_combined.columns:
+                            _top_adv_ext = _build_top_gastos_por_categoria_ext(
+                                _df_adv_combined, labels_cats, chosen_dim_waterfall, col_valor, moeda_simbolo, _sufixo_adv,
+                            )
+
                         # Preparar informações detalhadas para o tooltip
                         hovertexts = []
                         for i, (label, value, measure) in enumerate(zip(labels_waterfall, values_waterfall, measures_waterfall)):
@@ -2429,6 +2593,15 @@ else:
                                 f"Período: {mes_inicial} → {mes_final}<br>"
                                 f"Modo: {modo_comparacao}"
                             )
+                            if measure == 'relative' and label != 'Flex Mês 1 - Mês 1' and label != 'Outros':
+                                _top_entry_adv = _top_adv_ext.get(str(label).strip(), {})
+                                _top_str_adv = _top_entry_adv.get('hover_str', '')
+                                if _top_str_adv:
+                                    hover_text += (
+                                        '<br>──────────<br>'
+                                        '<b>TOP 10 gastos:</b><br>'
+                                        + _top_str_adv
+                                    )
                             hovertexts.append(hover_text)
                         
                         # Criar figura do waterfall
@@ -4357,7 +4530,7 @@ else:
                                                 text_fmt_abs = f"{abs(value):,.1f}"
                                                 annotations_custom.append(dict(
                                                     x=label, y=y_pos, text=text_fmt_abs,
-                                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=15,
+                                                    showarrow=False, font=dict(color=cor_azul, size=11), yshift=15,
                                                     xref="x", yref="y"
                                                 ))
                                             elif measure == "relative":
@@ -4377,7 +4550,7 @@ else:
                                                 
                                                 annotations_custom.append(dict(
                                                     x=label, y=y_pos, text=text_fmt,
-                                                    showarrow=False, font=dict(color=cor_texto, size=8), yshift=yshift_val,
+                                                    showarrow=False, font=dict(color=cor_texto, size=11), yshift=yshift_val,
                                                     xref="x", yref="y", yanchor="middle"
                                                 ))
                                                 cumulative += value
@@ -4386,10 +4559,29 @@ else:
                                                 text_fmt_total = f"{abs(value):,.1f}"
                                                 annotations_custom.append(dict(
                                                     x=label, y=y_pos, text=text_fmt_total,
-                                                    showarrow=False, font=dict(color=cor_azul, size=8), yshift=20,
+                                                    showarrow=False, font=dict(color=cor_azul, size=11), yshift=20,
                                                     xref="x", yref="y", yanchor="bottom"
                                                 ))
                                         
+                                        # ── Pré-calcular TOP 10 gastos por Account (Advanced Budget) ──
+                                        _top_bud_ext = {}
+                                        _sufixo_bud = ''
+                                        if fator_conversao:
+                                            if fator_conversao == 'K (milhares)':
+                                                _sufixo_bud = ' K'
+                                            elif fator_conversao == 'M (Milhões)':
+                                                _sufixo_bud = ' M'
+                                        if 'df_analise_budget_painel_base' in locals() and df_analise_budget_painel_base is not None and not df_analise_budget_painel_base.empty:
+                                            _vc_bud = None
+                                            for _cand in ['Despesa Primaria', 'Total', 'Valor']:
+                                                if _cand in df_analise_budget_painel_base.columns:
+                                                    _vc_bud = _cand
+                                                    break
+                                            if _vc_bud and 'Account' in df_analise_budget_painel_base.columns and 'Texto breve' in df_analise_budget_painel_base.columns:
+                                                _top_bud_ext = _build_top_gastos_por_categoria_ext(
+                                                    df_analise_budget_painel_base, labels_cats, 'Account', _vc_bud, moeda_simbolo, _sufixo_bud,
+                                                )
+
                                         # Preparar informações detalhadas para o tooltip
                                         hovertexts_budget = []
                                         for i, (label, value, measure) in enumerate(zip(labels_waterfall, values_waterfall, measures_waterfall)):
@@ -4432,6 +4624,15 @@ else:
                                                 f"Análise: Real x Budget<br>"
                                                 f"Modo: {tipo_visualizacao}"
                                             )
+                                            if measure == 'relative' and label != 'Flex Bud - BUD' and label != 'Outros':
+                                                _top_entry_bud = _top_bud_ext.get(str(label).strip(), {})
+                                                _top_str_bud = _top_entry_bud.get('hover_str', '')
+                                                if _top_str_bud:
+                                                    hover_text += (
+                                                        '<br>──────────<br>'
+                                                        '<b>TOP 10 gastos:</b><br>'
+                                                        + _top_str_bud
+                                                    )
                                             hovertexts_budget.append(hover_text)
                                         
                                         # Criar figura do waterfall

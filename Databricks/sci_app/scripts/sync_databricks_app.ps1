@@ -1,8 +1,11 @@
 param(
     [switch]$Watch,
+    [switch]$DeployOnly,
+    [switch]$SkipDeploy,
     [string]$WorkspacePath = "/Workspace/Users/u235107@inetpsa.com/Drafts/sci_app/sci_app",
     [string]$LocalPath = "",
     [string]$Profile = "",
+    [string]$AppName = "sci",
     [string]$ExternalRepoPath = "C:\user\U235107\GitSTLA\TC-Cloud"
 )
 
@@ -195,6 +198,14 @@ $LocalPath = [System.IO.Path]::GetFullPath($LocalPath)
 
 Import-LocalEnvFile -EnvFilePath (Join-Path $RepoRoot ".env")
 
+if ([string]::IsNullOrWhiteSpace($Profile)) {
+    if (-not [string]::IsNullOrWhiteSpace($env:SCI_DATABRICKS_PROFILE)) {
+        $Profile = $env:SCI_DATABRICKS_PROFILE
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:DATABRICKS_CONFIG_PROFILE)) {
+        $Profile = $env:DATABRICKS_CONFIG_PROFILE
+    }
+}
+
 if (-not (Test-Path $LocalPath)) {
     throw "Pasta local nao encontrada: $LocalPath"
 }
@@ -224,6 +235,8 @@ if (-not [string]::IsNullOrWhiteSpace($Profile)) {
     $importArgs += "--profile"
     $importArgs += $Profile
 }
+
+$authArgs = @($importArgs)
 
 function Invoke-WorkspaceImportTree {
     param(
@@ -267,36 +280,95 @@ function Invoke-WorkspaceImportTree {
     }
 }
 
-if ($Watch) {
+function Test-DatabricksAuth {
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabricksExe,
+        [string[]]$DatabricksArgs
+    )
+
+    $authOutput = & $DatabricksExe @DatabricksArgs current-user me 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $profileMsg = if ([string]::IsNullOrWhiteSpace($Profile)) {
+            "Sem profile explicito. Configure DATABRICKS_CONFIG_PROFILE/SCI_DATABRICKS_PROFILE ou use -Profile."
+        } else {
+            "Profile atual: '$Profile'. Verifique se ele existe e esta autenticado no .databrickscfg."
+        }
+        throw "Databricks CLI sem autenticacao valida. $profileMsg`nSaida do CLI: $authOutput"
+    }
+}
+
+function Invoke-DatabricksAppDeploy {
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabricksExe,
+        [string[]]$DatabricksArgs,
+        [Parameter(Mandatory = $true)][string]$TargetAppName,
+        [Parameter(Mandatory = $true)][string]$TargetWorkspacePath
+    )
+
+    Write-Host "" -ForegroundColor Cyan
+    Write-Host "Disparando deploy SNAPSHOT do app '$TargetAppName'..." -ForegroundColor Cyan
+
+    try {
+        $deployOutput = & $DatabricksExe @DatabricksArgs apps deploy $TargetAppName --mode SNAPSHOT --source-code-path $TargetWorkspacePath --no-wait 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERRO: Deploy retornou codigo $LASTEXITCODE" -ForegroundColor Red
+            Write-Host $deployOutput -ForegroundColor Yellow
+            exit 1
+        }
+
+        Write-Host "Deploy SNAPSHOT disparado com sucesso." -ForegroundColor Green
+        $deployOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+    } catch {
+        throw "Falha ao disparar deploy do app '$TargetAppName': $($_.Exception.Message)"
+    }
+}
+
+if ($Watch -and $DeployOnly) {
+    throw "Use Watch ou DeployOnly, nao ambos ao mesmo tempo."
+}
+
+if ($DeployOnly) {
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
+    Write-Host "Executando somente o deploy do app Databricks" -ForegroundColor Cyan
+    Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    Write-Host "App: $AppName" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
+
+    Invoke-DatabricksAppDeploy -DatabricksExe $databricksCmd -DatabricksArgs $importArgs -TargetAppName $AppName -TargetWorkspacePath $WorkspacePath
+} elseif ($Watch) {
     $syncArgs += "sync"
     $syncArgs += "--watch"
     $syncArgs += $LocalPath
     $syncArgs += $WorkspacePath
 
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
     Write-Host "Sincronizando app Databricks (modo watch)" -ForegroundColor Cyan
     Write-Host "Local: $LocalPath" -ForegroundColor Gray
     Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
     & $databricksCmd @syncArgs
 } else {
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
     Write-Host "Sincronizando app Databricks (upload direto)" -ForegroundColor Cyan
     Write-Host "Local: $LocalPath" -ForegroundColor Gray
     Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
     Invoke-WorkspaceImportTree -LocalRoot $LocalPath -RemoteRoot $WorkspacePath -DatabricksExe $databricksCmd -DatabricksArgs $importArgs
 
-    # Deploy automático após upload (modo SNAPSHOT)
-    Write-Host "" -ForegroundColor Cyan
-    Write-Host "Disparando deploy SNAPSHOT do app 'sci'..." -ForegroundColor Cyan
-    try {
-        $deployOutput = & $databricksCmd @importArgs apps deploy sci --source-code-path $WorkspacePath 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "WARN: Deploy retornou codigo $LASTEXITCODE" -ForegroundColor Yellow
-            Write-Host $deployOutput -ForegroundColor Yellow
-        } else {
-            Write-Host "Deploy disparado com sucesso." -ForegroundColor Green
-            $deployOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-        }
-    } catch {
-        Write-Host "WARN: Falha ao disparar deploy: $($_.Exception.Message)" -ForegroundColor Yellow
+    if ($SkipDeploy) {
+        Write-Host "" -ForegroundColor Cyan
+        Write-Host "Deploy pulado por parametro (-SkipDeploy)." -ForegroundColor Yellow
+    } else {
+        Invoke-DatabricksAppDeploy -DatabricksExe $databricksCmd -DatabricksArgs $importArgs -TargetAppName $AppName -TargetWorkspacePath $WorkspacePath
     }
 }
 

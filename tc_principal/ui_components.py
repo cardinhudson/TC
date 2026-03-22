@@ -669,17 +669,7 @@ def render_sidebar_filters(df, page_key, filtros=None):
             periodos_disp = [m for m in ORDEM_MESES if m in df['Período'].unique()]
             opcoes_per = ["Todos"] + periodos_disp
 
-            # Padrão: mês atual (se disponível nos dados)
-            _meses_num_para_nome = {
-                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
-                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
-                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
-            }
-            _mes_atual_nome = _meses_num_para_nome.get(datetime.now().month, '')
-            if _mes_atual_nome in periodos_disp:
-                _default_per = [_mes_atual_nome]
-            else:
-                _default_per = ["Todos"]
+            _default_per = ["Todos"]
 
             sel_per = st.multiselect(
                 "Período", opcoes_per, default=_default_per,

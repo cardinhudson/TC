@@ -1,8 +1,11 @@
 param(
     [switch]$Watch,
+    [switch]$DeployOnly,
+    [switch]$SkipDeploy,
     [string]$WorkspacePath = "/Workspace/Users/u235107@inetpsa.com/Drafts/sci_app/sci_app",
     [string]$LocalPath = "",
     [string]$Profile = "",
+    [string]$AppName = "sci",
     [string]$ExternalRepoPath = "C:\user\U235107\GitSTLA\TC-Cloud"
 )
 
@@ -294,7 +297,48 @@ function Test-DatabricksAuth {
     }
 }
 
-if ($Watch) {
+function Invoke-DatabricksAppDeploy {
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabricksExe,
+        [string[]]$DatabricksArgs,
+        [Parameter(Mandatory = $true)][string]$TargetAppName,
+        [Parameter(Mandatory = $true)][string]$TargetWorkspacePath
+    )
+
+    Write-Host "" -ForegroundColor Cyan
+    Write-Host "Disparando deploy SNAPSHOT do app '$TargetAppName'..." -ForegroundColor Cyan
+
+    try {
+        $deployOutput = & $DatabricksExe @DatabricksArgs apps deploy $TargetAppName --mode SNAPSHOT --source-code-path $TargetWorkspacePath --no-wait 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERRO: Deploy retornou codigo $LASTEXITCODE" -ForegroundColor Red
+            Write-Host $deployOutput -ForegroundColor Yellow
+            exit 1
+        }
+
+        Write-Host "Deploy SNAPSHOT disparado com sucesso." -ForegroundColor Green
+        $deployOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+    } catch {
+        throw "Falha ao disparar deploy do app '$TargetAppName': $($_.Exception.Message)"
+    }
+}
+
+if ($Watch -and $DeployOnly) {
+    throw "Use Watch ou DeployOnly, nao ambos ao mesmo tempo."
+}
+
+if ($DeployOnly) {
+    Test-DatabricksAuth -DatabricksExe $databricksCmd -DatabricksArgs $authArgs
+
+    Write-Host "Executando somente o deploy do app Databricks" -ForegroundColor Cyan
+    Write-Host "Workspace: $WorkspacePath" -ForegroundColor Gray
+    Write-Host "App: $AppName" -ForegroundColor Gray
+    if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+        Write-Host "Profile: $Profile" -ForegroundColor Gray
+    }
+
+    Invoke-DatabricksAppDeploy -DatabricksExe $databricksCmd -DatabricksArgs $importArgs -TargetAppName $AppName -TargetWorkspacePath $WorkspacePath
+} elseif ($Watch) {
     $syncArgs += "sync"
     $syncArgs += "--watch"
     $syncArgs += $LocalPath
@@ -320,20 +364,11 @@ if ($Watch) {
     }
     Invoke-WorkspaceImportTree -LocalRoot $LocalPath -RemoteRoot $WorkspacePath -DatabricksExe $databricksCmd -DatabricksArgs $importArgs
 
-    # Deploy automático após upload (modo SNAPSHOT)
-    Write-Host "" -ForegroundColor Cyan
-    Write-Host "Disparando deploy SNAPSHOT do app 'sci'..." -ForegroundColor Cyan
-    try {
-        $deployOutput = & $databricksCmd @importArgs apps deploy sci --source-code-path $WorkspacePath 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "WARN: Deploy retornou codigo $LASTEXITCODE" -ForegroundColor Yellow
-            Write-Host $deployOutput -ForegroundColor Yellow
-        } else {
-            Write-Host "Deploy disparado com sucesso." -ForegroundColor Green
-            $deployOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-        }
-    } catch {
-        Write-Host "WARN: Falha ao disparar deploy: $($_.Exception.Message)" -ForegroundColor Yellow
+    if ($SkipDeploy) {
+        Write-Host "" -ForegroundColor Cyan
+        Write-Host "Deploy pulado por parametro (-SkipDeploy)." -ForegroundColor Yellow
+    } else {
+        Invoke-DatabricksAppDeploy -DatabricksExe $databricksCmd -DatabricksArgs $importArgs -TargetAppName $AppName -TargetWorkspacePath $WorkspacePath
     }
 }
 

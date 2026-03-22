@@ -5801,7 +5801,19 @@ if is_main_page:
                             
                             # Inicializar session_state se necessário
                             if periodo_tabela_key not in st.session_state:
-                                st.session_state[periodo_tabela_key] = ["Todos"]
+                                from datetime import date as _date_flex_ext
+                                _mes_idx_ext = _date_flex_ext.today().month - 1
+                                _mes_nome_ext = ORDEM_MESES[_mes_idx_ext] if _mes_idx_ext < len(ORDEM_MESES) else None
+                                _matched_ext = None
+                                if _mes_nome_ext:
+                                    for _op in opcoes_com_todos:
+                                        if str(_op).lower() == _mes_nome_ext.lower():
+                                            _matched_ext = _op
+                                            break
+                                if _matched_ext:
+                                    st.session_state[periodo_tabela_key] = [_matched_ext]
+                                else:
+                                    st.session_state[periodo_tabela_key] = ["Todos"]
                             
                             # Validar valores salvos
                             periodos_salvos = st.session_state[periodo_tabela_key]

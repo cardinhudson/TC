@@ -46,7 +46,7 @@ from tc_principal.shared import (
 )
 from tc_principal.ui_components import (
     injetar_css_global, render_header,
-    render_sidebar_global, render_sidebar_filters, aplicar_filtros,
+    render_sidebar_global, aplicar_filtros,
     criar_tabela_html, render_kpi, render_kpi_spacer,
     formatar_ratio_com_barra, criar_tabela_html_flex, render_inline_summary_metrics,
 )
@@ -228,7 +228,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                     texttemplate='%{y:,.2f}',
                     textposition='outside',
                     cliponaxis=False,
-                    textfont=dict(size=9, color=_cores_tipo.get(tipo_val, '#C4B5FD')),
+                    textfont=dict(size=11, color=_cores_tipo.get(tipo_val, '#C4B5FD')),
                     hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>' + tipo_val + '</extra>',
                 ), row=bar_row, col=1)
         else:
@@ -263,7 +263,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 texttemplate='%{y:,.2f}',
                 textposition='outside',
                 cliponaxis=False,
-                textfont=dict(size=9, color=bar_colors),
+                textfont=dict(size=11, color=bar_colors),
                 hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>Real</extra>',
                 showlegend=False,
             ), row=bar_row, col=1)
@@ -292,7 +292,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 texttemplate='%{y:,.2f}',
                 textposition='top center',
                 cliponaxis=False,
-                textfont=dict(size=9, color='#FF6B35'),
+                textfont=dict(size=11, color='#FF6B35'),
                 hovertemplate='%{x}<br>Flex Bud: %{y:,.2f}<extra>Flex Bud</extra>',
             ), row=bar_row, col=1)
 
@@ -323,7 +323,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 texttemplate='%{y:,.2f}',
                 textposition='outside',
                 cliponaxis=False,
-                textfont=dict(size=8, color=delta_colors),
+                textfont=dict(size=11, color=delta_colors),
                 hovertemplate='%{x}<br>Delta: %{y:,.2f}<extra>' + delta_titulo + '</extra>',
                 showlegend=False,
             ), row=1, col=1)
@@ -331,7 +331,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
             fig.update_yaxes(title_text=delta_titulo, row=1, col=1,
                              showgrid=False, zeroline=True,
                              zerolinecolor='rgba(160,160,160,0.35)', zerolinewidth=0.5,
-                             tickfont=dict(size=8))
+                             tickfont=dict(size=11))
             fig.update_xaxes(
                 row=1, col=1,
                 showline=False,
@@ -492,10 +492,160 @@ def render():
     _raw_df_vol_bud = normalizar_periodo(df_vol_bud.copy()) if df_vol_bud is not None else None
     _raw_df_vol_actual = normalizar_periodo(df_vol_actual.copy()) if df_vol_actual is not None else None
 
-    # ── Filtros (inclui Veículo como selectbox na sidebar) ──
-    filtros_sel = render_sidebar_filters(
-        df_principal, 'home', ['oficina', 'custo', 'veiculo', 'periodo']
-    )
+    # ══════════════════════════════════════════════════════════════
+    # 🔍 Sidebar de Filtros (padrão Waterfall TC Veículos)
+    # ══════════════════════════════════════════════════════════════
+    def _filter_opts(d, col):
+        if col in d.columns:
+            return ["Todos"] + sorted(d[col].dropna().astype(str).unique().tolist())
+        return ["Todos"]
+
+    _ORDEM_MESES_LC = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ]
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔍 Filtros**")
+
+    df_sb = df_principal.copy()  # base para cascata
+    filtros_sel = {}
+
+    # ── Oficina ──
+    if 'filtro_oficina_home_tc' not in st.session_state:
+        st.session_state.filtro_oficina_home_tc = ["Todos"]
+    if 'Oficina' in df_sb.columns:
+        _ofi_opts = _filter_opts(df_sb, 'Oficina')
+        _ofi_def = st.session_state.filtro_oficina_home_tc if all(x in _ofi_opts for x in st.session_state.filtro_oficina_home_tc) else ["Todos"]
+        _ofi_sel = st.sidebar.multiselect("Selecione a Oficina:", _ofi_opts, default=_ofi_def, key="filtro_oficina_home_tc_ms")
+        st.session_state.filtro_oficina_home_tc = _ofi_sel if _ofi_sel else ["Todos"]
+        if "Todos" not in _ofi_sel and _ofi_sel:
+            df_sb = df_sb[df_sb['Oficina'].astype(str).isin(_ofi_sel)].copy()
+        filtros_sel['oficinas'] = list(df_sb['Oficina'].dropna().unique()) if "Todos" in (_ofi_sel or ["Todos"]) else [x for x in _ofi_sel if x != "Todos"]
+    else:
+        filtros_sel['oficinas'] = []
+
+    # ── Veículo (multiselect, cascateado por Oficina) ──
+    if 'filtro_veiculo_home_tc' not in st.session_state:
+        st.session_state.filtro_veiculo_home_tc = ["Todos"]
+    if 'Veículo' in df_sb.columns:
+        _veic_opts = _filter_opts(df_sb, 'Veículo')
+        _veic_def = st.session_state.filtro_veiculo_home_tc if all(x in _veic_opts for x in st.session_state.filtro_veiculo_home_tc) else ["Todos"]
+        _veic_sel = st.sidebar.multiselect("Selecione o Veículo:", _veic_opts, default=_veic_def, key="filtro_veiculo_home_tc_ms")
+        st.session_state.filtro_veiculo_home_tc = _veic_sel if _veic_sel else ["Todos"]
+        if _veic_sel and "Todos" not in _veic_sel:
+            df_sb = df_sb[df_sb['Veículo'].astype(str).isin(_veic_sel)].copy()
+        filtros_sel['veiculos'] = [x for x in _veic_sel if x != "Todos"] if (_veic_sel and "Todos" not in _veic_sel) else list(df_sb['Veículo'].dropna().unique())
+        filtros_sel['veiculo_todos'] = not _veic_sel or "Todos" in _veic_sel
+    else:
+        filtros_sel['veiculos'] = []
+        filtros_sel['veiculo_todos'] = True
+
+    # ── USI ──
+    if 'USI' in df_sb.columns:
+        if 'filtro_usi_home_tc' not in st.session_state:
+            _usi_init = _filter_opts(df_sb, 'USI')
+            st.session_state.filtro_usi_home_tc = ["TC Ext"] if "TC Ext" in _usi_init else ["Todos"]
+        _usi_opts = _filter_opts(df_sb, 'USI')
+        _usi_def = st.session_state.filtro_usi_home_tc if all(x in _usi_opts for x in st.session_state.filtro_usi_home_tc) else (["TC Ext"] if "TC Ext" in _usi_opts else ["Todos"])
+        _usi_sel = st.sidebar.multiselect("Selecione a USI:", _usi_opts, default=_usi_def, key="filtro_usi_home_tc_ms")
+        st.session_state.filtro_usi_home_tc = _usi_sel if _usi_sel else ["Todos"]
+        if _usi_sel and "Todos" not in _usi_sel:
+            df_sb = df_sb[df_sb['USI'].astype(str).isin(_usi_sel)].copy()
+
+    # ── Período ──
+    if 'Período' in df_sb.columns:
+        _per_raw = _filter_opts(df_sb, 'Período')
+        _meses_ord = sorted(
+            [p for p in _per_raw[1:] if str(p).lower() in _ORDEM_MESES_LC],
+            key=lambda x: _ORDEM_MESES_LC.index(str(x).lower()) if str(x).lower() in _ORDEM_MESES_LC else 999
+        )
+        _outros_per = [p for p in _per_raw[1:] if str(p).lower() not in _ORDEM_MESES_LC]
+        _per_opcoes = ["Todos"] + _meses_ord + _outros_per
+
+        if 'filtro_periodo_home_tc' not in st.session_state:
+            st.session_state.filtro_periodo_home_tc = "Todos"
+        _per_def = st.session_state.filtro_periodo_home_tc if st.session_state.filtro_periodo_home_tc in _per_opcoes else "Todos"
+        _per_idx = _per_opcoes.index(_per_def) if _per_def in _per_opcoes else 0
+        _per_sel = st.sidebar.selectbox("Selecione o Período:", _per_opcoes, index=_per_idx, key="filtro_periodo_home_tc_sb")
+        st.session_state.filtro_periodo_home_tc = _per_sel
+        if _per_sel != "Todos":
+            df_sb = df_sb[df_sb['Período'].astype(str) == str(_per_sel)].copy()
+            filtros_sel['periodos'] = [_per_sel]
+        else:
+            filtros_sel['periodos'] = list(df_sb['Período'].dropna().unique())
+
+    # ── Centro cst ──
+    if 'Centrocst' in df_sb.columns:
+        if 'filtro_centro_cst_home_tc' not in st.session_state:
+            st.session_state.filtro_centro_cst_home_tc = "Todos"
+        _cc_opts = _filter_opts(df_sb, 'Centrocst')
+        _cc_def = st.session_state.filtro_centro_cst_home_tc if st.session_state.filtro_centro_cst_home_tc in _cc_opts else "Todos"
+        _cc_idx = _cc_opts.index(_cc_def) if _cc_def in _cc_opts else 0
+        _cc_sel = st.sidebar.selectbox("Selecione o Centro cst:", _cc_opts, index=_cc_idx, key="filtro_centro_cst_home_tc_sb")
+        st.session_state.filtro_centro_cst_home_tc = _cc_sel
+        if _cc_sel != "Todos":
+            df_sb = df_sb[df_sb['Centrocst'].astype(str) == str(_cc_sel)].copy()
+
+    # ── Conta contábil ──
+    if 'Nºconta' in df_sb.columns:
+        if 'filtro_conta_contabil_home_tc' not in st.session_state:
+            st.session_state.filtro_conta_contabil_home_tc = []
+        _nc_opts = _filter_opts(df_sb, 'Nºconta')[1:]
+        _nc_def = [x for x in st.session_state.filtro_conta_contabil_home_tc if x in _nc_opts]
+        _nc_sel = st.sidebar.multiselect("Selecione a Conta contábil:", _nc_opts, default=_nc_def, key="filtro_conta_contabil_home_tc_ms")
+        st.session_state.filtro_conta_contabil_home_tc = _nc_sel
+        if _nc_sel:
+            df_sb = df_sb[df_sb['Nºconta'].astype(str).isin(_nc_sel)].copy()
+
+    # ── Filtros principais dinâmicos ──
+    _filtros_princ = [
+        ("Type 05", "Type 05", "multiselect"),
+        ("Type 06", "Type 06", "multiselect"),
+        ("Type 07", "Type 07", "multiselect"),
+        ("Account", "Account", "multiselect"),
+        ("Custo", "Custo", "multiselect"),
+        ("Fornecedor", "Fornecedor", "multiselect"),
+        ("Fornec.", "Fornec.", "multiselect"),
+        ("Tipo", "Tipo", "multiselect"),
+    ]
+    for _col_n, _lbl, _ in _filtros_princ:
+        if _col_n in df_sb.columns:
+            _fk = f'filtro_{_col_n}_home_tc'
+            if _fk not in st.session_state:
+                st.session_state[_fk] = ["Todos"]
+            _fp_opts = _filter_opts(df_sb, _col_n)
+            _fp_def = st.session_state[_fk] if all(x in _fp_opts for x in st.session_state[_fk]) else ["Todos"]
+            _fp_sel = st.sidebar.multiselect(f"Selecione o {_lbl}:", _fp_opts, default=_fp_def, key=f"{_fk}_ms")
+            st.session_state[_fk] = _fp_sel if _fp_sel else ["Todos"]
+            if _fp_sel and "Todos" not in _fp_sel:
+                df_sb = df_sb[df_sb[_col_n].astype(str).isin(_fp_sel)].copy()
+            # Propagar Custo para filtros_sel
+            if _col_n == 'Custo':
+                filtros_sel['custos'] = list(df_sb['Custo'].dropna().unique()) if "Todos" in (_fp_sel or ["Todos"]) else [x for x in _fp_sel if x != "Todos"]
+
+    # ── Filtros avançados ──
+    with st.sidebar.expander("🔍 Filtros Avançados"):
+        _filtros_avanc = [
+            ("Usuário", "Usuário", "multiselect"),
+            ("Material", "Material", "multiselect"),
+            ("Dt.lçto.", "Data Lançamento", "multiselect"),
+            ("Texto breve", "Texto breve", "multiselect"),
+        ]
+        for _col_n, _lbl, _ in _filtros_avanc:
+            if _col_n in df_sb.columns:
+                _fa_opts = _filter_opts(df_sb, _col_n)
+                if len(_fa_opts) > 101:
+                    _fa_opts = _fa_opts[:101]
+                    st.caption(f"⚠️ {_lbl}: Limitado a 100 opções para performance")
+                _fk = f'filtro_avancado_{_col_n}_home_tc'
+                if _fk not in st.session_state:
+                    st.session_state[_fk] = ["Todos"]
+                _fa_def = st.session_state[_fk] if all(x in _fa_opts for x in st.session_state[_fk]) else ["Todos"]
+                _fa_sel = st.multiselect(f"Selecione o {_lbl}:", _fa_opts, default=_fa_def, key=f"{_fk}_ms")
+                st.session_state[_fk] = _fa_sel if _fa_sel else ["Todos"]
+                if _fa_sel and "Todos" not in _fa_sel:
+                    df_sb = df_sb[df_sb[_col_n].astype(str).isin(_fa_sel)].copy()
 
     # ── Determinar se usa dados rateados por veículo ──
     usar_rateado = not filtros_sel.get('veiculo_todos', True)
@@ -1023,6 +1173,16 @@ def render():
             key=lambda x: ORDEM_MESES.index(x) if x in ORDEM_MESES else 99
         )
 
+        # Determinar mês atual para default
+        from datetime import date as _date_flex
+        _mes_atual_idx = _date_flex.today().month - 1
+        _mes_atual_nome = ORDEM_MESES[_mes_atual_idx] if _mes_atual_idx < len(ORDEM_MESES) else None
+        _default_flex = [_mes_atual_nome] if _mes_atual_nome and _mes_atual_nome in _periodos_flex_all else ["Todos"]
+
+        # Forçar session_state para mês atual se ainda não foi inicializado
+        if "flex_periodo" not in st.session_state:
+            st.session_state["flex_periodo"] = _default_flex
+
         if df_flex is not None and 'Custo' in df.columns:
             # Controles de visualização, período e download
             col_viz1, col_viz2, col_viz3 = st.columns([1.2, 1.5, 0.8])
@@ -1038,7 +1198,7 @@ def render():
                 _sel_per_flex = st.multiselect(
                     "📅 **Período(s):**",
                     ["Todos"] + _periodos_flex_all,
-                    default=["Todos"],
+                    default=_default_flex,
                     key="flex_periodo"
                 )
                 periodos_flex = (

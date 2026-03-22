@@ -11,9 +11,6 @@ echo.
 set "DBX_PROFILE=%SCI_DATABRICKS_PROFILE%"
 if not "%~1"=="" set "DBX_PROFILE=%~1"
 
-set "PROFILE_ARGS="
-if not "%DBX_PROFILE%"=="" set "PROFILE_ARGS=-Profile "%DBX_PROFILE%""
-
 REM ---- 1. Ativar ambiente virtual ----
 set "VENV_DIR=.venv"
 if not exist "%VENV_DIR%\Scripts\activate.bat" (
@@ -36,7 +33,11 @@ echo.
 
 REM ---- 2. Sincronizar app (Databricks + espelhos) ----
 echo [2/3] Sincronizando app com Databricks...
-powershell -ExecutionPolicy Bypass -File ".\scripts\sync_databricks_app.ps1" %PROFILE_ARGS%
+if "%DBX_PROFILE%"=="" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\sync_databricks_app.ps1"
+) else (
+    powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\sync_databricks_app.ps1" -Profile "%DBX_PROFILE%"
+)
 if errorlevel 1 (
     echo [AVISO] Sincronizacao retornou com avisos. Verifique acima.
     echo         Continuando para executar o app...

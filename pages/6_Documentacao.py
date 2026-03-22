@@ -6,6 +6,8 @@ import json
 import os
 import base64
 import sys
+from io import BytesIO
+from textwrap import shorten
 from datetime import datetime
 from tc_core.utils.portabilidade import get_base_path, get_data_root
 from versionamento import obter_versao_atual
@@ -1863,120 +1865,418 @@ def _render_doc_apresentacao_styles() -> None:
     st.markdown(
         """
     <style>
-        .sci-slide-hero {
-            padding: 1.6rem 1.7rem;
-            background: linear-gradient(135deg, #0b1f2a 0%, #164e63 52%, #99f6e4 100%);
-            border-radius: 20px;
+        .sci-presentation-toolbar {
+            padding: 1rem 1.1rem;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef6fb 100%);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             margin-bottom: 1rem;
+        }
+        .sci-presentation-toolbar-note {
+            font-size: 0.86rem;
+            color: #52637a;
+            line-height: 1.55;
+            margin-top: 0.2rem;
+        }
+        .sci-slide-shell {
+            max-width: 1240px;
+            margin: 0.2rem auto 0 auto;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+        .sci-slide-shell-stage-1 {
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+        .sci-slide-shell-stage-2 {
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+        .sci-slide-note-pill {
+            display: inline-block;
+            padding: 0.42rem 0.72rem;
+            border-radius: 999px;
+            background: rgba(20, 184, 166, 0.08);
+            border: 1px solid rgba(20, 184, 166, 0.18);
+            color: #0f766e;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.85rem;
+        }
+        .sci-slide-hero {
+            padding: 1.15rem 1.2rem;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #0b1f2a 0%, #164e63 52%, #7dd3c8 100%);
             color: white;
-            border: 1px solid rgba(153, 246, 228, 0.18);
-            box-shadow: 0 18px 40px rgba(11, 31, 42, 0.18);
+            margin-bottom: 0.9rem;
+        }
+        .sci-slide-hero-stage-1 {
+            background: linear-gradient(135deg, #0b1f2a 0%, #164e63 48%, #2c7a7b 100%);
+        }
+        .sci-slide-hero-stage-2 {
+            background: linear-gradient(135deg, #5f370e 0%, #b45309 50%, #f59e0b 100%);
         }
         .sci-slide-kicker {
-            font-size: 0.78rem;
+            font-size: 0.77rem;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.11em;
             font-weight: 800;
             color: #ccfbf1;
-            margin-bottom: 0.55rem;
-        }
-        .sci-slide-title {
-            font-size: 2rem;
-            line-height: 1.05;
-            font-weight: 900;
             margin-bottom: 0.45rem;
         }
-        .sci-slide-subtitle {
+        .sci-slide-title {
+            font-size: 1.6rem;
+            line-height: 1.1;
+            font-weight: 900;
+            margin-bottom: 0.35rem;
+        }
+        .sci-slide-headline {
             font-size: 0.98rem;
+            line-height: 1.5;
+            font-weight: 700;
+            color: #f0fdfa;
+            margin-bottom: 0.25rem;
+        }
+        .sci-slide-subtitle {
+            font-size: 0.9rem;
             line-height: 1.55;
             color: #ecfeff;
-            max-width: 920px;
+        }
+        .sci-slide-section-title {
+            font-size: 0.79rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            color: #0f4c5c;
+            margin: 0.9rem 0 0.5rem 0;
+        }
+        .sci-slide-bullets {
+            margin: 0;
+            padding-left: 1.1rem;
+        }
+        .sci-slide-bullets li {
+            margin-bottom: 0.42rem;
+            color: #31475f;
+            line-height: 1.5;
         }
         .sci-slide-card {
-            min-height: 138px;
-            border-radius: 18px;
-            padding: 16px 15px;
+            min-height: 116px;
+            border-radius: 16px;
+            padding: 14px 14px 13px 14px;
             background: linear-gradient(180deg, #fbfdff 0%, #eef6fb 100%);
             border: 1px solid rgba(22, 78, 99, 0.12);
-            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
-            margin-bottom: 0.8rem;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+            margin-bottom: 0.75rem;
+        }
+        .sci-slide-card-strong {
+            background: linear-gradient(180deg, #fff8ee 0%, #fff0d8 100%);
+            border-color: rgba(217, 119, 6, 0.22);
         }
         .sci-slide-card-title {
-            font-size: 0.94rem;
+            font-size: 0.92rem;
             font-weight: 800;
             color: #12344d;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.38rem;
         }
         .sci-slide-card-body {
-            font-size: 0.84rem;
+            font-size: 0.83rem;
             color: #486581;
-            line-height: 1.45;
-        }
-        .sci-slide-flow {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            margin: 0.6rem 0 1rem 0;
+            line-height: 1.48;
         }
         .sci-slide-flow-step {
-            flex: 1 1 140px;
-            min-height: 92px;
+            min-height: 90px;
             border-radius: 16px;
-            padding: 14px 13px;
+            padding: 12px 12px 11px 12px;
             background: linear-gradient(160deg, #12344d 0%, #1f6f8b 100%);
             color: white;
-            box-shadow: 0 12px 24px rgba(18, 52, 77, 0.12);
+            box-shadow: 0 10px 24px rgba(18, 52, 77, 0.12);
+            margin-bottom: 0.75rem;
         }
-        .sci-slide-flow-step strong {
-            display: block;
-            margin-bottom: 0.25rem;
-            font-size: 0.92rem;
-        }
-        .sci-slide-flow-arrow {
-            font-size: 1.45rem;
+        .sci-slide-flow-badge {
+            display: inline-flex;
+            width: 1.45rem;
+            height: 1.45rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            font-size: 0.72rem;
             font-weight: 900;
-            color: #0f766e;
-            padding: 0 2px;
+            margin-bottom: 0.35rem;
+        }
+        .sci-slide-flow-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            margin-bottom: 0.22rem;
+        }
+        .sci-slide-flow-body {
+            font-size: 0.8rem;
+            line-height: 1.42;
+            color: #e6fffb;
+        }
+        .sci-slide-formula-wrap {
+            border-radius: 16px;
+            padding: 0.75rem 0.9rem 0.4rem 0.9rem;
+            background: linear-gradient(180deg, #f9fbfd 0%, #edf4f8 100%);
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            overflow-x: auto;
         }
         .sci-slide-example {
             border-radius: 16px;
             padding: 14px 15px;
             background: linear-gradient(180deg, #fffdf7 0%, #fff5d6 100%);
             border: 1px solid rgba(194, 120, 3, 0.18);
-            margin-top: 0.7rem;
-            margin-bottom: 0.4rem;
         }
         .sci-slide-example-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: #8d5b00;
+            margin-bottom: 0.4rem;
+        }
+        .sci-slide-example-body {
+            font-size: 0.83rem;
+            color: #7c5e10;
+            line-height: 1.5;
+        }
+        .sci-slide-metric {
+            min-height: 110px;
+            border-radius: 18px;
+            padding: 14px;
+            background: linear-gradient(160deg, #102a43 0%, #1f4e5f 55%, #2c7a7b 100%);
+            color: white;
+            box-shadow: 0 12px 28px rgba(16, 42, 67, 0.14);
+            margin-bottom: 0.75rem;
+        }
+        .sci-slide-metric-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #d5f3f4;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        .sci-slide-metric-value {
+            font-size: 1.8rem;
+            line-height: 1;
+            font-weight: 900;
+            margin-bottom: 0.25rem;
+        }
+        .sci-slide-metric-note {
+            font-size: 0.8rem;
+            color: #e6fffb;
+            line-height: 1.42;
+        }
+        .sci-slide-chip {
+            display: inline-block;
+            margin: 0 0.45rem 0.45rem 0;
+            padding: 0.42rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(20, 184, 166, 0.10);
+            border: 1px solid rgba(20, 184, 166, 0.16);
+            color: #115e59;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .sci-slide-compare-card {
+            min-height: 184px;
+            border-radius: 18px;
+            padding: 14px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f2f7fb 100%);
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            margin-bottom: 0.75rem;
+        }
+        .sci-slide-compare-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: #12344d;
+            margin-bottom: 0.45rem;
+        }
+        .sci-slide-compare-row {
+            display: grid;
+            grid-template-columns: 96px 1fr 70px;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 0.42rem;
+        }
+        .sci-slide-compare-label {
+            font-size: 0.78rem;
+            color: #486581;
+            font-weight: 700;
+        }
+        .sci-slide-compare-track {
+            height: 10px;
+            background: #e7eef5;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .sci-slide-compare-fill {
+            height: 100%;
+            border-radius: 999px;
+        }
+        .sci-slide-compare-value {
+            font-size: 0.78rem;
+            color: #12344d;
+            font-weight: 800;
+            text-align: right;
+        }
+        .sci-slide-compare-caption {
+            font-size: 0.78rem;
+            color: #627d98;
+            line-height: 1.45;
+            margin-top: 0.45rem;
+        }
+        .sci-slide-pillar-card {
+            min-height: 84px;
+            border-radius: 16px;
+            padding: 14px 12px;
+            background: #f8fbff;
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            text-align: center;
+            margin-bottom: 0.6rem;
+        }
+        .sci-slide-pillar-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #12344d;
+        }
+        .sci-slide-pillar-note {
+            font-size: 0.78rem;
+            color: #627d98;
+            margin-top: 4px;
+            line-height: 1.42;
+        }
+        .sci-slide-stage-card {
+            min-height: 118px;
+            border-radius: 18px;
+            padding: 16px 14px;
+            background: linear-gradient(180deg, #fffdf7 0%, #fff4d6 100%);
+            border: 1px solid rgba(194, 120, 3, 0.16);
+            margin-bottom: 0.75rem;
+        }
+        .sci-slide-stage-title {
             font-size: 0.9rem;
             font-weight: 800;
             color: #8d5b00;
             margin-bottom: 0.3rem;
         }
-        .sci-slide-example-body {
-            font-size: 0.84rem;
+        .sci-slide-stage-note {
+            font-size: 0.8rem;
             color: #7c5e10;
+            line-height: 1.42;
+        }
+        .sci-slide-team-card {
+            min-height: 298px;
+            border-radius: 18px;
+            padding: 14px;
+            background: linear-gradient(180deg, #fbfdff 0%, #edf5fb 100%);
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            margin-bottom: 0.75rem;
+        }
+        .sci-slide-team-photo {
+            width: 118px;
+            height: 132px;
+            margin: 0 auto 0.75rem auto;
+            border-radius: 14px;
+            overflow: hidden;
+            background: linear-gradient(180deg, #dce9f5 0%, #cbdceb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sci-slide-team-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .sci-slide-team-name {
+            font-size: 0.96rem;
+            font-weight: 900;
+            color: #12344d;
+            text-align: center;
+            margin-bottom: 0.35rem;
+        }
+        .sci-slide-team-role {
+            font-size: 0.74rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #0f766e;
+            text-align: center;
+            margin-bottom: 0.45rem;
+        }
+        .sci-slide-team-desc {
+            font-size: 0.82rem;
+            color: #4b5f75;
+            line-height: 1.48;
+            text-align: center;
+            margin-bottom: 0.7rem;
+        }
+        .sci-slide-team-focus {
+            border-radius: 14px;
+            background: rgba(15, 118, 110, 0.07);
+            border: 1px solid rgba(15, 118, 110, 0.12);
+            padding: 10px 11px;
+            font-size: 0.8rem;
+            color: #215260;
             line-height: 1.45;
+        }
+        .sci-slide-footer {
+            margin-top: 0.9rem;
+            padding: 0.7rem 0.85rem;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #f8fbfd 0%, #edf4f8 100%);
+            border: 1px solid rgba(18, 52, 77, 0.10);
+            color: #41576f;
+            font-size: 0.82rem;
+            line-height: 1.5;
         }
         .sci-slide-notes {
             border-radius: 14px;
-            padding: 12px 14px;
+            padding: 11px 13px;
             background: #f8fafc;
             border: 1px dashed rgba(71, 85, 105, 0.28);
-            font-size: 0.83rem;
+            font-size: 0.82rem;
             color: #475569;
-            margin-top: 0.7rem;
+            margin-top: 0.75rem;
         }
-        .sci-slide-chip {
-            display: inline-block;
-            margin: 0 10px 10px 0;
-            padding: 7px 12px;
-            border-radius: 999px;
-            background: rgba(20, 184, 166, 0.10);
-            border: 1px solid rgba(20, 184, 166, 0.16);
-            color: #115e59;
-            font-size: 0.8rem;
-            font-weight: 700;
+        @media (max-width: 1100px) {
+            .sci-slide-shell {
+                padding: 1rem;
+            }
+            .sci-slide-title {
+                font-size: 1.42rem;
+            }
+        }
+        @media (max-width: 768px) {
+            .sci-slide-shell {
+                padding: 0.95rem;
+            }
+            .sci-slide-title {
+                font-size: 1.26rem;
+            }
+            .sci-slide-headline,
+            .sci-slide-subtitle,
+            .sci-slide-card-body,
+            .sci-slide-flow-body,
+            .sci-slide-team-desc,
+            .sci-slide-team-focus,
+            .sci-slide-example-body,
+            .sci-slide-notes {
+                font-size: 0.78rem;
+            }
         }
     </style>
         """,
@@ -1993,11 +2293,12 @@ def _render_doc_apresentacao_cards(cards, columns_per_row=3) -> None:
         cols = st.columns(len(row))
         for col, card in zip(cols, row):
             with col:
+                extra_class = ' sci-slide-card-strong' if card.get('emphasis') else ''
                 st.markdown(
                     f"""
-                <div class="sci-slide-card">
+                <div class="sci-slide-card{extra_class}">
                     <div class="sci-slide-card-title">{card['title']}</div>
-                    <div class="sci-slide-card-body">{card['body']}</div>
+                    <div class="sci-slide-card-body">{card['body'].replace(chr(10), '<br>')}</div>
                 </div>
                     """,
                     unsafe_allow_html=True,
@@ -2007,22 +2308,22 @@ def _render_doc_apresentacao_cards(cards, columns_per_row=3) -> None:
 def _render_doc_apresentacao_flow(steps) -> None:
     if not steps:
         return
-    parts = []
-    for index, step in enumerate(steps):
-        parts.append(
-            f"""
-        <div class="sci-slide-flow-step">
-            <strong>{step['title']}</strong>
-            <span>{step['body']}</span>
-        </div>
-            """
-        )
-        if index < len(steps) - 1:
-            parts.append('<div class="sci-slide-flow-arrow">→</div>')
-    st.markdown(
-        f"<div class=\"sci-slide-flow\">{''.join(parts)}</div>",
-        unsafe_allow_html=True,
-    )
+    per_row = 3 if len(steps) > 4 else len(steps)
+    for start in range(0, len(steps), per_row):
+        row = steps[start:start + per_row]
+        cols = st.columns(len(row))
+        for offset, (col, step) in enumerate(zip(cols, row), start=start + 1):
+            with col:
+                st.markdown(
+                    f"""
+                <div class="sci-slide-flow-step">
+                    <div class="sci-slide-flow-badge">{offset:02d}</div>
+                    <div class="sci-slide-flow-title">{step['title']}</div>
+                    <div class="sci-slide-flow-body">{step['body']}</div>
+                </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 def _render_doc_apresentacao_example(title, body) -> None:
@@ -2039,361 +2340,1753 @@ def _render_doc_apresentacao_example(title, body) -> None:
     )
 
 
-def _get_doc_apresentacao_slides():
+def _render_doc_apresentacao_formula(formula: str) -> None:
+    if not formula:
+        return
+    st.latex(formula)
+
+
+def _render_doc_apresentacao_metric_cards(metrics) -> None:
+    if not metrics:
+        return
+    cols = st.columns(len(metrics))
+    for col, metric in zip(cols, metrics):
+        with col:
+            st.markdown(
+                f"""
+            <div class="sci-slide-metric">
+                <div class="sci-slide-metric-label">{metric['label']}</div>
+                <div class="sci-slide-metric-value">{metric['value']}</div>
+                <div class="sci-slide-metric-note">{metric['note']}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _render_doc_apresentacao_bar_compare(charts) -> None:
+    if not charts:
+        return
+    cols = st.columns(len(charts))
+    for col, chart in zip(cols, charts):
+        bars = chart.get('bars', [])
+        max_value = max((item.get('value', 0) for item in bars), default=1) or 1
+        bars_html = []
+        for item in bars:
+            width_pct = max(10, int((item.get('value', 0) / max_value) * 100))
+            bars_html.append(
+                (
+                    '<div class="sci-slide-compare-row">'
+                    f'<div class="sci-slide-compare-label">{item["label"]}</div>'
+                    '<div class="sci-slide-compare-track">'
+                    f'<div class="sci-slide-compare-fill" style="width:{width_pct}%; background:{item.get("color", "#2c7a7b")};"></div>'
+                    '</div>'
+                    f'<div class="sci-slide-compare-value">{item["display"]}</div>'
+                    '</div>'
+                )
+            )
+        with col:
+            st.markdown(
+                (
+                    '<div class="sci-slide-compare-card">'
+                    f'<div class="sci-slide-compare-title">{chart["title"]}</div>'
+                    f'<div class="sci-slide-compare-bars">{"".join(bars_html)}</div>'
+                    f'<div class="sci-slide-compare-caption">{chart.get("caption", "")}</div>'
+                    '</div>'
+                ),
+                unsafe_allow_html=True,
+            )
+
+
+def _render_doc_apresentacao_pillar_cards(items) -> None:
+    if not items:
+        return
+    cols = st.columns(len(items))
+    for col, item in zip(cols, items):
+        with col:
+            st.markdown(
+                f"""
+            <div class="sci-slide-pillar-card">
+                <div class="sci-slide-pillar-title">{item['title']}</div>
+                <div class="sci-slide-pillar-note">{item['body']}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _render_doc_apresentacao_stage_cards(items) -> None:
+    if not items:
+        return
+    cols = st.columns(len(items))
+    for col, item in zip(cols, items):
+        with col:
+            st.markdown(
+                f"""
+            <div class="sci-slide-stage-card">
+                <div class="sci-slide-stage-title">{item['title']}</div>
+                <div class="sci-slide-stage-note">{item['body']}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _get_doc_apresentacao_team_members():
+    dados_equipe = carregar_dados_equipe()
+    membros = [
+        {
+            'key': 'hudson',
+            'nome': 'Hudson Cardin',
+            'foco': 'Arquitetura, lógica de negócio, interface e integração ponta a ponta do SCI.',
+        },
+        {
+            'key': 'lauro',
+            'nome': 'Lauro Paiva Junior',
+            'foco': 'Experiência analítica, visualização, consistência dos indicadores e evolução funcional.',
+        },
+        {
+            'key': 'frederico',
+            'nome': 'Frederico Cesar de Jesus',
+            'foco': 'Direção funcional, aderência à controladoria e validação executiva do produto.',
+        },
+    ]
+
+    resultado = []
+    for membro in membros:
+        dados_m = dados_equipe.get(membro['key'], {})
+        papel = dados_m.get('papel_projeto') or dados_m.get('cargo') or 'Equipe SCI'
+        descricao = dados_m.get('descricao_papel') or membro['foco']
+        foto_src = None
+        if dados_m.get('foto'):
+            foto_src = 'data:image/jpeg;base64,' + dados_m['foto']
+
+        resultado.append(
+            {
+                'nome': membro['nome'],
+                'papel': papel,
+                'descricao': descricao,
+                'foco': membro['foco'],
+                'foto': foto_src,
+            }
+        )
+    return resultado
+
+
+def _build_doc_apresentacao_team_slide():
+    membros = _get_doc_apresentacao_team_members()
+    return {
+        'numero': 2,
+        'titulo': '👥 Quem Sustenta a Plataforma',
+        'kicker': 'EQUIPE DO PROJETO · SCI',
+        'headline': 'O SCI foi construído por um núcleo enxuto que cobre produto, lógica econômica, experiência analítica e direção funcional.',
+        'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+        'sections': [
+            {
+                'kind': 'bullets',
+                'title': 'Mensagem do slide',
+                'items': [
+                    'Time pequeno, mas com cobertura direta de produto, cálculo, interface e direção funcional.',
+                    'Cada integrante fecha uma lacuna crítica para transformar dado industrial em narrativa executiva confiável.',
+                    'A combinação do time explica velocidade de execução com aderência ao negócio.',
+                ],
+            },
+            {
+                'kind': 'team',
+                'title': 'Núcleo que sustenta o SCI',
+                'items': membros,
+                'columns': 3,
+            },
+        ],
+        'notes': 'Apresentar a equipe como prova de execução: produto, motor analítico e direção funcional convivendo no mesmo núcleo.',
+        'layout': 'team-grid',
+    }
+
+
+def _build_doc_apresentacao_tech_slides():
     return [
         {
-            'numero': 1,
-            'titulo': 'Slide 1 — Plataforma SCI',
-            'kicker': 'Etapa 1 • Visão de plataforma',
-            'headline': 'SCI consolida leitura, explicação, projeção e monitoramento em uma única camada operacional.',
-            'subtitle': 'O projeto deixa de ser um conjunto de planilhas e passa a operar como plataforma de decisão com dados confiáveis, regras consistentes e narrativa executiva pronta para ação.',
-            'bullets': [
-                'Um ponto único para custo, volume, flex, waterfall, forecast, alertas e IA.',
-                'Mesma base técnica suporta leitura operacional e visão executiva.',
-                'Reduz tempo entre identificar um desvio e tomar uma decisão.',
-            ],
-            'cards': [
-                {'title': 'Entender', 'body': 'Consolida custo, volume e contexto na mesma conversa.'},
-                {'title': 'Explicar', 'body': 'Waterfall e flex mostram a causa, não só o número.'},
-                {'title': 'Projetar', 'body': 'Best Estimate transforma histórico em cenário futuro.'},
-                {'title': 'Monitorar', 'body': 'Alertas e relatórios encurtam o ciclo de reação.'},
-            ],
-            'flow': [
-                {'title': 'Fonte', 'body': 'Excel, SAP e bases corporativas'},
-                {'title': 'Tratamento', 'body': 'Validação, regras e persistência'},
-                {'title': 'Leitura', 'body': 'Dashboards e análises executivas'},
-                {'title': 'Ação', 'body': 'Forecast, alertas e comunicação'},
-            ],
-            'notes': 'Abrir posicionando o SCI como sistema de decisão, não como dashboard isolado.',
-            'layout': 'executive-cards',
-            'expanded': True,
-        },
-        {
-            'numero': 2,
-            'titulo': 'Slide 2 — Equipe do SCI',
-            'custom_renderer': 'team',
-            'notes': 'Reapresentar a equipe exatamente como já existe na documentação, preservando conteúdo e contexto.',
-            'layout': 'embedded-section',
-        },
-        {
             'numero': 3,
-            'titulo': 'Slide 3 — Visão Geral Técnica',
-            'custom_renderer': 'tech-overview',
-            'notes': 'Mostrar dimensão real do sistema e distinguir núcleo do produto versus workspace ampliado.',
-            'layout': 'embedded-section',
+            'titulo': '🧱 Arquitetura da Plataforma',
+            'kicker': 'PLATAFORMA TÉCNICA INTEGRADA',
+            'headline': 'O SCI já opera como sistema de engenharia, dados, cloud e inteligência aplicada.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'metrics',
+                    'title': 'Escala do sistema',
+                    'items': [
+                        {'label': 'Arquivos core', 'value': '62', 'note': 'núcleo principal da aplicação'},
+                        {'label': 'Linhas core', 'value': '84k+', 'note': 'código Python no núcleo do produto'},
+                        {'label': 'Telas', 'value': '15', 'note': 'jornadas Streamlit em operação'},
+                        {'label': 'Blocos', 'value': '7', 'note': 'camadas centrais de responsabilidade'},
+                    ],
+                },
+                {
+                    'kind': 'bar_compare',
+                    'title': 'Comparativo visual',
+                    'items': [
+                        {
+                            'title': 'Arquivos Python',
+                            'caption': '62 no núcleo principal e 296 no workspace ampliado atual.',
+                            'bars': [
+                                {'label': 'Núcleo', 'value': 62, 'display': '62', 'color': '#2c7a7b'},
+                                {'label': 'Workspace', 'value': 296, 'display': '296', 'color': '#164e63'},
+                            ],
+                        },
+                        {
+                            'title': 'Linhas de código Python',
+                            'caption': '84 mil+ no núcleo do produto e 306 mil+ no ecossistema ampliado.',
+                            'bars': [
+                                {'label': 'Núcleo', 'value': 84674, 'display': '84k+', 'color': '#1d4ed8'},
+                                {'label': 'Workspace', 'value': 306426, 'display': '306k+', 'color': '#2563eb'},
+                            ],
+                        },
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Stack tecnológico',
+                    'items': [
+                        {'title': '🐍 Python', 'body': 'Linguagem-base do SCI, unificando regras, processamento, integração e app.'},
+                        {'title': '📺 Streamlit', 'body': 'Camada de interface analítica com velocidade alta de evolução de produto.'},
+                        {'title': '☁️ Databricks Apps', 'body': 'Execução cloud do app com publicação e operação corporativa.'},
+                        {'title': '❄️ Snowflake', 'body': 'Camada de dados e integração analítica no ecossistema ampliado.'},
+                        {'title': '🧬 Git / GitHub', 'body': 'Versionamento, governança de mudança e rastreabilidade do código.'},
+                        {'title': '🤖 Serving Endpoints', 'body': 'Base de APIs e recursos de IA usados pelo TC Copilot.', 'emphasis': True},
+                        {'title': '🐼 pandas + numpy', 'body': 'Transformação, modelagem e manipulação intensiva de dados.'},
+                        {'title': '📈 Altair + Plotly', 'body': 'Visualização interativa, comparativos e leitura executiva dos números.'},
+                        {'title': '📦 openpyxl + PyArrow', 'body': 'Exportação Excel e persistência rápida em Parquet.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'chips',
+                    'title': 'Atributos da base',
+                    'items': [
+                        'Dados estruturados',
+                        'Cloud ready',
+                        'Forecast + alertas',
+                        'TC Copilot',
+                        'Governança e rastreabilidade',
+                    ],
+                    'intro': 'A base técnica já foi desenhada para suportar leitura executiva rápida sem perder profundidade operacional nem histórico de decisão.',
+                },
+            ],
+            'notes': 'Abrir a dimensão técnica com a tese central da Visão Geral Técnica: o SCI já é uma plataforma integrada, não apenas uma interface analítica.',
+            'layout': 'tech-overview',
         },
         {
             'numero': 4,
-            'titulo': 'Slide 4 — Arquitetura funcional do app',
-            'kicker': 'Navegação executiva',
-            'headline': 'A estrutura do SCI já está organizada para o usuário percorrer diagnóstico, explicação e ação em uma trilha única.',
-            'subtitle': 'A navegação foi desenhada para levar do contexto geral aos módulos analíticos e, depois, para mecanismos de sustentação e comunicação.',
-            'bullets': [
-                'Home e módulos centrais concentram a leitura do negócio.',
-                'Waterfall e Best Estimate explicam presente e futuro com a mesma base.',
-                'Alertas, relatórios, copilot e documentação fecham governança e escala.',
+            'titulo': '🧱 Plataforma em Operação e Escala',
+            'kicker': 'ESPINHA DORSAL E MATURIDADE',
+            'headline': 'A espinha dorsal do SCI conecta pipeline, persistência, análise, interface e governança em uma mesma trilha de produto.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'flow',
+                    'title': 'Arquitetura em uma leitura',
+                    'items': [
+                        {'title': 'Fonte', 'body': 'Excel, bases corporativas e insumos operacionais entram com estrutura controlada.'},
+                        {'title': 'Processamento', 'body': 'Normalização, transformação, persistência e publicação em fluxo repetível.'},
+                        {'title': 'Armazenamento', 'body': 'Parquets, históricos, budget e forecast sustentam leitura rápida e auditável.'},
+                        {'title': 'Análise', 'body': 'Camadas analíticas transformam o dado bruto em sinal executivo e operacional.'},
+                        {'title': 'Interface', 'body': 'A experiência do usuário integra leitura, comparação, forecast, alertas e IA.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'pillar_cards',
+                    'title': 'Pilares do produto',
+                    'items': [
+                        {'title': 'Dados', 'body': 'bases, histórico e persistência'},
+                        {'title': 'Regras', 'body': 'contratos e lógica compartilhada'},
+                        {'title': 'Visualização', 'body': 'dashboards e leitura executiva'},
+                        {'title': 'Simulação', 'body': 'forecast e cenários'},
+                        {'title': 'IA', 'body': 'copilot e resposta inteligente'},
+                    ],
+                },
             ],
-            'cards': [
-                {'title': 'Home', 'body': 'KPIs, contexto e leitura rápida do desvio.'},
-                {'title': 'TC Ext', 'body': 'Análise por oficina, conta, período e flex.'},
-                {'title': 'TC Veículos', 'body': 'Cadeia de custo até o veículo e CPU.'},
-                {'title': 'Waterfall', 'body': 'Explica a ponte Budget → Flex → Real.'},
-                {'title': 'Best Estimate', 'body': 'Projeta cenário futuro com premissas ajustáveis.'},
-                {'title': 'Alertas e Relatórios', 'body': 'Transformam desvio em comunicação acionável.'},
-                {'title': 'TC Copilot', 'body': 'Adiciona resposta rápida e síntese inteligente.'},
-                {'title': 'Documentação', 'body': 'Preserva regra, arquitetura e onboarding técnico.'},
+            'notes': 'Fechar a dupla técnica mostrando a espinha dorsal do produto e os pilares visíveis que organizam o SCI como plataforma.',
+            'layout': 'tech-overview',
+        },
+    ]
+
+
+def _hex_to_rgb_tuple(hex_value: str):
+    value = hex_value.lstrip('#')
+    return tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
+
+
+def _format_doc_formula_for_ppt(formula: str) -> str:
+    if not formula:
+        return ''
+    import re
+
+    formatted = formula
+    while '\\frac{' in formatted:
+        formatted = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'(\1 / \2)', formatted)
+    replacements = {
+        '\\times': ' × ',
+        '\\Delta': 'Δ',
+        '\\bar{H}': 'H médio',
+        '\\': ' ',
+        '{': '',
+        '}': '',
+        '_': ' ',
+    }
+    for old, new in replacements.items():
+        formatted = formatted.replace(old, new)
+    return ' '.join(formatted.split())
+
+
+def _ppt_add_text(shape, text, font_size=12, bold=False, color=(23, 32, 51), level=0):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    text_frame = shape.text_frame
+    if not text_frame.paragraphs:
+        paragraph = text_frame.add_paragraph()
+    else:
+        paragraph = text_frame.paragraphs[0]
+    paragraph.level = level
+    paragraph.alignment = PP_ALIGN.LEFT
+    run = paragraph.add_run()
+    run.text = text
+    run.font.size = Pt(font_size)
+    run.font.bold = bold
+    run.font.color.rgb = RGBColor(*color)
+    return paragraph
+
+
+def _ppt_create_box(slide, left, top, width, height, fill_rgb, line_rgb, radius=True):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
+    from pptx.util import Inches
+
+    shape_type = MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE if radius else MSO_AUTO_SHAPE_TYPE.RECTANGLE
+    shape = slide.shapes.add_shape(shape_type, Inches(left), Inches(top), Inches(width), Inches(height))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = RGBColor(*fill_rgb)
+    shape.line.color.rgb = RGBColor(*line_rgb)
+    shape.text_frame.word_wrap = True
+    shape.text_frame.margin_left = Inches(0.06)
+    shape.text_frame.margin_right = Inches(0.06)
+    shape.text_frame.margin_top = Inches(0.04)
+    shape.text_frame.margin_bottom = Inches(0.04)
+    return shape
+
+
+def _ppt_add_picture(slide, image_src: str, left, top, width, height):
+    from pptx.util import Inches
+
+    if not image_src or ',' not in image_src:
+        return None
+    try:
+        raw = base64.b64decode(image_src.split(',', 1)[1])
+        return slide.shapes.add_picture(BytesIO(raw), Inches(left), Inches(top), width=Inches(width), height=Inches(height))
+    except Exception:
+        return None
+
+
+def _ppt_add_textbox(slide, left, top, width, height):
+    from pptx.util import Inches
+
+    textbox = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+    textbox.text_frame.word_wrap = True
+    textbox.text_frame.margin_left = Inches(0.02)
+    textbox.text_frame.margin_right = Inches(0.02)
+    textbox.text_frame.margin_top = Inches(0.01)
+    textbox.text_frame.margin_bottom = Inches(0.01)
+    return textbox
+
+
+def _ppt_add_avatar_fallback(slide, left, top, width, height, initials, fill_rgb, text_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    shape = _ppt_create_box(slide, left, top, width, height, fill_rgb, fill_rgb)
+    tf = shape.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = initials
+    run.font.size = Pt(16)
+    run.font.bold = True
+    run.font.color.rgb = RGBColor(*text_rgb)
+
+
+def _ppt_render_section_label(slide, top, title, color):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    textbox = _ppt_add_textbox(slide, 0.28, top, 12.68, 0.15)
+    tf = textbox.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    run = p.add_run()
+    run.text = title.upper()
+    run.font.size = Pt(7.4)
+    run.font.bold = True
+    run.font.color.rgb = RGBColor(*color)
+
+
+def _ppt_render_bullets(slide, top, items, line_rgb, body_rgb, variant=None):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    stage_variant = variant in {'stage-1', 'stage-2'}
+    if stage_variant:
+        height = 0.56 + 0.38 * len(items)
+        box_fill = _hex_to_rgb_tuple('#173554')
+        font_size = 16
+        font_color = (255, 255, 255)
+        line_color = _hex_to_rgb_tuple('#4c6b8b')
+    else:
+        height = 0.32 + 0.22 * len(items)
+        box_fill = (255, 255, 255)
+        font_size = 8.8
+        font_color = body_rgb
+        line_color = line_rgb
+
+    box = _ppt_create_box(slide, 0.28, top, 12.68, height, box_fill, line_color)
+    tf = box.text_frame
+    tf.clear()
+    for index, item in enumerate(items):
+        paragraph = tf.paragraphs[0] if index == 0 else tf.add_paragraph()
+        paragraph.text = item
+        paragraph.level = 0
+        paragraph.bullet = True
+        paragraph.alignment = PP_ALIGN.LEFT
+        paragraph.font.size = Pt(font_size)
+        paragraph.font.color.rgb = RGBColor(*font_color)
+    return height
+
+
+def _ppt_render_cards(slide, top, items, columns, soft_rgb, accent_rgb, line_rgb, ink_rgb, body_rgb, compact=False):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    columns = max(1, min(columns, 4, len(items)))
+    rows = (len(items) + columns - 1) // columns
+    gap = 0.1 if compact else 0.14
+    width = (12.68 - (columns - 1) * gap) / columns
+    height = 0.68 if compact else 0.92
+    title_font = 7.8 if compact else 8.8
+    body_font = 6.6 if compact else 7.3
+    row_gap = 0.1 if compact else 0.12
+    for index, item in enumerate(items):
+        row = index // columns
+        col = index % columns
+        left = 0.28 + col * (width + gap)
+        current_top = top + row * (height + row_gap)
+        fill = accent_rgb if item.get('emphasis') else soft_rgb
+        box = _ppt_create_box(slide, left, current_top, width, height, fill, line_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.LEFT
+        r1 = p1.add_run()
+        r1.text = item['title']
+        r1.font.size = Pt(title_font)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(*ink_rgb)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.LEFT
+        r2 = p2.add_run()
+        r2.text = item['body'].replace('\n', ' ')
+        r2.font.size = Pt(body_font)
+        r2.font.color.rgb = RGBColor(*body_rgb)
+    return rows * height + max(0, rows - 1) * row_gap
+
+
+def _ppt_render_metrics(slide, top, items, teal_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    gap = 0.12
+    width = (12.68 - (len(items) - 1) * gap) / len(items)
+    for index, item in enumerate(items):
+        left = 0.28 + index * (width + gap)
+        box = _ppt_create_box(slide, left, top, width, 0.86, teal_rgb, teal_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.LEFT
+        r1 = p1.add_run()
+        r1.text = item['label'].upper()
+        r1.font.size = Pt(7.2)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(213, 243, 244)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.LEFT
+        r2 = p2.add_run()
+        r2.text = item['value']
+        r2.font.size = Pt(15.5)
+        r2.font.bold = True
+        r2.font.color.rgb = RGBColor(255, 255, 255)
+        p3 = tf.add_paragraph()
+        p3.alignment = PP_ALIGN.LEFT
+        r3 = p3.add_run()
+        r3.text = item['note']
+        r3.font.size = Pt(7.0)
+        r3.font.color.rgb = RGBColor(230, 255, 251)
+    return 0.86
+
+
+def _ppt_render_bar_compare(slide, top, charts, line_rgb, ink_rgb, body_rgb, compact=False):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Inches, Pt
+
+    if not charts:
+        return 0
+
+    gap = 0.18
+    width = (12.68 - (len(charts) - 1) * gap) / len(charts)
+    height = 1.08 if compact else 1.34
+    for index, chart in enumerate(charts):
+        left = 0.28 + index * (width + gap)
+        box = _ppt_create_box(slide, left, top, width, height, (251, 253, 255), line_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        r = p.add_run()
+        r.text = chart['title']
+        r.font.size = Pt(8.6)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(*ink_rgb)
+
+        bars = chart.get('bars', [])
+        max_value = max((item.get('value', 0) for item in bars), default=1) or 1
+        current_top = top + (0.28 if compact else 0.34)
+        for item in bars:
+            textbox = _ppt_add_textbox(slide, left + 0.12, current_top, width - 0.24, 0.14)
+            tft = textbox.text_frame
+            tft.clear()
+            p = tft.paragraphs[0]
+            p.alignment = PP_ALIGN.LEFT
+            r = p.add_run()
+            r.text = item['label']
+            r.font.size = Pt(6.6 if compact else 7.0)
+            r.font.bold = True
+            r.font.color.rgb = RGBColor(*body_rgb)
+
+            track_left = left + 0.98
+            track_top = current_top + 0.025
+            track_width = width - 1.9
+            track = slide.shapes.add_shape(1, Inches(track_left), Inches(track_top), Inches(track_width), Inches(0.08))
+            track.fill.solid()
+            track.fill.fore_color.rgb = RGBColor(231, 238, 245)
+            track.line.color.rgb = RGBColor(231, 238, 245)
+
+            fill_width = max(0.35, track_width * (item.get('value', 0) / max_value))
+            fill = slide.shapes.add_shape(1, Inches(track_left), Inches(track_top), Inches(fill_width), Inches(0.08))
+            fill.fill.solid()
+            fill.fill.fore_color.rgb = RGBColor(*_hex_to_rgb_tuple(item.get('color', '#2c7a7b')))
+            fill.line.color.rgb = RGBColor(*_hex_to_rgb_tuple(item.get('color', '#2c7a7b')))
+
+            value_box = _ppt_add_textbox(slide, left + width - 0.72, current_top, 0.6, 0.16)
+            tfv = value_box.text_frame
+            tfv.clear()
+            p = tfv.paragraphs[0]
+            p.alignment = PP_ALIGN.RIGHT
+            r = p.add_run()
+            r.text = item['display']
+            r.font.size = Pt(6.6 if compact else 7.0)
+            r.font.bold = True
+            r.font.color.rgb = RGBColor(*ink_rgb)
+            current_top += 0.16 if compact else 0.2
+
+        caption_box = _ppt_add_textbox(slide, left + 0.12, top + height - 0.2, width - 0.24, 0.14)
+        tfc = caption_box.text_frame
+        tfc.clear()
+        p = tfc.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        r = p.add_run()
+        r.text = chart.get('caption', '')
+        r.font.size = Pt(6.2 if compact else 6.8)
+        r.font.color.rgb = RGBColor(98, 125, 152)
+    return height
+
+
+def _ppt_render_pillar_cards(slide, top, items, line_rgb, ink_rgb, body_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    if not items:
+        return 0
+    gap = 0.12
+    width = (12.68 - (len(items) - 1) * gap) / len(items)
+    height = 0.64
+    for index, item in enumerate(items):
+        left = 0.28 + index * (width + gap)
+        box = _ppt_create_box(slide, left, top, width, height, (248, 251, 255), line_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.CENTER
+        r1 = p1.add_run()
+        r1.text = item['title']
+        r1.font.size = Pt(8.4)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(*ink_rgb)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.CENTER
+        r2 = p2.add_run()
+        r2.text = item['body']
+        r2.font.size = Pt(6.9)
+        r2.font.color.rgb = RGBColor(*body_rgb)
+    return height
+
+
+def _ppt_render_stage_cards(slide, top, items, line_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    if not items:
+        return 0
+    gap = 0.1
+    width = (12.68 - (len(items) - 1) * gap) / len(items)
+    height = 0.86
+    for index, item in enumerate(items):
+        left = 0.28 + index * (width + gap)
+        box = _ppt_create_box(slide, left, top, width, height, (255, 244, 214), line_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.LEFT
+        r1 = p1.add_run()
+        r1.text = item['title']
+        r1.font.size = Pt(7.5)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(141, 91, 0)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.LEFT
+        r2 = p2.add_run()
+        r2.text = item['body']
+        r2.font.size = Pt(6.6)
+        r2.font.color.rgb = RGBColor(124, 94, 16)
+    return height
+
+
+def _ppt_render_team(slide, top, items, soft_rgb, line_rgb, ink_rgb, body_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    gap = 0.16
+    width = (12.68 - (len(items) - 1) * gap) / len(items)
+    height = 2.45
+    for index, item in enumerate(items):
+        left = 0.28 + index * (width + gap)
+        box = _ppt_create_box(slide, left, top, width, height, soft_rgb, line_rgb)
+        picture = _ppt_add_picture(slide, item.get('foto'), left + width / 2 - 0.45, top + 0.12, 0.9, 1.0)
+        if picture is None:
+            initials = ''.join(part[0] for part in item['nome'].split()[:2]).upper()
+            _ppt_add_avatar_fallback(slide, left + width / 2 - 0.38, top + 0.14, 0.76, 0.82, initials, (220, 233, 245), ink_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.CENTER
+        r1 = p1.add_run()
+        r1.text = '\n\n\n\n' + item['nome']
+        r1.font.size = Pt(9.4)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(*ink_rgb)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.CENTER
+        r2 = p2.add_run()
+        r2.text = item['papel']
+        r2.font.size = Pt(7.0)
+        r2.font.bold = True
+        r2.font.color.rgb = RGBColor(15, 118, 110)
+        p3 = tf.add_paragraph()
+        p3.alignment = PP_ALIGN.CENTER
+        r3 = p3.add_run()
+        r3.text = item['descricao']
+        r3.font.size = Pt(7.2)
+        r3.font.color.rgb = RGBColor(*body_rgb)
+        p4 = tf.add_paragraph()
+        r4 = p4.add_run()
+        r4.text = 'Contribuição central: ' + item['foco']
+        r4.font.size = Pt(6.9)
+        r4.font.color.rgb = RGBColor(33, 82, 96)
+    return height
+
+
+def _ppt_render_flow(slide, top, items, columns, teal_rgb, compact=False):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    columns = max(1, min(columns, 3, len(items)))
+    rows = (len(items) + columns - 1) // columns
+    gap = 0.14
+    width = (12.68 - (columns - 1) * gap) / columns
+    height = 0.72 if compact else 0.8
+    row_gap = 0.08 if compact else 0.1
+    title_font = 7.8 if compact else 8.0
+    body_font = 6.8 if compact else 7.0
+    for index, item in enumerate(items):
+        row = index // columns
+        col = index % columns
+        left = 0.28 + col * (width + gap)
+        current_top = top + row * (height + row_gap)
+        box = _ppt_create_box(slide, left, current_top, width, height, teal_rgb, teal_rgb)
+        tf = box.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.LEFT
+        r1 = p1.add_run()
+        r1.text = f"{index + 1:02d}  {item['title']}"
+        r1.font.size = Pt(title_font)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(255, 255, 255)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.LEFT
+        r2 = p2.add_run()
+        r2.text = item['body']
+        r2.font.size = Pt(body_font)
+        r2.font.color.rgb = RGBColor(236, 254, 255)
+    return rows * height + max(0, rows - 1) * row_gap
+
+
+def _ppt_render_formula(slide, top, formula, soft_rgb, line_rgb, ink_rgb, height=0.64):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import MSO_VERTICAL_ANCHOR, PP_ALIGN
+    from pptx.util import Pt
+
+    box = _ppt_create_box(slide, 0.28, top, 12.68, height, soft_rgb, line_rgb)
+    tf = box.text_frame
+    tf.clear()
+    tf.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    r = p.add_run()
+    r.text = _format_doc_formula_for_ppt(formula)
+    r.font.size = Pt(8.8)
+    r.font.bold = True
+    r.font.color.rgb = RGBColor(*ink_rgb)
+    return height
+
+
+def _ppt_render_example(slide, top, title, body, accent_rgb, line_rgb, height=0.68):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    box = _ppt_create_box(slide, 0.28, top, 12.68, height, accent_rgb, line_rgb)
+    tf = box.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    r1 = p.add_run()
+    r1.text = title + ': '
+    r1.font.size = Pt(8.4)
+    r1.font.bold = True
+    r1.font.color.rgb = RGBColor(141, 91, 0)
+    r2 = p.add_run()
+    r2.text = body
+    r2.font.size = Pt(7.8)
+    r2.font.color.rgb = RGBColor(124, 94, 16)
+    return height
+
+
+def _ppt_render_chips(slide, top, intro, items, line_rgb, ink_rgb, body_rgb):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    current_top = top
+    if intro:
+        textbox = _ppt_add_textbox(slide, 0.28, current_top, 12.68, 0.26)
+        tf = textbox.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        r = p.add_run()
+        r.text = intro
+        r.font.size = Pt(7.8)
+        r.font.color.rgb = RGBColor(*body_rgb)
+        current_top += 0.24
+    left = 0.28
+    top_chip = current_top
+    for item in items:
+        width = max(1.15, min(2.0, 0.09 * len(item) + 0.5))
+        if left + width > 12.75:
+            left = 0.28
+            current_top += 0.28
+        chip = _ppt_create_box(slide, left, current_top, width, 0.22, (241, 250, 249), line_rgb)
+        tf = chip.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        r = p.add_run()
+        r.text = item
+        r.font.size = Pt(7.0)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(*ink_rgb)
+        left += width + 0.08
+    return current_top - top_chip + 0.22 + (0.24 if intro else 0)
+
+
+def _render_doc_apresentacao_team_slide(membros, columns_per_row=3) -> None:
+    if not membros:
+        return
+    cols = st.columns(min(columns_per_row, len(membros)))
+    for col, membro in zip(cols, membros):
+        foto_html = (
+            f'<img src="{membro["foto"]}" alt="{membro["nome"]}" />'
+            if membro.get('foto')
+            else '<div style="font-size:2.3rem;color:#5f7287;">👤</div>'
+        )
+        with col:
+            st.markdown(
+                f"""
+            <div class="sci-slide-team-card">
+                <div class="sci-slide-team-photo">{foto_html}</div>
+                <div class="sci-slide-team-name">{membro['nome']}</div>
+                <div class="sci-slide-team-role">{membro['papel']}</div>
+                <div class="sci-slide-team-desc">{membro['descricao']}</div>
+                <div class="sci-slide-team-focus"><strong>Contribuição central:</strong> {membro['foco']}</div>
+            </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _render_doc_apresentacao_chips(intro, chips) -> None:
+    if intro:
+        st.markdown(f'<div class="sci-slide-card-body" style="margin-bottom:0.55rem;">{intro}</div>', unsafe_allow_html=True)
+    if not chips:
+        return
+    chips_html = ''.join([f'<span class="sci-slide-chip">{chip}</span>' for chip in chips])
+    st.markdown(chips_html, unsafe_allow_html=True)
+
+
+def _render_doc_apresentacao_section(section) -> None:
+    title = section.get('title')
+    if title:
+        st.markdown(f'<div class="sci-slide-section-title">{title}</div>', unsafe_allow_html=True)
+
+    kind = section.get('kind')
+    if kind == 'bullets':
+        bullets_html = ''.join([f'<li>{item}</li>' for item in section.get('items', [])])
+        st.markdown(f'<ul class="sci-slide-bullets">{bullets_html}</ul>', unsafe_allow_html=True)
+    elif kind == 'cards':
+        _render_doc_apresentacao_cards(section.get('items', []), columns_per_row=section.get('columns', 3))
+    elif kind == 'metrics':
+        _render_doc_apresentacao_metric_cards(section.get('items', []))
+    elif kind == 'bar_compare':
+        _render_doc_apresentacao_bar_compare(section.get('items', []))
+    elif kind == 'pillar_cards':
+        _render_doc_apresentacao_pillar_cards(section.get('items', []))
+    elif kind == 'stage_cards':
+        _render_doc_apresentacao_stage_cards(section.get('items', []))
+    elif kind == 'team':
+        _render_doc_apresentacao_team_slide(section.get('items', []), columns_per_row=section.get('columns', 3))
+    elif kind == 'flow':
+        _render_doc_apresentacao_flow(section.get('items', []))
+    elif kind == 'formula':
+        _render_doc_apresentacao_formula(section.get('value', ''))
+    elif kind == 'example':
+        _render_doc_apresentacao_example(section.get('example_title') or section.get('title') or 'Exemplo executivo', section.get('body', ''))
+    elif kind == 'chips':
+        _render_doc_apresentacao_chips(section.get('intro'), section.get('items', []))
+
+
+def _get_doc_apresentacao_ppt_bytes() -> bytes:
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Inches, Pt
+
+    primary = _hex_to_rgb_tuple('#0b1f2a')
+    teal = _hex_to_rgb_tuple('#164e63')
+    mint = _hex_to_rgb_tuple('#7dd3c8')
+    ink = _hex_to_rgb_tuple('#12344d')
+    body = _hex_to_rgb_tuple('#486581')
+    line = _hex_to_rgb_tuple('#d7e2eb')
+    soft = _hex_to_rgb_tuple('#eef6fb')
+    accent = _hex_to_rgb_tuple('#fff1da')
+    note_fill = _hex_to_rgb_tuple('#f8fafc')
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    slides = _get_doc_apresentacao_slides()
+    total_slides = len(slides)
+    for slide_spec in slides:
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+
+        shell_variant = slide_spec.get('shell_variant')
+        hero_fill = primary
+        hero_line = mint
+        section_label_color = (15, 76, 92)
+        if shell_variant == 'stage-1':
+            stage_blue = _hex_to_rgb_tuple('#122A46')
+            background = _ppt_create_box(slide, 0.08, 0.08, 13.17, 7.34, stage_blue, stage_blue, radius=False)
+            background.line.color.rgb = RGBColor(*stage_blue)
+            hero_fill = _hex_to_rgb_tuple('#173554')
+            hero_line = _hex_to_rgb_tuple('#8fb3d9')
+            section_label_color = (223, 235, 255)
+        elif shell_variant == 'stage-2':
+            stage_blue = _hex_to_rgb_tuple('#122A46')
+            background = _ppt_create_box(slide, 0.08, 0.08, 13.17, 7.34, stage_blue, stage_blue, radius=False)
+            background.line.color.rgb = RGBColor(*stage_blue)
+            hero_fill = _hex_to_rgb_tuple('#1c3f63')
+            hero_line = _hex_to_rgb_tuple('#8fb3d9')
+            section_label_color = (223, 235, 255)
+
+        hero = _ppt_create_box(slide, 0.28, 0.22, 12.68, 1.34, hero_fill, hero_fill)
+        hero.fill.fore_color.rgb = RGBColor(*hero_fill)
+        hero.line.color.rgb = RGBColor(*hero_line)
+        tf = hero.text_frame
+        tf.clear()
+        p1 = tf.paragraphs[0]
+        p1.alignment = PP_ALIGN.LEFT
+        r1 = p1.add_run()
+        r1.text = slide_spec.get('kicker', '')
+        r1.font.size = Pt(8.4)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(223, 235, 255) if shell_variant in {'stage-1', 'stage-2'} else RGBColor(204, 251, 241)
+        p2 = tf.add_paragraph()
+        p2.alignment = PP_ALIGN.LEFT
+        r2 = p2.add_run()
+        r2.text = slide_spec.get('titulo', '')
+        r2.font.size = Pt(17)
+        r2.font.bold = True
+        r2.font.color.rgb = RGBColor(255, 255, 255)
+        p3 = tf.add_paragraph()
+        p3.alignment = PP_ALIGN.LEFT
+        r3 = p3.add_run()
+        r3.text = slide_spec.get('headline', '')
+        r3.font.size = Pt(9.2)
+        r3.font.bold = True
+        r3.font.color.rgb = RGBColor(245, 249, 255) if shell_variant in {'stage-1', 'stage-2'} else RGBColor(240, 253, 250)
+        p4 = tf.add_paragraph()
+        p4.alignment = PP_ALIGN.LEFT
+        r4 = p4.add_run()
+        r4.text = slide_spec.get('subtitle', '')
+        r4.font.size = Pt(8.0)
+        r4.font.color.rgb = RGBColor(214, 230, 255) if shell_variant in {'stage-1', 'stage-2'} else RGBColor(236, 254, 255)
+
+        current_top = 1.72
+        sections = slide_spec.get('sections', [])
+        compact_slide_titles = {
+            '🌊 Como o Desvio é Explicado',
+            '🧮 TC Veículos: Rateio e Real',
+            '🔮 Best Estimate',
+        }
+        compact_slide = slide_spec.get('titulo', '') in compact_slide_titles
+        tech_overview_slide = slide_spec.get('titulo', '') == '🧱 Arquitetura da Plataforma'
+        for index, section in enumerate(sections):
+            kind = section.get('kind')
+            show_section_title = section.get('title') and not (compact_slide and kind in {'formula', 'example'})
+            if tech_overview_slide and kind in {'metrics', 'bar_compare'}:
+                show_section_title = False
+            if show_section_title:
+                _ppt_render_section_label(slide, current_top, section['title'], section_label_color)
+                current_top += 0.15
+
+            if kind == 'bullets':
+                used_height = _ppt_render_bullets(slide, current_top, section.get('items', []), line, body, variant=shell_variant)
+            elif kind == 'cards':
+                used_height = _ppt_render_cards(
+                    slide,
+                    current_top,
+                    section.get('items', []),
+                    section.get('columns', 3),
+                    soft,
+                    accent,
+                    line,
+                    ink,
+                    body,
+                    compact=(tech_overview_slide and section.get('title') == 'Stack tecnológico') or compact_slide,
+                )
+            elif kind == 'metrics':
+                used_height = _ppt_render_metrics(slide, current_top, section.get('items', []), teal)
+            elif kind == 'bar_compare':
+                used_height = _ppt_render_bar_compare(
+                    slide,
+                    current_top,
+                    section.get('items', []),
+                    line,
+                    ink,
+                    body,
+                    compact=tech_overview_slide,
+                )
+            elif kind == 'pillar_cards':
+                used_height = _ppt_render_pillar_cards(slide, current_top, section.get('items', []), line, ink, body)
+            elif kind == 'stage_cards':
+                used_height = _ppt_render_stage_cards(slide, current_top, section.get('items', []), line)
+            elif kind == 'team':
+                used_height = _ppt_render_team(slide, current_top, section.get('items', []), soft, line, ink, body)
+            elif kind == 'flow':
+                used_height = _ppt_render_flow(
+                    slide,
+                    current_top,
+                    section.get('items', []),
+                    section.get('columns', 3),
+                    teal,
+                    compact=compact_slide,
+                )
+            elif kind == 'formula':
+                used_height = _ppt_render_formula(
+                    slide,
+                    current_top,
+                    section.get('value', ''),
+                    soft,
+                    line,
+                    ink,
+                    height=0.56 if compact_slide else 0.64,
+                )
+            elif kind == 'example':
+                used_height = _ppt_render_example(
+                    slide,
+                    current_top,
+                    section.get('example_title') or section.get('title') or 'Exemplo executivo',
+                    section.get('body', ''),
+                    accent,
+                    line,
+                    height=0.58 if compact_slide else 0.68,
+                )
+            elif kind == 'chips':
+                used_height = _ppt_render_chips(slide, current_top, section.get('intro'), section.get('items', []), line, ink, body)
+            else:
+                used_height = 0
+            current_top += used_height
+            if index < len(sections) - 1:
+                current_top += 0.08 if compact_slide else 0.12
+
+        footer_box = _ppt_create_box(slide, 0.28, 6.28, 12.68, 0.24, (248, 251, 253), line)
+        footer_tf = footer_box.text_frame
+        footer_tf.clear()
+        footer_p = footer_tf.paragraphs[0]
+        footer_p.alignment = PP_ALIGN.LEFT
+        footer_r = footer_p.add_run()
+        footer_r.text = f"Slide {slide_spec['numero']} / {total_slides}  ·  Layout: {slide_spec['layout']}  ·  Fonte única"
+        footer_r.font.size = Pt(7.2)
+        footer_r.font.bold = True
+        footer_r.font.color.rgb = RGBColor(65, 87, 111)
+
+        note_box = _ppt_create_box(slide, 0.28, 6.58, 12.68, 0.44, note_fill, line)
+        tf = note_box.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        r = p.add_run()
+        r.text = 'Speaker note: '
+        r.font.size = Pt(8.2)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(71, 85, 105)
+        r2 = p.add_run()
+        r2.text = slide_spec.get('notes', '')
+        r2.font.size = Pt(8.2)
+        r2.font.color.rgb = RGBColor(71, 85, 105)
+
+    buffer = BytesIO()
+    prs.save(buffer)
+    return buffer.getvalue()
+
+
+def _validate_doc_apresentacao_slides(slides):
+    layouts_validos = {
+        'opening',
+        'team-grid',
+        'tech-overview',
+        'system-map',
+        'flow-formula',
+        'stage-break',
+        'forecast',
+        'ai-layer',
+        'monitoring',
+        'closing',
+    }
+    for index, slide in enumerate(slides, start=1):
+        obrigatorios = {'numero', 'titulo', 'kicker', 'headline', 'subtitle', 'sections', 'notes', 'layout'}
+        faltantes = obrigatorios - set(slide.keys())
+        if faltantes:
+            raise ValueError(f"Slide {index} sem campos obrigatórios: {sorted(faltantes)}")
+        if slide['numero'] != index:
+            raise ValueError(f"Numeração inválida no slide {index}: {slide['numero']}")
+        if slide['layout'] not in layouts_validos:
+            raise ValueError(f"Layout inválido no slide {index}: {slide['layout']}")
+    return slides
+
+
+def _renumber_doc_apresentacao_slides(slides):
+    for index, slide in enumerate(slides, start=1):
+        slide['numero'] = index
+    return slides
+
+
+def _get_doc_apresentacao_slides():
+    slides = [
+        {
+            'numero': 1,
+            'titulo': '🎬 ETAPA 1 — O SCI COMO PLATAFORMA DE DECISÃO',
+            'kicker': 'ETAPA 1 · PLATAFORMA E FUNDAMENTOS',
+            'headline': 'Como o SCI organiza dados, regras e narrativa para transformar custo industrial em decisão executiva',
+            'subtitle': '',
+            'shell_variant': 'stage-1',
+            'hero_variant': 'stage-1',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'O que será abordado nesta etapa',
+                    'items': [
+                        '1. 🎬 O SCI como Plataforma de Decisão',
+                        '2. 👥 Quem Sustenta a Plataforma',
+                        '3. 🧱 Arquitetura da Plataforma',
+                        '4. 🧱 Plataforma em Operação e Escala',
+                        '5. 🧭 Como a Plataforma se Organiza',
+                        '6. 📥 Como o Dado Entra e se Torna Confiável',
+                        '7. 🌊 Como o Desvio é Explicado',
+                    ],
+                },
             ],
-            'flow': [
-                {'title': 'Home', 'body': 'Contexto executivo'},
-                {'title': 'TC Ext / Veículos', 'body': 'Leitura analítica'},
-                {'title': 'Waterfall / BE', 'body': 'Causa e projeção'},
-                {'title': 'Alertas / Copilot', 'body': 'Escala e ação'},
+            'notes': 'Este slide serve como contrato narrativo da Etapa 1. Ele prepara o público para entender a base antes dos diferenciais.',
+            'layout': 'opening',
+        },
+        {
+            'numero': 2,
+            'titulo': '🎬 O SCI como Plataforma de Decisão',
+            'kicker': 'VISÃO GERAL · STELLANTIS COST INTELLIGENCE',
+            'headline': 'O SCI transforma dado industrial bruto em plataforma de decisão executiva sobre custos.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Mensagem central',
+                    'items': [
+                        'Um ponto único para custo, volume, flex, waterfall, forecast, alertas e IA aplicada.',
+                        'A mesma base técnica atende leitura operacional, conversa gerencial e escala cloud sem retrabalho.',
+                        'O SCI reduz o tempo entre detectar o desvio, explicar a causa e coordenar a reação.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Quatro papéis do SCI',
+                    'items': [
+                        {'title': '🔍 Entender', 'body': 'Consolida custo, volume e contexto na mesma conversa executiva.'},
+                        {'title': '🎯 Explicar', 'body': 'Waterfall, flex e rastreabilidade mostram causa, não só o valor final.'},
+                        {'title': '📈 Projetar', 'body': 'Best Estimate transforma histórico em cenário futuro com premissas explícitas.'},
+                        {'title': '🔔 Agir', 'body': 'Alertas, relatórios e Copilot encurtam o ciclo entre análise e decisão.'},
+                    ],
+                    'columns': 4,
+                },
             ],
-            'notes': 'Conduzir a leitura como arquitetura de produto, não como lista de telas.',
-            'layout': 'app-map',
+            'notes': 'Abrir posicionando o SCI como sistema de decisão, não como dashboard isolado. Mostrar que o projeto elimina o ciclo manual de consolidação, interpretação e comunicação de custo.',
+            'layout': 'opening',
+        },
+        _build_doc_apresentacao_team_slide(),
+        *_build_doc_apresentacao_tech_slides(),
+        {
+            'numero': 4,
+            'titulo': '🧭 Como a Plataforma se Organiza',
+            'kicker': 'NAVEGAÇÃO EXECUTIVA',
+            'headline': 'A estrutura do SCI leva o usuário do contexto geral ao diagnóstico e à ação em uma trilha única.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Leitura da navegação',
+                    'items': [
+                        'Home e módulos centrais concentram a leitura rápida do mês e o ponto de partida da análise.',
+                        'Waterfall e Best Estimate explicam presente e futuro pela mesma base econômica.',
+                        'Alertas, Copilot e documentação fecham governança, comunicação e autonomia do usuário.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Mapa dos módulos',
+                    'items': [
+                        {'title': '🏠 Home', 'body': 'KPIs, contexto do mês e desvio rápido.'},
+                        {'title': '🏭 TC Ext', 'body': 'Análise por oficina, account, real, budget e flex.'},
+                        {'title': '🚗 TC Veículos', 'body': 'Cadeia de custo até o veículo, rateio e CPU.'},
+                        {'title': '🌊 Waterfall', 'body': 'Leitura Budget → Flex → Real pela causa econômica.'},
+                        {'title': '🔮 Best Estimate', 'body': 'Forecast com premissas configuráveis e ajuste manual.'},
+                        {'title': '🚨 Alertas', 'body': 'Prioridade, ranking e comunicação acionável.'},
+                        {'title': '🤖 TC Copilot', 'body': 'Resposta rápida e síntese executiva do SCI.'},
+                        {'title': '📚 Documentação', 'body': 'Regras, arquitetura, onboarding e memória técnica.'},
+                    ],
+                    'columns': 4,
+                },
+            ],
+            'notes': 'Conduzir a leitura como arquitetura de produto, não como lista de telas. Cada bloco tem uma função especializada no ciclo de análise.',
+            'layout': 'system-map',
         },
         {
             'numero': 5,
-            'titulo': 'Slide 5 — Extração e processamento',
-            'kicker': 'Base confiável antes da análise',
+            'titulo': '📥 Como o Dado Entra e se Torna Confiável',
+            'kicker': 'BASE CONFIÁVEL ANTES DA ANÁLISE',
             'headline': 'O número só ganha legitimidade quando entra validado, tratado e persistido no formato certo.',
-            'subtitle': 'O pipeline reduz retrabalho, garante rastreabilidade e separa claramente fonte, tratamento, persistência e consumo no app.',
-            'bullets': [
-                'Entrada de Excel/SAP é normalizada antes de qualquer visualização.',
-                'Parquet vira contrato de velocidade, consistência e reuso entre local, EXE e cloud.',
-                'Flex Budget já nasce apoiado em custo fixo, custo variável e volume coerente.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Por que este slide importa',
+                    'items': [
+                        'Entrada de Excel e SAP é normalizada antes de qualquer visualização ou fechamento.',
+                        'Parquet vira contrato de velocidade, consistência e reuso entre local, executável e cloud.',
+                        'Flex Budget já nasce apoiado em custo fixo, custo variável e volume coerente.',
+                    ],
+                },
+                {
+                    'kind': 'flow',
+                    'title': 'Pipeline do dado',
+                    'items': [
+                        {'title': 'Excel / SAP', 'body': 'Fontes operacionais e corporativas'},
+                        {'title': 'Validação', 'body': 'Abas, colunas e período corretos'},
+                        {'title': 'Tratamento', 'body': 'Normalização, merge, correções e rateios'},
+                        {'title': 'Parquet', 'body': 'Persistência auditável e rápida'},
+                        {'title': 'App', 'body': 'Consumo unificado nos módulos do SCI'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'formula',
+                    'title': 'Fórmula de leitura',
+                    'value': r'Flex\ Bud = C_{Fixo} + (C_{Variavel} \times \frac{Volume\ Real}{Volume\ Budget})',
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Exemplo executivo',
+                    'body': 'Com R$ 180 mil fixos, R$ 320 mil variáveis, volume budget de 40 mil e volume real de 46 mil, o flex ajustado chega perto de R$ 548 mil.',
+                },
             ],
-            'flow': [
-                {'title': 'Excel / SAP', 'body': 'Fontes operacionais e corporativas'},
-                {'title': 'Validação', 'body': 'Abas, colunas e período corretos'},
-                {'title': 'Tratamento', 'body': 'Normalização, merge e rateio'},
-                {'title': 'Parquet', 'body': 'Persistência auditável e rápida'},
-                {'title': 'App', 'body': 'Consumo unificado nos módulos'},
-            ],
-            'formula': r'Flex\ Bud = Custo\ Fixo + (Custo\ Variavel \times \frac{Volume\ Real}{Volume\ Budget})',
-            'example_title': 'Exemplo executivo',
-            'example_body': 'Se o budget tem R$ 180 mil fixos, R$ 320 mil variáveis, volume budget de 40 mil e volume real de 46 mil, o flex fica em R$ 548 mil.',
             'notes': 'Enfatizar que a confiança do SCI nasce do pipeline, não do gráfico.',
             'layout': 'flow-formula',
         },
         {
             'numero': 6,
-            'titulo': 'Slide 6 — Waterfall e leitura do desvio',
-            'kicker': 'Explicação antes da reação',
+            'titulo': '🌊 Como o Desvio é Explicado',
+            'kicker': 'EXPLICAÇÃO ANTES DA REAÇÃO',
             'headline': 'Waterfall traduz o desvio em causa econômica: quanto veio de volume, quanto veio da operação.',
-            'subtitle': 'A leitura executiva deixa de ser “estamos acima do budget” e passa a ser “quanto era esperado no volume real e quanto ainda ficou fora da curva”.',
-            'bullets': [
-                'Budget é a referência original do plano.',
-                'Flex corrige o esperado para o volume efetivamente realizado.',
-                'Real mostra o que ainda ficou acima ou abaixo do esperado operacional.',
+            'subtitle': 'ETAPA 1 — Plataforma e Fundamentos',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Leitura econômica',
+                    'items': [
+                        'Budget é a referência original do plano e do compromisso financeiro assumido.',
+                        'Flex corrige o esperado para o volume efetivamente realizado, isolando o efeito de mix e produção.',
+                        'Real mostra o desvio residual que ainda precisa de explicação operacional.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Três blocos da ponte',
+                    'items': [
+                        {'title': 'Budget', 'body': 'Ponto de partida do plano original.'},
+                        {'title': 'Flex', 'body': 'Valor esperado quando o volume real entra na conta.', 'emphasis': True},
+                        {'title': 'Real', 'body': 'Resultado efetivo que precisa ser explicado.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'formula',
+                    'title': 'Fórmula de leitura',
+                    'value': r'\Delta_{Op} = Real - Flex\ Bud',
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Exemplo executivo',
+                    'body': 'Budget de R$ 600 mil, Flex de R$ 645 mil e Real de R$ 670 mil mostram dois sinais: R$ 45 mil explicados por volume e R$ 25 mil ainda ligados à operação.',
+                },
             ],
-            'flow': [
-                {'title': 'Budget', 'body': 'Plano original'},
-                {'title': 'Flex', 'body': 'Plano ajustado pelo volume'},
-                {'title': 'Real', 'body': 'Resultado efetivo'},
-            ],
-            'formula': r'Delta\ Operacional = Real - Flex\ Bud',
-            'example_title': 'Exemplo executivo',
-            'example_body': 'Budget de R$ 600 mil, Flex de R$ 645 mil e Real de R$ 670 mil mostram dois sinais: R$ 45 mil explicados por volume e R$ 25 mil ainda ligados à operação.',
             'notes': 'Fechar o slide dizendo que o waterfall muda a conversa de cobrança para diagnóstico.',
             'layout': 'flow-formula',
         },
         {
             'numero': 7,
-            'titulo': 'Slide 7 — Etapa 2: diferenciais escaláveis',
-            'kicker': 'Etapa 2 • Ouro operacional',
-            'headline': 'Depois da plataforma, o SCI avança para o que o torna difícil de substituir: granularidade, projeção, alertas e IA aplicada.',
-            'subtitle': 'A segunda etapa mostra os blocos que elevam o projeto de painel analítico para sistema com inteligência operacional e potencial multi-planta.',
-            'cards': [
-                {'title': 'Granularidade', 'body': 'Rateio e custo real até o veículo.'},
-                {'title': 'Antecipação', 'body': 'Best Estimate projeta cenário futuro.'},
-                {'title': 'Comunicação', 'body': 'Alertas e relatórios aceleram resposta.'},
-                {'title': 'IA', 'body': 'Copilot encurta interpretação e acesso ao contexto.'},
+            'titulo': '🚀 ETAPA 2 — Funcionalidades Ouro',
+            'kicker': 'ETAPA 2 · FUNCIONALIDADES OURO',
+            'shell_variant': 'stage-2',
+            'hero_variant': 'stage-2',
+            'headline': 'Onde a plataforma se torna difícil de substituir: granularidade, antecipação, governança e IA',
+            'subtitle': '',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'O que será abordado nesta etapa',
+                    'items': [
+                        '1. 🚀 Funcionalidades Avançadas',
+                        '2. 🧮 TC Veículos: Rateio e Real',
+                        '3. 🔮 Best Estimate',
+                        '4. 🤖 TC Copilot',
+                        '5. 🤖 TC Copilot — Entregas Executivas',
+                        '6. 🚨 Relatórios e Alertas',
+                        '7. 🚨 Alertas — Exemplo de Comunicação',
+                        '8. ✅ Conclusão',
+                    ],
+                },
             ],
-            'notes': 'Usar este slide como transição clara entre visão macro e diferenciais do SCI.',
-            'layout': 'stage-break',
+            'notes': 'Este slide serve como contrato narrativo da Etapa 2. Ele marca a virada entre a base da plataforma e as funcionalidades ouro do SCI.',
+            'layout': 'opening',
         },
         {
             'numero': 8,
-            'titulo': 'Slide 8 — TC Veículos: rateio e custo real',
-            'kicker': 'Granularidade produtiva',
+            'titulo': '🚀 Funcionalidades Avançadas',
+            'kicker': 'ETAPA 2 · FUNCIONALIDADES OURO',
+            'headline': 'Após a plataforma, o SCI avança para o que o torna difícil de substituir.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'stage_cards',
+                    'title': 'Maturidade do SCI',
+                    'items': [
+                        {'title': '📚 Base estruturada', 'body': 'Dados consolidados, histórico, budget e governança de persistência.'},
+                        {'title': '☁️ Cloud ativa', 'body': 'Execução no Databricks Apps com publicação e sincronização controladas.'},
+                        {'title': '🔮 Forecast', 'body': 'Simulação e projeção integradas ao produto.'},
+                        {'title': '🚨 Alertas', 'body': 'Monitoramento ativo e priorização do que mais importa.'},
+                        {'title': '🤖 TC Copilot', 'body': 'IA aplicada para ampliar interpretação, produtividade e explicação.'},
+                    ],
+                },
+                {
+                    'kind': 'bullets',
+                    'title': 'O que muda a partir daqui',
+                    'items': [
+                        'TC Veículos reconstrói a cadeia de custo até o nível do veículo e do CPU auditável.',
+                        'Best Estimate projeta cenários futuros com premissas configuráveis e regra econômica explícita.',
+                        'Alertas e relatórios transformam análise em monitoramento acionável de rotina.',
+                        'TC Copilot reduz o tempo para responder, sintetizar e comunicar o resultado.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Quatro diferenciais estruturais',
+                    'items': [
+                        {'title': '🧮 Granularidade', 'body': 'Rateio e custo real até o veículo e CPU.', 'emphasis': True},
+                        {'title': '🔮 Antecipação', 'body': 'Forecast com premissas econômicas auditáveis.', 'emphasis': True},
+                        {'title': '🚨 Comunicação', 'body': 'Desvio vira alerta priorizado e mensagem pronta.', 'emphasis': True},
+                        {'title': '🤖 IA aplicada', 'body': 'Resposta rápida sobre regras, contexto e narrativas.', 'emphasis': True},
+                    ],
+                    'columns': 4,
+                },
+            ],
+            'notes': 'Usar este slide como transição clara entre visão macro e os diferenciais do SCI.',
+            'layout': 'stage-break',
+        },
+        {
+            'numero': 9,
+            'titulo': '🧮 TC Veículos: Rateio e Real',
+            'kicker': 'GRANULARIDADE PRODUTIVA',
             'headline': 'No TC Veículos, o SCI reconstrói a cadeia econômica até o veículo para explicar onde o custo realmente nasce.',
-            'subtitle': 'Essa trilha preserva o fechamento entre despesa primária, fluxo anexo, fluxo principal, D&A dedicada e custo final rateado por veículo.',
-            'bullets': [
-                'A cadeia separa o que é FA, o que é FP e o que fica dedicado ao veículo.',
-                'O rateio usa tempo de produção para distribuir o custo onde ele realmente foi consumido.',
-                'O CPU final passa a ser auditável no nível do veículo.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Por que isso é diferencial',
+                    'items': [
+                        'A cadeia separa o que é Redis, o que é FA, o que é FP e o que permanece dedicado ao veículo.',
+                        'O rateio usa tempo de produção para distribuir custo onde ele foi consumido.',
+                        'O CPU final passa a ser auditável no nível do veículo e não apenas do consolidado da oficina.',
+                    ],
+                },
+                {
+                    'kind': 'flow',
+                    'title': 'Cadeia de formação do custo',
+                    'items': [
+                        {'title': 'Despesa primária', 'body': 'Base econômica da oficina'},
+                        {'title': 'Redis', 'body': 'Abatimento do componente Redis'},
+                        {'title': 'FA', 'body': 'Separação do fluxo anexo'},
+                        {'title': 'FP real', 'body': 'Fluxo principal líquido'},
+                        {'title': 'Rateio', 'body': 'Distribuição por tempo de produção'},
+                        {'title': 'CPU', 'body': 'Custo final por unidade produzida'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'formula',
+                    'title': 'Fórmula base',
+                    'value': r'Custo_{FP} = Despesa\ Primaria - Redis - Custo_{FA}',
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Exemplo executivo',
+                    'body': 'Com despesa primária de R$ 1,0 mi, Redis de R$ 70 mil, FA de 25%, D&A dedicada de R$ 30 mil e participação do veículo de 40%, o custo final continua rastreável até o CPU.',
+                },
             ],
-            'flow': [
-                {'title': 'Despesa Primária', 'body': 'Base econômica da oficina'},
-                {'title': 'Redis / FA', 'body': 'Separação do fluxo anexo'},
-                {'title': 'FP Real', 'body': 'Fluxo principal líquido'},
-                {'title': 'Rateio por veículo', 'body': 'Tempo de produção'},
-                {'title': 'CPU', 'body': 'Custo final por unidade'},
-            ],
-            'formula': r'Custo\ FP = Despesa\ Primaria - Custo\ FA',
-            'example_title': 'Exemplo executivo',
-            'example_body': 'Com despesa primária de R$ 1,0 mi, rateio FA de 25%, D&A dedicada de R$ 30 mil e percentual do veículo de 40%, o custo final do veículo fica em R$ 318 mil.',
             'notes': 'Posicionar este bloco como diferencial estrutural do SCI frente a análises apenas consolidadas.',
             'layout': 'flow-formula',
         },
         {
             'numero': 9,
-            'titulo': 'Slide 9 — Best Estimate',
-            'kicker': 'Antecipação e cenário',
-            'headline': 'Best Estimate transforma histórico em previsão operacional com volume, sensibilidade, inflação, produtividade e impacto manual controlado.',
-            'subtitle': 'O forecast não é um chute agregado: ele nasce da média histórica, ajusta o efeito de volume, aplica o bloco monetário e preserva a camada de BE Manual como complemento explícito.',
-            'bullets': [
-                'Permite comparar cenário futuro no mesmo layout usado para analisar o realizado.',
-                'Produtividade reduz o custo projetado no mesmo bloco monetário da inflação.',
-                'BE Manual entra como camada adicional, sem contaminar a média histórica.',
+            'titulo': '🔮 Best Estimate',
+            'kicker': 'ANTECIPAÇÃO E CENÁRIO',
+            'headline': 'Best Estimate transforma histórico em previsão operacional com lógica econômica explícita.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'flow',
+                    'title': 'Regras do forecast',
+                    'items': [
+                        {'title': 'Base histórica', 'body': 'Parte de média válida, volume futuro e sensibilidade aderente ao comportamento real do custo.'},
+                        {'title': 'Regra econômica', 'body': 'Aplica efeito de volume primeiro, depois inflação e produtividade, com BE Manual como camada adicional controlada.'},
+                        {'title': 'Saída executiva', 'body': 'Entrega forecast consolidado no mesmo formato de leitura usado para analisar o realizado.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Motor do Best Estimate',
+                    'items': [
+                        {'title': '📊 Entradas', 'body': 'Média histórica válida, volume futuro, sensibilidade, inflação e produtividade.'},
+                        {'title': '⚙️ Regra', 'body': 'Efeito de volume primeiro, bloco monetário depois. BE Manual entra como complemento.', 'emphasis': True},
+                        {'title': '📤 Saídas', 'body': 'Forecast consolidado, histórico separado e forecast rateado por veículo.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'formula',
+                    'title': 'Lógica resumida',
+                    'value': r'BE = \bar{H} \times F_{vol} \times (1 + Infl) \times (1 - Prod)',
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Exemplo executivo',
+                    'body': 'Média de R$ 100 mil, volume +15%, sensibilidade 80%, inflação 4% e produtividade 3% levam o BE para algo próximo de R$ 112,9 mil.',
+                },
             ],
-            'flow': [
-                {'title': 'Histórico', 'body': 'Meses válidos para média'},
-                {'title': 'Coeficientes', 'body': 'Volume, sensibilidade e produtividade'},
-                {'title': 'Forecast', 'body': 'BE e BE Manual'},
-                {'title': 'Análise', 'body': 'Leitura futura no app'},
-            ],
-            'formula': r'BE = Media\ Historica \times Fator\ de\ Variacao \times (1 + Inflacao) \times (1 - Produtividade)',
-            'example_title': 'Exemplo executivo',
-            'example_body': 'Média histórica de R$ 100 mil, volume futuro 15% acima do histórico, sensibilidade de 80%, inflação de 4% e produtividade de 3% levam o forecast para cerca de R$ 112,9 mil.',
-            'notes': 'Fechar mostrando que o SCI não apenas explica o passado, mas ajuda a dirigir o fechamento futuro.',
-            'layout': 'flow-formula',
+            'notes': 'Valorizar base limpa + premissas configuráveis + regra econômica transparente. O BE não é um chute: é uma lógica auditável.',
+            'layout': 'forecast',
         },
         {
             'numero': 10,
-            'titulo': 'Slide 10 — TC Copilot',
-            'kicker': 'IA aplicada',
+            'titulo': '🤖 TC Copilot',
+            'kicker': 'IA APLICADA AO CONTEXTO SCI',
             'headline': 'TC Copilot adiciona uma camada de interpretação e comunicação rápida sobre a mesma base de regras do SCI.',
-            'subtitle': 'O objetivo não é substituir a análise, mas reduzir o tempo para responder perguntas, sintetizar resultados e escalar comunicação entre áreas e plantas.',
-            'bullets': [
-                'Chatbot técnico responde com base na documentação e nos contratos do sistema.',
-                'Relatórios diários e executivos encurtam a preparação de comunicação.' ,
-                'Abre caminho para operação multi-planta com a mesma linguagem analítica.',
-            ],
-            'cards': [
-                {'title': 'Chatbot', 'body': 'Responde perguntas sobre regras, arquitetura e operação.'},
-                {'title': 'Relatório diário', 'body': 'Resume variações e pontos de atenção.'},
-                {'title': 'Relatório executivo', 'body': 'Transforma detalhe técnico em síntese gerencial.'},
-                {'title': 'Escala', 'body': 'Facilita replicação entre áreas e futuras plantas.'},
-            ],
-            'flow': [
-                {'title': 'Pergunta', 'body': 'Usuário ou rotina'},
-                {'title': 'Contexto', 'body': 'Documentação e regras'},
-                {'title': 'Síntese', 'body': 'Resposta ou relatório'},
-                {'title': 'Ação', 'body': 'Decisão e comunicação'},
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Função da camada de IA',
+                    'items': [
+                        'Chatbot técnico responde com base na documentação e nos contratos do sistema.',
+                        'Relatórios diários e executivos encurtam a preparação da comunicação gerencial.',
+                        'Abre caminho para operação multi-planta com a mesma linguagem analítica do SCI.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Casos de uso imediatos',
+                    'items': [
+                        {'title': '💬 Chatbot', 'body': 'Responde dúvidas sobre regras, arquitetura e operação do produto.'},
+                        {'title': '📅 Relatório diário', 'body': 'Resume variações e pontos de atenção com rotina mais curta.'},
+                        {'title': '📋 Relatório executivo', 'body': 'Transforma detalhe técnico em síntese gerencial pronta para uso.'},
+                        {'title': '🌐 Escala', 'body': 'Facilita replicação entre áreas e futuras plantas usando a mesma base.'},
+                    ],
+                    'columns': 4,
+                },
             ],
             'notes': 'Posicionar o copilot como acelerador de produtividade e governança do conhecimento.',
-            'layout': 'executive-cards',
+            'layout': 'ai-layer',
         },
         {
             'numero': 11,
-            'titulo': 'Slide 11 — Relatórios e Central de Alertas',
-            'kicker': 'Monitoramento acionável',
-            'headline': 'SCI fecha o ciclo quando transforma desvio em alerta priorizado e comunicação pronta para a organização.',
-            'subtitle': 'A central consolida ranking hierárquico, regras de severidade, validação e canais de envio, reduzindo o tempo entre detectar um problema e alinhá-lo com os stakeholders.',
-            'bullets': [
-                'Alertas priorizam o que mais pesa no resultado em vez de gerar ruído disperso.',
-                'Há validação técnica do cálculo antes do envio para e-mail ou Teams.',
-                'Relatórios ajudam a manter repetibilidade e escala da comunicação.',
+            'titulo': '🤖 TC Copilot — Entregas Executivas',
+            'kicker': 'IA APLICADA AO CONTEXTO SCI',
+            'headline': 'O valor do TC Copilot aparece quando ele transforma regra técnica em texto executivo utilizável em segundos.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'flow',
+                    'title': 'Como ele entrega valor',
+                    'items': [
+                        {'title': 'Pergunta', 'body': 'Recebe uma dúvida técnica, um pedido executivo ou um gatilho de relatório.'},
+                        {'title': 'Contexto', 'body': 'Lê documentação, contratos do SCI, histórico e lógica do sistema.'},
+                        {'title': 'Resposta', 'body': 'Entrega síntese clara, narrativa pronta e orientação acionável para a gestão.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Entregas que valorizam o produto',
+                    'items': [
+                        {'title': '📅 Relatório diário', 'body': 'Resume variações, highlights e pontos de atenção logo após o fechamento.'},
+                        {'title': '📋 Relatório executivo', 'body': 'Converte detalhe analítico em narrativa gerencial pronta para circular.'},
+                        {'title': '💬 Resposta orientada', 'body': 'Explica regras, indicadores e leitura do SCI com linguagem adaptada ao público.', 'emphasis': True},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Trecho do resumo executivo gerado',
+                    'body': 'No mês de março, o volume real ficou em linha com o budget, enquanto o Custo FP Real fechou abaixo do Budget Flex por ganho operacional concentrado em energy. A principal atenção permaneceu em maintenance, com pressão acima do esperado em materiais de reposição. A leitura executiva recomenda validar as unidades com maior exposição, confirmar a causa dominante e fechar a ação corretiva ainda no fechamento.',
+                },
             ],
-            'cards': [
-                {'title': 'Dados', 'body': 'Real, budget, flex e ranking consolidado.'},
-                {'title': 'Regras', 'body': 'Thresholds, filtros e severidade.'},
-                {'title': 'Comunicação', 'body': 'Teams, e-mail e uso interno no app.'},
-            ],
-            'flow': [
-                {'title': 'Dados', 'body': 'Base atualizada'},
-                {'title': 'Regras', 'body': 'Motor de alerta'},
-                {'title': 'Ranking', 'body': 'Type 05 → Type 06 → Account → Oficina'},
-                {'title': 'Ação', 'body': 'Monitoramento, e-mail e Teams'},
-            ],
-            'notes': 'Enquadrar alertas como instrumento de foco gerencial e não só automação de envio.',
-            'layout': 'executive-cards',
+            'notes': 'Mostrar o Copilot como multiplicador de produtividade: menos tempo para consolidar, explicar e comunicar o resultado com qualidade executiva.',
+            'layout': 'ai-layer',
         },
         {
             'numero': 12,
-            'titulo': 'Slide 12 — Fechamento executivo',
-            'kicker': 'Mensagem final para COO',
-            'headline': 'SCI já se comporta como base de governança de custo industrial com capacidade real de escala.',
-            'subtitle': 'O projeto combina dados, regras, interface, cloud, forecast, alertas e IA em uma arquitetura que aumenta autonomia, reduz risco operacional e prepara expansão futura.',
-            'cards': [
-                {'title': 'Impacto', 'body': 'Transforma leitura de custo em capacidade de decisão.'},
-                {'title': 'Governança', 'body': 'Mantém regra, histórico e narrativa no mesmo lugar.'},
-                {'title': 'Escala', 'body': 'Pronto para crescer em módulos, plantas e canais.'},
-                {'title': 'Autonomia', 'body': 'Menos dependência de controles manuais e interpretação dispersa.'},
+            'titulo': '🚨 Relatórios e Alertas',
+            'kicker': 'MONITORAMENTO ACIONÁVEL',
+            'headline': 'SCI fecha o ciclo quando transforma desvio em alerta priorizado e comunicação pronta para a organização.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Leitura gerencial',
+                    'items': [
+                        'Alertas priorizam o que mais pesa no resultado em vez de gerar ruído disperso.',
+                        'Há validação técnica do cálculo antes do envio para e-mail ou Teams.',
+                        'Relatórios garantem repetibilidade e escala da comunicação entre áreas.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Componentes da central',
+                    'items': [
+                        {'title': '📊 Dados', 'body': 'Real, budget, flex e ranking consolidado.'},
+                        {'title': '⚙️ Regras', 'body': 'Thresholds, filtros, hierarquia e severidade.', 'emphasis': True},
+                        {'title': '📣 Comunicação', 'body': 'Teams, e-mail e uso interno no app.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'flow',
+                    'title': 'Pipeline de monitoramento',
+                    'items': [
+                        {'title': 'Type 05', 'body': 'Origem do desvio e consolidação inicial'},
+                        {'title': 'Type 06', 'body': 'Refino do ranking por agrupamento econômico'},
+                        {'title': 'Account', 'body': 'Detalhe acionável para a linha de gestão'},
+                    ],
+                    'columns': 3,
+                },
             ],
-            'bullets': [
-                'Mais rastreabilidade para fechamento e explicação do resultado.',
-                'Mais velocidade para identificar, explicar e reagir ao desvio.',
-                'Mais consistência para expandir a solução sem recomeçar do zero.',
+            'notes': 'Enquadrar alertas como instrumento de foco gerencial e não só automação de envio.',
+            'layout': 'monitoring',
+        },
+        {
+            'numero': 13,
+            'titulo': '🚨 Alertas — Exemplo de Comunicação',
+            'kicker': 'COMUNICAÇÃO ACIONÁVEL',
+            'headline': 'O ganho real do SCI aparece quando o desvio sai do painel e vira mensagem pronta, priorizada e enviada no tempo certo.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'flow',
+                    'title': 'Do cálculo ao alerta',
+                    'items': [
+                        {'title': 'Leitura', 'body': 'O SCI identifica o desvio mais relevante no fechamento.'},
+                        {'title': 'Priorização', 'body': 'Aplica severidade, ranking e contexto econômico antes do envio.'},
+                        {'title': 'Comunicação', 'body': 'Entrega texto pronto para e-mail, Teams e acompanhamento gerencial.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Por que isso é ouro',
+                    'items': [
+                        {'title': '⚡ Velocidade', 'body': 'Reduz o tempo entre fechamento, leitura e acionamento da gestão.'},
+                        {'title': '🎯 Foco', 'body': 'Evita ruído e leva a atenção para o que mais pesa no resultado.', 'emphasis': True},
+                        {'title': '📣 Escala', 'body': 'Mantém padrão de comunicação mesmo com aumento de escopo e usuários.'},
+                    ],
+                    'columns': 3,
+                },
+                {
+                    'kind': 'example',
+                    'title': 'Exemplo executivo',
+                    'example_title': 'Trecho do alerta consolidado enviado',
+                    'body': 'Relatório de Alertas - Março | Budget Flex x Real | Severidade: critica. Burden concentrou a principal pressão do fechamento, com maintenance acima do esperado, enquanto energy compensou parte relevante do desvio total. O ranking foi aberto por Type 06, depois Account e unidades de maior impacto, permitindo validar causa, prioridade e plano de ação no mesmo fechamento.',
+                },
             ],
-            'notes': 'Fechar como plataforma de governança operacional e crescimento, não apenas como entrega de dashboard.',
+            'notes': 'Valorizar o alerta como ouro do projeto: ele fecha o ciclo entre cálculo, priorização e comunicação executiva pronta para uso.',
+            'layout': 'monitoring',
+        },
+        {
+            'numero': 14,
+            'titulo': '✅ Conclusão',
+            'kicker': 'MENSAGEM FINAL · COO',
+            'headline': 'O SCI se comporta como base de governança de custo industrial com capacidade real de escala.',
+            'subtitle': 'ETAPA 2 — Funcionalidades Ouro',
+            'sections': [
+                {
+                    'kind': 'bullets',
+                    'title': 'Mensagem final',
+                    'items': [
+                        'O SCI já entrega leitura diária de custo, fechamento analítico e comunicação pronta em ritmo executivo.',
+                        'A mesma base sustenta cálculo de TC, rateios por veículo, forecast, alertas e uso de IA em segundos.',
+                        'O sistema mostra capacidade real de ampliar escopo sem perder consistência técnica nem velocidade de resposta.',
+                    ],
+                },
+                {
+                    'kind': 'cards',
+                    'title': 'Quatro ganhos permanentes',
+                    'items': [
+                        {'title': '💡 Impacto', 'body': 'Transforma leitura de custo em capacidade real de decisão executiva.', 'emphasis': True},
+                        {'title': '🏛 Governança', 'body': 'Mantém regra, histórico, explicação e narrativa no mesmo lugar.', 'emphasis': True},
+                        {'title': '📐 Escala', 'body': 'Pronto para crescer em módulos, plantas, canais e rotinas.', 'emphasis': True},
+                        {'title': '🔓 Autonomia', 'body': 'Reduz dependência de controles manuais e interpretação dispersa.', 'emphasis': True},
+                    ],
+                    'columns': 4,
+                },
+                {
+                    'kind': 'flow',
+                    'title': 'Capacidade operacional já demonstrada',
+                    'items': [
+                        {'title': 'Fechamento', 'body': 'Consolida e explica o resultado logo após o fechamento mensal.'},
+                        {'title': 'IA em segundos', 'body': 'Gera síntese executiva, resposta contextual e apoio à comunicação.'},
+                        {'title': 'Veículos e rateios', 'body': 'Leva o custo até o veículo com rastreabilidade do CPU e do rateio.'},
+                    ],
+                    'columns': 3,
+                },
+            ],
+            'notes': 'Fechar mostrando capacidade concreta: alertas diários, relatórios detalhados, IA em segundos e cálculo rastreável até veículos e rateios.',
             'layout': 'closing',
         },
     ]
+    slides = _renumber_doc_apresentacao_slides(slides)
+    return _validate_doc_apresentacao_slides(slides)
 
 
-def _render_doc_apresentacao_slide(slide) -> None:
-    custom_renderer = slide.get('custom_renderer')
-    if custom_renderer == 'team':
-        _render_doc_equipe_sci()
-    elif custom_renderer == 'tech-overview':
-        st.markdown(
-            """
-        <span class="sci-slide-chip">Núcleo do produto = arquivos Python centrais que sustentam a operação</span>
-        <span class="sci-slide-chip">Workspace ampliado = ecossistema estendido de desenvolvimento, suporte e automação</span>
-            """,
-            unsafe_allow_html=True,
-        )
-        _render_doc_visao_geral_tecnica()
-    else:
-        st.markdown(
-            f"""
-        <div class="sci-slide-hero">
-            <div class="sci-slide-kicker">{slide.get('kicker', '')}</div>
-            <div class="sci-slide-title">{slide.get('headline', '')}</div>
-            <div class="sci-slide-subtitle">{slide.get('subtitle', '')}</div>
-        </div>
-            """,
-            unsafe_allow_html=True,
-        )
+def _render_doc_apresentacao_slide(slide, total_slides) -> None:
+    shell_variant = slide.get('shell_variant', '')
+    shell_class = 'sci-slide-shell'
+    if shell_variant:
+        shell_class += f' sci-slide-shell-{shell_variant}'
+    hero_variant = slide.get('hero_variant', '')
+    hero_class = 'sci-slide-hero'
+    if hero_variant:
+        hero_class += f' sci-slide-hero-{hero_variant}'
 
-        bullets = slide.get('bullets', [])
-        if bullets:
-            st.markdown('### Mensagem do slide')
-            st.markdown('\n'.join([f'- {bullet}' for bullet in bullets]))
-
-        _render_doc_apresentacao_cards(
-            slide.get('cards', []),
-            columns_per_row=slide.get('columns_per_row', 4),
-        )
-
-        _render_doc_apresentacao_flow(slide.get('flow', []))
-
-        if slide.get('formula'):
-            st.latex(slide['formula'])
-
-        if slide.get('example_title') or slide.get('example_body'):
-            _render_doc_apresentacao_example(
-                slide.get('example_title', ''),
-                slide.get('example_body', ''),
-            )
+    st.markdown(f'<div class="{shell_class}">', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+    <div class="{hero_class}">
+        <div class="sci-slide-kicker">{slide.get('kicker', '')}</div>
+        <div class="sci-slide-title">{slide.get('titulo', '')}</div>
+        <div class="sci-slide-headline">{slide.get('headline', '')}</div>
+        <div class="sci-slide-subtitle">{slide.get('subtitle', '')}</div>
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    for section in slide.get('sections', []):
+        _render_doc_apresentacao_section(section)
 
     st.markdown(
         f"""
-    <div class="sci-slide-notes">
-        <strong>Speaker note:</strong> {slide.get('notes', '')}<br>
-        <strong>Contrato do slide:</strong> layout = {slide.get('layout', 'executive')}; pronto para mapeamento futuro em um único PPTX.
+    <div class="sci-slide-footer">
+        <span style="font-size:0.72rem;font-weight:900;text-transform:uppercase;letter-spacing:0.07em;color:#0f766e;">🎯 Slide {slide.get('numero', '')} / {total_slides}</span>
+        &nbsp;·&nbsp;
+        <span style="color:#7a96b2;font-size:0.78rem;">layout: {slide.get('layout', 'executive')}</span>
+        &nbsp;·&nbsp;
+        <span style="color:#42566d;font-size:0.78rem;">Fonte única · UI e PPT</span>
     </div>
         """,
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        f"""
+    <div class="sci-slide-notes">
+        <strong>Speaker note:</strong> {slide.get('notes', '')}
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 def _render_doc_apresentacao_visual() -> None:
     _render_doc_apresentacao_styles()
     slides = _get_doc_apresentacao_slides()
+    total_slides = len(slides)
+    ppt_error = None
+    ppt_bytes = None
+    try:
+        ppt_bytes = _get_doc_apresentacao_ppt_bytes()
+    except Exception as exc:
+        ppt_error = str(exc)
 
     st.markdown("""
 <div style="padding: 1.6rem; background: linear-gradient(135deg, #0f172a 0%, #164e63 55%, #99f6e4 100%); border-radius: 18px; margin-bottom: 1.4rem; color: white; border: 1px solid rgba(153, 246, 228, 0.16);">
     <h2 style="color: white; margin: 0;">🎤 Apresentação executiva do SCI</h2>
     <p style="color: #ecfeff; margin: 0.55rem 0 0 0; max-width: 920px;">
-        Trilha institucional do projeto em formato de slides reais dentro da documentação, já estruturada com contrato semântico para futura exportação em um único PPTX.
+        {total_slides} slides executivos com contrato único entre a visualização desta página e o PPT exportado.
     </p>
 </div>
     """, unsafe_allow_html=True)
 
+    st.markdown(
+        """
+    <div class="sci-presentation-toolbar">
+        <div style="font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#0f4c5c; margin-bottom:0.35rem;">Deck reconstruído</div>
+        <div class="sci-presentation-toolbar-note">
+            O deck foi refeito a partir de um contrato único de slides. Use o exportador para baixar o PPT gerado pela mesma estrutura semântica mostrada aqui.
+        </div>
+    </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_dl, col_info = st.columns([1.1, 2.3])
+    with col_dl:
+        if ppt_bytes is not None:
+            st.download_button(
+                '📤 Exportar apresentação PPTX',
+                data=ppt_bytes,
+                file_name='SCI_Apresentacao_Executiva.pptx',
+                mime='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                use_container_width=True,
+                key='download_doc_apresentacao_ppt',
+            )
+        else:
+            st.button('📤 Exportar apresentação PPTX', disabled=True, use_container_width=True)
+    with col_info:
+        if ppt_error:
+            st.warning(f'Não foi possível gerar o PPT agora: {ppt_error}')
+        else:
+            st.info('✅ PPT pronto — gerado a partir da mesma estrutura dos slides exibidos nesta página.')
+
     tab_roteiro, tab_slides = st.tabs(["🎤 Roteiro", "🧩 Slides"])
 
     with tab_roteiro:
-        st.markdown("""
-### Etapa 1 — Plataforma
+        stage_2_start = next((index for index, slide in enumerate(slides) if slide['titulo'].startswith('🚀 ETAPA 2')), len(slides))
+        stage_1_slides = slides[:stage_2_start]
+        stage_2_slides = slides[stage_2_start:]
 
-1. SCI como plataforma única de leitura, explicação, projeção e monitoramento.
-2. Equipe do SCI reapresentada como base do projeto.
-3. Dimensão técnica do sistema e distinção entre núcleo e workspace ampliado.
-4. Arquitetura funcional do app e trilha de navegação executiva.
-5. Extração, processamento e contrato de dados.
-6. Waterfall como leitura da causa do desvio.
+        def _render_roteiro_stage(header, stage_slides):
+            st.markdown(f'### {header}')
+            lines = []
+            for slide in stage_slides:
+                summary = slide.get('headline', '') or slide.get('notes', '')
+                summary = summary.rstrip('.')
+                lines.append(f"{slide['numero']}\\. **{slide['titulo']}** — {summary}.  ")
+            st.markdown('\n'.join(lines))
 
-### Etapa 2 — Diferenciais escaláveis
-
-7. Transição para os blocos de ouro do SCI.
-8. TC Veículos com rateio e custo real até o veículo.
-9. Best Estimate com volume, sensibilidade, inflação, produtividade e BE Manual.
-10. TC Copilot como camada de interpretação e comunicação.
-11. Relatórios e Central de Alertas como motor de foco e resposta.
-12. Fechamento executivo com impacto, governança, escala e autonomia.
-        """)
+        _render_roteiro_stage('🎬 Etapa 1 — Plataforma', stage_1_slides)
+        _render_roteiro_stage('🚀 Etapa 2 — Funcionalidades Ouro', stage_2_slides)
 
     with tab_slides:
         st.caption(
-            "Cada slide abaixo preserva título, layout, bullets, cards, fluxo, exemplo e speaker note para suportar exportação futura em um único arquivo PPTX."
+            "Cada slide abaixo nasce do mesmo contrato usado pelo exportador PPT. A ideia aqui é estabilidade e clareza, não efeitos visuais frágeis."
         )
         for slide in slides:
-            with st.expander(slide['titulo'], expanded=slide.get('expanded', False)):
-                _render_doc_apresentacao_slide(slide)
+            with st.expander(slide['titulo'], expanded=slide['numero'] == 1):
+                _render_doc_apresentacao_slide(slide, total_slides)
 
 
 def _render_doc_build_exe_completo() -> None:
