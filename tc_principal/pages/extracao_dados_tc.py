@@ -827,550 +827,562 @@ def render():
     #  TAB 1: Validação de Arquivos
     # ─────────────────────────────────────
     with tab1:
-        st.header("📋 Validação de Arquivos Necessários")
+        @st.fragment
+        def _render_tab1():
+            st.header("📋 Validação de Arquivos Necessários")
 
-        if bloqueio_escrita_cloud:
-            st.warning(bloqueio_escrita_cloud)
+            if bloqueio_escrita_cloud:
+                st.warning(bloqueio_escrita_cloud)
 
-        # ── Upload unificado ──
-        st.markdown("### 📤 Upload de Arquivo")
-        st.info(
-            f"**💡 Dica:** O arquivo `Reporting veículos.xlsx` deve estar em "
-            f"`dados/TC_Principal/{ano_selecionado}/`. Se necessário, faça upload abaixo."
-        )
-
-        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
-        # No cloud, salvar em /tmp (container não monta Workspace externo)
-        if is_cloud():
-            pasta_ano = os.path.join('/tmp/sci_data_cache', 'TC_Principal', str(ano_selecionado))
-        destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
-
-        # Se já existe, mostra info
-        if os.path.exists(destino):
-            tam = os.path.getsize(destino) / (1024 * 1024)
-            dt_mod = datetime.fromtimestamp(os.path.getmtime(destino))
-            st.warning(f"⚠️ Já existe: `{destino}` ({tam:.1f} MB) — {dt_mod:%d/%m/%Y %H:%M}")
-        else:
-            st.caption(f"📁 Destino: `{destino}`")
-
-        precisa_confirmar = os.path.exists(destino)
-        confirmar = True
-        if precisa_confirmar:
-            confirmar = st.checkbox(
-                "Confirmar sobrescrita do arquivo existente",
-                value=False,
-                key="upload_confirm_overwrite",
-            )
-
-        if _em_execucao_empacotada() and not is_cloud():
+            # ── Upload unificado ──
+            st.markdown("### 📤 Upload de Arquivo")
             st.info(
-                "No app desktop, use o seletor nativo do Windows abaixo. "
-                "Isso evita falhas do upload no navegador embutido."
+                f"**💡 Dica:** O arquivo `Reporting veículos.xlsx` deve estar em "
+                f"`dados/TC_Principal/{ano_selecionado}/`. Se necessário, faça upload abaixo."
             )
-            if st.button(
-                "📂 Selecionar e salvar Reporting veículos.xlsx",
-                key="btn_upload_desktop_tc",
-                type="primary",
-                disabled=(precisa_confirmar and not confirmar) or bool(bloqueio_escrita_cloud),
-            ):
-                origem = _selecionar_arquivo_excel_desktop()
-                if origem:
+
+            pasta_ano = os.path.join(_DATA_ROOT, 'TC_Principal', str(ano_selecionado))
+            # No cloud, salvar em /tmp (container não monta Workspace externo)
+            if is_cloud():
+                pasta_ano = os.path.join('/tmp/sci_data_cache', 'TC_Principal', str(ano_selecionado))
+            destino = os.path.join(pasta_ano, "Reporting veículos.xlsx")
+
+            # Se já existe, mostra info
+            if os.path.exists(destino):
+                tam = os.path.getsize(destino) / (1024 * 1024)
+                dt_mod = datetime.fromtimestamp(os.path.getmtime(destino))
+                st.warning(f"⚠️ Já existe: `{destino}` ({tam:.1f} MB) — {dt_mod:%d/%m/%Y %H:%M}")
+            else:
+                st.caption(f"📁 Destino: `{destino}`")
+
+            precisa_confirmar = os.path.exists(destino)
+            confirmar = True
+            if precisa_confirmar:
+                confirmar = st.checkbox(
+                    "Confirmar sobrescrita do arquivo existente",
+                    value=False,
+                    key="upload_confirm_overwrite",
+                )
+
+            if _em_execucao_empacotada() and not is_cloud():
+                st.info(
+                    "No app desktop, use o seletor nativo do Windows abaixo. "
+                    "Isso evita falhas do upload no navegador embutido."
+                )
+                if st.button(
+                    "📂 Selecionar e salvar Reporting veículos.xlsx",
+                    key="btn_upload_desktop_tc",
+                    type="primary",
+                    disabled=(precisa_confirmar and not confirmar) or bool(bloqueio_escrita_cloud),
+                ):
+                    origem = _selecionar_arquivo_excel_desktop()
+                    if origem:
+                        os.makedirs(pasta_ano, exist_ok=True)
+                        shutil.copy2(origem, destino)
+                        st.success(f"✅ Arquivo salvo em: `{destino}`")
+                        st.caption(f"Arquivo selecionado: `{origem}`")
+                        # Auto-enviar ao cloud
+                        with st.spinner("Enviando ao Databricks Workspace..."):
+                            ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
+                        if ok_c:
+                            st.success(msg_c)
+                        else:
+                            st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
+            else:
+                arquivo_upload = st.file_uploader(
+                    "📄 Upload: Reporting veículos.xlsx",
+                    type=["xlsx"],
+                    key="upload_reporting_tc",
+                    help="Arquivo principal contendo abas Budget e Real.",
+                )
+
+                if arquivo_upload is not None and st.button(
+                    "💾 Salvar Reporting veículos.xlsx",
+                    key="btn_salvar_upload",
+                    use_container_width=False,
+                    type="primary",
+                    disabled=(precisa_confirmar and not confirmar) or bool(bloqueio_escrita_cloud),
+                ):
                     os.makedirs(pasta_ano, exist_ok=True)
-                    shutil.copy2(origem, destino)
-                    st.success(f"✅ Arquivo salvo em: `{destino}`")
-                    st.caption(f"Arquivo selecionado: `{origem}`")
-                    # Auto-enviar ao cloud
+                    with open(destino, "wb") as f:
+                        f.write(arquivo_upload.getbuffer())
+                    st.success(f"✅ Arquivo salvo: `{destino}`")
+                    # Enviar ao cloud (Workspace + DBFS)
                     with st.spinner("Enviando ao Databricks Workspace..."):
                         ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
                     if ok_c:
                         st.success(msg_c)
                     else:
                         st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
-        else:
-            arquivo_upload = st.file_uploader(
-                "📄 Upload: Reporting veículos.xlsx",
-                type=["xlsx"],
-                key="upload_reporting_tc",
-                help="Arquivo principal contendo abas Budget e Real.",
-            )
 
-            if arquivo_upload is not None and st.button(
-                "💾 Salvar Reporting veículos.xlsx",
-                key="btn_salvar_upload",
-                use_container_width=False,
-                type="primary",
-                disabled=(precisa_confirmar and not confirmar) or bool(bloqueio_escrita_cloud),
-            ):
-                os.makedirs(pasta_ano, exist_ok=True)
-                with open(destino, "wb") as f:
-                    f.write(arquivo_upload.getbuffer())
-                st.success(f"✅ Arquivo salvo: `{destino}`")
-                # Enviar ao cloud (Workspace + DBFS)
-                with st.spinner("Enviando ao Databricks Workspace..."):
-                    ok_c, msg_c = _enviar_excel_ao_cloud(int(ano_selecionado))
-                if ok_c:
-                    st.success(msg_c)
+            st.divider()
+
+            # ── Pré-validação ──
+            st.markdown("### 🔎 Pré-validação (recomendado)")
+            col_v1, col_v2 = st.columns([1, 3])
+            with col_v1:
+                btn_prevalidar = st.button(
+                    "🔎 Pré-validar estrutura do Excel",
+                    use_container_width=True,
+                    type="secondary",
+                )
+            with col_v2:
+                st.caption(
+                    "Checa abas e colunas esperadas antes de executar. "
+                    "Não grava parquets."
+                )
+
+            if btn_prevalidar:
+                relatorio = []
+                ok_total = True
+
+                if bloqueio_escrita_cloud:
+                    with st.spinner("🔎 Validando Excel no cluster do Databricks..."):
+                        ok_total, relatorio = _executar_prevalidacao_cloud(
+                            int(ano_selecionado),
+                            tipo_extracao,
+                        )
                 else:
-                    st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
+                    if tipo_extracao in ["📊 Dados REAIS", "🔄 Ambos"]:
+                        ok_r, msgs = _validar_pre_extracao_real(int(ano_selecionado))
+                        ok_total &= ok_r
+                        relatorio.append("─── 📊 REAIS ───")
+                        relatorio.extend(msgs)
 
-        st.divider()
+                    if tipo_extracao in ["💰 Dados BUDGET", "🔄 Ambos"]:
+                        ok_b, msgs = _validar_pre_extracao_budget(int(ano_selecionado))
+                        ok_total &= ok_b
+                        relatorio.append("─── 💰 BUDGET ───")
+                        relatorio.extend(msgs)
 
-        # ── Pré-validação ──
-        st.markdown("### 🔎 Pré-validação (recomendado)")
-        col_v1, col_v2 = st.columns([1, 3])
-        with col_v1:
-            btn_prevalidar = st.button(
-                "🔎 Pré-validar estrutura do Excel",
-                use_container_width=True,
-                type="secondary",
-            )
-        with col_v2:
-            st.caption(
-                "Checa abas e colunas esperadas antes de executar. "
-                "Não grava parquets."
-            )
+                with st.expander("📋 Relatório de Pré-validação", expanded=True):
+                    st.code("\n".join(relatorio), language="text")
 
-        if btn_prevalidar:
-            relatorio = []
-            ok_total = True
+                if ok_total:
+                    st.success("✅ Pré-validação OK — pode executar a extração.")
+                else:
+                    st.error("❌ Corrija os itens acima antes de executar.")
+
+        # ─────────────────────────────────────
+        #  TAB 2: Executar Processamento
+        # ─────────────────────────────────────
+
+        _render_tab1()
+    with tab2:
+        @st.fragment
+        def _render_tab2():
+            st.header("⚙️ Executar Processamento")
+            st.info("""
+    **⚠️ Importante:**
+    - Certifique-se de que todos os arquivos necessários estão presentes
+    - O processamento pode levar alguns minutos
+    - Não feche a página durante a execução
+            """)
 
             if bloqueio_escrita_cloud:
-                with st.spinner("🔎 Validando Excel no cluster do Databricks..."):
-                    ok_total, relatorio = _executar_prevalidacao_cloud(
-                        int(ano_selecionado),
-                        tipo_extracao,
-                    )
-            else:
-                if tipo_extracao in ["📊 Dados REAIS", "🔄 Ambos"]:
-                    ok_r, msgs = _validar_pre_extracao_real(int(ano_selecionado))
-                    ok_total &= ok_r
-                    relatorio.append("─── 📊 REAIS ───")
-                    relatorio.extend(msgs)
-
-                if tipo_extracao in ["💰 Dados BUDGET", "🔄 Ambos"]:
-                    ok_b, msgs = _validar_pre_extracao_budget(int(ano_selecionado))
-                    ok_total &= ok_b
-                    relatorio.append("─── 💰 BUDGET ───")
-                    relatorio.extend(msgs)
-
-            with st.expander("📋 Relatório de Pré-validação", expanded=True):
-                st.code("\n".join(relatorio), language="text")
-
-            if ok_total:
-                st.success("✅ Pré-validação OK — pode executar a extração.")
-            else:
-                st.error("❌ Corrija os itens acima antes de executar.")
-
-    # ─────────────────────────────────────
-    #  TAB 2: Executar Processamento
-    # ─────────────────────────────────────
-    with tab2:
-        st.header("⚙️ Executar Processamento")
-        st.info("""
-**⚠️ Importante:**
-- Certifique-se de que todos os arquivos necessários estão presentes
-- O processamento pode levar alguns minutos
-- Não feche a página durante a execução
-        """)
-
-        if bloqueio_escrita_cloud:
-            st.info(
-                "☁️ **Ambiente cloud** — Os botões abaixo disparam o processamento "
-                "no cluster do Databricks e mostram o status aqui mesmo."
-            )
-
-        # Botões de execução
-        col_b1, col_b2, col_b3 = st.columns(3)
-        houve_sucesso_processamento = False
-
-        _deve_processar_local = not bloqueio_escrita_cloud
-
-        executar_reais = False
-        executar_budget = False
-        executar_ambos = False
-
-        with col_b1:
-            if tipo_extracao in ["📊 Dados REAIS", "🔄 Ambos"]:
-                executar_reais = st.button(
-                    "🚀 Processar Real (Sapiens)",
-                    type="primary",
-                    use_container_width=True,
-                )
-
-        with col_b2:
-            if tipo_extracao in ["💰 Dados BUDGET", "🔄 Ambos"]:
-                executar_budget = st.button(
-                    "🚀 Processar Budget",
-                    type="primary",
-                    use_container_width=True,
-                )
-
-        with col_b3:
-            if tipo_extracao == "🔄 Ambos":
-                executar_ambos = st.button(
-                    "🚀 Executar Ambos",
-                    type="primary",
-                    use_container_width=True,
-                )
-
-        # Container de logs
-        log_container = st.container()
-
-        # ── Mostrar painel de status de run anterior (se existir) ──
-        run_anterior = st.session_state.get(_PIPELINE_RUN_KEY, {})
-        if bloqueio_escrita_cloud and run_anterior.get('run_id') and not (
-            executar_reais or executar_budget or executar_ambos
-        ):
-            st.markdown("---")
-            st.markdown("### 📡 Status do último processamento")
-            _renderizar_painel_status_cloud(run_anterior['run_id'], key_suffix='tab2_prev')
-
-        if bloqueio_escrita_cloud and (
-            executar_reais or executar_budget or executar_ambos
-        ):
-            tipo_pipeline = tipo_extracao
-            if executar_reais:
-                tipo_pipeline = "📊 Dados REAIS"
-            elif executar_budget:
-                tipo_pipeline = "💰 Dados BUDGET"
-            elif executar_ambos:
-                tipo_pipeline = "🔄 Ambos"
-
-            with log_container:
-                st.subheader("☁️ Disparando pipeline no Databricks...")
-                try:
-                    resposta = _disparar_pipeline_cloud(
-                        int(ano_selecionado),
-                        tipo_pipeline,
-                    )
-                    run_id = resposta.get("run_id")
-                    # Salvar no session_state para acompanhamento
-                    st.session_state[_PIPELINE_RUN_KEY] = {
-                        'run_id': run_id,
-                        'ano': int(ano_selecionado),
-                        'tipo': tipo_pipeline,
-                        'run_page_url': resposta.get('run_page_url', ''),
-                        'is_terminal': False,
-                    }
-                    st.success(f"✅ Pipeline iniciado — Run ID: **{run_id}**")
-                    st.markdown("#### 📡 Acompanhamento em tempo real")
-                    _renderizar_painel_status_cloud(run_id, key_suffix='tab2_new')
-                except Exception as exc:
-                    st.error(f"❌ Não foi possível disparar o pipeline: {exc}")
-
-        # ── Processamento REAIS ──
-        if (
-            not bloqueio_escrita_cloud
-            and (executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"))
-        ):
-            with log_container:
-                st.subheader("📊 Processando Dados REAIS...")
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                log_messages = st.empty()
-
-                mensagens_log = []
-
-                def callback_reais(mensagem):
-                    mensagens_log.append(mensagem)
-                    log_messages.text("\n".join(mensagens_log[-10:]))
-
-                if processar_veiculos_real is None:
-                    st.error("❌ Módulo `processamento_dados_veiculos` não encontrado.")
-                else:
-                    try:
-                        with st.spinner("🔄 Processando dados REAIS..."):
-                            resultado = processar_veiculos_real(
-                                ano=int(ano_selecionado),
-                                progress_callback=callback_reais,
-                            )
-
-                            progress_bar.progress(100)
-                            status_text.success("✅ Processamento Real concluído!")
-                            houve_sucesso_processamento = True
-
-                            # Consolidar histórico
-                            status_text_hist = st.empty()
-                            status_text_hist.info("🔄 Consolidando histórico...")
-                            hist_msgs = _consolidar_historico_tc_principal()
-                            status_text_hist.success("✅ Histórico consolidado!")
-
-                            # Invalidar cache seletivamente (mantém filtros/opções)
-                            invalidar_cache_dados()
-
-                            st.page_link(
-                                "tc_principal/pages/home_tc.py",
-                                label="📊 Ver gráficos atualizados",
-                                icon="📊",
-                            )
-
-                            with st.expander("📁 Arquivos gerados", expanded=False):
-                                if 'arquivos' in resultado:
-                                    for nome, caminho_arq in resultado['arquivos'].items():
-                                        st.write(f"  ✅ {nome}")
-                                st.markdown("**Consolidação:**")
-                                for msg in hist_msgs:
-                                    st.write(msg)
-
-                            # ══ Conferência Automática Real ══
-                            if executar_conferencias is not None:
-                                with st.expander("📋 Conferência Automática (Real × Excel)", expanded=True):
-                                    try:
-                                        df_conf = executar_conferencias(int(ano_selecionado), tipo='real')
-                                        # Colorir status
-                                        def _color_status(val):
-                                            if '✅' in str(val):
-                                                return 'background-color: #d4edda'
-                                            elif '❌' in str(val):
-                                                return 'background-color: #f8d7da'
-                                            elif '⚠️' in str(val):
-                                                return 'background-color: #fff3cd'
-                                            return ''
-                                        st.dataframe(
-                                            df_conf.style.applymap(_color_status, subset=['Status']),
-                                            width="stretch",
-                                            hide_index=True,
-                                        )
-                                        n_ok = df_conf['Status'].str.contains('✅').sum()
-                                        n_err = df_conf['Status'].str.contains('❌').sum()
-                                        n_warn = df_conf['Status'].str.contains('⚠️').sum()
-                                        st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
-                                    except Exception as e_conf:
-                                        st.warning(f"⚠️ Conferência não disponível: {e_conf}")
-
-                    except Exception as e:
-                        progress_bar.progress(0)
-                        status_text.error(f"❌ Erro: {str(e)}")
-                        st.exception(e)
-
-        # ── Processamento BUDGET ──
-        if (
-            not bloqueio_escrita_cloud
-            and (executar_budget or (executar_ambos and tipo_extracao == "🔄 Ambos"))
-        ):
-            with log_container:
-                st.subheader("💰 Processando Dados BUDGET...")
-                progress_bar_b = st.progress(0)
-                status_text_b = st.empty()
-                log_messages_b = st.empty()
-
-                mensagens_log_b = []
-
-                def callback_budget(mensagem):
-                    mensagens_log_b.append(mensagem)
-                    log_messages_b.text("\n".join(mensagens_log_b[-10:]))
-
-                if processar_veiculos_budget is None:
-                    st.error("❌ Módulo `processamento_dados_veiculos_BUD` não encontrado.")
-                else:
-                    try:
-                        with st.spinner("🔄 Processando dados BUDGET..."):
-                            resultado = processar_veiculos_budget(
-                                ano=int(ano_selecionado),
-                                progress_callback=callback_budget,
-                            )
-
-                            progress_bar_b.progress(100)
-                            status_text_b.success("✅ Processamento Budget concluído!")
-                            houve_sucesso_processamento = True
-
-                            # Consolidar histórico
-                            status_text_hist_b = st.empty()
-                            status_text_hist_b.info("🔄 Consolidando histórico...")
-                            hist_msgs = _consolidar_historico_tc_principal()
-                            status_text_hist_b.success("✅ Histórico consolidado!")
-
-                            # Invalidar cache seletivamente (mantém filtros/opções)
-                            invalidar_cache_dados()
-
-                            st.page_link(
-                                "tc_principal/pages/home_tc.py",
-                                label="📊 Ver gráficos atualizados",
-                                icon="📊",
-                            )
-
-                            with st.expander("📁 Arquivos gerados", expanded=False):
-                                if 'arquivos' in resultado:
-                                    for nome, caminho_arq in resultado['arquivos'].items():
-                                        st.write(f"  ✅ {nome}")
-                                st.markdown("**Consolidação:**")
-                                for msg in hist_msgs:
-                                    st.write(msg)
-
-                            # ══ Conferência Automática Budget ══
-                            if executar_conferencias is not None:
-                                with st.expander("📋 Conferência Automática (Budget × Excel)", expanded=True):
-                                    try:
-                                        df_conf_b = executar_conferencias(int(ano_selecionado), tipo='budget')
-                                        def _color_status_b(val):
-                                            if '✅' in str(val):
-                                                return 'background-color: #d4edda'
-                                            elif '❌' in str(val):
-                                                return 'background-color: #f8d7da'
-                                            elif '⚠️' in str(val):
-                                                return 'background-color: #fff3cd'
-                                            return ''
-                                        st.dataframe(
-                                            df_conf_b.style.applymap(_color_status_b, subset=['Status']),
-                                            width="stretch",
-                                            hide_index=True,
-                                        )
-                                        n_ok = df_conf_b['Status'].str.contains('✅').sum()
-                                        n_err = df_conf_b['Status'].str.contains('❌').sum()
-                                        n_warn = df_conf_b['Status'].str.contains('⚠️').sum()
-                                        st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
-                                    except Exception as e_conf:
-                                        st.warning(f"⚠️ Conferência não disponível: {e_conf}")
-
-                    except Exception as e:
-                        progress_bar_b.progress(0)
-                        status_text_b.error(f"❌ Erro: {str(e)}")
-                        st.exception(e)
-
-        if houve_sucesso_processamento:
-            _executar_alertas_pos_extracao()
-
-    # ─────────────────────────────────────
-    #  TAB 3: Status e Logs
-    # ─────────────────────────────────────
-    with tab3:
-        st.header("📊 Status e Logs")
-
-        # ── Painel cloud: status do pipeline se houver run ativo ──
-        if is_cloud():
-            run_state = st.session_state.get(_PIPELINE_RUN_KEY, {})
-            run_id_tab3 = run_state.get('run_id')
-            if run_id_tab3:
-                st.markdown("### 📡 Status do Pipeline Cloud")
-                _renderizar_painel_status_cloud(run_id_tab3, key_suffix='tab3')
-                st.divider()
-            else:
                 st.info(
-                    "Nenhum pipeline disparado nesta sessão. "
-                    "Execute o processamento na aba **⚙️ Executar Processamento**."
+                    "☁️ **Ambiente cloud** — Os botões abaixo disparam o processamento "
+                    "no cluster do Databricks e mostram o status aqui mesmo."
                 )
-                st.divider()
 
-        # ── Budget Parquets ──
-        st.markdown("### 💰 Parquets Budget")
-        pasta_bud = os.path.join(PASTA_TC, str(ano_selecionado), 'BUD')
+            # Botões de execução
+            col_b1, col_b2, col_b3 = st.columns(3)
+            houve_sucesso_processamento = False
 
-        for arq in PARQUETS_BUDGET:
-            caminho = os.path.join(pasta_bud, arq)
-            if os.path.exists(caminho):
-                tam = os.path.getsize(caminho) / (1024 * 1024)
-                dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
-                try:
-                    df_tmp = pd.read_parquet(caminho)
-                    linhas = len(df_tmp)
-                    colunas = len(df_tmp.columns)
-                    st.success(f"✅ `{arq}` — {tam:.2f} MB | {linhas:,} linhas × {colunas} cols | {dt_mod:%d/%m/%Y %H:%M}")
-                except Exception:
-                    st.success(f"✅ `{arq}` — {tam:.2f} MB | {dt_mod:%d/%m/%Y %H:%M}")
-            else:
-                st.warning(f"⚠️ `{arq}` não encontrado")
+            _deve_processar_local = not bloqueio_escrita_cloud
 
-        st.divider()
+            executar_reais = False
+            executar_budget = False
+            executar_ambos = False
 
-        # ── Real Parquets ──
-        st.markdown("### 📊 Parquets Real (Sapiens)")
-        pasta_real = os.path.join(PASTA_TC, str(ano_selecionado))
+            with col_b1:
+                if tipo_extracao in ["📊 Dados REAIS", "🔄 Ambos"]:
+                    executar_reais = st.button(
+                        "🚀 Processar Real (Sapiens)",
+                        type="primary",
+                        use_container_width=True,
+                    )
 
-        for arq in PARQUETS_REAL:
-            caminho = os.path.join(pasta_real, arq)
-            if os.path.exists(caminho):
-                tam = os.path.getsize(caminho) / (1024 * 1024)
-                dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
-                try:
-                    df_tmp = pd.read_parquet(caminho)
-                    linhas = len(df_tmp)
-                    colunas = len(df_tmp.columns)
-                    st.success(f"✅ `{arq}` — {tam:.2f} MB | {linhas:,} linhas × {colunas} cols | {dt_mod:%d/%m/%Y %H:%M}")
-                except Exception:
-                    st.success(f"✅ `{arq}` — {tam:.2f} MB | {dt_mod:%d/%m/%Y %H:%M}")
-            else:
-                st.warning(f"⚠️ `{arq}` não encontrado")
+            with col_b2:
+                if tipo_extracao in ["💰 Dados BUDGET", "🔄 Ambos"]:
+                    executar_budget = st.button(
+                        "🚀 Processar Budget",
+                        type="primary",
+                        use_container_width=True,
+                    )
 
-        st.divider()
+            with col_b3:
+                if tipo_extracao == "🔄 Ambos":
+                    executar_ambos = st.button(
+                        "🚀 Executar Ambos",
+                        type="primary",
+                        use_container_width=True,
+                    )
 
-        # ── Histórico Consolidado ──
-        st.markdown("### 📚 Histórico Consolidado")
+            # Container de logs
+            log_container = st.container()
 
-        pasta_hist = os.path.join(PASTA_TC, 'historico_consolidado')
-        pasta_hist_bud = os.path.join(pasta_hist, 'BUD')
+            # ── Mostrar painel de status de run anterior (se existir) ──
+            run_anterior = st.session_state.get(_PIPELINE_RUN_KEY, {})
+            if bloqueio_escrita_cloud and run_anterior.get('run_id') and not (
+                executar_reais or executar_budget or executar_ambos
+            ):
+                st.markdown("---")
+                st.markdown("### 📡 Status do último processamento")
+                _renderizar_painel_status_cloud(run_anterior['run_id'], key_suffix='tab2_prev')
 
-        hist_real = [
-            'df_principal_historico.parquet',
-            'df_vol_historico.parquet',
-            'df_cpu_historico.parquet',
-        ]
-        hist_bud = [
-            'df_principal_historico_BUD.parquet',
-            'df_vol_historico_BUD.parquet',
-            'df_cpu_historico_BUD.parquet',
-        ]
+            if bloqueio_escrita_cloud and (
+                executar_reais or executar_budget or executar_ambos
+            ):
+                tipo_pipeline = tipo_extracao
+                if executar_reais:
+                    tipo_pipeline = "📊 Dados REAIS"
+                elif executar_budget:
+                    tipo_pipeline = "💰 Dados BUDGET"
+                elif executar_ambos:
+                    tipo_pipeline = "🔄 Ambos"
 
-        if os.path.exists(pasta_hist):
-            st.markdown("**Real:**")
-            for arq in hist_real:
-                caminho = os.path.join(pasta_hist, arq)
+                with log_container:
+                    st.subheader("☁️ Disparando pipeline no Databricks...")
+                    try:
+                        resposta = _disparar_pipeline_cloud(
+                            int(ano_selecionado),
+                            tipo_pipeline,
+                        )
+                        run_id = resposta.get("run_id")
+                        # Salvar no session_state para acompanhamento
+                        st.session_state[_PIPELINE_RUN_KEY] = {
+                            'run_id': run_id,
+                            'ano': int(ano_selecionado),
+                            'tipo': tipo_pipeline,
+                            'run_page_url': resposta.get('run_page_url', ''),
+                            'is_terminal': False,
+                        }
+                        st.success(f"✅ Pipeline iniciado — Run ID: **{run_id}**")
+                        st.markdown("#### 📡 Acompanhamento em tempo real")
+                        _renderizar_painel_status_cloud(run_id, key_suffix='tab2_new')
+                    except Exception as exc:
+                        st.error(f"❌ Não foi possível disparar o pipeline: {exc}")
+
+            # ── Processamento REAIS ──
+            if (
+                not bloqueio_escrita_cloud
+                and (executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"))
+            ):
+                with log_container:
+                    st.subheader("📊 Processando Dados REAIS...")
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    log_messages = st.empty()
+
+                    mensagens_log = []
+
+                    def callback_reais(mensagem):
+                        mensagens_log.append(mensagem)
+                        log_messages.text("\n".join(mensagens_log[-10:]))
+
+                    if processar_veiculos_real is None:
+                        st.error("❌ Módulo `processamento_dados_veiculos` não encontrado.")
+                    else:
+                        try:
+                            with st.spinner("🔄 Processando dados REAIS..."):
+                                resultado = processar_veiculos_real(
+                                    ano=int(ano_selecionado),
+                                    progress_callback=callback_reais,
+                                )
+
+                                progress_bar.progress(100)
+                                status_text.success("✅ Processamento Real concluído!")
+                                houve_sucesso_processamento = True
+
+                                # Consolidar histórico
+                                status_text_hist = st.empty()
+                                status_text_hist.info("🔄 Consolidando histórico...")
+                                hist_msgs = _consolidar_historico_tc_principal()
+                                status_text_hist.success("✅ Histórico consolidado!")
+
+                                # Invalidar cache seletivamente (mantém filtros/opções)
+                                invalidar_cache_dados()
+
+                                st.page_link(
+                                    "tc_principal/pages/home_tc.py",
+                                    label="📊 Ver gráficos atualizados",
+                                    icon="📊",
+                                )
+
+                                with st.expander("📁 Arquivos gerados", expanded=False):
+                                    if 'arquivos' in resultado:
+                                        for nome, caminho_arq in resultado['arquivos'].items():
+                                            st.write(f"  ✅ {nome}")
+                                    st.markdown("**Consolidação:**")
+                                    for msg in hist_msgs:
+                                        st.write(msg)
+
+                                # ══ Conferência Automática Real ══
+                                if executar_conferencias is not None:
+                                    with st.expander("📋 Conferência Automática (Real × Excel)", expanded=True):
+                                        try:
+                                            df_conf = executar_conferencias(int(ano_selecionado), tipo='real')
+                                            # Colorir status
+                                            def _color_status(val):
+                                                if '✅' in str(val):
+                                                    return 'background-color: #d4edda'
+                                                elif '❌' in str(val):
+                                                    return 'background-color: #f8d7da'
+                                                elif '⚠️' in str(val):
+                                                    return 'background-color: #fff3cd'
+                                                return ''
+                                            st.dataframe(
+                                                df_conf.style.applymap(_color_status, subset=['Status']),
+                                                width="stretch",
+                                                hide_index=True,
+                                            )
+                                            n_ok = df_conf['Status'].str.contains('✅').sum()
+                                            n_err = df_conf['Status'].str.contains('❌').sum()
+                                            n_warn = df_conf['Status'].str.contains('⚠️').sum()
+                                            st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
+                                        except Exception as e_conf:
+                                            st.warning(f"⚠️ Conferência não disponível: {e_conf}")
+
+                        except Exception as e:
+                            progress_bar.progress(0)
+                            status_text.error(f"❌ Erro: {str(e)}")
+                            st.exception(e)
+
+            # ── Processamento BUDGET ──
+            if (
+                not bloqueio_escrita_cloud
+                and (executar_budget or (executar_ambos and tipo_extracao == "🔄 Ambos"))
+            ):
+                with log_container:
+                    st.subheader("💰 Processando Dados BUDGET...")
+                    progress_bar_b = st.progress(0)
+                    status_text_b = st.empty()
+                    log_messages_b = st.empty()
+
+                    mensagens_log_b = []
+
+                    def callback_budget(mensagem):
+                        mensagens_log_b.append(mensagem)
+                        log_messages_b.text("\n".join(mensagens_log_b[-10:]))
+
+                    if processar_veiculos_budget is None:
+                        st.error("❌ Módulo `processamento_dados_veiculos_BUD` não encontrado.")
+                    else:
+                        try:
+                            with st.spinner("🔄 Processando dados BUDGET..."):
+                                resultado = processar_veiculos_budget(
+                                    ano=int(ano_selecionado),
+                                    progress_callback=callback_budget,
+                                )
+
+                                progress_bar_b.progress(100)
+                                status_text_b.success("✅ Processamento Budget concluído!")
+                                houve_sucesso_processamento = True
+
+                                # Consolidar histórico
+                                status_text_hist_b = st.empty()
+                                status_text_hist_b.info("🔄 Consolidando histórico...")
+                                hist_msgs = _consolidar_historico_tc_principal()
+                                status_text_hist_b.success("✅ Histórico consolidado!")
+
+                                # Invalidar cache seletivamente (mantém filtros/opções)
+                                invalidar_cache_dados()
+
+                                st.page_link(
+                                    "tc_principal/pages/home_tc.py",
+                                    label="📊 Ver gráficos atualizados",
+                                    icon="📊",
+                                )
+
+                                with st.expander("📁 Arquivos gerados", expanded=False):
+                                    if 'arquivos' in resultado:
+                                        for nome, caminho_arq in resultado['arquivos'].items():
+                                            st.write(f"  ✅ {nome}")
+                                    st.markdown("**Consolidação:**")
+                                    for msg in hist_msgs:
+                                        st.write(msg)
+
+                                # ══ Conferência Automática Budget ══
+                                if executar_conferencias is not None:
+                                    with st.expander("📋 Conferência Automática (Budget × Excel)", expanded=True):
+                                        try:
+                                            df_conf_b = executar_conferencias(int(ano_selecionado), tipo='budget')
+                                            def _color_status_b(val):
+                                                if '✅' in str(val):
+                                                    return 'background-color: #d4edda'
+                                                elif '❌' in str(val):
+                                                    return 'background-color: #f8d7da'
+                                                elif '⚠️' in str(val):
+                                                    return 'background-color: #fff3cd'
+                                                return ''
+                                            st.dataframe(
+                                                df_conf_b.style.applymap(_color_status_b, subset=['Status']),
+                                                width="stretch",
+                                                hide_index=True,
+                                            )
+                                            n_ok = df_conf_b['Status'].str.contains('✅').sum()
+                                            n_err = df_conf_b['Status'].str.contains('❌').sum()
+                                            n_warn = df_conf_b['Status'].str.contains('⚠️').sum()
+                                            st.caption(f"✅ {n_ok} OK | ⚠️ {n_warn} Atenção | ❌ {n_err} Divergências")
+                                        except Exception as e_conf:
+                                            st.warning(f"⚠️ Conferência não disponível: {e_conf}")
+
+                        except Exception as e:
+                            progress_bar_b.progress(0)
+                            status_text_b.error(f"❌ Erro: {str(e)}")
+                            st.exception(e)
+
+            if houve_sucesso_processamento:
+                _executar_alertas_pos_extracao()
+
+        # ─────────────────────────────────────
+        #  TAB 3: Status e Logs
+        # ─────────────────────────────────────
+
+        _render_tab2()
+    with tab3:
+        @st.fragment
+        def _render_tab3():
+            st.header("📊 Status e Logs")
+
+            # ── Painel cloud: status do pipeline se houver run ativo ──
+            if is_cloud():
+                run_state = st.session_state.get(_PIPELINE_RUN_KEY, {})
+                run_id_tab3 = run_state.get('run_id')
+                if run_id_tab3:
+                    st.markdown("### 📡 Status do Pipeline Cloud")
+                    _renderizar_painel_status_cloud(run_id_tab3, key_suffix='tab3')
+                    st.divider()
+                else:
+                    st.info(
+                        "Nenhum pipeline disparado nesta sessão. "
+                        "Execute o processamento na aba **⚙️ Executar Processamento**."
+                    )
+                    st.divider()
+
+            # ── Budget Parquets ──
+            st.markdown("### 💰 Parquets Budget")
+            pasta_bud = os.path.join(PASTA_TC, str(ano_selecionado), 'BUD')
+
+            for arq in PARQUETS_BUDGET:
+                caminho = os.path.join(pasta_bud, arq)
                 if os.path.exists(caminho):
                     tam = os.path.getsize(caminho) / (1024 * 1024)
                     dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
-                    st.success(f"  ✅ {arq} ({tam:.2f} MB) — {dt_mod:%d/%m/%Y %H:%M}")
+                    try:
+                        df_tmp = pd.read_parquet(caminho)
+                        linhas = len(df_tmp)
+                        colunas = len(df_tmp.columns)
+                        st.success(f"✅ `{arq}` — {tam:.2f} MB | {linhas:,} linhas × {colunas} cols | {dt_mod:%d/%m/%Y %H:%M}")
+                    except Exception:
+                        st.success(f"✅ `{arq}` — {tam:.2f} MB | {dt_mod:%d/%m/%Y %H:%M}")
                 else:
-                    st.warning(f"  ⚠️ {arq} não encontrado")
+                    st.warning(f"⚠️ `{arq}` não encontrado")
 
-            if os.path.exists(pasta_hist_bud):
-                st.markdown("**Budget:**")
-                for arq in hist_bud:
-                    caminho = os.path.join(pasta_hist_bud, arq)
+            st.divider()
+
+            # ── Real Parquets ──
+            st.markdown("### 📊 Parquets Real (Sapiens)")
+            pasta_real = os.path.join(PASTA_TC, str(ano_selecionado))
+
+            for arq in PARQUETS_REAL:
+                caminho = os.path.join(pasta_real, arq)
+                if os.path.exists(caminho):
+                    tam = os.path.getsize(caminho) / (1024 * 1024)
+                    dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
+                    try:
+                        df_tmp = pd.read_parquet(caminho)
+                        linhas = len(df_tmp)
+                        colunas = len(df_tmp.columns)
+                        st.success(f"✅ `{arq}` — {tam:.2f} MB | {linhas:,} linhas × {colunas} cols | {dt_mod:%d/%m/%Y %H:%M}")
+                    except Exception:
+                        st.success(f"✅ `{arq}` — {tam:.2f} MB | {dt_mod:%d/%m/%Y %H:%M}")
+                else:
+                    st.warning(f"⚠️ `{arq}` não encontrado")
+
+            st.divider()
+
+            # ── Histórico Consolidado ──
+            st.markdown("### 📚 Histórico Consolidado")
+
+            pasta_hist = os.path.join(PASTA_TC, 'historico_consolidado')
+            pasta_hist_bud = os.path.join(pasta_hist, 'BUD')
+
+            hist_real = [
+                'df_principal_historico.parquet',
+                'df_vol_historico.parquet',
+                'df_cpu_historico.parquet',
+            ]
+            hist_bud = [
+                'df_principal_historico_BUD.parquet',
+                'df_vol_historico_BUD.parquet',
+                'df_cpu_historico_BUD.parquet',
+            ]
+
+            if os.path.exists(pasta_hist):
+                st.markdown("**Real:**")
+                for arq in hist_real:
+                    caminho = os.path.join(pasta_hist, arq)
                     if os.path.exists(caminho):
                         tam = os.path.getsize(caminho) / (1024 * 1024)
                         dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
                         st.success(f"  ✅ {arq} ({tam:.2f} MB) — {dt_mod:%d/%m/%Y %H:%M}")
                     else:
                         st.warning(f"  ⚠️ {arq} não encontrado")
-            else:
-                st.warning("⚠️ Pasta histórico Budget não existe ainda")
-        else:
-            st.warning("⚠️ Pasta `dados/TC_Principal/historico_consolidado/` não existe ainda")
 
-        # Botão para forçar re-consolidação
-        if st.button("🔄 Re-consolidar Histórico", type="secondary"):
-            with st.spinner("Consolidando..."):
-                msgs = _consolidar_historico_tc_principal()
-            for m in msgs:
-                st.write(m)
-            st.success("✅ Consolidação concluída!")
-            st.rerun()
-
-        st.divider()
-
-        # ── Árvore de pastas ──
-        st.markdown("### 📁 Estrutura de Pastas")
-        pasta_raiz_ano = os.path.join(_DATA_ROOT, str(ano_selecionado))
-        pasta_tc_ano = os.path.join(PASTA_TC, str(ano_selecionado))
-
-        for label, pasta in [
-            (f"dados/{ano_selecionado}/", pasta_raiz_ano),
-            (f"dados/TC_Principal/{ano_selecionado}/", pasta_tc_ano),
-        ]:
-            if os.path.exists(pasta):
-                arquivos = []
-                for root, dirs, files in os.walk(pasta):
-                    for f in files:
-                        fp = os.path.join(root, f)
-                        rel = os.path.relpath(fp, pasta)
-                        tam = os.path.getsize(fp) / (1024 * 1024)
-                        arquivos.append(f"  📄 {rel} ({tam:.2f} MB)")
-                if arquivos:
-                    st.markdown(f"**`{label}`**")
-                    st.code("\n".join(sorted(arquivos)), language="text")
+                if os.path.exists(pasta_hist_bud):
+                    st.markdown("**Budget:**")
+                    for arq in hist_bud:
+                        caminho = os.path.join(pasta_hist_bud, arq)
+                        if os.path.exists(caminho):
+                            tam = os.path.getsize(caminho) / (1024 * 1024)
+                            dt_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
+                            st.success(f"  ✅ {arq} ({tam:.2f} MB) — {dt_mod:%d/%m/%Y %H:%M}")
+                        else:
+                            st.warning(f"  ⚠️ {arq} não encontrado")
                 else:
-                    st.info(f"`{label}` — pasta vazia.")
+                    st.warning("⚠️ Pasta histórico Budget não existe ainda")
             else:
-                st.caption(f"`{label}` não existe.")
+                st.warning("⚠️ Pasta `dados/TC_Principal/historico_consolidado/` não existe ainda")
+
+            # Botão para forçar re-consolidação
+            if st.button("🔄 Re-consolidar Histórico", type="secondary"):
+                with st.spinner("Consolidando..."):
+                    msgs = _consolidar_historico_tc_principal()
+                for m in msgs:
+                    st.write(m)
+                st.success("✅ Consolidação concluída!")
+                st.rerun()
+
+            st.divider()
+
+            # ── Árvore de pastas ──
+            st.markdown("### 📁 Estrutura de Pastas")
+            pasta_raiz_ano = os.path.join(_DATA_ROOT, str(ano_selecionado))
+            pasta_tc_ano = os.path.join(PASTA_TC, str(ano_selecionado))
+
+            for label, pasta in [
+                (f"dados/{ano_selecionado}/", pasta_raiz_ano),
+                (f"dados/TC_Principal/{ano_selecionado}/", pasta_tc_ano),
+            ]:
+                if os.path.exists(pasta):
+                    arquivos = []
+                    for root, dirs, files in os.walk(pasta):
+                        for f in files:
+                            fp = os.path.join(root, f)
+                            rel = os.path.relpath(fp, pasta)
+                            tam = os.path.getsize(fp) / (1024 * 1024)
+                            arquivos.append(f"  📄 {rel} ({tam:.2f} MB)")
+                    if arquivos:
+                        st.markdown(f"**`{label}`**")
+                        st.code("\n".join(sorted(arquivos)), language="text")
+                    else:
+                        st.info(f"`{label}` — pasta vazia.")
+                else:
+                    st.caption(f"`{label}` não existe.")
+
+        _render_tab3()
 
     # ── Rodapé ──
     st.divider()

@@ -825,464 +825,476 @@ tab1, tab2, tab3 = st.tabs(["📋 Validação de Arquivos", "⚙️ Executar Pro
 
 # TAB 1: Validação de Arquivos
 with tab1:
-    st.header("📋 Validação de Arquivos Necessários")
+    @st.fragment
+    def _render_tab1():
+        st.header("📋 Validação de Arquivos Necessários")
     
-    # ==========================================
-    # SEÇÃO DE UPLOAD DE ARQUIVOS
-    # ==========================================
-    st.markdown("### 📤 Upload de Arquivos")
-    st.info("""
-    **💡 Dica:** Se os arquivos não estiverem na pasta `dados/{ano_selecionado}/` ou na raiz do projeto,
-    você pode fazer upload diretamente aqui. Os arquivos serão salvos automaticamente na pasta do ano.
-    """)
+        # ==========================================
+        # SEÇÃO DE UPLOAD DE ARQUIVOS
+        # ==========================================
+        st.markdown("### 📤 Upload de Arquivos")
+        st.info("""
+        **💡 Dica:** Se os arquivos não estiverem na pasta `dados/{ano_selecionado}/` ou na raiz do projeto,
+        você pode fazer upload diretamente aqui. Os arquivos serão salvos automaticamente na pasta do ano.
+        """)
 
-    def _salvar_upload_unificado(
-        *,
-        label: str,
-        nome_arquivo: str,
-        key_uploader: str,
-        help_text: str,
-    ) -> None:
-        """Renderiza 1 uploader e salva em um único local por ano.
+        def _salvar_upload_unificado(
+            *,
+            label: str,
+            nome_arquivo: str,
+            key_uploader: str,
+            help_text: str,
+        ) -> None:
+            """Renderiza 1 uploader e salva em um único local por ano.
 
-        Padrão do projeto: os Excels de entrada (REAIS + BUDGET) ficam em:
-        - dados/TC_Ext/{ano}/<arquivo>
+            Padrão do projeto: os Excels de entrada (REAIS + BUDGET) ficam em:
+            - dados/TC_Ext/{ano}/<arquivo>
 
-        (Os outputs de BUDGET continuam indo para dados/TC_Ext/{ano}/BUD/ como antes.)
-        """
+            (Os outputs de BUDGET continuam indo para dados/TC_Ext/{ano}/BUD/ como antes.)
+            """
 
-        pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
-        destino = os.path.join(pasta_ano, nome_arquivo)
+            pasta_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
+            destino = os.path.join(pasta_ano, nome_arquivo)
 
-        if os.path.exists(destino):
-            st.warning(f"⚠️ Já existe: `{destino}`")
-        else:
-            st.caption(f"📁 Destino: `{destino}`")
+            if os.path.exists(destino):
+                st.warning(f"⚠️ Já existe: `{destino}`")
+            else:
+                st.caption(f"📁 Destino: `{destino}`")
 
-        precisa_confirmar = os.path.exists(destino)
-        confirmar = True
-        if precisa_confirmar:
-            confirmar = st.checkbox(
-                f"Confirmar sobrescrita de `{nome_arquivo}`",
-                value=False,
-                key=f"{key_uploader}_confirm_overwrite",
+            precisa_confirmar = os.path.exists(destino)
+            confirmar = True
+            if precisa_confirmar:
+                confirmar = st.checkbox(
+                    f"Confirmar sobrescrita de `{nome_arquivo}`",
+                    value=False,
+                    key=f"{key_uploader}_confirm_overwrite",
+                )
+
+            if _em_execucao_empacotada() and not is_cloud():
+                st.caption(
+                    "No app desktop, use o seletor nativo do Windows para evitar "
+                    "falhas do upload embutido."
+                )
+                if st.button(
+                    f"📂 Selecionar e salvar {nome_arquivo}",
+                    key=f"{key_uploader}_btn_save_desktop",
+                    use_container_width=False,
+                    type="primary",
+                    disabled=precisa_confirmar and not confirmar,
+                ):
+                    origem = _selecionar_arquivo_excel_desktop(nome_arquivo)
+                    if origem:
+                        os.makedirs(pasta_ano, exist_ok=True)
+                        shutil.copy2(origem, destino)
+                        st.success(f"✅ Arquivo salvo em: `{destino}`")
+                        st.caption(f"Arquivo selecionado: `{origem}`")
+                        # Enviar ao cloud
+                        with st.spinner("Enviando ao Databricks..."):
+                            ok_c, msg_c = _enviar_ext_ao_cloud(destino, int(ano_selecionado), nome_arquivo)
+                        if ok_c:
+                            st.success(msg_c)
+                        else:
+                            st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
+                return
+
+            arquivo_upload = st.file_uploader(
+                label,
+                type=["xlsx"],
+                key=key_uploader,
+                help=help_text,
             )
 
-        if _em_execucao_empacotada() and not is_cloud():
-            st.caption(
-                "No app desktop, use o seletor nativo do Windows para evitar "
-                "falhas do upload embutido."
-            )
+            if arquivo_upload is None:
+                return
+
             if st.button(
-                f"📂 Selecionar e salvar {nome_arquivo}",
-                key=f"{key_uploader}_btn_save_desktop",
+                f"💾 Salvar {nome_arquivo}",
+                key=f"{key_uploader}_btn_save",
                 use_container_width=False,
                 type="primary",
                 disabled=precisa_confirmar and not confirmar,
             ):
-                origem = _selecionar_arquivo_excel_desktop(nome_arquivo)
-                if origem:
-                    os.makedirs(pasta_ano, exist_ok=True)
-                    shutil.copy2(origem, destino)
-                    st.success(f"✅ Arquivo salvo em: `{destino}`")
-                    st.caption(f"Arquivo selecionado: `{origem}`")
-                    # Enviar ao cloud
-                    with st.spinner("Enviando ao Databricks..."):
-                        ok_c, msg_c = _enviar_ext_ao_cloud(destino, int(ano_selecionado), nome_arquivo)
-                    if ok_c:
-                        st.success(msg_c)
-                    else:
-                        st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
-            return
+                os.makedirs(pasta_ano, exist_ok=True)
+                with open(destino, "wb") as f:
+                    f.write(arquivo_upload.getbuffer())
+                st.success(f"✅ Arquivo salvo em: `{destino}`")
+                # Enviar ao cloud
+                with st.spinner("Enviando ao Databricks..."):
+                    ok_c, msg_c = _enviar_ext_ao_cloud(destino, int(ano_selecionado), nome_arquivo)
+                if ok_c:
+                    st.success(msg_c)
+                else:
+                    st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
+                st.rerun()
 
-        arquivo_upload = st.file_uploader(
-            label,
-            type=["xlsx"],
-            key=key_uploader,
-            help=help_text,
-        )
-
-        if arquivo_upload is None:
-            return
-
-        if st.button(
-            f"💾 Salvar {nome_arquivo}",
-            key=f"{key_uploader}_btn_save",
-            use_container_width=False,
-            type="primary",
-            disabled=precisa_confirmar and not confirmar,
-        ):
-            os.makedirs(pasta_ano, exist_ok=True)
-            with open(destino, "wb") as f:
-                f.write(arquivo_upload.getbuffer())
-            st.success(f"✅ Arquivo salvo em: `{destino}`")
-            # Enviar ao cloud
-            with st.spinner("Enviando ao Databricks..."):
-                ok_c, msg_c = _enviar_ext_ao_cloud(destino, int(ano_selecionado), nome_arquivo)
-            if ok_c:
-                st.success(msg_c)
-            else:
-                st.warning(f"Salvo localmente, mas falha ao enviar ao cloud: {msg_c}")
-            st.rerun()
-
-    st.markdown("#### 📄 Arquivos (usados por REAIS e/ou BUDGET)")
-    st.caption(
-        "Os processamentos de REAIS e BUDGET usam os mesmos arquivos de entrada. "
-        "Padrão: manter os Excels em `dados/TC_Ext/{ano}/`."
-    )
-
-    _salvar_upload_unificado(
-        label="📄 Upload: Dados SAPIENS.xlsx",
-        nome_arquivo="Dados SAPIENS.xlsx",
-        key_uploader="upload_sapiens_unificado",
-        help_text="Arquivo 'Dados SAPIENS.xlsx' (pode ser usado em REAIS e/ou BUDGET)",
-    )
-
-    _salvar_upload_unificado(
-        label="📄 Upload: Reporting fluxo anexo.xlsx",
-        nome_arquivo="Reporting fluxo anexo.xlsx",
-        key_uploader="upload_rateio_unificado",
-        help_text="Arquivo 'Reporting fluxo anexo.xlsx' (contém abas para REAIS e/ou BUDGET)",
-    )
-
-    # ─────────────────────────────────────────────────────
-    # Pré-validação (mesmo padrão do TC Veículos)
-    # ─────────────────────────────────────────────────────
-    st.divider()
-    st.markdown("### 🔎 Pré-validação (recomendado)")
-    col_v1, col_v2 = st.columns([1, 3])
-    with col_v1:
-        btn_prevalidar = st.button(
-            "🔎 Pré-validar estrutura do Excel",
-            use_container_width=True,
-            type="secondary",
-        )
-    with col_v2:
+        st.markdown("#### 📄 Arquivos (usados por REAIS e/ou BUDGET)")
         st.caption(
-            "Checa abas e colunas esperadas antes de executar. "
-            "Não grava parquets."
+            "Os processamentos de REAIS e BUDGET usam os mesmos arquivos de entrada. "
+            "Padrão: manter os Excels em `dados/TC_Ext/{ano}/`."
         )
 
-    if btn_prevalidar:
-        relatorio = []
-        ok_total = True
+        _salvar_upload_unificado(
+            label="📄 Upload: Dados SAPIENS.xlsx",
+            nome_arquivo="Dados SAPIENS.xlsx",
+            key_uploader="upload_sapiens_unificado",
+            help_text="Arquivo 'Dados SAPIENS.xlsx' (pode ser usado em REAIS e/ou BUDGET)",
+        )
+
+        _salvar_upload_unificado(
+            label="📄 Upload: Reporting fluxo anexo.xlsx",
+            nome_arquivo="Reporting fluxo anexo.xlsx",
+            key_uploader="upload_rateio_unificado",
+            help_text="Arquivo 'Reporting fluxo anexo.xlsx' (contém abas para REAIS e/ou BUDGET)",
+        )
+
+        # ─────────────────────────────────────────────────────
+        # Pré-validação (mesmo padrão do TC Veículos)
+        # ─────────────────────────────────────────────────────
+        st.divider()
+        st.markdown("### 🔎 Pré-validação (recomendado)")
+        col_v1, col_v2 = st.columns([1, 3])
+        with col_v1:
+            btn_prevalidar = st.button(
+                "🔎 Pré-validar estrutura do Excel",
+                use_container_width=True,
+                type="secondary",
+            )
+        with col_v2:
+            st.caption(
+                "Checa abas e colunas esperadas antes de executar. "
+                "Não grava parquets."
+            )
+
+        if btn_prevalidar:
+            relatorio = []
+            ok_total = True
+
+            if _bloqueio_ext:
+                with st.spinner("🔎 Validando Excel no cluster do Databricks..."):
+                    ok_total, relatorio = _executar_prevalidacao_cloud_ext(
+                        int(ano_selecionado),
+                        tipo_extracao,
+                    )
+            else:
+                if tipo_extracao in ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "🔄 Ambos"]:
+                    ok_r, msgs = _validar_pre_extracao_reais(int(ano_selecionado))
+                    ok_total &= ok_r
+                    relatorio.append("─── 📊 REAIS ───")
+                    relatorio.extend(msgs)
+
+                if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
+                    ok_b, msgs = _validar_pre_extracao_budget(int(ano_selecionado))
+                    ok_total &= ok_b
+                    relatorio.append("─── 💰 BUDGET ───")
+                    relatorio.extend(msgs)
+
+            with st.expander("📋 Relatório de Pré-validação", expanded=True):
+                st.code("\n".join(relatorio), language="text")
+
+            if ok_total:
+                st.success("✅ Pré-validação OK — pode executar a extração.")
+            else:
+                st.error("❌ Corrija os itens acima antes de executar.")
+
+        # TAB 2: Executar Processamento
+
+    _render_tab1()
+with tab2:
+    @st.fragment
+    def _render_tab2():
+        st.header("⚙️ Executar Processamento")
+        st.info("""
+    **⚠️ Importante:**
+    - Certifique-se de que todos os arquivos necessários estão presentes
+    - O processamento pode levar alguns minutos
+    - Não feche a página durante a execução
+        """)
 
         if _bloqueio_ext:
-            with st.spinner("🔎 Validando Excel no cluster do Databricks..."):
-                ok_total, relatorio = _executar_prevalidacao_cloud_ext(
-                    int(ano_selecionado),
-                    tipo_extracao,
-                )
-        else:
+            st.info(
+                "☁️ **Ambiente cloud** — Os botões abaixo disparam o processamento "
+                "no cluster do Databricks e mostram o status aqui mesmo."
+            )
+
+        # Botões de execução
+        col_b1, col_b2, col_b3 = st.columns(3)
+        houve_sucesso_processamento = False
+
+        _deve_processar_local = not _bloqueio_ext
+
+        executar_reais = False
+        executar_budget = False
+        executar_ambos = False
+
+        with col_b1:
             if tipo_extracao in ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "🔄 Ambos"]:
-                ok_r, msgs = _validar_pre_extracao_reais(int(ano_selecionado))
-                ok_total &= ok_r
-                relatorio.append("─── 📊 REAIS ───")
-                relatorio.extend(msgs)
-
-            if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
-                ok_b, msgs = _validar_pre_extracao_budget(int(ano_selecionado))
-                ok_total &= ok_b
-                relatorio.append("─── 💰 BUDGET ───")
-                relatorio.extend(msgs)
-
-        with st.expander("📋 Relatório de Pré-validação", expanded=True):
-            st.code("\n".join(relatorio), language="text")
-
-        if ok_total:
-            st.success("✅ Pré-validação OK — pode executar a extração.")
-        else:
-            st.error("❌ Corrija os itens acima antes de executar.")
-
-    # TAB 2: Executar Processamento
-with tab2:
-    st.header("⚙️ Executar Processamento")
-    st.info("""
-**⚠️ Importante:**
-- Certifique-se de que todos os arquivos necessários estão presentes
-- O processamento pode levar alguns minutos
-- Não feche a página durante a execução
-    """)
-
-    if _bloqueio_ext:
-        st.info(
-            "☁️ **Ambiente cloud** — Os botões abaixo disparam o processamento "
-            "no cluster do Databricks e mostram o status aqui mesmo."
-        )
-
-    # Botões de execução
-    col_b1, col_b2, col_b3 = st.columns(3)
-    houve_sucesso_processamento = False
-
-    _deve_processar_local = not _bloqueio_ext
-
-    executar_reais = False
-    executar_budget = False
-    executar_ambos = False
-
-    with col_b1:
-        if tipo_extracao in ["📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)", "🔄 Ambos"]:
-            executar_reais = st.button(
-                "🚀 Processar Real (Sapiens / Dados)",
-                type="primary",
-                use_container_width=True,
-            )
-
-    with col_b2:
-        if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
-            executar_budget = st.button(
-                "🚀 Processar Budget",
-                type="primary",
-                use_container_width=True,
-            )
-
-    with col_b3:
-        if tipo_extracao == "🔄 Ambos":
-            executar_ambos = st.button(
-                "🚀 Executar Ambos",
-                type="primary",
-                use_container_width=True,
-            )
-
-    # Container de logs
-    log_container = st.container()
-
-    # ── Mostrar painel de status de run anterior (se existir) ──
-    run_anterior = st.session_state.get(_PIPELINE_RUN_KEY_EXT, {})
-    if _bloqueio_ext and run_anterior.get('run_id') and not (
-        executar_reais or executar_budget or executar_ambos
-    ):
-        st.markdown("---")
-        st.markdown("### 📡 Status do último processamento")
-        _renderizar_painel_status_cloud_ext(run_anterior['run_id'], key_suffix='tab2_prev')
-
-    # ── Cloud: disparar pipeline ──
-    if _bloqueio_ext and (
-        executar_reais or executar_budget or executar_ambos
-    ):
-        tipo_pipeline = tipo_extracao
-        if executar_reais:
-            tipo_pipeline = "📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)"
-        elif executar_budget:
-            tipo_pipeline = "💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)"
-        elif executar_ambos:
-            tipo_pipeline = "🔄 Ambos"
-
-        with log_container:
-            st.subheader("☁️ Disparando pipeline no Databricks...")
-            try:
-                resposta = _disparar_pipeline_cloud_ext(
-                    int(ano_selecionado),
-                    tipo_pipeline,
+                executar_reais = st.button(
+                    "🚀 Processar Real (Sapiens / Dados)",
+                    type="primary",
+                    use_container_width=True,
                 )
-                run_id = resposta.get("run_id")
-                st.session_state[_PIPELINE_RUN_KEY_EXT] = {
-                    'run_id': run_id,
-                    'ano': int(ano_selecionado),
-                    'tipo': tipo_pipeline,
-                    'run_page_url': resposta.get('run_page_url', ''),
-                    'is_terminal': False,
-                }
-                st.success(f"✅ Pipeline iniciado — Run ID: **{run_id}**")
-                st.markdown("#### 📡 Acompanhamento em tempo real")
-                _renderizar_painel_status_cloud_ext(run_id, key_suffix='tab2_new')
-            except Exception as exc:
-                st.error(f"❌ Não foi possível disparar o pipeline: {exc}")
 
-    # ── Processamento REAIS (local) ──
-    if (
-        not _bloqueio_ext
-        and (executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"))
-    ):
-        with log_container:
-            st.subheader("📊 Processando Dados REAIS...")
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            log_messages = st.empty()
+        with col_b2:
+            if tipo_extracao in ["💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)", "🔄 Ambos"]:
+                executar_budget = st.button(
+                    "🚀 Processar Budget",
+                    type="primary",
+                    use_container_width=True,
+                )
 
-            mensagens_log = []
+        with col_b3:
+            if tipo_extracao == "🔄 Ambos":
+                executar_ambos = st.button(
+                    "🚀 Executar Ambos",
+                    type="primary",
+                    use_container_width=True,
+                )
 
-            def callback_progresso(mensagem):
-                mensagens_log.append(mensagem)
-                log_messages.text("\n".join(mensagens_log[-10:]))
+        # Container de logs
+        log_container = st.container()
 
-            try:
-                with st.spinner("🔄 Processando dados REAIS..."):
-                    resultado = processar_dados_reais_completo(
-                        ano=ano_selecionado,
-                        continuar_sem_arquivos=False,
-                        progress_callback=callback_progresso
+        # ── Mostrar painel de status de run anterior (se existir) ──
+        run_anterior = st.session_state.get(_PIPELINE_RUN_KEY_EXT, {})
+        if _bloqueio_ext and run_anterior.get('run_id') and not (
+            executar_reais or executar_budget or executar_ambos
+        ):
+            st.markdown("---")
+            st.markdown("### 📡 Status do último processamento")
+            _renderizar_painel_status_cloud_ext(run_anterior['run_id'], key_suffix='tab2_prev')
+
+        # ── Cloud: disparar pipeline ──
+        if _bloqueio_ext and (
+            executar_reais or executar_budget or executar_ambos
+        ):
+            tipo_pipeline = tipo_extracao
+            if executar_reais:
+                tipo_pipeline = "📊 Dados REAIS (tc_ext/notebooks/dados.ipynb)"
+            elif executar_budget:
+                tipo_pipeline = "💰 Dados BUDGET (tc_ext/notebooks/dados_BUD.ipynb)"
+            elif executar_ambos:
+                tipo_pipeline = "🔄 Ambos"
+
+            with log_container:
+                st.subheader("☁️ Disparando pipeline no Databricks...")
+                try:
+                    resposta = _disparar_pipeline_cloud_ext(
+                        int(ano_selecionado),
+                        tipo_pipeline,
                     )
+                    run_id = resposta.get("run_id")
+                    st.session_state[_PIPELINE_RUN_KEY_EXT] = {
+                        'run_id': run_id,
+                        'ano': int(ano_selecionado),
+                        'tipo': tipo_pipeline,
+                        'run_page_url': resposta.get('run_page_url', ''),
+                        'is_terminal': False,
+                    }
+                    st.success(f"✅ Pipeline iniciado — Run ID: **{run_id}**")
+                    st.markdown("#### 📡 Acompanhamento em tempo real")
+                    _renderizar_painel_status_cloud_ext(run_id, key_suffix='tab2_new')
+                except Exception as exc:
+                    st.error(f"❌ Não foi possível disparar o pipeline: {exc}")
 
-                    progress_bar.progress(100)
-                    status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
-                    st.json(resultado)
-                    st.cache_data.clear()
-                    st.session_state['ultima_extracao_ts'] = _time.time()
-                    houve_sucesso_processamento = True
-            except Exception as e:
-                progress_bar.progress(0)
-                status_text.error(f"❌ Erro durante processamento: {str(e)}")
-                st.exception(e)
+        # ── Processamento REAIS (local) ──
+        if (
+            not _bloqueio_ext
+            and (executar_reais or (executar_ambos and tipo_extracao == "🔄 Ambos"))
+        ):
+            with log_container:
+                st.subheader("📊 Processando Dados REAIS...")
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                log_messages = st.empty()
 
-    # ── Processamento BUDGET (local) ──
-    if (
-        not _bloqueio_ext
-        and (executar_budget or (executar_ambos and tipo_extracao == "🔄 Ambos"))
-    ):
-        with log_container:
-            st.subheader("💰 Processando Dados BUDGET...")
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            log_messages = st.empty()
+                mensagens_log = []
 
-            mensagens_log = []
+                def callback_progresso(mensagem):
+                    mensagens_log.append(mensagem)
+                    log_messages.text("\n".join(mensagens_log[-10:]))
 
-            def callback_progresso(mensagem):
-                mensagens_log.append(mensagem)
-                log_messages.text("\n".join(mensagens_log[-10:]))
+                try:
+                    with st.spinner("🔄 Processando dados REAIS..."):
+                        resultado = processar_dados_reais_completo(
+                            ano=ano_selecionado,
+                            continuar_sem_arquivos=False,
+                            progress_callback=callback_progresso
+                        )
 
-            try:
-                with st.spinner("🔄 Processando dados BUDGET..."):
-                    resultado = processar_dados_budget_completo(
-                        ano=ano_selecionado,
-                        continuar_sem_arquivos=False,
-                        progress_callback=callback_progresso
-                    )
+                        progress_bar.progress(100)
+                        status_text.success("✅ Processamento de dados REAIS concluído com sucesso!")
+                        st.json(resultado)
+                        st.cache_data.clear()
+                        st.session_state['ultima_extracao_ts'] = _time.time()
+                        houve_sucesso_processamento = True
+                except Exception as e:
+                    progress_bar.progress(0)
+                    status_text.error(f"❌ Erro durante processamento: {str(e)}")
+                    st.exception(e)
 
-                    progress_bar.progress(100)
-                    status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
-                    st.json(resultado)
-                    st.cache_data.clear()
-                    st.session_state['ultima_extracao_ts'] = _time.time()
-                    houve_sucesso_processamento = True
-            except Exception as e:
-                progress_bar.progress(0)
-                status_text.error(f"❌ Erro durante processamento: {str(e)}")
-                st.exception(e)
+        # ── Processamento BUDGET (local) ──
+        if (
+            not _bloqueio_ext
+            and (executar_budget or (executar_ambos and tipo_extracao == "🔄 Ambos"))
+        ):
+            with log_container:
+                st.subheader("💰 Processando Dados BUDGET...")
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                log_messages = st.empty()
 
-    if houve_sucesso_processamento:
-        _executar_alertas_pos_extracao()
+                mensagens_log = []
 
-        st.page_link(
-            "tc_ext/pages/home_ext.py",
-            label="📊 Ver gráficos atualizados",
-            icon="📊",
-        )
+                def callback_progresso(mensagem):
+                    mensagens_log.append(mensagem)
+                    log_messages.text("\n".join(mensagens_log[-10:]))
 
-        # Consolidação visual
-        st.divider()
-        st.markdown("### 📊 Consolidação Histórica")
-        _pasta_parq = os.path.join(
-            _DATA_ROOT, "TC_Ext", str(ano_selecionado),
-        )
-        _parquets_gerados = [
-            f for f in (os.listdir(_pasta_parq) if os.path.isdir(_pasta_parq) else [])
-            if f.endswith(".parquet")
-        ]
-        if _parquets_gerados:
-            st.success(
-                f"✅ {len(_parquets_gerados)} parquet(s) gerado(s) em "
-                f"`TC_Ext/{ano_selecionado}/`"
+                try:
+                    with st.spinner("🔄 Processando dados BUDGET..."):
+                        resultado = processar_dados_budget_completo(
+                            ano=ano_selecionado,
+                            continuar_sem_arquivos=False,
+                            progress_callback=callback_progresso
+                        )
+
+                        progress_bar.progress(100)
+                        status_text.success("✅ Processamento de dados BUDGET concluído com sucesso!")
+                        st.json(resultado)
+                        st.cache_data.clear()
+                        st.session_state['ultima_extracao_ts'] = _time.time()
+                        houve_sucesso_processamento = True
+                except Exception as e:
+                    progress_bar.progress(0)
+                    status_text.error(f"❌ Erro durante processamento: {str(e)}")
+                    st.exception(e)
+
+        if houve_sucesso_processamento:
+            _executar_alertas_pos_extracao()
+
+            st.page_link(
+                "tc_ext/pages/home_ext.py",
+                label="📊 Ver gráficos atualizados",
+                icon="📊",
             )
-            with st.expander("📂 Parquets gerados", expanded=False):
-                for _pq in sorted(_parquets_gerados):
-                    _pq_path = os.path.join(_pasta_parq, _pq)
-                    _pq_mb = os.path.getsize(_pq_path) / (1024 * 1024)
-                    st.caption(f"📄 {_pq} — {_pq_mb:.2f} MB")
-        else:
-            st.info("ℹ️ Nenhum parquet encontrado após processamento.")
 
-        # Enviar parquets ao cloud se aplicável
-        if is_cloud():
-            with st.spinner("☁️ Enviando parquets ao Workspace Databricks..."):
-                _n_ok, _n_err, _ = _enviar_parquets_ext_ao_cloud(ano_selecionado)
-            if _n_ok > 0 and _n_err == 0:
-                st.success(f"☁️ {_n_ok} parquet(s) enviado(s) ao Workspace com sucesso!")
-            elif _n_ok > 0:
-                st.warning(f"⚠️ Parquets: {_n_ok} enviado(s), {_n_err} com falha.")
-            elif _n_err > 0:
-                st.error(f"❌ Falha ao enviar parquets ao Workspace: {_n_err} erro(s).")
-
-# TAB 3: Status e Logs
-with tab3:
-    st.header("📊 Status e Logs")
-
-    # ── Painel de status do pipeline (visível se houver run, local ou cloud) ──
-    run_state = st.session_state.get(_PIPELINE_RUN_KEY_EXT, {})
-    run_id_tab3 = run_state.get('run_id')
-    if run_id_tab3:
-        st.markdown("### 📡 Status do Pipeline Cloud")
-        _renderizar_painel_status_cloud_ext(run_id_tab3, key_suffix='tab3')
-        st.divider()
-    elif _bloqueio_ext:
-        st.info(
-            "Nenhum pipeline disparado nesta sessão. "
-            "Execute o processamento na aba **⚙️ Executar Processamento**."
-        )
-        st.divider()
-
-    st.subheader("📁 Estrutura de Pastas")
-    
-    pasta_ext_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
-    if os.path.exists(pasta_ext_ano):
-        st.success(f"✅ Pasta `dados/TC_Ext/{ano_selecionado}/` existe")
-        
-        # Listar arquivos na pasta do ano
-        arquivos_ano = os.listdir(pasta_ext_ano)
-        if arquivos_ano:
-            st.markdown("**Arquivos na pasta do ano:**")
-            for arquivo in arquivos_ano:
-                caminho_completo = os.path.join(pasta_ext_ano, arquivo)
-                if os.path.isfile(caminho_completo):
-                    tamanho = os.path.getsize(caminho_completo) / (1024 * 1024)  # MB
-                    data_mod = datetime.fromtimestamp(os.path.getmtime(caminho_completo))
-                    st.text(f"  📄 {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
-    else:
-        st.warning(f"⚠️ Pasta `dados/TC_Ext/{ano_selecionado}/` não existe ainda")
-    
-    st.markdown("---")
-    
-    st.subheader("📚 Histórico Consolidado")
-    
-    pasta_hist = os.path.join(_DATA_ROOT, 'TC_Ext', 'historico_consolidado')
-    if os.path.exists(pasta_hist):
-        st.success("✅ Pasta `dados/TC_Ext/historico_consolidado/` existe")
-        
-        # Verificar arquivos principais
-        arquivos_historico = [
-            'df_final_historico.parquet',
-            'df_vol_historico.parquet'
-        ]
-        
-        for arquivo in arquivos_historico:
-            caminho = os.path.join(pasta_hist, arquivo)
-            if os.path.exists(caminho):
-                tamanho = os.path.getsize(caminho) / (1024 * 1024)  # MB
-                data_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
-                st.success(f"  ✅ {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
-            else:
-                st.warning(f"  ⚠️ {arquivo} não encontrado")
-        
-        # Verificar histórico BUD
-        pasta_hist_bud = os.path.join(pasta_hist, 'BUD')
-        if os.path.exists(pasta_hist_bud):
-            st.markdown("**Histórico BUD:**")
-            arquivos_historico_bud = [
-                'df_final_historico_BUD.parquet',
-                'df_vol_historico_BUD.parquet'
+            # Consolidação visual
+            st.divider()
+            st.markdown("### 📊 Consolidação Histórica")
+            _pasta_parq = os.path.join(
+                _DATA_ROOT, "TC_Ext", str(ano_selecionado),
+            )
+            _parquets_gerados = [
+                f for f in (os.listdir(_pasta_parq) if os.path.isdir(_pasta_parq) else [])
+                if f.endswith(".parquet")
             ]
-            
-            for arquivo in arquivos_historico_bud:
-                caminho = os.path.join(pasta_hist_bud, arquivo)
+            if _parquets_gerados:
+                st.success(
+                    f"✅ {len(_parquets_gerados)} parquet(s) gerado(s) em "
+                    f"`TC_Ext/{ano_selecionado}/`"
+                )
+                with st.expander("📂 Parquets gerados", expanded=False):
+                    for _pq in sorted(_parquets_gerados):
+                        _pq_path = os.path.join(_pasta_parq, _pq)
+                        _pq_mb = os.path.getsize(_pq_path) / (1024 * 1024)
+                        st.caption(f"📄 {_pq} — {_pq_mb:.2f} MB")
+            else:
+                st.info("ℹ️ Nenhum parquet encontrado após processamento.")
+
+            # Enviar parquets ao cloud se aplicável
+            if is_cloud():
+                with st.spinner("☁️ Enviando parquets ao Workspace Databricks..."):
+                    _n_ok, _n_err, _ = _enviar_parquets_ext_ao_cloud(ano_selecionado)
+                if _n_ok > 0 and _n_err == 0:
+                    st.success(f"☁️ {_n_ok} parquet(s) enviado(s) ao Workspace com sucesso!")
+                elif _n_ok > 0:
+                    st.warning(f"⚠️ Parquets: {_n_ok} enviado(s), {_n_err} com falha.")
+                elif _n_err > 0:
+                    st.error(f"❌ Falha ao enviar parquets ao Workspace: {_n_err} erro(s).")
+
+    # TAB 3: Status e Logs
+
+    _render_tab2()
+with tab3:
+    @st.fragment
+    def _render_tab3():
+        st.header("📊 Status e Logs")
+
+        # ── Painel de status do pipeline (visível se houver run, local ou cloud) ──
+        run_state = st.session_state.get(_PIPELINE_RUN_KEY_EXT, {})
+        run_id_tab3 = run_state.get('run_id')
+        if run_id_tab3:
+            st.markdown("### 📡 Status do Pipeline Cloud")
+            _renderizar_painel_status_cloud_ext(run_id_tab3, key_suffix='tab3')
+            st.divider()
+        elif _bloqueio_ext:
+            st.info(
+                "Nenhum pipeline disparado nesta sessão. "
+                "Execute o processamento na aba **⚙️ Executar Processamento**."
+            )
+            st.divider()
+
+        st.subheader("📁 Estrutura de Pastas")
+    
+        pasta_ext_ano = os.path.join(_DATA_ROOT, 'TC_Ext', str(ano_selecionado))
+        if os.path.exists(pasta_ext_ano):
+            st.success(f"✅ Pasta `dados/TC_Ext/{ano_selecionado}/` existe")
+        
+            # Listar arquivos na pasta do ano
+            arquivos_ano = os.listdir(pasta_ext_ano)
+            if arquivos_ano:
+                st.markdown("**Arquivos na pasta do ano:**")
+                for arquivo in arquivos_ano:
+                    caminho_completo = os.path.join(pasta_ext_ano, arquivo)
+                    if os.path.isfile(caminho_completo):
+                        tamanho = os.path.getsize(caminho_completo) / (1024 * 1024)  # MB
+                        data_mod = datetime.fromtimestamp(os.path.getmtime(caminho_completo))
+                        st.text(f"  📄 {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
+        else:
+            st.warning(f"⚠️ Pasta `dados/TC_Ext/{ano_selecionado}/` não existe ainda")
+    
+        st.markdown("---")
+    
+        st.subheader("📚 Histórico Consolidado")
+    
+        pasta_hist = os.path.join(_DATA_ROOT, 'TC_Ext', 'historico_consolidado')
+        if os.path.exists(pasta_hist):
+            st.success("✅ Pasta `dados/TC_Ext/historico_consolidado/` existe")
+        
+            # Verificar arquivos principais
+            arquivos_historico = [
+                'df_final_historico.parquet',
+                'df_vol_historico.parquet'
+            ]
+        
+            for arquivo in arquivos_historico:
+                caminho = os.path.join(pasta_hist, arquivo)
                 if os.path.exists(caminho):
                     tamanho = os.path.getsize(caminho) / (1024 * 1024)  # MB
                     data_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
                     st.success(f"  ✅ {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
                 else:
                     st.warning(f"  ⚠️ {arquivo} não encontrado")
-    else:
-        st.warning("⚠️ Pasta `dados/TC_Ext/historico_consolidado/` não existe ainda")
+        
+            # Verificar histórico BUD
+            pasta_hist_bud = os.path.join(pasta_hist, 'BUD')
+            if os.path.exists(pasta_hist_bud):
+                st.markdown("**Histórico BUD:**")
+                arquivos_historico_bud = [
+                    'df_final_historico_BUD.parquet',
+                    'df_vol_historico_BUD.parquet'
+                ]
+            
+                for arquivo in arquivos_historico_bud:
+                    caminho = os.path.join(pasta_hist_bud, arquivo)
+                    if os.path.exists(caminho):
+                        tamanho = os.path.getsize(caminho) / (1024 * 1024)  # MB
+                        data_mod = datetime.fromtimestamp(os.path.getmtime(caminho))
+                        st.success(f"  ✅ {arquivo} ({tamanho:.2f} MB) - {data_mod.strftime('%d/%m/%Y %H:%M')}")
+                    else:
+                        st.warning(f"  ⚠️ {arquivo} não encontrado")
+        else:
+            st.warning("⚠️ Pasta `dados/TC_Ext/historico_consolidado/` não existe ainda")
+
+    _render_tab3()
 
 # Rodapé
 st.markdown("---")

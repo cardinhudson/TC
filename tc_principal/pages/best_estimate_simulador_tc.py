@@ -2276,57 +2276,100 @@ else:
 tab_visualizar, tab_adicionar = st.tabs(["📋 Visualizar Custos", "➕ Adicionar Custo"])
 
 with tab_visualizar:
-    if not df_custos_especificos.empty:
-        # Os custos já vêm com uma linha por veículo, então apenas formatar para exibição
-        df_custos_formatado = df_custos_especificos.copy()
+    @st.fragment
+    def _render_tab_visualizar():
+        df_custos_especificos = carregar_custos_especificos()
+        if df_custos_especificos.empty:
+            df_custos_especificos = pd.DataFrame(columns=colunas_tabela_custos)
+        else:
+            for col in colunas_tabela_custos:
+                if col not in df_custos_especificos.columns:
+                    df_custos_especificos[col] = None
+        if not df_custos_especificos.empty:
+            # Os custos já vêm com uma linha por veículo, então apenas formatar para exibição
+            df_custos_formatado = df_custos_especificos.copy()
         
-        # Filtrar apenas linhas válidas (com Oficina, Período e Custo FP)
-        mask_valido = (
-            df_custos_formatado['Oficina'].notna() &
-            df_custos_formatado['Período'].notna() &
-            (df_custos_formatado['Custo FP'].notna()) &
-            (pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce') != 0)
-        )
-        df_custos_formatado = df_custos_formatado[mask_valido].copy()
+            # Filtrar apenas linhas válidas (com Oficina, Período e Custo FP)
+            mask_valido = (
+                df_custos_formatado['Oficina'].notna() &
+                df_custos_formatado['Período'].notna() &
+                (df_custos_formatado['Custo FP'].notna()) &
+                (pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce') != 0)
+            )
+            df_custos_formatado = df_custos_formatado[mask_valido].copy()
         
-        if not df_custos_formatado.empty:
-            # Renomear 'Custo FP' para 'Despesa Primaria' para compatibilidade com forecast_completo
-            if 'Despesa Primaria' not in df_custos_formatado.columns:
-                df_custos_formatado['Despesa Primaria'] = pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce').fillna(0.0)
-            else:
-                # Se já existe 'Despesa Primaria', usar o maior entre 'Custo FP' e 'Despesa Primaria'
-                df_custos_formatado['Despesa Primaria'] = pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce').fillna(0.0)
+            if not df_custos_formatado.empty:
+                # Renomear 'Custo FP' para 'Despesa Primaria' para compatibilidade com forecast_completo
+                if 'Despesa Primaria' not in df_custos_formatado.columns:
+                    df_custos_formatado['Despesa Primaria'] = pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce').fillna(0.0)
+                else:
+                    # Se já existe 'Despesa Primaria', usar o maior entre 'Custo FP' e 'Despesa Primaria'
+                    df_custos_formatado['Despesa Primaria'] = pd.to_numeric(df_custos_formatado['Custo FP'], errors='coerce').fillna(0.0)
             
-            # Garantir que todas as colunas necessárias existam (sem Tipo_Custo, apenas Custo)
-            colunas_necessarias = [
-                'Oficina', 'Ano', 'Período', 'Custo',
-                'Despesa Primaria', 'Custo FP', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
-                'Type 05', 'Type 06', 'Account', 'Tipo'
-            ]
+                # Garantir que todas as colunas necessárias existam (sem Tipo_Custo, apenas Custo)
+                colunas_necessarias = [
+                    'Oficina', 'Ano', 'Período', 'Custo',
+                    'Despesa Primaria', 'Custo FP', 'Centocst', 'Fornec.', 'Fornecedor', 'USI',
+                    'Type 05', 'Type 06', 'Account', 'Tipo'
+                ]
             
-            for col in colunas_necessarias:
-                if col not in df_custos_formatado.columns:
-                    df_custos_formatado[col] = None
+                for col in colunas_necessarias:
+                    if col not in df_custos_formatado.columns:
+                        df_custos_formatado[col] = None
             
-            # Preencher 'Tipo' com 'BE Manual' se estiver vazio (para custos específicos)
-            if 'Tipo' in df_custos_formatado.columns:
-                df_custos_formatado['Tipo'] = df_custos_formatado['Tipo'].fillna('BE Manual')
-            else:
-                df_custos_formatado['Tipo'] = 'BE Manual'
+                # Preencher 'Tipo' com 'BE Manual' se estiver vazio (para custos específicos)
+                if 'Tipo' in df_custos_formatado.columns:
+                    df_custos_formatado['Tipo'] = df_custos_formatado['Tipo'].fillna('BE Manual')
+                else:
+                    df_custos_formatado['Tipo'] = 'BE Manual'
             
-            # Remover coluna Tipo_Custo se existir (redundante, usamos apenas Custo)
-            if 'Tipo_Custo' in df_custos_formatado.columns:
-                df_custos_formatado = df_custos_formatado.drop(columns=['Tipo_Custo'])
+                # Remover coluna Tipo_Custo se existir (redundante, usamos apenas Custo)
+                if 'Tipo_Custo' in df_custos_formatado.columns:
+                    df_custos_formatado = df_custos_formatado.drop(columns=['Tipo_Custo'])
             
-            # Aplicar padronização de colunas usando a mesma função do forecast
-            def padronizar_colunas_custos(df, nome_tipo="Custos Específicos"):
-                """Padroniza colunas do DataFrame de custos para garantir mesma ordem do df_principal_historico_forecast.xlsx
-                Mantém APENAS as colunas que existem no arquivo Excel de referência"""
-                if df is None or df.empty:
-                    return df
+                # Aplicar padronização de colunas usando a mesma função do forecast
+                def padronizar_colunas_custos(df, nome_tipo="Custos Específicos"):
+                    """Padroniza colunas do DataFrame de custos para garantir mesma ordem do df_principal_historico_forecast.xlsx
+                    Mantém APENAS as colunas que existem no arquivo Excel de referência"""
+                    if df is None or df.empty:
+                        return df
                 
-                df_padronizado = df.copy()
+                    df_padronizado = df.copy()
                 
+                    # Ordem EXATA das colunas do arquivo df_principal_historico_forecast.xlsx
+                    # NOTA: Removemos Tipo_Custo (redundante, usamos apenas Custo)
+                    ordem_colunas_referencia = [
+                        'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
+                        'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
+                        'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria'
+                    ]
+                
+                    # Coletar todas as colunas do DataFrame
+                    colunas_existentes = list(df_padronizado.columns)
+                
+                    # Remover Tipo_Custo se existir (redundante)
+                    if 'Tipo_Custo' in df_padronizado.columns:
+                        df_padronizado = df_padronizado.drop(columns=['Tipo_Custo'])
+                        colunas_existentes = list(df_padronizado.columns)
+                
+                    # Adicionar colunas faltantes com valores None (apenas as do arquivo de referência)
+                    for col in ordem_colunas_referencia:
+                        if col not in colunas_existentes:
+                            df_padronizado[col] = None
+                
+                    # Reordenar DataFrame seguindo EXATAMENTE a ordem de referência
+                    # Manter apenas colunas que existem no DataFrame ou que estão na referência
+                    colunas_finais = [col for col in ordem_colunas_referencia if col in df_padronizado.columns]
+                    df_padronizado = df_padronizado.reindex(columns=colunas_finais)
+                
+                    return df_padronizado
+            
+                # Aplicar padronização
+                df_custos_formatado = padronizar_colunas_custos(df_custos_formatado)
+            
+                # Criar tabela usando st.dataframe com scroll horizontal e botões de deletar
+                st.markdown("#### 📋 Custos Específicos Cadastrados")
+            
                 # Ordem EXATA das colunas do arquivo df_principal_historico_forecast.xlsx
                 # NOTA: Removemos Tipo_Custo (redundante, usamos apenas Custo)
                 ordem_colunas_referencia = [
@@ -2334,583 +2377,555 @@ with tab_visualizar:
                     'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
                     'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria'
                 ]
-                
-                # Coletar todas as colunas do DataFrame
-                colunas_existentes = list(df_padronizado.columns)
-                
-                # Remover Tipo_Custo se existir (redundante)
-                if 'Tipo_Custo' in df_padronizado.columns:
-                    df_padronizado = df_padronizado.drop(columns=['Tipo_Custo'])
-                    colunas_existentes = list(df_padronizado.columns)
-                
-                # Adicionar colunas faltantes com valores None (apenas as do arquivo de referência)
-                for col in ordem_colunas_referencia:
-                    if col not in colunas_existentes:
-                        df_padronizado[col] = None
-                
-                # Reordenar DataFrame seguindo EXATAMENTE a ordem de referência
-                # Manter apenas colunas que existem no DataFrame ou que estão na referência
-                colunas_finais = [col for col in ordem_colunas_referencia if col in df_padronizado.columns]
-                df_padronizado = df_padronizado.reindex(columns=colunas_finais)
-                
-                return df_padronizado
             
-            # Aplicar padronização
-            df_custos_formatado = padronizar_colunas_custos(df_custos_formatado)
+                # Usar APENAS as colunas do arquivo de referência (na mesma ordem)
+                colunas_para_exibir = [col for col in ordem_colunas_referencia if col in df_custos_formatado.columns]
             
-            # Criar tabela usando st.dataframe com scroll horizontal e botões de deletar
-            st.markdown("#### 📋 Custos Específicos Cadastrados")
+                # Remover coluna 'Índice' se existir (para evitar duplicação)
+                if 'Índice' in df_custos_formatado.columns:
+                    df_custos_formatado = df_custos_formatado.drop(columns=['Índice'])
+                if 'Índice_Original' in df_custos_formatado.columns:
+                    df_custos_formatado = df_custos_formatado.drop(columns=['Índice_Original'])
             
-            # Ordem EXATA das colunas do arquivo df_principal_historico_forecast.xlsx
-            # NOTA: Removemos Tipo_Custo (redundante, usamos apenas Custo)
-            ordem_colunas_referencia = [
-                'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
-                'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
-                'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria'
-            ]
+                # Criar DataFrame para exibição com todas as colunas na ordem correta
+                df_display = df_custos_formatado[colunas_para_exibir].copy()
             
-            # Usar APENAS as colunas do arquivo de referência (na mesma ordem)
-            colunas_para_exibir = [col for col in ordem_colunas_referencia if col in df_custos_formatado.columns]
-            
-            # Remover coluna 'Índice' se existir (para evitar duplicação)
-            if 'Índice' in df_custos_formatado.columns:
-                df_custos_formatado = df_custos_formatado.drop(columns=['Índice'])
-            if 'Índice_Original' in df_custos_formatado.columns:
-                df_custos_formatado = df_custos_formatado.drop(columns=['Índice_Original'])
-            
-            # Criar DataFrame para exibição com todas as colunas na ordem correta
-            df_display = df_custos_formatado[colunas_para_exibir].copy()
-            
-            # Resetar índice e adicionar como coluna para referência
-            df_display = df_display.reset_index(drop=True)
-            df_display.insert(0, 'Índice', df_display.index)
+                # Resetar índice e adicionar como coluna para referência
+                df_display = df_display.reset_index(drop=True)
+                df_display.insert(0, 'Índice', df_display.index)
 
-            if not HAS_AGGRID:
-                st.info("ℹ️ Modo simplificado (sem AgGrid). Use os checkboxes para selecionar linhas.")
+                if not HAS_AGGRID:
+                    st.info("ℹ️ Modo simplificado (sem AgGrid). Use os checkboxes para selecionar linhas.")
 
-                # Adicionar coluna de seleção
-                df_sel = df_display.copy()
-                df_sel.insert(0, '✅', False)
+                    # Adicionar coluna de seleção
+                    df_sel = df_display.copy()
+                    df_sel.insert(0, '✅', False)
 
-                # Checkbox "Selecionar Todos"
-                selecionar_todos = st.checkbox("Selecionar Todos", value=False, key='sel_todos_fallback_tc')
-                if selecionar_todos:
-                    df_sel['✅'] = True
+                    # Checkbox "Selecionar Todos"
+                    selecionar_todos = st.checkbox("Selecionar Todos", value=False, key='sel_todos_fallback_tc')
+                    if selecionar_todos:
+                        df_sel['✅'] = True
 
-                col_config_sel = {'✅': st.column_config.CheckboxColumn('✅', default=False, width='small')}
-                df_editado = st.data_editor(
-                    df_sel,
-                    column_config=col_config_sel,
-                    disabled=[c for c in df_sel.columns if c != '✅'],
-                    width="stretch",
-                    height=480,
-                    hide_index=True,
-                    key='data_editor_custos_fallback_tc',
-                )
+                    col_config_sel = {'✅': st.column_config.CheckboxColumn('✅', default=False, width='small')}
+                    df_editado = st.data_editor(
+                        df_sel,
+                        column_config=col_config_sel,
+                        disabled=[c for c in df_sel.columns if c != '✅'],
+                        width="stretch",
+                        height=480,
+                        hide_index=True,
+                        key='data_editor_custos_fallback_tc',
+                    )
 
-                linhas_marcadas = df_editado[df_editado['✅'] == True]  # noqa: E712
-                n_selecionadas = len(linhas_marcadas)
+                    linhas_marcadas = df_editado[df_editado['✅'] == True]  # noqa: E712
+                    n_selecionadas = len(linhas_marcadas)
 
-                col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
-                with col_btn2:
-                    if n_selecionadas > 0:
-                        st.info(f"📊 {n_selecionadas} linha(s) selecionada(s)")
-                with col_btn_edit:
-                    if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_fallback_tc'):
-                        if n_selecionadas == 1:
-                            st.session_state['edit_custo_especifico_tc'] = linhas_marcadas.iloc[0].to_dict()
-                            st.rerun()
-                        elif n_selecionadas > 1:
-                            st.warning("⚠️ Selecione apenas 1 linha para editar.")
-                        else:
-                            st.warning("⚠️ Selecione uma linha para editar.")
-                with col_btn1:
-                    if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True, key='btn_deletar_fallback_tc'):
+                    col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
+                    with col_btn2:
                         if n_selecionadas > 0:
-                            indices_originais_para_deletar = []
-                            for _, row in linhas_marcadas.iterrows():
-                                mask = pd.Series([True] * len(df_custos_especificos))
-                                if 'Oficina' in row and pd.notna(row.get('Oficina')):
-                                    mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
-                                if 'Período' in row and pd.notna(row.get('Período')):
-                                    mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
-                                if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
-                                    valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
-                                    if pd.notna(valor_total):
-                                        mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
-                                indices_encontrados = df_custos_especificos[mask].index.tolist()
-                                indices_originais_para_deletar.extend(indices_encontrados)
-                            indices_originais_para_deletar = list(set(indices_originais_para_deletar))
-                            if indices_originais_para_deletar:
-                                df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
-                                if salvar_custos_especificos(df_custos_especificos):
-                                    st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso!")
-                                    st.cache_data.clear()
-                                    st.rerun()
+                            st.info(f"📊 {n_selecionadas} linha(s) selecionada(s)")
+                    with col_btn_edit:
+                        if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_fallback_tc'):
+                            if n_selecionadas == 1:
+                                st.session_state['edit_custo_especifico_tc'] = linhas_marcadas.iloc[0].to_dict()
+                                st.rerun()
+                            elif n_selecionadas > 1:
+                                st.warning("⚠️ Selecione apenas 1 linha para editar.")
                             else:
-                                st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
-                        else:
-                            st.warning("⚠️ Selecione pelo menos uma linha para deletar.")
-            else:
-                # Configurar AgGrid com seleção múltipla (checkboxes)
-                gb = GridOptionsBuilder.from_dataframe(df_display)
+                                st.warning("⚠️ Selecione uma linha para editar.")
+                    with col_btn1:
+                        if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True, key='btn_deletar_fallback_tc'):
+                            if n_selecionadas > 0:
+                                indices_originais_para_deletar = []
+                                for _, row in linhas_marcadas.iterrows():
+                                    mask = pd.Series([True] * len(df_custos_especificos))
+                                    if 'Oficina' in row and pd.notna(row.get('Oficina')):
+                                        mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
+                                    if 'Período' in row and pd.notna(row.get('Período')):
+                                        mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
+                                    if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
+                                        valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
+                                        if pd.notna(valor_total):
+                                            mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
+                                    indices_encontrados = df_custos_especificos[mask].index.tolist()
+                                    indices_originais_para_deletar.extend(indices_encontrados)
+                                indices_originais_para_deletar = list(set(indices_originais_para_deletar))
+                                if indices_originais_para_deletar:
+                                    df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
+                                    if salvar_custos_especificos(df_custos_especificos):
+                                        st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso!")
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                else:
+                                    st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
+                            else:
+                                st.warning("⚠️ Selecione pelo menos uma linha para deletar.")
+                else:
+                    # Configurar AgGrid com seleção múltipla (checkboxes)
+                    gb = GridOptionsBuilder.from_dataframe(df_display)
             
-                # Configurar larguras mínimas e auto-size para todas as colunas
-                larguras_colunas = {
-                    'Índice': 80,
-                    'Account': 150,
-                    'Ano': 60,
-                    'Centrocst': 100,
-                    'Custo': 120,
-                    'Fornec.': 80,
-                    'Fornecedor': 150,
-                    'Mes': 80,
-                    'Oficina': 120,
-                    'Período': 120,
-                    'Soma_Percentuais': 120,
-                    'Tipo': 100,
-                    'Custo FP': 120,
-                    'Type 05': 100,
-                    'Type 06': 100,
-                    'USI': 80,
-                    'Despesa Primaria': 120,
-                }
+                    # Configurar larguras mínimas e auto-size para todas as colunas
+                    larguras_colunas = {
+                        'Índice': 80,
+                        'Account': 150,
+                        'Ano': 60,
+                        'Centrocst': 100,
+                        'Custo': 120,
+                        'Fornec.': 80,
+                        'Fornecedor': 150,
+                        'Mes': 80,
+                        'Oficina': 120,
+                        'Período': 120,
+                        'Soma_Percentuais': 120,
+                        'Tipo': 100,
+                        'Custo FP': 120,
+                        'Type 05': 100,
+                        'Type 06': 100,
+                        'USI': 80,
+                        'Despesa Primaria': 120,
+                    }
                 
-                # Colunas numéricas que devem ser formatadas com 2 casas decimais
-                colunas_numericas = ['Custo FP', 'Despesa Primaria', 'Soma_Percentuais']
+                    # Colunas numéricas que devem ser formatadas com 2 casas decimais
+                    colunas_numericas = ['Custo FP', 'Despesa Primaria', 'Soma_Percentuais']
                 
-                # Configurar todas as colunas como não editáveis com auto-size
-                for col in df_display.columns:
-                    largura = larguras_colunas.get(col, 120)
+                    # Configurar todas as colunas como não editáveis com auto-size
+                    for col in df_display.columns:
+                        largura = larguras_colunas.get(col, 120)
                     
-                    # Configuração especial para colunas numéricas
-                    if col in colunas_numericas:
-                        gb.configure_column(
-                            col, 
-                            editable=False, 
-                            sortable=True, 
-                            filter=True,
-                            minWidth=largura,
-                            width=largura,
-                            autoSizeColumns=True,
-                            wrapText=True,
-                            autoHeight=True,
-                            type=["numericColumn"],
-                            valueFormatter="value != null ? value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true}) : ''"
-                        )
-                    else:
-                        gb.configure_column(
-                            col, 
-                            editable=False, 
-                            sortable=True, 
-                            filter=True,
-                            minWidth=largura,
-                            width=largura,
-                            autoSizeColumns=True,
-                            wrapText=True,
-                            autoHeight=True
-                        )
+                        # Configuração especial para colunas numéricas
+                        if col in colunas_numericas:
+                            gb.configure_column(
+                                col, 
+                                editable=False, 
+                                sortable=True, 
+                                filter=True,
+                                minWidth=largura,
+                                width=largura,
+                                autoSizeColumns=True,
+                                wrapText=True,
+                                autoHeight=True,
+                                type=["numericColumn"],
+                                valueFormatter="value != null ? value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true}) : ''"
+                            )
+                        else:
+                            gb.configure_column(
+                                col, 
+                                editable=False, 
+                                sortable=True, 
+                                filter=True,
+                                minWidth=largura,
+                                width=largura,
+                                autoSizeColumns=True,
+                                wrapText=True,
+                                autoHeight=True
+                            )
                 
-                # Configurar seleção múltipla com checkboxes
-                gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
-                gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
-                gb.configure_side_bar()
-                gb.configure_default_column(groupable=False, value=True, enableRowGroup=True, aggFunc='sum', editable=False)
+                    # Configurar seleção múltipla com checkboxes
+                    gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
+                    gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
+                    gb.configure_side_bar()
+                    gb.configure_default_column(groupable=False, value=True, enableRowGroup=True, aggFunc='sum', editable=False)
                 
-                # Fixar coluna de índice à esquerda
-                gb.configure_column('Índice', pinned='left', width=80, minWidth=80)
+                    # Fixar coluna de índice à esquerda
+                    gb.configure_column('Índice', pinned='left', width=80, minWidth=80)
                 
-                grid_options = gb.build()
+                    grid_options = gb.build()
 
-                # Exibir tabela AgGrid
-                grid_response = AgGrid(
-                    df_display,
-                    gridOptions=grid_options,
-                    height=480,  # Aumentado em 20% (400 * 1.2 = 480)
-                    width='100%',
-                    data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-                    update_mode=GridUpdateMode.SELECTION_CHANGED,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=False,
-                    enable_enterprise_modules=False,
-                    theme='streamlit',
-                    key='tabela_custos_aggrid_tc',
-                    reload_data=False
-                )
+                    # Exibir tabela AgGrid
+                    grid_response = AgGrid(
+                        df_display,
+                        gridOptions=grid_options,
+                        height=480,  # Aumentado em 20% (400 * 1.2 = 480)
+                        width='100%',
+                        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+                        update_mode=GridUpdateMode.SELECTION_CHANGED,
+                        fit_columns_on_grid_load=True,
+                        allow_unsafe_jscode=False,
+                        enable_enterprise_modules=False,
+                        theme='streamlit',
+                        key='tabela_custos_aggrid_tc',
+                        reload_data=False
+                    )
 
-                # Processar exclusões
-                indices_para_deletar = []
+                    # Processar exclusões
+                    indices_para_deletar = []
 
-                # Botão para deletar linhas selecionadas
-                # CSS para ajustar tamanho do botão
-                st.markdown("""
-                    <style>
-                        div[data-testid="column"]:first-child button {
-                            min-width: 200px;
-                            height: 45px;
-                            font-size: 16px;
-                            font-weight: 600;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
+                    # Botão para deletar linhas selecionadas
+                    # CSS para ajustar tamanho do botão
+                    st.markdown("""
+                        <style>
+                            div[data-testid="column"]:first-child button {
+                                min-width: 200px;
+                                height: 45px;
+                                font-size: 16px;
+                                font-weight: 600;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
 
-                col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
-                with col_btn1:
-                    if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
+                    col_btn1, col_btn_edit, col_btn2 = st.columns([2, 2, 2])
+                    with col_btn1:
+                        if st.button("🗑️ Deletar Selecionadas", type="primary", use_container_width=True):
+                            selected_rows = grid_response.get('selected_rows')
+                            if selected_rows is not None:
+                                # Converter para lista se for DataFrame
+                                if isinstance(selected_rows, pd.DataFrame):
+                                    selected_rows = selected_rows.to_dict('records')
+                                elif not isinstance(selected_rows, list):
+                                    selected_rows = []
+
+                                if len(selected_rows) > 0:
+                                    # Extrair os índices da coluna 'Índice' das linhas selecionadas
+                                    indices_selecionados = []
+                                    for row in selected_rows:
+                                        idx_valor = None
+                                        if isinstance(row, dict) and 'Índice' in row and pd.notna(row.get('Índice')):
+                                            idx_valor = row.get('Índice')
+                                        if idx_valor is not None:
+                                            indices_selecionados.append(idx_valor)
+                                
+                                    if indices_selecionados:
+                                        # Usar os dados das linhas selecionadas diretamente para buscar no original
+                                        indices_originais_para_deletar = []
+                                    
+                                        for row in selected_rows:
+                                            # Buscar no DataFrame original usando os campos únicos
+                                            mask = pd.Series([True] * len(df_custos_especificos))
+                                        
+                                            if 'Oficina' in row and pd.notna(row.get('Oficina')):
+                                                mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
+                                            if 'Período' in row and pd.notna(row.get('Período')):
+                                                mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
+                                            if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
+                                                valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
+                                                if pd.notna(valor_total):
+                                                    mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
+                                        
+                                            indices_encontrados = df_custos_especificos[mask].index.tolist()
+                                            indices_originais_para_deletar.extend(indices_encontrados)
+                                    
+                                        # Remover duplicatas
+                                        indices_originais_para_deletar = list(set(indices_originais_para_deletar))
+                                    
+                                        if indices_originais_para_deletar:
+                                            df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
+                                            if salvar_custos_especificos(df_custos_especificos):
+                                                st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso! Recarregue a página para ver as alterações.")
+                                                st.cache_data.clear()
+                                        else:
+                                            st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
+                                    else:
+                                        st.warning("⚠️ Nenhum índice válido encontrado nas linhas selecionadas.")
+                                else:
+                                    st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+                            else:
+                                st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
+                
+                    with col_btn_edit:
+                        _sel_rows_edit = grid_response.get('selected_rows')
+                        if _sel_rows_edit is not None:
+                            if isinstance(_sel_rows_edit, pd.DataFrame):
+                                _sel_rows_edit = _sel_rows_edit.to_dict('records')
+                            elif not isinstance(_sel_rows_edit, list):
+                                _sel_rows_edit = []
+                        else:
+                            _sel_rows_edit = []
+                        if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_aggrid_tc'):
+                            if len(_sel_rows_edit) == 1:
+                                st.session_state['edit_custo_especifico_tc'] = _sel_rows_edit[0]
+                                st.rerun()
+                            elif len(_sel_rows_edit) > 1:
+                                st.warning("⚠️ Selecione apenas 1 linha para editar.")
+                            else:
+                                st.warning("⚠️ Selecione uma linha para editar.")
+
+                    with col_btn2:
                         selected_rows = grid_response.get('selected_rows')
                         if selected_rows is not None:
                             # Converter para lista se for DataFrame
                             if isinstance(selected_rows, pd.DataFrame):
-                                selected_rows = selected_rows.to_dict('records')
-                            elif not isinstance(selected_rows, list):
-                                selected_rows = []
-
-                            if len(selected_rows) > 0:
-                                # Extrair os índices da coluna 'Índice' das linhas selecionadas
-                                indices_selecionados = []
-                                for row in selected_rows:
-                                    idx_valor = None
-                                    if isinstance(row, dict) and 'Índice' in row and pd.notna(row.get('Índice')):
-                                        idx_valor = row.get('Índice')
-                                    if idx_valor is not None:
-                                        indices_selecionados.append(idx_valor)
-                                
-                                if indices_selecionados:
-                                    # Usar os dados das linhas selecionadas diretamente para buscar no original
-                                    indices_originais_para_deletar = []
-                                    
-                                    for row in selected_rows:
-                                        # Buscar no DataFrame original usando os campos únicos
-                                        mask = pd.Series([True] * len(df_custos_especificos))
-                                        
-                                        if 'Oficina' in row and pd.notna(row.get('Oficina')):
-                                            mask = mask & (df_custos_especificos['Oficina'].astype(str) == str(row['Oficina']))
-                                        if 'Período' in row and pd.notna(row.get('Período')):
-                                            mask = mask & (df_custos_especificos['Período'].astype(str) == str(row['Período']))
-                                        if 'Custo FP' in row and pd.notna(row.get('Custo FP')):
-                                            valor_total = pd.to_numeric(row.get('Custo FP'), errors='coerce')
-                                            if pd.notna(valor_total):
-                                                mask = mask & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == valor_total)
-                                        
-                                        indices_encontrados = df_custos_especificos[mask].index.tolist()
-                                        indices_originais_para_deletar.extend(indices_encontrados)
-                                    
-                                    # Remover duplicatas
-                                    indices_originais_para_deletar = list(set(indices_originais_para_deletar))
-                                    
-                                    if indices_originais_para_deletar:
-                                        df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
-                                        if salvar_custos_especificos(df_custos_especificos):
-                                            st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso! Recarregue a página para ver as alterações.")
-                                            st.cache_data.clear()
-                                    else:
-                                        st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
-                                else:
-                                    st.warning("⚠️ Nenhum índice válido encontrado nas linhas selecionadas.")
+                                selected_count = len(selected_rows)
+                            elif isinstance(selected_rows, list):
+                                selected_count = len(selected_rows)
                             else:
-                                st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
-                        else:
-                            st.warning("⚠️ Selecione pelo menos uma linha na tabela para deletar.")
-                
-                with col_btn_edit:
-                    _sel_rows_edit = grid_response.get('selected_rows')
-                    if _sel_rows_edit is not None:
-                        if isinstance(_sel_rows_edit, pd.DataFrame):
-                            _sel_rows_edit = _sel_rows_edit.to_dict('records')
-                        elif not isinstance(_sel_rows_edit, list):
-                            _sel_rows_edit = []
-                    else:
-                        _sel_rows_edit = []
-                    if st.button("✏️ Editar Selecionada", use_container_width=True, key='btn_editar_aggrid_tc'):
-                        if len(_sel_rows_edit) == 1:
-                            st.session_state['edit_custo_especifico_tc'] = _sel_rows_edit[0]
-                            st.rerun()
-                        elif len(_sel_rows_edit) > 1:
-                            st.warning("⚠️ Selecione apenas 1 linha para editar.")
-                        else:
-                            st.warning("⚠️ Selecione uma linha para editar.")
-
-                with col_btn2:
-                    selected_rows = grid_response.get('selected_rows')
-                    if selected_rows is not None:
-                        # Converter para lista se for DataFrame
-                        if isinstance(selected_rows, pd.DataFrame):
-                            selected_count = len(selected_rows)
-                        elif isinstance(selected_rows, list):
-                            selected_count = len(selected_rows)
+                                selected_count = 0
                         else:
                             selected_count = 0
-                    else:
-                        selected_count = 0
                     
-                    if selected_count > 0:
-                        st.info(f"📊 {selected_count} linha(s) selecionada(s)")
+                        if selected_count > 0:
+                            st.info(f"📊 {selected_count} linha(s) selecionada(s)")
             
-            # ── Formulário de edição inline ──
-            if 'edit_custo_especifico_tc' in st.session_state:
-                _ed = st.session_state['edit_custo_especifico_tc']
-                st.markdown("---")
-                st.markdown("#### ✏️ Editar Custo Selecionado")
-                with st.form("form_editar_custo_tc"):
-                    col_e1, col_e2, col_e3, col_e4 = st.columns(4)
-                    with col_e1:
-                        st.text_input("Oficina", value=str(_ed.get('Oficina', '') or ''), disabled=True, key='edit_oficina_tc')
-                    with col_e2:
-                        st.text_input("Período", value=str(_ed.get('Período', '') or ''), disabled=True, key='edit_periodo_tc')
-                    with col_e3:
-                        st.text_input("Account", value=str(_ed.get('Account', '') or ''), disabled=True, key='edit_account_tc')
-                    with col_e4:
-                        _val_atual = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
-                        _val_atual = float(_val_atual) if pd.notna(_val_atual) else 0.0
-                        novo_valor = st.number_input("Valor (R$)", value=_val_atual, format="%.2f", key='edit_valor_tc')
-                    nova_descricao = st.text_input("Descrição", value=str(_ed.get('Descricao', '') or ''), key='edit_descricao_tc')
+                # ── Formulário de edição inline ──
+                if 'edit_custo_especifico_tc' in st.session_state:
+                    _ed = st.session_state['edit_custo_especifico_tc']
+                    st.markdown("---")
+                    st.markdown("#### ✏️ Editar Custo Selecionado")
+                    with st.form("form_editar_custo_tc"):
+                        col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+                        with col_e1:
+                            st.text_input("Oficina", value=str(_ed.get('Oficina', '') or ''), disabled=True, key='edit_oficina_tc')
+                        with col_e2:
+                            st.text_input("Período", value=str(_ed.get('Período', '') or ''), disabled=True, key='edit_periodo_tc')
+                        with col_e3:
+                            st.text_input("Account", value=str(_ed.get('Account', '') or ''), disabled=True, key='edit_account_tc')
+                        with col_e4:
+                            _val_atual = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
+                            _val_atual = float(_val_atual) if pd.notna(_val_atual) else 0.0
+                            novo_valor = st.number_input("Valor (R$)", value=_val_atual, format="%.2f", key='edit_valor_tc')
+                        nova_descricao = st.text_input("Descrição", value=str(_ed.get('Descricao', '') or ''), key='edit_descricao_tc')
 
-                    col_save, col_cancel = st.columns(2)
-                    with col_save:
-                        submitted = st.form_submit_button("💾 Salvar Alteração", type="primary")
-                    with col_cancel:
-                        cancelled = st.form_submit_button("❌ Cancelar")
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            submitted = st.form_submit_button("💾 Salvar Alteração", type="primary")
+                        with col_cancel:
+                            cancelled = st.form_submit_button("❌ Cancelar")
 
-                    if submitted:
-                        _mask_edit = pd.Series([True] * len(df_custos_especificos))
-                        for _campo in ['Oficina', 'Período', 'Account']:
-                            if _campo in _ed and pd.notna(_ed.get(_campo)) and _campo in df_custos_especificos.columns:
-                                _mask_edit = _mask_edit & (df_custos_especificos[_campo].astype(str) == str(_ed[_campo]))
-                        _old_val = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
-                        if pd.notna(_old_val) and 'Custo FP' in df_custos_especificos.columns:
-                            _mask_edit = _mask_edit & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == _old_val)
-                        _indices_edit = df_custos_especificos[_mask_edit].index.tolist()
-                        if _indices_edit:
-                            _idx = _indices_edit[0]
-                            df_custos_especificos.at[_idx, 'Custo FP'] = novo_valor
-                            if 'Descricao' in df_custos_especificos.columns:
-                                df_custos_especificos.at[_idx, 'Descricao'] = nova_descricao
-                            if salvar_custos_especificos(df_custos_especificos):
-                                del st.session_state['edit_custo_especifico_tc']
-                                st.success("✅ Custo atualizado com sucesso!")
-                                st.rerun()
+                        if submitted:
+                            _mask_edit = pd.Series([True] * len(df_custos_especificos))
+                            for _campo in ['Oficina', 'Período', 'Account']:
+                                if _campo in _ed and pd.notna(_ed.get(_campo)) and _campo in df_custos_especificos.columns:
+                                    _mask_edit = _mask_edit & (df_custos_especificos[_campo].astype(str) == str(_ed[_campo]))
+                            _old_val = pd.to_numeric(_ed.get('Custo FP'), errors='coerce')
+                            if pd.notna(_old_val) and 'Custo FP' in df_custos_especificos.columns:
+                                _mask_edit = _mask_edit & (pd.to_numeric(df_custos_especificos['Custo FP'], errors='coerce') == _old_val)
+                            _indices_edit = df_custos_especificos[_mask_edit].index.tolist()
+                            if _indices_edit:
+                                _idx = _indices_edit[0]
+                                df_custos_especificos.at[_idx, 'Custo FP'] = novo_valor
+                                if 'Descricao' in df_custos_especificos.columns:
+                                    df_custos_especificos.at[_idx, 'Descricao'] = nova_descricao
+                                if salvar_custos_especificos(df_custos_especificos):
+                                    del st.session_state['edit_custo_especifico_tc']
+                                    st.success("✅ Custo atualizado com sucesso!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Erro ao salvar o custo atualizado.")
                             else:
-                                st.error("❌ Erro ao salvar o custo atualizado.")
-                        else:
-                            st.error("❌ Não foi possível encontrar a linha original.")
+                                st.error("❌ Não foi possível encontrar a linha original.")
 
-                    if cancelled:
-                        del st.session_state['edit_custo_especifico_tc']
-                        st.rerun()
+                        if cancelled:
+                            del st.session_state['edit_custo_especifico_tc']
+                            st.rerun()
 
-            st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
+                st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
+            else:
+                st.info("ℹ️ Nenhum custo específico válido encontrado.")
         else:
-            st.info("ℹ️ Nenhum custo específico válido encontrado.")
-    else:
-        st.info("ℹ️ Nenhum custo específico cadastrado ainda.")
+            st.info("ℹ️ Nenhum custo específico cadastrado ainda.")
+
+    _render_tab_visualizar()
 
 with tab_adicionar:
-    st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
-    st.info("📝 Preencha a tabela abaixo com os custos **em KR$ (milhares de R$)**. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
+    @st.fragment
+    def _render_tab_adicionar():
+        st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
+        st.info("📝 Preencha a tabela abaixo com os custos **em KR$ (milhares de R$)**. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
 
-    # Obter opções dinâmicas
-    oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
-    accounts_disponiveis_editor = sorted(df_filtrado['Account'].dropna().unique().tolist()) if df_filtrado is not None and 'Account' in df_filtrado.columns else []
+        # Obter opções dinâmicas
+        oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
+        accounts_disponiveis_editor = sorted(df_filtrado['Account'].dropna().unique().tolist()) if df_filtrado is not None and 'Account' in df_filtrado.columns else []
 
-    # Referência Account → Type 06 / Type 05 / Custo
-    with st.expander("📋 Referência Account → Type 06 / Type 05 / Custo", expanded=False):
-        if df_filtrado is not None and not df_filtrado.empty:
-            cols_ref = [c for c in ['Account', 'Type 06', 'Type 05', 'Custo', 'USI'] if c in df_filtrado.columns]
-            if cols_ref:
-                df_ref = df_filtrado[cols_ref].drop_duplicates().dropna(subset=['Account']).sort_values('Account')
-                st.dataframe(df_ref, hide_index=True, width="stretch")
-        else:
-            st.info("Sem dados de referência disponíveis.")
+        # Referência Account → Type 06 / Type 05 / Custo
+        with st.expander("📋 Referência Account → Type 06 / Type 05 / Custo", expanded=False):
+            if df_filtrado is not None and not df_filtrado.empty:
+                cols_ref = [c for c in ['Account', 'Type 06', 'Type 05', 'Custo', 'USI'] if c in df_filtrado.columns]
+                if cols_ref:
+                    df_ref = df_filtrado[cols_ref].drop_duplicates().dropna(subset=['Account']).sort_values('Account')
+                    st.dataframe(df_ref, hide_index=True, width="stretch")
+            else:
+                st.info("Sem dados de referência disponíveis.")
 
-    # Abreviações de meses
-    MESES_EDITOR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    MESES_COMPLETOS = {
-        'Jan': 'Janeiro', 'Fev': 'Fevereiro', 'Mar': 'Março', 'Abr': 'Abril',
-        'Mai': 'Maio', 'Jun': 'Junho', 'Jul': 'Julho', 'Ago': 'Agosto',
-        'Set': 'Setembro', 'Out': 'Outubro', 'Nov': 'Novembro', 'Dez': 'Dezembro'
-    }
+        # Abreviações de meses
+        MESES_EDITOR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        MESES_COMPLETOS = {
+            'Jan': 'Janeiro', 'Fev': 'Fevereiro', 'Mar': 'Março', 'Abr': 'Abril',
+            'Mai': 'Maio', 'Jun': 'Junho', 'Jul': 'Julho', 'Ago': 'Agosto',
+            'Set': 'Setembro', 'Out': 'Outubro', 'Nov': 'Novembro', 'Dez': 'Dezembro'
+        }
 
-    # DataFrame vazio para o editor
-    df_editor_template = pd.DataFrame(columns=['Oficina', 'Account'] + MESES_EDITOR + ['Descrição'])
+        # DataFrame vazio para o editor
+        df_editor_template = pd.DataFrame(columns=['Oficina', 'Account'] + MESES_EDITOR + ['Descrição'])
 
-    # Configuração das colunas
-    editor_column_config = {
-        "Oficina": st.column_config.SelectboxColumn(
-            "Oficina", options=oficinas_disponiveis_editor, required=True, width="medium"
-        ),
-        "Account": st.column_config.SelectboxColumn(
-            "Account", options=accounts_disponiveis_editor, width="medium"
-        ),
-        "Descrição": st.column_config.TextColumn(
-            "Descrição", default="", max_chars=200, width="medium"
-        ),
-    }
-    # Mapear meses abreviados para índice (Jan=0, ..., Dez=11)
-    _MESES_IDX_MAP = {m: i for i, m in enumerate(MESES_EDITOR)}
+        # Configuração das colunas
+        editor_column_config = {
+            "Oficina": st.column_config.SelectboxColumn(
+                "Oficina", options=oficinas_disponiveis_editor, required=True, width="medium"
+            ),
+            "Account": st.column_config.SelectboxColumn(
+                "Account", options=accounts_disponiveis_editor, width="medium"
+            ),
+            "Descrição": st.column_config.TextColumn(
+                "Descrição", default="", max_chars=200, width="medium"
+            ),
+        }
+        # Mapear meses abreviados para índice (Jan=0, ..., Dez=11)
+        _MESES_IDX_MAP = {m: i for i, m in enumerate(MESES_EDITOR)}
 
-    for mes in MESES_EDITOR:
-        idx_mes = _MESES_IDX_MAP[mes]
-        if idx_mes <= indice_ultimo_mes:
-            # Mês já realizado — bloquear edição
-            editor_column_config[mes] = st.column_config.NumberColumn(
-                f"🔒 {mes}", default=0.0, format="KR$ %.2f",
-                width="small", disabled=True,
-                help=f"{MESES_COMPLETOS[mes]} já realizado — não editável"
-            )
-        else:
-            editor_column_config[mes] = st.column_config.NumberColumn(
-                mes, default=0.0, format="KR$ %.2f", width="small"
-            )
+        for mes in MESES_EDITOR:
+            idx_mes = _MESES_IDX_MAP[mes]
+            if idx_mes <= indice_ultimo_mes:
+                # Mês já realizado — bloquear edição
+                editor_column_config[mes] = st.column_config.NumberColumn(
+                    f"🔒 {mes}", default=0.0, format="KR$ %.2f",
+                    width="small", disabled=True,
+                    help=f"{MESES_COMPLETOS[mes]} já realizado — não editável"
+                )
+            else:
+                editor_column_config[mes] = st.column_config.NumberColumn(
+                    mes, default=0.0, format="KR$ %.2f", width="small"
+                )
 
-    # Editor
-    edited_df = st.data_editor(
-        df_editor_template,
-        column_config=editor_column_config,
-        num_rows="dynamic",
-        hide_index=True,
-        width="stretch",
-        key="custos_editor_tc"
-    )
+        # Editor
+        edited_df = st.data_editor(
+            df_editor_template,
+            column_config=editor_column_config,
+            num_rows="dynamic",
+            hide_index=True,
+            width="stretch",
+            key="custos_editor_tc"
+        )
 
-    # Preview dos custos que serão criados
-    if edited_df is not None and not edited_df.empty:
-        linhas_preview = []
-        for _, row in edited_df.iterrows():
-            if pd.isna(row.get('Oficina')):
-                continue
-            for mes in MESES_EDITOR:
-                valor = row.get(mes, 0)
-                if pd.notna(valor) and float(valor) != 0:
+        # Preview dos custos que serão criados
+        if edited_df is not None and not edited_df.empty:
+            linhas_preview = []
+            for _, row in edited_df.iterrows():
+                if pd.isna(row.get('Oficina')):
+                    continue
+                for mes in MESES_EDITOR:
+                    valor = row.get(mes, 0)
+                    if pd.notna(valor) and float(valor) != 0:
+                        info_acc = {}
+                        acc = row.get('Account')
+                        if pd.notna(acc) and str(acc).strip():
+                            df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
+                            if df_para_buscar is not None:
+                                info_acc = buscar_info_por_account(str(acc), df_para_buscar)
+                        linhas_preview.append({
+                            'Oficina': row['Oficina'],
+                            'Período': MESES_COMPLETOS[mes],
+                            'Custo FP (KR$)': float(valor),
+                            'Account': acc if pd.notna(acc) else '',
+                            'Type 06': info_acc.get('Type 06', ''),
+                            'Type 05': info_acc.get('Type 05', ''),
+                            'Custo': info_acc.get('Custo', ''),
+                        })
+            if linhas_preview:
+                st.markdown(f"**📊 Preview: {len(linhas_preview)} linha(s) serão criadas no forecast**")
+                df_preview = pd.DataFrame(linhas_preview)
+                # Pivotar: meses em colunas para facilitar visualização
+                id_cols = [c for c in ['Oficina', 'Account', 'Type 05', 'Type 06', 'Custo'] if c in df_preview.columns]
+                df_pivot = df_preview.pivot_table(
+                    index=id_cols, columns='Período',
+                    values='Custo FP (KR$)', aggfunc='sum'
+                ).reset_index()
+                # Ordenar colunas de meses
+                meses_ordem = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                cols_meses = [m for m in meses_ordem if m in df_pivot.columns]
+                df_pivot = df_pivot[id_cols + cols_meses]
+                df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
+                # Formatar valores
+                fmt_cfg = {m: st.column_config.NumberColumn(m, format='KR$ %.2f') for m in cols_meses + ['Total']}
+                st.dataframe(df_pivot, hide_index=True, width="stretch", column_config=fmt_cfg)
+
+        # Botão Salvar
+        if st.button("💾 Salvar Custos", type="primary", key="btn_salvar_custos_tc"):
+            if edited_df is None or edited_df.empty:
+                st.error("❌ Nenhum custo preenchido na tabela.")
+            else:
+                linhas_novas = []
+                erros = []
+                for idx_row, row in edited_df.iterrows():
+                    if pd.isna(row.get('Oficina')):
+                        continue
+                
                     info_acc = {}
                     acc = row.get('Account')
                     if pd.notna(acc) and str(acc).strip():
                         df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
                         if df_para_buscar is not None:
                             info_acc = buscar_info_por_account(str(acc), df_para_buscar)
-                    linhas_preview.append({
-                        'Oficina': row['Oficina'],
-                        'Período': MESES_COMPLETOS[mes],
-                        'Custo FP (KR$)': float(valor),
-                        'Account': acc if pd.notna(acc) else '',
-                        'Type 06': info_acc.get('Type 06', ''),
-                        'Type 05': info_acc.get('Type 05', ''),
-                        'Custo': info_acc.get('Custo', ''),
-                    })
-        if linhas_preview:
-            st.markdown(f"**📊 Preview: {len(linhas_preview)} linha(s) serão criadas no forecast**")
-            df_preview = pd.DataFrame(linhas_preview)
-            # Pivotar: meses em colunas para facilitar visualização
-            id_cols = [c for c in ['Oficina', 'Account', 'Type 05', 'Type 06', 'Custo'] if c in df_preview.columns]
-            df_pivot = df_preview.pivot_table(
-                index=id_cols, columns='Período',
-                values='Custo FP (KR$)', aggfunc='sum'
-            ).reset_index()
-            # Ordenar colunas de meses
-            meses_ordem = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-            cols_meses = [m for m in meses_ordem if m in df_pivot.columns]
-            df_pivot = df_pivot[id_cols + cols_meses]
-            df_pivot['Total'] = df_pivot[cols_meses].sum(axis=1)
-            # Formatar valores
-            fmt_cfg = {m: st.column_config.NumberColumn(m, format='KR$ %.2f') for m in cols_meses + ['Total']}
-            st.dataframe(df_pivot, hide_index=True, width="stretch", column_config=fmt_cfg)
 
-    # Botão Salvar
-    if st.button("💾 Salvar Custos", type="primary", key="btn_salvar_custos_tc"):
-        if edited_df is None or edited_df.empty:
-            st.error("❌ Nenhum custo preenchido na tabela.")
-        else:
-            linhas_novas = []
-            erros = []
-            for idx_row, row in edited_df.iterrows():
-                if pd.isna(row.get('Oficina')):
-                    continue
-                
-                info_acc = {}
-                acc = row.get('Account')
-                if pd.notna(acc) and str(acc).strip():
-                    df_para_buscar = df_total if df_total is not None and not df_total.empty else df_filtrado
-                    if df_para_buscar is not None:
-                        info_acc = buscar_info_por_account(str(acc), df_para_buscar)
-
-                tem_valor = False
-                for mes in MESES_EDITOR:
-                    valor = row.get(mes, 0)
-                    if pd.notna(valor) and float(valor) != 0:
-                        tem_valor = True
-                        periodo_completo = MESES_COMPLETOS[mes]
+                    tem_valor = False
+                    for mes in MESES_EDITOR:
+                        valor = row.get(mes, 0)
+                        if pd.notna(valor) and float(valor) != 0:
+                            tem_valor = True
+                            periodo_completo = MESES_COMPLETOS[mes]
                         
-                        ano_para_custo = None
-                        if ano_selecionado and ano_selecionado != "Todos":
-                            try:
-                                ano_para_custo = int(ano_selecionado)
-                            except (ValueError, TypeError):
-                                pass
-                        if ano_para_custo is None:
-                            from datetime import datetime as dt_now
-                            ano_para_custo = dt_now.now().year
+                            ano_para_custo = None
+                            if ano_selecionado and ano_selecionado != "Todos":
+                                try:
+                                    ano_para_custo = int(ano_selecionado)
+                                except (ValueError, TypeError):
+                                    pass
+                            if ano_para_custo is None:
+                                from datetime import datetime as dt_now
+                                ano_para_custo = dt_now.now().year
 
-                        novo_custo = {
-                            'Oficina': row['Oficina'],
-                            'Período': periodo_completo,
-                            'Custo FP': float(valor) * 1000,  # KR$ → R$
-                            'Custo': info_acc.get('Custo', ''),
-                            'Descricao': row.get('Descrição', 'Sem descrição') if pd.notna(row.get('Descrição')) else 'Sem descrição',
-                            'Ano': ano_para_custo,
-                            'Tipo': 'BE Manual',
-                        }
-                        if pd.notna(acc) and str(acc).strip():
-                            novo_custo['Account'] = str(acc)
-                        if info_acc.get('Type 06'):
-                            novo_custo['Type 06'] = info_acc['Type 06']
-                        if info_acc.get('Type 05'):
-                            novo_custo['Type 05'] = info_acc['Type 05']
-                        if info_acc.get('USI'):
-                            novo_custo['USI'] = info_acc['USI']
+                            novo_custo = {
+                                'Oficina': row['Oficina'],
+                                'Período': periodo_completo,
+                                'Custo FP': float(valor) * 1000,  # KR$ → R$
+                                'Custo': info_acc.get('Custo', ''),
+                                'Descricao': row.get('Descrição', 'Sem descrição') if pd.notna(row.get('Descrição')) else 'Sem descrição',
+                                'Ano': ano_para_custo,
+                                'Tipo': 'BE Manual',
+                            }
+                            if pd.notna(acc) and str(acc).strip():
+                                novo_custo['Account'] = str(acc)
+                            if info_acc.get('Type 06'):
+                                novo_custo['Type 06'] = info_acc['Type 06']
+                            if info_acc.get('Type 05'):
+                                novo_custo['Type 05'] = info_acc['Type 05']
+                            if info_acc.get('USI'):
+                                novo_custo['USI'] = info_acc['USI']
 
-                        linhas_novas.append(novo_custo)
+                            linhas_novas.append(novo_custo)
                 
-                if not tem_valor and pd.notna(row.get('Oficina')):
-                    erros.append(f"Linha {idx_row+1}: nenhum mês com valor preenchido")
+                    if not tem_valor and pd.notna(row.get('Oficina')):
+                        erros.append(f"Linha {idx_row+1}: nenhum mês com valor preenchido")
 
-            if erros:
-                for e in erros:
-                    st.warning(f"⚠️ {e}")
+                if erros:
+                    for e in erros:
+                        st.warning(f"⚠️ {e}")
             
-            if linhas_novas:
-                df_custos_especificos = pd.concat(
-                    [df_custos_especificos, pd.DataFrame(linhas_novas)], 
-                    ignore_index=True
-                )
-                if salvar_custos_especificos(df_custos_especificos):
-                    st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico salva(s) com sucesso! Recarregue a página para ver as alterações.")
-                    st.cache_data.clear()
-            else:
-                st.error("❌ Nenhuma linha válida para salvar.")
+                if linhas_novas:
+                    df_custos_especificos = pd.concat(
+                        [df_custos_especificos, pd.DataFrame(linhas_novas)], 
+                        ignore_index=True
+                    )
+                    if salvar_custos_especificos(df_custos_especificos):
+                        st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico salva(s) com sucesso! Recarregue a página para ver as alterações.")
+                        st.cache_data.clear()
+                else:
+                    st.error("❌ Nenhuma linha válida para salvar.")
 
-    # ── Base de dados completa (expander) ──
-    with st.expander("📂 Base de Dados Completa — Custos Específicos", expanded=False):
-        _df_full = carregar_custos_especificos()
-        if _df_full is not None and not _df_full.empty:
-            # Garantir colunas
-            _colunas_exibir = [
-                'Oficina', 'Ano', 'Período', 'Account', 'Custo',
-                'Type 05', 'Type 06', 'USI',
-                'Custo FP', 'Centocst', 'Fornec.', 'Fornecedor',
-                'Descricao', 'Tipo'
-            ]
-            _cols_presentes = [c for c in _colunas_exibir if c in _df_full.columns]
-            _extras = [c for c in _df_full.columns if c not in _cols_presentes]
-            _df_show = _df_full[_cols_presentes + _extras].copy()
-            st.dataframe(
-                _df_show,
-                width="stretch",
-                hide_index=True,
-                height=400,
-            )
-            st.caption(f"Total de registros: {len(_df_show)}")
-        else:
-            st.info("Nenhum custo específico cadastrado.")
+        # ── Base de dados completa (expander) ──
+        with st.expander("📂 Base de Dados Completa — Custos Específicos", expanded=False):
+            _df_full = carregar_custos_especificos()
+            if _df_full is not None and not _df_full.empty:
+                # Garantir colunas
+                _colunas_exibir = [
+                    'Oficina', 'Ano', 'Período', 'Account', 'Custo',
+                    'Type 05', 'Type 06', 'USI',
+                    'Custo FP', 'Centocst', 'Fornec.', 'Fornecedor',
+                    'Descricao', 'Tipo'
+                ]
+                _cols_presentes = [c for c in _colunas_exibir if c in _df_full.columns]
+                _extras = [c for c in _df_full.columns if c not in _cols_presentes]
+                _df_show = _df_full[_cols_presentes + _extras].copy()
+                st.dataframe(
+                    _df_show,
+                    width="stretch",
+                    hide_index=True,
+                    height=400,
+                )
+                st.caption(f"Total de registros: {len(_df_show)}")
+            else:
+                st.info("Nenhum custo específico cadastrado.")
+
+    _render_tab_adicionar()
 
 st.markdown("---")
 

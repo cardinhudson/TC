@@ -178,13 +178,25 @@ def render_config_page() -> None:
     )
 
     with tab_regras:
-        _render_regras(rules_data, rules)
+        @st.fragment
+        def _render_tab_regras():
+            _render_regras(rules_data, rules)
+
+        _render_tab_regras()
 
     with tab_notif:
-        _render_notificacoes(rules_data, config)
+        @st.fragment
+        def _render_tab_notif():
+            _render_notificacoes(rules_data, config)
+
+        _render_tab_notif()
 
     with tab_hist:
-        _render_historico(config)
+        @st.fragment
+        def _render_tab_hist():
+            _render_historico(config)
+
+        _render_tab_hist()
 
 
 # =========================================================================

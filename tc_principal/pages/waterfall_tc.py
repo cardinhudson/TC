@@ -822,19 +822,19 @@ def _build_office_waterfall_figure(
             y_pos = float(value)
             cor_texto = cor_azul
             texto = f'{value:,.1f}{sufixo}'
-            yshift = 12
+            yshift = 15
         elif measure == 'total':
             acumulado_labels = float(value)
             y_pos = float(value)
             cor_texto = cor_azul
             texto = f'{value:,.1f}{sufixo}'
-            yshift = 12 if value >= 0 else -12
+            yshift = 15 if value >= 0 else -15
         else:
             acumulado_labels += float(value)
-            y_pos = acumulado_labels if value >= 0 else acumulado_labels - float(value)
+            y_pos = acumulado_labels  # topo (positivo) ou fundo (negativo)
             cor_texto = cor_amarela if label == str(label_flex) else (cor_vermelha if value >= 0 else cor_verde)
             texto = f'{value:+,.1f}{sufixo}'
-            yshift = 12 if value >= 0 else -12
+            yshift = 15 if value >= 0 else -15
 
         annotations.append(dict(
             x=label,
