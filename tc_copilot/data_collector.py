@@ -7,6 +7,7 @@ Agrega dados por mês, calcula variações e formata para envio à LLM.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -27,11 +28,11 @@ _DATA_ROOT = str(get_data_root())
 # ═══════════════════════════════════════════════════════════════
 #  MOEDA ATIVA (módulo-level, configurável)
 # ═══════════════════════════════════════════════════════════════
-_MOEDA_ATIVA: str = "EUR"
-_SIMBOLO_ATIVO: str = "€"
+_MOEDA_ATIVA: str = "BRL"
+_SIMBOLO_ATIVO: str = "R$"
 
 
-def configurar_moeda_formatacao(moeda: str = "EUR", simbolo: str = "€"):
+def configurar_moeda_formatacao(moeda: str = "BRL", simbolo: str = "R$"):
     """Define a moeda usada por _fmt_k, _var_k e _fmt_cpu.
 
     Chamar antes de qualquer pipeline de formatação.
@@ -170,6 +171,10 @@ def _pasta_historico() -> str:
     return os.path.join(_DATA_ROOT, "TC_Principal", "historico_consolidado")
 
 
+def _pasta_forecast() -> str:
+    return os.path.join(_DATA_ROOT, "TC_Principal", "Forecast")
+
+
 def _pasta_tc_ext(ano: int) -> str:
     return os.path.join(_DATA_ROOT, "TC_Ext", str(ano))
 
@@ -254,6 +259,151 @@ def carregar_tc_ext_vol(ano: int) -> pd.DataFrame | None:
     return _ler_parquet(os.path.join(_pasta_tc_ext(ano), "df_vol.parquet"))
 
 
+# ── Forecast / Best Estimate ──
+
+def _carregar_forecast_completo() -> pd.DataFrame | None:
+    """Carrega o forecast_completo.parquet (Real + BE combinados)."""
+    return _ler_parquet(os.path.join(_pasta_forecast(), "forecast_completo.parquet"))
+
+
+def _tem_dados_real_mes(df_real: pd.DataFrame | None, mes_nome: str) -> bool:
+    """Verifica se há dados reais para o mês especificado."""
+    if df_real is None or df_real.empty:
+        return False
+    if "Período" not in df_real.columns:
+        return False
+    filtrado = df_real[df_real["Período"] == mes_nome]
+    return not filtrado.empty
+
+
+def _extrair_be_do_forecast(
+    df_forecast: pd.DataFrame | None, mes_nome: str,
+) -> pd.DataFrame | None:
+    """Extrai dados BE de um mês específico do forecast_completo."""
+    if df_forecast is None or df_forecast.empty:
+        return None
+    if "Tipo" not in df_forecast.columns or "Período" not in df_forecast.columns:
+        return None
+    mask = (df_forecast["Tipo"].isin(["BE", "BE Manual", "Forecast"])) & (
+        df_forecast["Período"] == mes_nome
+    )
+    df_be = df_forecast[mask].copy()
+    return df_be if not df_be.empty else None
+
+
+def _carregar_config_forecast() -> dict | None:
+    """Carrega config_forecast.json do TC_Principal/Forecast."""
+    caminho = os.path.join(_pasta_forecast(), "config_forecast.json")
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning("Erro ao ler config_forecast.json: %s", e)
+    return None
+
+
+# Mapa reverso: nome do mês → número (1-based)
+_NOME_PARA_NUMERO: dict[str, int] = {v: k for k, v in MESES_NUMERO.items()}
+
+
+def _mes_eh_best_estimate(
+    df_forecast: pd.DataFrame | None,
+    mes_nome: str,
+) -> bool:
+    """Verifica se um mês deve usar Best Estimate.
+
+    Usa config_forecast.json para determinar quais meses são BE:
+    - ``ultimo_periodo_dados`` indica o último mês com dados reais
+    - ``num_meses_prever`` indica quantos meses de forecast existem
+    - Meses após o último período real (até num_meses_prever) são BE
+
+    Retorna True se o mês está na faixa de previsão E o forecast
+    contém dados BE/BE Manual/Forecast para ele.
+    """
+    cfg = _carregar_config_forecast()
+    if cfg is None:
+        return False
+
+    ultimo_periodo = cfg.get("ultimo_periodo_dados", "")
+    num_meses = cfg.get("num_meses_prever", 0)
+    if not ultimo_periodo or not num_meses:
+        return False
+
+    # Extrair só o nome do mês (ex: "Fevereiro 2026" → "Fevereiro", ou "Fevereiro" direto)
+    ultimo_mes_nome = ultimo_periodo.strip().split()[0]
+    ultimo_num = _NOME_PARA_NUMERO.get(ultimo_mes_nome, 0)
+    if ultimo_num == 0:
+        return False
+
+    mes_num = _NOME_PARA_NUMERO.get(mes_nome, 0)
+    if mes_num == 0:
+        return False
+
+    # Meses BE: os ``num_meses`` meses após ``ultimo_num``
+    meses_be = set()
+    for i in range(1, num_meses + 1):
+        m = (ultimo_num + i - 1) % 12 + 1
+        meses_be.add(m)
+
+    if mes_num not in meses_be:
+        return False
+
+    # Confirmar que o forecast realmente tem dados BE para esse mês
+    if df_forecast is None or df_forecast.empty:
+        return False
+    if "Tipo" not in df_forecast.columns or "Período" not in df_forecast.columns:
+        return False
+    df_mes_fc = df_forecast[df_forecast["Período"] == mes_nome]
+    if df_mes_fc.empty:
+        return False
+    return df_mes_fc["Tipo"].isin(["BE", "BE Manual", "Forecast"]).any()
+
+
+def _carregar_forecast_veiculos() -> pd.DataFrame | None:
+    """Carrega forecast_veiculos_custo_fp.parquet (custo por veículo BE)."""
+    return _ler_parquet(os.path.join(_pasta_forecast(), "forecast_veiculos_custo_fp.parquet"))
+
+
+def _construir_cpu_be(
+    df_forecast_veiculos: pd.DataFrame | None,
+    vol_real_mes: pd.DataFrame | None,
+    mes_nome: str,
+    ano: int,
+) -> pd.DataFrame | None:
+    """Constrói DataFrame de CPU por veículo a partir de forecast_veiculos + volume."""
+    if df_forecast_veiculos is None or df_forecast_veiculos.empty:
+        return None
+    if "Tipo" not in df_forecast_veiculos.columns:
+        return None
+    be_mask = (
+        df_forecast_veiculos["Tipo"].isin(["BE", "BE Manual", "Forecast"])
+    ) & (df_forecast_veiculos["Período"] == mes_nome)
+    fv_be = df_forecast_veiculos[be_mask]
+    if fv_be.empty or "Veículo" not in fv_be.columns or "Custo FP Veiculo" not in fv_be.columns:
+        return None
+    custo_por_veiculo = (
+        fv_be.groupby("Veículo")["Custo FP Veiculo"]
+        .sum()
+        .reset_index()
+    )
+    if vol_real_mes is not None and "Veículo" in vol_real_mes.columns and "Volume" in vol_real_mes.columns:
+        merged = custo_por_veiculo.merge(
+            vol_real_mes[["Veículo", "Volume"]].drop_duplicates(),
+            on="Veículo",
+            how="left",
+        )
+        merged["Volume"] = pd.to_numeric(merged["Volume"], errors="coerce").fillna(0)
+        merged["CPU"] = merged["Custo FP Veiculo"] / merged["Volume"].replace(0, float("nan"))
+    else:
+        merged = custo_por_veiculo
+        merged["CPU"] = float("nan")
+        merged["Volume"] = 0
+    merged["Período"] = mes_nome
+    merged["Ano"] = ano
+    return merged
+
+
 # ═══════════════════════════════════════════════════════════════
 #  COLETAR DADOS DE UM MÊS
 # ═══════════════════════════════════════════════════════════════
@@ -262,11 +412,14 @@ def coletar_dados_mes(ano: int, mes_numero: int) -> dict[str, Any]:
     """
     Coleta todos os dados necessários para gerar o relatório de um mês.
 
+    Se dados reais não existem para o mês, tenta usar Best Estimate
+    do forecast_completo.parquet como fallback.
+
     Returns:
         Dicionário com chaves: volume_real, volume_bud, volume_actual,
         custo_real, custo_bud, cpu_real, cpu_bud, custo_fp_real, custo_fp_bud,
         tc_ext_real, tc_ext_bud, historico_vol, historico_custo,
-        mes_nome, mes_numero, ano
+        mes_nome, mes_numero, ano, fonte_dados
     """
     mes_nome = _nome_mes(mes_numero)
     mes_ant_num, mes_ant_nome = _mes_anterior(mes_numero)
@@ -282,7 +435,36 @@ def coletar_dados_mes(ano: int, mes_numero: int) -> dict[str, Any]:
     custo_fp_real_full = carregar_custo_fp_real(ano)
     custo_fp_bud_full = carregar_custo_fp_bud(ano)
 
-    # Mês anterior: se Janeiro, carregar Dezembro do ano anterior
+    # ── Detectar se o mês é Best Estimate (via config_forecast.json) ──
+    df_forecast = _carregar_forecast_completo()
+    df_forecast_veiculos = None  # lazy load se necessário
+    eh_be = _mes_eh_best_estimate(df_forecast, mes_nome)
+
+    if eh_be:
+        fonte_dados = "Best Estimate"
+        be_data = _extrair_be_do_forecast(df_forecast, mes_nome)
+        custo_real_mes = be_data
+        custo_fp_real_mes = be_data
+        # Volume: manter do parquet Real (volumes planejados, 10 por mês)
+        vol_real_mes = _filtrar_mes(vol_real_full, mes_nome)
+        # CPU: construir a partir de forecast_veiculos + volume
+        df_forecast_veiculos = _carregar_forecast_veiculos()
+        cpu_real_mes = _construir_cpu_be(
+            df_forecast_veiculos, vol_real_mes, mes_nome, ano
+        )
+        logger.info(
+            "Usando Best Estimate para %s/%d (detectado via forecast)", mes_nome, ano
+        )
+    else:
+        fonte_dados = "Real"
+        custo_real_mes = _filtrar_mes(custo_real_full, mes_nome)
+        vol_real_mes = _filtrar_mes(vol_real_full, mes_nome)
+        cpu_real_mes = _filtrar_mes(cpu_real_full, mes_nome)
+        custo_fp_real_mes = _filtrar_mes(custo_fp_real_full, mes_nome)
+
+    # ── Mês anterior ──
+    eh_be_ant = _mes_eh_best_estimate(df_forecast, mes_ant_nome)
+
     if mes_numero == 1:
         vol_real_ant_full = carregar_volume_real(ano - 1)
         custo_real_ant_full = carregar_principal_real(ano - 1)
@@ -291,6 +473,19 @@ def coletar_dados_mes(ano: int, mes_numero: int) -> dict[str, Any]:
         vol_real_ant_full = vol_real_full
         custo_real_ant_full = custo_real_full
         cpu_real_ant_full = cpu_real_full
+
+    if eh_be_ant:
+        be_ant = _extrair_be_do_forecast(df_forecast, mes_ant_nome)
+        custo_real_ant_mes = be_ant
+        vol_real_ant_mes = _filtrar_mes(vol_real_ant_full, mes_ant_nome)
+        fv_ant = df_forecast_veiculos if df_forecast_veiculos is not None else _carregar_forecast_veiculos()
+        cpu_real_ant_mes = _construir_cpu_be(
+            fv_ant, vol_real_ant_mes, mes_ant_nome, ano,
+        )
+    else:
+        vol_real_ant_mes = _filtrar_mes(vol_real_ant_full, mes_ant_nome)
+        custo_real_ant_mes = _filtrar_mes(custo_real_ant_full, mes_ant_nome)
+        cpu_real_ant_mes = _filtrar_mes(cpu_real_ant_full, mes_ant_nome)
 
     # Histórico (ano anterior)
     hist_vol = carregar_historico_volume()
@@ -303,20 +498,20 @@ def coletar_dados_mes(ano: int, mes_numero: int) -> dict[str, Any]:
         "_vol_actual_full": vol_actual_full,
         "_custo_real_full": custo_real_full,
         "_custo_bud_full": custo_bud_full,
-        # Dados filtrados do mês
-        "volume_real": _filtrar_mes(vol_real_full, mes_nome),
+        # Dados filtrados do mês (Real ou BE)
+        "volume_real": vol_real_mes,
         "volume_bud": _filtrar_mes(vol_bud_full, mes_nome),
         "volume_actual": _filtrar_mes(vol_actual_full, mes_nome),
-        "custo_real": _filtrar_mes(custo_real_full, mes_nome),
+        "custo_real": custo_real_mes,
         "custo_bud": _filtrar_mes(custo_bud_full, mes_nome),
-        "cpu_real": _filtrar_mes(cpu_real_full, mes_nome),
+        "cpu_real": cpu_real_mes,
         "cpu_bud": _filtrar_mes(cpu_bud_full, mes_nome),
-        "custo_fp_real": _filtrar_mes(custo_fp_real_full, mes_nome),
+        "custo_fp_real": custo_fp_real_mes,
         "custo_fp_bud": _filtrar_mes(custo_fp_bud_full, mes_nome),
-        # Mês anterior (usa ano-1 se Janeiro)
-        "volume_real_ant": _filtrar_mes(vol_real_ant_full, mes_ant_nome),
-        "custo_real_ant": _filtrar_mes(custo_real_ant_full, mes_ant_nome),
-        "cpu_real_ant": _filtrar_mes(cpu_real_ant_full, mes_ant_nome),
+        # Mês anterior (Real ou BE conforme detecção)
+        "volume_real_ant": vol_real_ant_mes,
+        "custo_real_ant": custo_real_ant_mes,
+        "cpu_real_ant": cpu_real_ant_mes,
         # Histórico (ano anterior, mesmo mês)
         "historico_vol": hist_vol,
         "historico_custo": hist_custo,
@@ -326,6 +521,7 @@ def coletar_dados_mes(ano: int, mes_numero: int) -> dict[str, Any]:
         "mes_numero": mes_numero,
         "ano": ano,
         "ano_anterior": ano - 1,
+        "fonte_dados": fonte_dados,
     }
 
 
@@ -1486,6 +1682,17 @@ def formatar_contexto_parquet(
     blocos = [
         f"=== DADOS DE {dados['mes_nome'].upper()}/{ano} ===",
         "",
+    ]
+
+    # Indicar fonte dos dados (Real ou Best Estimate)
+    if dados.get("fonte_dados") == "Best Estimate":
+        blocos.append(
+            "⚠️ NOTA: Os dados deste mês são provenientes do Best Estimate "
+            "(previsão), pois ainda não há dados reais disponíveis para este período."
+        )
+        blocos.append("")
+
+    blocos.extend([
         "--- 📊 VOLUME E VARIAÇÕES POR MODELO ---",
         formatar_dados_volume_completo(dados, variacoes),
         "",
@@ -1494,7 +1701,7 @@ def formatar_contexto_parquet(
         "",
         "--- 📋 CONCLUSÕES E ALERTAS ---",
         formatar_dados_conclusoes(dados, variacoes),
-    ]
+    ])
 
     # Oficinas
     oficinas = descobrir_oficinas(dados)
@@ -1615,11 +1822,22 @@ def formatar_contexto_parquet_periodo(
         flex_total *= taxa_conversao
 
     # --- Montar blocos de saída no mesmo formato ---
+    # Identificar meses com dados BE
+    meses_be = [m for m in meses if dados_por_mes[m].get("fonte_dados") == "Best Estimate"]
+
     blocos = [
         f"=== DADOS DO PERÍODO {nome_primeiro.upper()}–{nome_ultimo.upper()}/{ano} ===",
         f"(Consolidado de {len(meses)} meses: {', '.join(_nome_mes(m) for m in meses)})",
         "",
     ]
+
+    if meses_be:
+        nomes_be = ", ".join(_nome_mes(m) for m in meses_be)
+        blocos.append(
+            f"⚠️ NOTA: Os meses {nomes_be} utilizam dados de Best Estimate "
+            "(previsão), pois ainda não há dados reais disponíveis."
+        )
+        blocos.append("")
 
     # Volume
     blocos.append("--- 📊 VOLUME DO PERÍODO ---")

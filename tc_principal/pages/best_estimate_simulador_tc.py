@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os as _os
 from tc_core.utils.portabilidade import get_base_path, get_data_root
 
@@ -1130,16 +1130,18 @@ else:
 st.markdown("## 📈 Best Estimate - Previsão de Custo Total")
 
 # ====================================================================
-# 🔮 CONFIGURAÇÃO DO FORECAST - PRIMEIRO (antes dos sliders)
+# 🔮 CONFIGURAÇÃO DO BEST ESTIMATE - PRIMEIRO (antes dos sliders)
 # ====================================================================
-st.markdown("### 🔮 Configuração do Forecast")
+st.markdown("### 🔮 Configuração do Best Estimate")
 
 # Lista de meses do ano (necessária para a configuração)
 meses_ano = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-# Verificar se temos dados com múltiplos anos (usar df_total para ver TODOS os anos disponíveis)
-tem_anos = 'Ano' in df_total.columns and df_total['Ano'].nunique() > 1
+# Verificar se temos coluna Ano (mesmo com 1 único ano, incluir ano nos períodos)
+# CORREÇÃO: df_total pode vir filtrado para 1 ano só (sidebar), mas ainda precisamos
+# exibir "Janeiro 2025" em vez de "Janeiro". Basta existir a coluna Ano com dados.
+tem_anos = 'Ano' in df_total.columns and df_total['Ano'].nunique() >= 1
 
 # Determinar o ano dos dados (usar df_total para obter TODOS os anos, não apenas os filtrados)
 if tem_anos and 'Ano' in df_total.columns:
@@ -1188,8 +1190,8 @@ if os.path.exists(caminho_historico):
             # Verificar se os períodos já têm ano ou não
             periodos_com_ano = any(' ' in str(p) and str(p).split(' ', 1)[1].isdigit() for p in periodos_unicos)
             
-            # Verificar se há múltiplos anos no histórico
-            tem_anos_historico = 'Ano' in df_historico_periodos.columns and df_historico_periodos['Ano'].nunique() > 1
+            # Verificar se há coluna Ano no histórico (mesmo com 1 único ano, incluir ano nos períodos)
+            tem_anos_historico = 'Ano' in df_historico_periodos.columns and df_historico_periodos['Ano'].nunique() >= 1
             
             if tem_anos_historico:
                 anos_historico = sorted(df_historico_periodos['Ano'].dropna().unique())
@@ -1272,6 +1274,9 @@ else:
                     periodo = mes
                 periodos_disponiveis.append(periodo)
 
+# Carregar configuração persistida do JSON para restaurar últimas opções usadas
+_cfg_periodos = _carregar_config_forecast_tc() or {}
+
 # Layout em 2 colunas para os controles principais
 col_config1, col_config2 = st.columns(2)
 
@@ -1281,8 +1286,11 @@ with col_config1:
     mes_atual_sistema = datetime.now().month
     mes_atual_nome = meses_ano[mes_atual_sistema - 1] if mes_atual_sistema <= 12 else meses_ano[11]
     
-    # Determinar período padrão
-    if tem_anos:
+    # Determinar período padrão (usar valor persistido se disponível)
+    _periodo_persistido = _cfg_periodos.get('ultimo_periodo_dados')
+    if _periodo_persistido and _periodo_persistido in periodos_disponiveis:
+        periodo_padrao = _periodo_persistido
+    elif tem_anos:
         periodo_padrao = f"{mes_atual_nome} {ano_maximo}"
         # Se o período padrão não estiver na lista, usar o último disponível
         if periodo_padrao not in periodos_disponiveis and periodos_disponiveis:
@@ -1364,11 +1372,15 @@ with col_config1:
 
     meses_disponiveis_para_prever = max_meses_prever
     
+    # Usar valor persistido do JSON se disponível
+    _num_prever_persistido = _cfg_periodos.get('num_meses_prever')
+    _valor_inicial_prever = min(int(_num_prever_persistido), int(max_meses_prever)) if _num_prever_persistido is not None else min(int(meses_disponiveis_para_prever), 6)
+    
     num_meses_prever = st.number_input(
         "🔮 Quantos meses prever:",
         min_value=1,
         max_value=int(max_meses_prever),
-        value=min(int(meses_disponiveis_para_prever), 6),
+        value=_valor_inicial_prever,
         step=1,
         help=f"Número de meses futuros para prever (máximo: {int(max_meses_prever)} com base no volume disponível no Forecast)"
     )
@@ -1407,11 +1419,15 @@ with col_config2:
     
     meses_historicos_disponiveis = meses_ano[:indice_ultimo_mes + 1]
     
-    # 🔧 CORREÇÃO: Ajustar valor inicial baseado no session_state ou no max disponível
-    # Se houver valor salvo, usar ele, mas limitar ao novo max_meses_media
+    # 🔧 CORREÇÃO: Ajustar valor inicial baseado no session_state, JSON persistido, ou no max disponível
     valor_inicial_media = min(max_meses_media, 6)  # Valor padrão
+    # Prioridade 1: session_state (intra-sessão)
     if 'config_forecast_aplicada_tc' in st.session_state and st.session_state.config_forecast_aplicada_tc.get('num_meses_media') is not None:
         valor_salvo = st.session_state.config_forecast_aplicada_tc['num_meses_media']
+        valor_inicial_media = min(valor_salvo, max_meses_media)
+    # Prioridade 2: JSON persistido (entre sessões)
+    elif _cfg_periodos.get('num_meses_media') is not None:
+        valor_salvo = _cfg_periodos['num_meses_media']
         # Ajustar valor salvo se ele exceder o novo máximo (quando último período mudar)
         valor_inicial_media = min(valor_salvo, max_meses_media)
     
@@ -1456,10 +1472,14 @@ with col_config2:
         # Criar opções com ano para o multiselect
         opcoes_excluir = [f"{mes} {ano_referencia}" for mes in meses_historicos_disponiveis]
 
+        # Restaurar excluir meses do JSON persistido, se disponível
+        _excluir_persistido = _cfg_periodos.get('meses_excluir_media') or []
+        _default_excluir = [f"{m} {ano_referencia}" for m in _excluir_persistido if f"{m} {ano_referencia}" in opcoes_excluir]
+
         selecao_excluir = st.multiselect(
             "🚫 Excluir meses do cálculo da média:",
             options=opcoes_excluir,
-            default=[],
+            default=_default_excluir,
             help="Selecione meses (com ano) que foram fora da curva e devem ser excluídos do cálculo da média"
         )
 
@@ -1743,7 +1763,7 @@ if 'Type 06' in df_filtrado.columns:
             else:
                 inflacao_type06 = None
             
-            st.info(f"ℹ️ Usando: Fixo={sensibilidade_fixo*100:.0f}%, Variável={sensibilidade_variavel*100:.0f}%, Inflação={inflacao_global:.2f}%")
+            st.info(f"ℹ️ Usando: Fixo={sensibilidade_fixo*100:.0f}%, Variável={sensibilidade_variavel*100:.0f}%, Inflação={inflacao_global:.2f}%, Produtividade={produtividade_global:.2f}%")
             
         else:
             # Modo detalhado por Type 06
@@ -2341,7 +2361,7 @@ with tab_visualizar:
                     ordem_colunas_referencia = [
                         'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
                         'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
-                        'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria'
+                        'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria', 'Descricao'
                     ]
                 
                     # Coletar todas as colunas do DataFrame
@@ -2375,7 +2395,7 @@ with tab_visualizar:
                 ordem_colunas_referencia = [
                     'Account', 'Ano', 'Centrocst', 'Custo', 'Fornec.', 'Fornecedor', 
                     'Mes', 'Oficina', 'Período', 'Soma_Percentuais', 'Tipo', 
-                    'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria'
+                    'Custo FP', 'Type 05', 'Type 06', 'USI', 'Despesa Primaria', 'Descricao'
                 ]
             
                 # Usar APENAS as colunas do arquivo de referência (na mesma ordem)
@@ -2389,6 +2409,10 @@ with tab_visualizar:
             
                 # Criar DataFrame para exibição com todas as colunas na ordem correta
                 df_display = df_custos_formatado[colunas_para_exibir].copy()
+                
+                # Renomear Descricao para Texto breve na exibição
+                if 'Descricao' in df_display.columns:
+                    df_display = df_display.rename(columns={'Descricao': 'Texto breve'})
             
                 # Resetar índice e adicionar como coluna para referência
                 df_display = df_display.reset_index(drop=True)
@@ -2454,7 +2478,6 @@ with tab_visualizar:
                                     df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
                                     if salvar_custos_especificos(df_custos_especificos):
                                         st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso!")
-                                        st.cache_data.clear()
                                         st.rerun()
                                 else:
                                     st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
@@ -2611,7 +2634,6 @@ with tab_visualizar:
                                             df_custos_especificos = df_custos_especificos.drop(indices_originais_para_deletar).reset_index(drop=True)
                                             if salvar_custos_especificos(df_custos_especificos):
                                                 st.success(f"✅ {len(indices_originais_para_deletar)} custo(s) excluído(s) com sucesso! Recarregue a página para ver as alterações.")
-                                                st.cache_data.clear()
                                         else:
                                             st.warning("⚠️ Não foi possível encontrar as linhas correspondentes no arquivo original.")
                                     else:
@@ -2708,6 +2730,25 @@ with tab_visualizar:
                             st.rerun()
 
                 st.info(f"📊 Total de {len(df_custos_formatado)} linha(s) de custos específicos.")
+                
+                # Botão para exportar tabela completa com todas as colunas
+                import io
+                df_export_completo = df_custos_especificos.copy()
+                # Renomear Descricao para Texto breve na exportação
+                if 'Descricao' in df_export_completo.columns:
+                    df_export_completo = df_export_completo.rename(columns={'Descricao': 'Texto breve'})
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    df_export_completo.to_excel(writer, index=False, sheet_name='Custos Específicos')
+                buffer.seek(0)
+                st.download_button(
+                    label="📥 Exportar Tabela Completa (todas as colunas)",
+                    data=buffer,
+                    file_name="custos_especificos_completo.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_download_custos_completo_tc"
+                )
             else:
                 st.info("ℹ️ Nenhum custo específico válido encontrado.")
         else:
@@ -2720,6 +2761,9 @@ with tab_adicionar:
     def _render_tab_adicionar():
         st.markdown("#### ➕ Adicionar Novo Custo Específico — Tabela Editável")
         st.info("📝 Preencha a tabela abaixo com os custos **em KR$ (milhares de R$)**. Coloque o valor desejado nas colunas de meses (Jan-Dez). Cada mês com valor ≠ 0 gerará uma linha no forecast. Valores negativos representam créditos. O rateio por veículo será aplicado automaticamente na geração do forecast.")
+
+        # Carregar custos existentes (variável local para evitar UnboundLocalError)
+        df_custos_especificos = carregar_custos_especificos()
 
         # Obter opções dinâmicas
         oficinas_disponiveis_editor = sorted(df_filtrado['Oficina'].dropna().unique().tolist()) if df_filtrado is not None and 'Oficina' in df_filtrado.columns else []
@@ -2896,8 +2940,8 @@ with tab_adicionar:
                         ignore_index=True
                     )
                     if salvar_custos_especificos(df_custos_especificos):
-                        st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico salva(s) com sucesso! Recarregue a página para ver as alterações.")
-                        st.cache_data.clear()
+                        st.success(f"✅ {len(linhas_novas)} linha(s) de custo específico salva(s) com sucesso!")
+                        st.rerun()
                 else:
                     st.error("❌ Nenhuma linha válida para salvar.")
 
@@ -2993,10 +3037,10 @@ except Exception:
 col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
 with col_btn2:
     aplicar_config_forecast = st.button(
-        "✅ Aplicar Configurações do Forecast",
+        "✅ Aplicar Configurações do Best Estimate",
         use_container_width=True,
         type="primary",
-        help="Clique para aplicar todas as configurações (períodos, sensibilidade e inflação) e atualizar o forecast"
+        help="Clique para aplicar todas as configurações (períodos, sensibilidade e inflação) e atualizar o best estimate"
     )
 
 # 🔧 CORREÇÃO: Exibir mensagens de sucesso e log de processamento se forecast foi gerado (após rerun)
@@ -3062,7 +3106,7 @@ if aplicar_config_forecast:
     if config_sensibilidade_temp.get('produtividade_type06') is not None:
         st.session_state.produtividade_aplicada_tc = config_sensibilidade_temp['produtividade_type06']
 
-    # Persistir configurações em JSON
+    # Persistir configurações em JSON (incluindo config de períodos)
     _salvar_config_forecast_tc({
         'modo': st.session_state.get('modo_config_sensibilidade_tc', 'global'),
         'sensibilidade_fixo': st.session_state.get('sensibilidade_fixo_aplicada_tc', 0.0),
@@ -3072,6 +3116,10 @@ if aplicar_config_forecast:
         'sensibilidades_type06': st.session_state.get('sensibilidades_aplicadas_tc'),
         'inflacao_type06': st.session_state.get('inflacao_aplicada_tc'),
         'produtividade_type06': st.session_state.get('produtividade_aplicada_tc'),
+        'ultimo_periodo_dados': config_forecast_temp.get('ultimo_periodo_dados'),
+        'num_meses_prever': config_forecast_temp.get('num_meses_prever'),
+        'num_meses_media': config_forecast_temp.get('num_meses_media'),
+        'meses_excluir_media': config_forecast_temp.get('meses_excluir_media'),
     })
 
     # 🔧 CORREÇÃO: Evitar que configurações detalhadas antigas interfiram no modo Global.
@@ -3369,10 +3417,15 @@ if aplicar_config_forecast:
             colunas_groupby = ['Ano'] + colunas_groupby
         colunas_groupby = [col for col in colunas_groupby if col in df_filtrado_media.columns]
         
-        # 🔧 CORREÇÃO: Sempre usar coluna 'Custo FP' (nunca 'Despesa Primaria')
+        # 🔧 CORREÇÃO: Usar FP sem Dedicada + D&A dedicado (separação D&A para rateio correto)
         if 'Custo FP' not in df_filtrado_media.columns:
             raise ValueError("❌ Coluna 'Custo FP' não encontrada nos dados! A origem dos dados deve ter a coluna 'Custo FP'.")
-        agg_dict = {'Custo FP': 'sum'}  # Sempre usar 'Custo FP' para ter valores totais reais
+        # Garantir colunas de D&A existam
+        if 'FP sem Dedicada' not in df_filtrado_media.columns:
+            df_filtrado_media['FP sem Dedicada'] = df_filtrado_media['Custo FP']
+        if 'D&A dedicado' not in df_filtrado_media.columns:
+            df_filtrado_media['D&A dedicado'] = 0.0
+        agg_dict = {'FP sem Dedicada': 'sum', 'D&A dedicado': 'sum', 'Custo FP': 'sum'}
         df_medias = df_filtrado_media.groupby(colunas_groupby).agg(agg_dict).reset_index()
         
         # 🔧 CORREÇÃO: df_medias já contém apenas o ano de referência (foi filtrado antes do groupby)
@@ -3431,10 +3484,12 @@ if aplicar_config_forecast:
             colunas_groupby_media.insert(2, 'Ano')  # Inserir Ano após Veículo
         colunas_groupby_media = [col for col in colunas_groupby_media if col in df_medias_ano_recente.columns]
         
-        # 🔧 CORREÇÃO: Sempre usar coluna 'Custo FP' (nunca 'Despesa Primaria')
-        if 'Custo FP' not in df_medias_ano_recente.columns:
-            raise ValueError("❌ Coluna 'Custo FP' não encontrada nos dados! A origem dos dados deve ter a coluna 'Custo FP'.")
-        agg_dict_media = {'Custo FP': 'mean'}  # Sempre usar 'Custo FP'
+        # 🔧 CORREÇÃO: Usar FP sem Dedicada + D&A dedicado para separar componentes
+        if 'FP sem Dedicada' not in df_medias_ano_recente.columns:
+            df_medias_ano_recente['FP sem Dedicada'] = df_medias_ano_recente.get('Custo FP', 0)
+        if 'D&A dedicado' not in df_medias_ano_recente.columns:
+            df_medias_ano_recente['D&A dedicado'] = 0.0
+        agg_dict_media = {'FP sem Dedicada': 'mean', 'D&A dedicado': 'mean'}
         df_media_mensal = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
         
         # 🔧 VERIFICAÇÃO FINAL: Garantir que não há duplicatas após o agrupamento
@@ -3615,6 +3670,53 @@ if aplicar_config_forecast:
                 
                 df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Custo'].apply(is_custo_fixo)
                 df_base_filtrado['Tipo_Custo'] = df_base_filtrado['Tipo_Custo'].map({True: 'Fixo', False: 'Variável'})
+            
+            # ════════════════════════════════════════════════════════════
+            # FASE A: Calcular FP sem Dedicada e D&A dedicado no df_base_filtrado
+            # Réplica da Phase 9 do processamento Real:
+            #   D&A dedicado = dea_grupo × (Custo FP / total_fp_grupo)    (pro-rata)
+            #   FP sem Dedicada = Custo FP - D&A dedicado
+            # ════════════════════════════════════════════════════════════
+            if 'FP sem Dedicada' not in df_base_filtrado.columns:
+                try:
+                    _ano_dea = int(ano_selecionado) if str(ano_selecionado).isdigit() else 2026
+                    _df_dea_raw = load_dea_dedicado_real(_ano_dea)
+                    if _df_dea_raw is not None and not _df_dea_raw.empty and 'D&A dedicado' in _df_dea_raw.columns:
+                        # Agregar D&A por (Oficina, Account, Período) — mesma granularidade da Phase 9
+                        _cols_grp_dea = ['Oficina', 'Account', 'Período']
+                        _cols_grp_dea = [c for c in _cols_grp_dea if c in _df_dea_raw.columns]
+                        if len(_cols_grp_dea) >= 2:
+                            _dea_agg = _df_dea_raw.groupby(_cols_grp_dea, as_index=False)['D&A dedicado'].sum()
+                            _dea_agg.rename(columns={'D&A dedicado': '_dea_grupo'}, inplace=True)
+                            # Merge com df_base_filtrado
+                            _cols_merge_base = [c for c in _cols_grp_dea if c in df_base_filtrado.columns]
+                            if len(_cols_merge_base) >= 2:
+                                df_base_filtrado = df_base_filtrado.merge(_dea_agg, on=_cols_merge_base, how='left')
+                                df_base_filtrado['_dea_grupo'] = df_base_filtrado['_dea_grupo'].fillna(0)
+                                # Pro-rata: distribuir D&A pela participação de cada linha no total de Custo FP
+                                _total_fp = df_base_filtrado.groupby(_cols_merge_base)['Custo FP'].transform('sum')
+                                df_base_filtrado['D&A dedicado'] = np.where(
+                                    _total_fp != 0,
+                                    df_base_filtrado['_dea_grupo'] * (df_base_filtrado['Custo FP'] / _total_fp),
+                                    0.0
+                                )
+                                df_base_filtrado['FP sem Dedicada'] = df_base_filtrado['Custo FP'] - df_base_filtrado['D&A dedicado']
+                                df_base_filtrado.drop(columns=['_dea_grupo'], inplace=True, errors='ignore')
+                                adicionar_mensagem("info", f"✅ FP sem Dedicada calculado (réplica Phase 9): {len(df_base_filtrado):,} linhas")
+                            else:
+                                df_base_filtrado['FP sem Dedicada'] = df_base_filtrado['Custo FP']
+                                df_base_filtrado['D&A dedicado'] = 0.0
+                        else:
+                            df_base_filtrado['FP sem Dedicada'] = df_base_filtrado['Custo FP']
+                            df_base_filtrado['D&A dedicado'] = 0.0
+                    else:
+                        df_base_filtrado['FP sem Dedicada'] = df_base_filtrado['Custo FP']
+                        df_base_filtrado['D&A dedicado'] = 0.0
+                        adicionar_mensagem("info", "ℹ️ D&A dedicado não encontrado — FP sem Dedicada = Custo FP")
+                except Exception as e_dea:
+                    df_base_filtrado['FP sem Dedicada'] = df_base_filtrado['Custo FP']
+                    df_base_filtrado['D&A dedicado'] = 0.0
+                    adicionar_mensagem("warning", f"⚠️ Erro ao calcular D&A dedicado: {str(e_dea)}")
             
             # 🔧 CORREÇÃO CRÍTICA: Usar a MESMA lógica do Forecast copy (linha 6195-6217)
             # NÃO usar calcular_medias_forecast aqui - calcular diretamente como no Forecast copy
@@ -4025,24 +4127,37 @@ if aplicar_config_forecast:
                     f"📊 Calculando média como Soma / períodos efetivos: {num_periodos_divisor}",
                 )
 
-                # Calcular soma dos totais por chave
-                df_soma_totais = df_medias_ano_recente.groupby(colunas_groupby_media, as_index=False)['Custo FP'].sum()
-                df_soma_totais.rename(columns={'Custo FP': 'Soma_Total'}, inplace=True)
+                # Calcular soma dos totais por chave (FP sem Dedicada + D&A separados)
+                _cols_soma = {'FP sem Dedicada': 'sum', 'D&A dedicado': 'sum'}
+                if 'FP sem Dedicada' not in df_medias_ano_recente.columns:
+                    df_medias_ano_recente['FP sem Dedicada'] = df_medias_ano_recente.get('Custo FP', 0)
+                if 'D&A dedicado' not in df_medias_ano_recente.columns:
+                    df_medias_ano_recente['D&A dedicado'] = 0.0
+                df_soma_totais = df_medias_ano_recente.groupby(colunas_groupby_media, as_index=False).agg(_cols_soma)
 
                 # Dividir pelo número de períodos efetivamente presentes
-                df_soma_totais['Média_Mensal_Histórica'] = df_soma_totais['Soma_Total'] / float(num_periodos_divisor)
-                df_soma_totais = df_soma_totais.drop(columns=['Soma_Total'], errors='ignore')
+                df_soma_totais['Média_Mensal_Histórica'] = df_soma_totais['FP sem Dedicada'] / float(num_periodos_divisor)
+                df_soma_totais['Média_D&A_Histórica'] = df_soma_totais['D&A dedicado'] / float(num_periodos_divisor)
+                df_soma_totais = df_soma_totais.drop(columns=['FP sem Dedicada', 'D&A dedicado'], errors='ignore')
 
                 df_medias_linha = df_soma_totais
                 adicionar_mensagem("info", f"📊 Média calculada como Soma / {num_periodos_divisor} períodos efetivos")
             else:
                 # Fallback: usar média aritmética normal se não houver períodos selecionados
-                agg_dict_media = {'Custo FP': 'mean'}  # Sempre usar 'Custo FP'
-                df_medias_linha = df_medias_ano_recente.groupby(colunas_groupby_media).agg(agg_dict_media).reset_index()
-                df_medias_linha.rename(columns={'Custo FP': 'Média_Mensal_Histórica'}, inplace=True)
+                if 'FP sem Dedicada' not in df_medias_ano_recente.columns:
+                    df_medias_ano_recente['FP sem Dedicada'] = df_medias_ano_recente.get('Custo FP', 0)
+                if 'D&A dedicado' not in df_medias_ano_recente.columns:
+                    df_medias_ano_recente['D&A dedicado'] = 0.0
+                _agg_fb = {'FP sem Dedicada': 'mean', 'D&A dedicado': 'mean'}
+                df_medias_linha = df_medias_ano_recente.groupby(colunas_groupby_media).agg(_agg_fb).reset_index()
+                df_medias_linha.rename(columns={'FP sem Dedicada': 'Média_Mensal_Histórica', 'D&A dedicado': 'Média_D&A_Histórica'}, inplace=True)
+            
+            # Garantir coluna Média_D&A_Histórica existe
+            if 'Média_D&A_Histórica' not in df_medias_linha.columns:
+                df_medias_linha['Média_D&A_Histórica'] = 0.0
             
             # 🔧 VERIFICAÇÃO FINAL: Garantir que não há duplicatas (MESMA LÓGICA DO FORECAST COPY linha 5046-5054)
-            agg_dict_media_final = {'Média_Mensal_Histórica': 'mean'}
+            agg_dict_media_final = {'Média_Mensal_Histórica': 'mean', 'Média_D&A_Histórica': 'mean'}
             if len(colunas_groupby_media) > 0:
                 duplicatas_final = df_medias_linha.duplicated(subset=colunas_groupby_media, keep=False)
                 if duplicatas_final.any():
@@ -4344,6 +4459,8 @@ if aplicar_config_forecast:
             colunas_para_merge = colunas_merge_medias.copy()
             if 'Média_Mensal_Histórica' in df_medias_linha.columns:
                 colunas_para_merge.append('Média_Mensal_Histórica')
+            if 'Média_D&A_Histórica' in df_medias_linha.columns:
+                colunas_para_merge.append('Média_D&A_Histórica')
             if 'Volume_Medio_Historico' in df_medias_linha.columns:
                 colunas_para_merge.append('Volume_Medio_Historico')
             
@@ -4363,6 +4480,12 @@ if aplicar_config_forecast:
                 df_forecast_completo['Volume_Medio_Historico'] = 0.0
             else:
                 df_forecast_completo['Volume_Medio_Historico'] = df_forecast_completo['Volume_Medio_Historico'].fillna(0.0)
+            
+            # Garantir Média_D&A_Histórica
+            if 'Média_D&A_Histórica' not in df_forecast_completo.columns:
+                df_forecast_completo['Média_D&A_Histórica'] = 0.0
+            else:
+                df_forecast_completo['Média_D&A_Histórica'] = df_forecast_completo['Média_D&A_Histórica'].fillna(0.0)
             
             # 🔧 CORREÇÃO CRÍTICA: Usar valores APLICADOS do session_state (não variáveis temporárias)
             # Converter sensibilidades e inflação para dict se necessário
@@ -4925,12 +5048,12 @@ if aplicar_config_forecast:
                             volume_encontrado_count = 0
                             volume_medio_count = 0
                             for idx in df_forecast_completo.index:
-                                chave = tuple(str(df_forecast_completo.loc[idx, c]) if c in df_forecast_completo.columns else '' for c in _gb_vol_cols)
+                                chave = tuple(str(df_forecast_completo.at[idx, c]) if c in df_forecast_completo.columns else '' for c in _gb_vol_cols)
                                 if chave in volume_dict:
                                     volume_valores.append(volume_dict[chave])
                                     volume_encontrado_count += 1
                                 elif 'Volume_Medio_Historico' in df_forecast_completo.columns:
-                                    volume_valores.append(float(df_forecast_completo.loc[idx, 'Volume_Medio_Historico']))
+                                    volume_valores.append(float(df_forecast_completo.at[idx, 'Volume_Medio_Historico']))
                                     volume_medio_count += 1
                                 else:
                                     volume_valores.append(0.0)
@@ -4982,8 +5105,8 @@ if aplicar_config_forecast:
                         if 'Volume_Medio_Historico' not in df_forecast_completo.columns:
                             df_forecast_completo['Volume_Medio_Historico'] = 0.0
                         
-                        media_historica = float(df_forecast_completo.loc[idx, 'Média_Mensal_Histórica'])
-                        volume_medio_historico = float(df_forecast_completo.loc[idx, 'Volume_Medio_Historico'])
+                        media_historica = float(df_forecast_completo.at[idx, 'Média_Mensal_Histórica'])
+                        volume_medio_historico = float(df_forecast_completo.at[idx, 'Volume_Medio_Historico'])
                         if isinstance(volume_mes_serie, pd.Series):
                             volume_mes = float(volume_mes_serie.loc[idx]) if idx in volume_mes_serie.index else float(volume_medio_historico)
                         else:
@@ -4992,9 +5115,9 @@ if aplicar_config_forecast:
                         # 🔧 CORREÇÃO: Usar 'Custo' (padrão do projeto) em vez de 'Tipo_Custo' (redundante)
                         # Verificar se Custo existe, senão verificar Tipo_Custo (para compatibilidade)
                         if 'Custo' in df_forecast_completo.columns:
-                            tipo_custo = df_forecast_completo.loc[idx, 'Custo']
+                            tipo_custo = df_forecast_completo.at[idx, 'Custo']
                         elif 'Tipo_Custo' in df_forecast_completo.columns:
-                            tipo_custo = df_forecast_completo.loc[idx, 'Tipo_Custo']
+                            tipo_custo = df_forecast_completo.at[idx, 'Tipo_Custo']
                         else:
                             tipo_custo = 'Variável'
                         
@@ -5022,8 +5145,8 @@ if aplicar_config_forecast:
                                 if ano_str.isdigit():
                                     p_ano = int(ano_str)
 
-                            oficina_key = _norm_key_val(df_forecast_completo.loc[idx, 'Oficina']) if 'Oficina' in df_forecast_completo.columns else None
-                            veiculo_key = _norm_key_val(df_forecast_completo.loc[idx, 'Veículo']) if 'Veículo' in df_forecast_completo.columns else None
+                            oficina_key = _norm_key_val(df_forecast_completo.at[idx, 'Oficina']) if 'Oficina' in df_forecast_completo.columns else None
+                            veiculo_key = _norm_key_val(df_forecast_completo.at[idx, 'Veículo']) if 'Veículo' in df_forecast_completo.columns else None
 
                             # Buscar custo Budget com fallback de granularidade
                             bud_total = None
@@ -5042,7 +5165,7 @@ if aplicar_config_forecast:
                                         key_vals.append(_norm_key_val(_norm_custo(tipo_custo)))
                                     else:
                                         # Type 05 / Type 06 / Account
-                                        key_vals.append(_norm_key_val(df_forecast_completo.loc[idx, c]) if c in df_forecast_completo.columns else None)
+                                        key_vals.append(_norm_key_val(df_forecast_completo.at[idx, c]) if c in df_forecast_completo.columns else None)
                                 key_c = tuple(key_vals)
                                 if key_c in d:
                                     bud_total = d.get(key_c)
@@ -5099,7 +5222,7 @@ if aplicar_config_forecast:
                     
                     # 🔧 CORREÇÃO: Obter sensibilidade usando valores APLICADOS
                     if sensibilidades_type06_dict is not None and 'Type 06' in df_forecast_completo.columns:
-                        type06_valor = df_forecast_completo.loc[idx, 'Type 06']
+                        type06_valor = df_forecast_completo.at[idx, 'Type 06']
                         if pd.notna(type06_valor) and type06_valor in sensibilidades_type06_dict:
                             sensibilidade = sensibilidades_type06_dict[type06_valor]
                         else:
@@ -5118,7 +5241,7 @@ if aplicar_config_forecast:
                     
                     # Obter inflação (MESMA LÓGICA DO FORECAST COPY linha 6434-6445)
                     if inflacao_type06_dict is not None and 'Type 06' in df_forecast_completo.columns:
-                        type06_valor = df_forecast_completo.loc[idx, 'Type 06']
+                        type06_valor = df_forecast_completo.at[idx, 'Type 06']
                         if pd.notna(type06_valor) and type06_valor in inflacao_type06_dict:
                             inflacao_percentual = inflacao_type06_dict[type06_valor] / 100.0
                         else:
@@ -5135,7 +5258,7 @@ if aplicar_config_forecast:
                     # Produtividade por Type 06 (se disponível) ou global
                     _prod_t06_dict = st.session_state.get('produtividade_aplicada_tc', None)
                     if _prod_t06_dict and 'Type 06' in df_forecast_completo.columns:
-                        _t06_val = df_forecast_completo.loc[idx, 'Type 06']
+                        _t06_val = df_forecast_completo.at[idx, 'Type 06']
                         if pd.notna(_t06_val) and _t06_val in _prod_t06_dict and _prod_t06_dict[_t06_val] > 0:
                             produtividade_pct = _prod_t06_dict[_t06_val] / 100.0
                         else:
@@ -5364,6 +5487,9 @@ if aplicar_config_forecast:
                     
                     # Obter linhas únicas com valores de forecast (incluindo colunas importantes) (MESMA LÓGICA DO FORECAST COPY linha 6693-6698)
                     colunas_para_linha = colunas_chave_linha + colunas_para_preservar + [periodo]
+                    # Incluir Média_D&A_Histórica para setar D&A dedicado nas linhas forecast
+                    if 'Média_D&A_Histórica' in df_fonte_forecast.columns:
+                        colunas_para_linha.append('Média_D&A_Histórica')
                     colunas_para_linha = [col for col in colunas_para_linha if col in df_fonte_forecast.columns]
                     
                     df_linhas_unicas = df_fonte_forecast[colunas_para_linha].drop_duplicates(
@@ -5394,8 +5520,13 @@ if aplicar_config_forecast:
                                 nova_linha['Ano'] = linha_original.get('Ano', None)
                         
                         # 🔧 CORREÇÃO: Sempre usar coluna 'Custo FP' para o valor de forecast (MESMA LÓGICA DO FORECAST COPY linha 6723-6725)
+                        # O valor do forecast agora é FP sem Dedicada (base sem D&A)
                         valor_forecast = float(nova_linha.get(periodo, 0.0))
-                        nova_linha['Custo FP'] = valor_forecast
+                        # D&A dedicado: usar Média_D&A_Histórica (constante, sem ajuste vol/inflação)
+                        _media_dea_linha = float(nova_linha.get('Média_D&A_Histórica', 0.0))
+                        nova_linha['FP sem Dedicada'] = valor_forecast
+                        nova_linha['D&A dedicado'] = _media_dea_linha
+                        nova_linha['Custo FP'] = valor_forecast + _media_dea_linha
                         
                         # 🔧 CORREÇÃO: Garantir que colunas importantes sejam preenchidas (MESMA LÓGICA DO FORECAST COPY linha 6730-6738)
                         # OTIMIZAÇÃO: As colunas já foram adicionadas via merge anterior
@@ -5413,6 +5544,8 @@ if aplicar_config_forecast:
                         
                         if 'Média_Mensal_Histórica' in nova_linha:
                             del nova_linha['Média_Mensal_Histórica']
+                        if 'Média_D&A_Histórica' in nova_linha:
+                            del nova_linha['Média_D&A_Histórica']
                         if 'Volume_Medio_Historico' in nova_linha:
                             del nova_linha['Volume_Medio_Historico']
                         
@@ -5443,12 +5576,13 @@ if aplicar_config_forecast:
             adicionar_mensagem("info", f"📊 Linhas de forecast criadas: {linhas_forecast_criadas}")
             adicionar_mensagem("info", f"📊 Total de DataFrames em linhas_finais: {len(linhas_finais)}")
             
-            # 💰 ADICIONAR CUSTOS ESPECÍFICOS COM RATEIO POR VEÍCULO NO FORECAST
+            # 💰 ADICIONAR CUSTOS ESPECÍFICOS NO FORECAST (sem pré-rateio por veículo)
+            # O rateio por veículo será feito por ratear_be_por_veiculo() mais adiante,
+            # usando os mesmos percentuais do Real (Tempo Veíc / Total Tempo — fase 12).
             df_custos_especificos_para_forecast = carregar_custos_especificos()
             if not df_custos_especificos_para_forecast.empty:
                 adicionar_mensagem("info", f"💰 Carregando {len(df_custos_especificos_para_forecast):,} linha(s) de custos específicos para incluir no forecast")
                 
-                veiculos_rateio = ['CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516']
                 linhas_custos_especificos = []
                 
                 for idx, custo_row in df_custos_especificos_para_forecast.iterrows():
@@ -5473,7 +5607,6 @@ if aplicar_config_forecast:
                             periodos_aplicaveis.append(periodo_forecast)
                     
                     if periodos_aplicaveis:
-                        oficina_custo = custo_row.get('Oficina', '')
                         valor_total = custo_row.get('Custo FP', 0.0)
                         if pd.isna(valor_total):
                             valor_total = custo_row.get('Despesa Primaria', 0.0)
@@ -5488,45 +5621,34 @@ if aplicar_config_forecast:
                             else:
                                 mes_nome = periodo_str.strip().capitalize()
                             
-                            rateios = buscar_rateios_arquivo(oficina_custo, periodo_aplicavel, ano_selecionado)
-                            if not rateios or all(v == 0.0 for v in rateios.values()):
-                                rateio_igual = 1.0 / len(veiculos_rateio)
-                                rateios = {f"{v}%": rateio_igual for v in veiculos_rateio}
+                            # Criar UMA única linha por custo/período (sem dividir por veículo)
+                            # O ratear_be_por_veiculo() fará a distribuição correta
+                            linha_custo = {}
+                            for col in df_custos_especificos_para_forecast.columns:
+                                if col not in ['Tipo_Aplicacao', 'Mes_Inicial', 'Meses_Especificos']:
+                                    linha_custo[col] = custo_row.get(col, None)
                             
-                            for veiculo in veiculos_rateio:
-                                veiculo_pct = f"{veiculo}%"
-                                rateio = rateios.get(veiculo_pct, 0.0)
-                                if rateio == 0.0:
-                                    continue
-                                
-                                valor_rateado = valor_total * rateio
-                                
-                                linha_custo = {}
-                                for col in df_custos_especificos_para_forecast.columns:
-                                    if col not in ['Tipo_Aplicacao', 'Mes_Inicial', 'Meses_Especificos']:
-                                        linha_custo[col] = custo_row.get(col, None)
-                                
-                                linha_custo['Período'] = mes_nome
-                                linha_custo['Veículo'] = veiculo
-                                linha_custo['Custo FP'] = valor_rateado
-                                linha_custo['Despesa Primaria'] = valor_rateado
-                                linha_custo[veiculo_pct] = rateio
-                                linha_custo['Tipo'] = 'BE Manual'
-                                linha_custo['Texto breve'] = custo_row.get('Descricao', custo_row.get('Descrição', 'Custo Específico'))
-                                
-                                if 'Ano' not in linha_custo or pd.isna(linha_custo.get('Ano')):
-                                    partes = periodo_str.split(' ', 1)
-                                    if len(partes) == 2 and partes[1].strip().isdigit():
-                                        linha_custo['Ano'] = int(partes[1].strip())
-                                
-                                if 'Descricao' not in linha_custo or pd.isna(linha_custo.get('Descricao')):
-                                    linha_custo['Descricao'] = 'Custo Específico'
-                                
-                                linhas_custos_especificos.append(linha_custo)
+                            linha_custo['Período'] = mes_nome
+                            linha_custo['Custo FP'] = valor_total
+                            linha_custo['Despesa Primaria'] = valor_total
+                            linha_custo['FP sem Dedicada'] = valor_total
+                            linha_custo['D&A dedicado'] = 0.0
+                            linha_custo['Tipo'] = 'BE Manual'
+                            linha_custo['Texto breve'] = custo_row.get('Descricao', custo_row.get('Descrição', 'Custo Específico'))
+                            
+                            if 'Ano' not in linha_custo or pd.isna(linha_custo.get('Ano')):
+                                partes = periodo_str.split(' ', 1)
+                                if len(partes) == 2 and partes[1].strip().isdigit():
+                                    linha_custo['Ano'] = int(partes[1].strip())
+                            
+                            if 'Descricao' not in linha_custo or pd.isna(linha_custo.get('Descricao')):
+                                linha_custo['Descricao'] = 'Custo Específico'
+                            
+                            linhas_custos_especificos.append(linha_custo)
                 
                 if linhas_custos_especificos:
                     df_custos_especificos_forecast = pd.DataFrame(linhas_custos_especificos)
-                    adicionar_mensagem("success", f"✅ {len(df_custos_especificos_forecast):,} linha(s) de custos específicos (com rateio por veículo) adicionada(s) ao forecast")
+                    adicionar_mensagem("success", f"✅ {len(df_custos_especificos_forecast):,} linha(s) de custos específicos adicionada(s) ao forecast (rateio por veículo será aplicado via ratear_be_por_veiculo)")
                     linhas_finais.append(df_custos_especificos_forecast)
                 else:
                     adicionar_mensagem("info", f"ℹ️ Nenhum custo específico se aplica aos períodos de forecast selecionados")

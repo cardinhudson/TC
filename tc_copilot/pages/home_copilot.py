@@ -284,26 +284,6 @@ def render():
         "⚙️ Configuração",
     ])
 
-    with tab_chat:
-        @st.fragment
-        def _render_tab_chat():
-            _render_chatbot()
-
-        _render_tab_chat()
-
-    with tab_relatorio:
-        @st.fragment
-        def _render_tab_relatorio():
-            _render_gerar_relatorio()
-
-        _render_tab_relatorio()
-
-    with tab_config:
-        @st.fragment
-        def _render_tab_config():
-            _render_configuracao()
-
-
     # ═══════════════════════════════════════════════════════════════
     #  ABA 1 — CHATBOT (consulta ao vivo nos parquets)
     # ═══════════════════════════════════════════════════════════════
@@ -478,8 +458,8 @@ def render():
                         _periodo_inferido = True
 
                     # Configurar moeda antes de formatar contexto
-                    moeda = st.session_state.get("copilot_moeda", "EUR")
-                    simbolo = st.session_state.get("copilot_simbolo", "€")
+                    moeda = st.session_state.get("copilot_moeda", "BRL")
+                    simbolo = st.session_state.get("copilot_simbolo", "R$")
                     taxas = st.session_state.get(
                         "copilot_taxas",
                         {"BRL": 1.0, "USD": 0.20, "EUR": 1.0 / 6.4855},
@@ -663,7 +643,7 @@ def render():
                 st.warning("Selecione ao menos um mês para gerar.")
                 st.stop()
             # Obter configuração de moeda da sessão
-            _moeda = st.session_state.get("copilot_moeda", "EUR")
+            _moeda = st.session_state.get("copilot_moeda", "BRL")
             _taxas = st.session_state.get("copilot_taxas", {})
 
             _t0_btn = _time.time()
@@ -832,7 +812,7 @@ def render():
                 )
 
                 try:
-                    _moeda_ia = st.session_state.get("copilot_moeda", "EUR")
+                    _moeda_ia = st.session_state.get("copilot_moeda", "BRL")
                     _taxas_ia = st.session_state.get("copilot_taxas", {})
                     pdf_path = gerar_relatorio_mes(
                         ano=ano,
@@ -1359,7 +1339,27 @@ def render():
 
                             st.divider()
 
-        _render_tab()
+    # ── Renderizar conteúdo das tabs (após helpers definidos) ──
+    with tab_chat:
+        @st.fragment
+        def _render_tab_chat():
+            _render_chatbot()
+
+        _render_tab_chat()
+
+    with tab_relatorio:
+        @st.fragment
+        def _render_tab_relatorio():
+            _render_gerar_relatorio()
+
+        _render_tab_relatorio()
+
+    with tab_config:
+        @st.fragment
+        def _render_tab_config():
+            _render_configuracao()
+
+        _render_tab_config()
 
 
 def _renderizar_tabelas_streamlit(
@@ -1840,11 +1840,11 @@ def _render_configuracao():
         from tc_core.finance.currency import obter_simbolo_moeda
         inicializar_banco_taxas()
         taxas_entrada = carregar_taxas_banco()
-    except ImportError:
+    except Exception:
         taxas_entrada = {"USD": 5.0, "EUR": 6.4855}
 
     moedas_opcoes = ["BRL", "USD", "EUR"]
-    moeda_atual = st.session_state.get("copilot_moeda", "EUR")
+    moeda_atual = st.session_state.get("copilot_moeda", "BRL")
     moeda_idx = moedas_opcoes.index(moeda_atual) if moeda_atual in moedas_opcoes else 0
 
     moeda = st.radio(

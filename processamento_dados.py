@@ -259,6 +259,12 @@ def normalizar_tipos_para_parquet(df):
     """
     df = df.copy()
     
+    # Colunas que SEMPRE devem ser string (podem vir como serial numérico do Excel)
+    _COLUNAS_SEMPRE_STRING = ['Dt.lçto.', 'Nºdoc.ref.', 'Doc.compra', 'Nºdoc.ref']
+    for _cs in _COLUNAS_SEMPRE_STRING:
+        if _cs in df.columns:
+            df[_cs] = df[_cs].apply(lambda x: str(x) if pd.notna(x) else None)
+    
     # 🔧 CORREÇÃO CRÍTICA: Lista de colunas numéricas que NUNCA devem ser convertidas para string
     colunas_numericas_protegidas = ['Volume', 'Total', 'Valor', 'CPU', 'QTD', 'Rateio', 
                                      'CC21', 'CC22', 'CC24', 'CC24 5L', 'CC24 7L', 'J516',

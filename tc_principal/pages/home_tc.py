@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from io import BytesIO
 import os
 import json
 import unicodedata
@@ -27,7 +28,8 @@ _DATA_ROOT = str(get_data_root())
 
 from tc_principal.shared import (
     ORDEM_MESES, CORES_VEICULOS, COLUNAS_MONETARIAS,
-    COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button,
+    COLUNAS_BE_DETALHADO, COLUNAS_BE_DETALHADO_VEICULO,
+    reordenar_colunas_be, download_excel_button,
     load_principal, load_principal_real,
     load_volume_bud, load_volume_actual,
     load_tempo_veiculos, load_tempo_veiculos_real,
@@ -224,13 +226,25 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                     y=sub_agg[coluna],
                     name=tipo_val,
                     marker_color=_cores_tipo.get(tipo_val, '#C4B5FD'),
-                    text=sub_agg[coluna],
-                    texttemplate='%{y:,.2f}',
-                    textposition='outside',
-                    cliponaxis=False,
-                    textfont=dict(size=11, color=_cores_tipo.get(tipo_val, '#C4B5FD')),
+                    textposition='none',
                     hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>' + tipo_val + '</extra>',
                 ), row=bar_row, col=1)
+                # Rótulos na base interna com caixa cinza
+                for _i, _row_be in sub_agg.iterrows():
+                    _val = _row_be[coluna]
+                    if pd.notna(_val) and _val != 0:
+                        fig.add_annotation(
+                            x=str(_row_be[x_col]),
+                            y=_val * 0.05,
+                            text=f'{_val:,.2f}',
+                            showarrow=False,
+                            font=dict(size=10, color='#333333'),
+                            bgcolor='rgba(220,220,220,0.75)',
+                            borderpad=2,
+                            xref=f'x{bar_row}' if bar_row > 1 else 'x',
+                            yref=f'y{bar_row}' if bar_row > 1 else 'y',
+                            yanchor='bottom',
+                        )
         else:
             # ── Modo Real: degradê roxo contínuo ──
             # Agregar por período (sem Tipo)
@@ -259,14 +273,26 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 y=df_agg[coluna],
                 name='Real',
                 marker_color=bar_colors,
-                text=df_agg[coluna],
-                texttemplate='%{y:,.2f}',
-                textposition='outside',
-                cliponaxis=False,
-                textfont=dict(size=11, color=bar_colors),
+                textposition='none',
                 hovertemplate='%{x}<br>Custo FP: %{y:,.2f}<extra>Real</extra>',
                 showlegend=False,
             ), row=bar_row, col=1)
+            # Rótulos na base interna com caixa cinza
+            for _i, _row_r in df_agg.iterrows():
+                _val = _row_r[coluna]
+                if pd.notna(_val) and _val != 0:
+                    fig.add_annotation(
+                        x=str(_row_r[x_col]),
+                        y=_val * 0.05,
+                        text=f'{_val:,.2f}',
+                        showarrow=False,
+                        font=dict(size=10, color='#333333'),
+                        bgcolor='rgba(220,220,220,0.75)',
+                        borderpad=2,
+                        xref=f'x{bar_row}' if bar_row > 1 else 'x',
+                        yref=f'y{bar_row}' if bar_row > 1 else 'y',
+                        yanchor='bottom',
+                    )
 
         # ════════════════════════════════════════
         # LINHA FLEX BUD (laranja pontilhada)
@@ -473,7 +499,13 @@ def render():
     # ── Carregar dados rateados por veículo ──
     df_veic_bud_raw = load_custo_fp_veiculo(ano)
     df_veic_real_raw = load_custo_fp_veiculo_real(ano)
-    df_veic_be_raw = load_custo_fp_veiculo_forecast_fresh()  # Forecast com veículo (cache invalidado por mtime)
+    # Forecast com veículo: lazy load (250K+ linhas, só usado em tabs específicas)
+    _df_veic_be_loaded = [None, False]  # [dados, já_carregou]
+    def _get_veic_be_raw():
+        if not _df_veic_be_loaded[1]:
+            _df_veic_be_loaded[0] = load_custo_fp_veiculo_forecast_fresh()
+            _df_veic_be_loaded[1] = True
+        return _df_veic_be_loaded[0]
 
     if df_principal is None:
         st.info(
@@ -756,16 +788,7 @@ def render():
     ])
 
     # ── TAB 1: TC Veículos ──
-    # Salvar estado global para restaurar após tab1
-    _save_df_bud = df_bud.copy()
-    _save_df = df.copy()
-    _save_df_vol_bud = df_vol_bud.copy() if df_vol_bud is not None else None
-    _save_df_vol_actual = df_vol_actual.copy() if df_vol_actual is not None else None
-    _save_df_flex = df_flex.copy() if df_flex is not None else None
-    _save_cols_val = cols_val[:]
-    _save_vol_total = vol_total
-    _save_tem_real = tem_real
-
+    # @st.fragment isola variáveis: tab1 NÃO modifica escopo externo
     with tab1:
         @st.fragment
         def _render_tc_veiculos():
@@ -785,7 +808,7 @@ def render():
                     "Para gerar o forecast:\n"
                     "1. Acesse a página **🔮 Best Estimate — Simulador**\n"
                     "2. Configure os parâmetros (períodos, sensibilidade, inflação)\n"
-                    "3. Clique em **✅ Aplicar Configurações do Forecast**\n"
+                    "3. Clique em **✅ Aplicar Configurações do Best Estimate**\n"
                     "4. Aguarde o processamento e volte a esta página\n\n"
                     "Exibindo dados **Reais** como fallback."
                 )
@@ -867,9 +890,12 @@ def render():
                 if _raw_df_be is not None:
                     _filtros_be_t1 = {'oficinas': _ofi_t1, 'periodos': _per_t1}
                 
-                    # PRIORIDADE: Usar arquivo pré-gerado (df_veic_be_raw)
-                    if df_veic_be_raw is not None and not df_veic_be_raw.empty:
-                        _be_veic_raw_t1 = normalizar_periodo(df_veic_be_raw.copy())
+                    # PRIORIDADE: Usar arquivo pré-gerado
+                    _veic_be_raw = _get_veic_be_raw()
+                    if _veic_be_raw is not None and not _veic_be_raw.empty:
+                        _be_veic_raw_t1 = normalizar_periodo(_veic_be_raw.copy())
+                        if 'Ano' in _be_veic_raw_t1.columns:
+                            _be_veic_raw_t1 = _be_veic_raw_t1[_be_veic_raw_t1['Ano'] == int(ano)].copy()
                         if 'Custo FP Veiculo' in _be_veic_raw_t1.columns:
                             _be_veic_raw_t1['Custo FP'] = _be_veic_raw_t1['Custo FP Veiculo']
                         _filtros_be_t1['veiculos'] = [_sel_veic_t1]
@@ -1926,9 +1952,10 @@ def render():
                     _df_vbe_val = None
                 
                     # Prioridade: usar arquivo pré-gerado (igual Budget/Real)
-                    if df_veic_be_raw is not None and not df_veic_be_raw.empty:
+                    _veic_be_raw_val = _get_veic_be_raw()
+                    if _veic_be_raw_val is not None and not _veic_be_raw_val.empty:
                         try:
-                            _df_vbe_val = normalizar_periodo(df_veic_be_raw.copy())
+                            _df_vbe_val = normalizar_periodo(_veic_be_raw_val.copy())
                             # Validacao cruzada precisa comparar o mesmo universo do
                             # forecast total. Nao aplicar filtros de tela aqui, senao
                             # o total anual passa a ser comparado com um recorte local.
@@ -2287,19 +2314,8 @@ def render():
                 **Conferências:** Despesa Primária (fonte real), Redis, Volume FA, Custo FA/FP (BDG), Prova cruzada DP=FA+FP.
                 """)
 
-        # ── Restaurar estado global após tab1 ──
-        df_bud = _save_df_bud
-        df = _save_df
-        df_vol_bud = _save_df_vol_bud
-        df_vol_actual = _save_df_vol_actual
-        df_flex = _save_df_flex
-        cols_val = _save_cols_val
-        vol_total = _save_vol_total
-        tem_real = _save_tem_real
-
-        # ── TAB 2: Volume ──
-
         _render_tc_veiculos()
+    # ── TAB 2: Volume ──
     with tab2:
         @st.fragment
         def _render_volume():
@@ -3327,10 +3343,13 @@ def render():
             )
 
             # Tabela — Flex Budget Total
+            # Tabela — Flex Budget Total
+            _piv_flex_total = None  # para download consolidado
             if df_flex_det is not None and not df_flex_det.empty:
                 piv_flex_d, ofc_flex_d = _pivotar_detalhado(
                     df_flex_det, 'Flex_Bud',
                 )
+                _piv_flex_total = piv_flex_d
                 render_secao_tabela_detalhe(
                     piv_flex_d, ofc_flex_d, "Flex Budget", "📐",
                     "home_flex", ano, simbolo, sufixo,
@@ -3338,6 +3357,7 @@ def render():
                 )
             else:
                 piv_flex, ofc_flex = _pivotar_flex(df_flex)
+                _piv_flex_total = piv_flex
                 render_secao_tabela_detalhe(
                     piv_flex, ofc_flex, "Flex Budget", "📐",
                     "home_flex", ano, simbolo, sufixo,
@@ -3389,6 +3409,33 @@ def render():
                     "home_be", ano, simbolo, sufixo,
                     expanded=False, modo=modo_tab6,
                 )
+
+            # ── Download consolidado: 1 Excel com 4 abas (TC Total) ──
+            try:
+                _sheets: list[tuple[str, pd.DataFrame]] = []
+                _sheets.append(("Budget_Total", piv_bud))
+                if _piv_flex_total is not None:
+                    _sheets.append(("Flex_Budget", _piv_flex_total))
+                _sheets.append(("Real_Total", piv_real))
+                if _df_be_para_tabela is not None:
+                    _sheets.append(("Best_Estimate", piv_be))
+
+                if _sheets:
+                    _buf_tc = BytesIO()
+                    with pd.ExcelWriter(_buf_tc, engine='openpyxl') as _w:
+                        for _nome_aba, _df_aba in _sheets:
+                            if _df_aba is not None and not _df_aba.empty:
+                                _df_aba.to_excel(_w, index=False, sheet_name=_nome_aba[:31])
+                    st.download_button(
+                        "📥 Baixar Tabelas TC Total (Excel)",
+                        data=_buf_tc.getvalue(),
+                        file_name=f"TC_Total_{ano}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"dl_tc_total_{ano}",
+                        use_container_width=True,
+                    )
+            except Exception:
+                pass
 
             # ═══════════════════════════════════════════════════════
             # 🚗 TABELAS TC POR VEÍCULOS
@@ -3519,8 +3566,11 @@ def render():
                 _df_be_veic_tab6 = None
             
                 # Tentar usar arquivo pré-gerado (igual Budget/Real)
-                if df_veic_be_raw is not None and not df_veic_be_raw.empty:
-                    _vbe = normalizar_periodo(df_veic_be_raw.copy())
+                _veic_be_raw_t6 = _get_veic_be_raw()
+                if _veic_be_raw_t6 is not None and not _veic_be_raw_t6.empty:
+                    _vbe = normalizar_periodo(_veic_be_raw_t6.copy())
+                    if 'Ano' in _vbe.columns:
+                        _vbe = _vbe[_vbe['Ano'] == int(ano)].copy()
                 
                     # Aplicar filtros (exceto Veículo para mostrar todos)
                     filtros_sem_veiculo = {k: v for k, v in filtros_sel.items() if k != 'Veículo'}
@@ -3636,25 +3686,13 @@ def render():
                     _df_sap_filt = reordenar_colunas_be(_df_sap_filt)
                     st.dataframe(_df_sap_filt, width="stretch", height=500)
 
-                    # ── Download Excel ──
-                    try:
-                        from io import BytesIO as _BytesIO
-                        fname = f"TC_Sapiens_Detalhado_{ano}.xlsx"
-                        buf = _BytesIO()
-                        with pd.ExcelWriter(buf, engine='openpyxl') as w:
-                            _df_sap_filt.to_excel(
-                                w, index=False, sheet_name='Sapiens',
-                            )
-                        st.download_button(
-                            "📥 Baixar Sapiens Detalhado (Excel)",
-                            data=buf.getvalue(),
-                            file_name=fname,
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_sapiens_det",
-                            use_container_width=True,
-                        )
-                    except Exception as e:
-                        st.error(f"❌ Erro ao gerar Excel: {e}")
+                    # ── Download Excel (cacheado) ──
+                    download_excel_button(
+                        st, _df_sap_filt,
+                        "📥 Baixar Sapiens Detalhado (Excel)",
+                        f"TC_Sapiens_Detalhado_{ano}.xlsx",
+                        "dl_sapiens_det",
+                    )
             else:
                 st.info(
                     "ℹ️ Dados Sapiens detalhados não disponíveis. "
@@ -3667,50 +3705,122 @@ def render():
             st.markdown("---")
             st.markdown("## 🪄 Dados BE Detalhados")
             try:
-                _be_fc_path = os.path.join(
-                    str(get_data_root()), "TC_Principal", "Forecast", "forecast_completo.parquet"
-                )
-                if os.path.exists(_be_fc_path):
-                    _df_be_raw = pd.read_parquet(_be_fc_path)
-                    if not _df_be_raw.empty:
-                        if 'Custo FP' in _df_be_raw.columns:
-                            _df_be_raw['Total'] = pd.to_numeric(_df_be_raw['Custo FP'], errors='coerce').fillna(0.0)
-                        _df_be_raw = reordenar_colunas_be(_df_be_raw)
-                        _colunas_finais = [c for c in COLUNAS_BE_DETALHADO if c in _df_be_raw.columns]
-                        _df_be_raw = _df_be_raw[_colunas_finais]
-                        with st.expander("🪄 Tabela BE — Todos os Dados", expanded=False):
-                            _be2 = _df_be_raw.copy()
-                            _bc1, _bc2, _bc3 = st.columns(3)
-                            with _bc1:
-                                _be2_ofc = sorted(_be2['Oficina'].dropna().unique()) if 'Oficina' in _be2.columns else []
-                                _be2_ofc_s = st.multiselect("🏭 Oficina", _be2_ofc, default=[], key="be_det_oficina_tc")
-                            with _bc2:
-                                _be2_per = sorted(_be2['Período'].dropna().unique()) if 'Período' in _be2.columns else []
-                                _be2_per_s = st.multiselect("📅 Período", _be2_per, default=[], key="be_det_periodo_tc")
-                            with _bc3:
-                                _be2_tipo = sorted(_be2['Tipo'].dropna().unique()) if 'Tipo' in _be2.columns else []
-                                _be2_tipo_s = st.multiselect("🏷️ Tipo", _be2_tipo, default=[], key="be_det_tipo_tc")
-                            if _be2_ofc_s:
-                                _be2 = _be2[_be2['Oficina'].isin(_be2_ofc_s)]
-                            if _be2_per_s:
-                                _be2 = _be2[_be2['Período'].isin(_be2_per_s)]
-                            if _be2_tipo_s:
-                                _be2 = _be2[_be2['Tipo'].isin(_be2_tipo_s)]
-                            st.caption(f"📊 {len(_be2):,} linhas × {len(_be2.columns)} colunas")
-                            st.dataframe(_be2, width="stretch", height=500)
-                            _hoje = datetime.now().strftime('%Y%m%d')
-                            download_excel_button(
-                                st, _be2,
-                                "📥 Baixar BE Detalhado (Excel)",
-                                f"TC_Principal_BE_Detalhado_{ano}_{_hoje}.xlsx",
-                                "dl_be_det_tc",
-                            )
-                    else:
-                        st.info("ℹ️ Nenhum dado BE encontrado. Gere um Forecast no Best Estimate Simulador.")
+                _df_be_raw = load_forecast_completo()
+                if _df_be_raw is not None and not _df_be_raw.empty:
+                    _df_be_raw = _df_be_raw.copy()
+                    if 'Custo FP' in _df_be_raw.columns:
+                        _df_be_raw['Total'] = pd.to_numeric(_df_be_raw['Custo FP'], errors='coerce').fillna(0.0)
+                    _df_be_raw = reordenar_colunas_be(_df_be_raw)
+                    _colunas_finais = [c for c in COLUNAS_BE_DETALHADO if c in _df_be_raw.columns]
+                    _df_be_display = _df_be_raw[_colunas_finais]
+                    with st.expander("🪄 Tabela BE — Todos os Dados", expanded=False):
+                        _be2 = _df_be_display
+                        _bc1, _bc2, _bc3 = st.columns(3)
+                        with _bc1:
+                            _be2_ofc = sorted(_be2['Oficina'].dropna().unique()) if 'Oficina' in _be2.columns else []
+                            _be2_ofc_s = st.multiselect("🏭 Oficina", _be2_ofc, default=[], key="be_det_oficina_tc")
+                        with _bc2:
+                            _be2_per = sorted(_be2['Período'].dropna().unique()) if 'Período' in _be2.columns else []
+                            _be2_per_s = st.multiselect("📅 Período", _be2_per, default=[], key="be_det_periodo_tc")
+                        with _bc3:
+                            _be2_tipo = sorted(_be2['Tipo'].dropna().unique()) if 'Tipo' in _be2.columns else []
+                            _be2_tipo_s = st.multiselect("🏷️ Tipo", _be2_tipo, default=[], key="be_det_tipo_tc")
+                        if _be2_ofc_s:
+                            _be2 = _be2[_be2['Oficina'].isin(_be2_ofc_s)]
+                        if _be2_per_s:
+                            _be2 = _be2[_be2['Período'].isin(_be2_per_s)]
+                        if _be2_tipo_s:
+                            _be2 = _be2[_be2['Tipo'].isin(_be2_tipo_s)]
+                        st.caption(f"📊 {len(_be2):,} linhas × {len(_be2.columns)} colunas")
+                        st.dataframe(_be2, width="stretch", height=500)
+                        _hoje = datetime.now().strftime('%Y%m%d')
+                        download_excel_button(
+                            st, _df_be_raw,
+                            "📥 Baixar BE Detalhado (Excel)",
+                            f"TC_Principal_BE_Detalhado_{ano}_{_hoje}.xlsx",
+                            "dl_be_det_tc",
+                        )
+                        # Botão para baixar custos específicos
+                        _custos_esp_path = os.path.join(
+                            _DATA_ROOT, "TC_Principal", "Forecast", "custos_especificos.parquet"
+                        )
+                        if os.path.exists(_custos_esp_path):
+                            try:
+                                _df_custos_esp = pd.read_parquet(_custos_esp_path)
+                                if not _df_custos_esp.empty:
+                                    if 'Descricao' in _df_custos_esp.columns:
+                                        _df_custos_esp = _df_custos_esp.rename(columns={'Descricao': 'Texto breve'})
+                                    download_excel_button(
+                                        st, _df_custos_esp,
+                                        "📥 Baixar Custos Específicos (Excel)",
+                                        f"TC_Principal_Custos_Especificos_{ano}_{_hoje}.xlsx",
+                                        "dl_custos_esp_home_tc",
+                                    )
+                            except Exception:
+                                pass
                 else:
-                    st.info("ℹ️ Arquivo forecast_completo.parquet não encontrado.")
+                    st.info("ℹ️ Nenhum dado BE encontrado. Gere um Forecast no Best Estimate Simulador.")
             except Exception as _e:
                 st.error(f"❌ Erro ao carregar BE Detalhados: {_e}")
+
+            # ═══════════════════════════════════════════════════════
+            # 🚗 DADOS BE DETALHADOS POR VEÍCULO
+            # ═══════════════════════════════════════════════════════
+            st.markdown("---")
+            st.markdown("## 🚗 Dados BE Detalhados por Veículo")
+            try:
+                _df_vbe = _get_veic_be_raw()
+                if _df_vbe is not None and not _df_vbe.empty:
+                    _df_vbe = _df_vbe.copy()
+                    if 'Ano' in _df_vbe.columns:
+                        _df_vbe = _df_vbe[_df_vbe['Ano'] == int(ano)]
+                    if 'Custo FP Veiculo' in _df_vbe.columns:
+                        _df_vbe['Total'] = pd.to_numeric(_df_vbe['Custo FP Veiculo'], errors='coerce').fillna(0.0)
+                    _df_vbe = reordenar_colunas_be(_df_vbe, COLUNAS_BE_DETALHADO_VEICULO)
+                    _colunas_vbe = [c for c in COLUNAS_BE_DETALHADO_VEICULO if c in _df_vbe.columns]
+                    _df_vbe_display = _df_vbe[_colunas_vbe]
+                    with st.expander("🚗 Tabela BE por Veículo — Todos os Dados", expanded=False):
+                        _vbe2 = _df_vbe_display
+                        _vc1, _vc2, _vc3, _vc4 = st.columns(4)
+                        with _vc1:
+                            _vbe_ofc = sorted(_vbe2['Oficina'].dropna().unique()) if 'Oficina' in _vbe2.columns else []
+                            _vbe_ofc_s = st.multiselect("🏭 Oficina", _vbe_ofc, default=[], key="be_det_veiculo_oficina_tc")
+                        with _vc2:
+                            _vbe_per = sorted(_vbe2['Período'].dropna().unique()) if 'Período' in _vbe2.columns else []
+                            _vbe_per_s = st.multiselect("📅 Período", _vbe_per, default=[], key="be_det_veiculo_periodo_tc")
+                        with _vc3:
+                            _vbe_tipo = sorted(_vbe2['Tipo'].dropna().unique()) if 'Tipo' in _vbe2.columns else []
+                            _vbe_tipo_s = st.multiselect("🏷️ Tipo", _vbe_tipo, default=[], key="be_det_veiculo_tipo_tc")
+                        with _vc4:
+                            _vbe_vec = sorted(_vbe2['Veículo'].dropna().unique()) if 'Veículo' in _vbe2.columns else []
+                            _vbe_vec_s = st.multiselect("🚗 Veículo", _vbe_vec, default=[], key="be_det_veiculo_veiculo_tc")
+                        if _vbe_ofc_s:
+                            _vbe2 = _vbe2[_vbe2['Oficina'].isin(_vbe_ofc_s)]
+                        if _vbe_per_s:
+                            _vbe2 = _vbe2[_vbe2['Período'].isin(_vbe_per_s)]
+                        if _vbe_tipo_s:
+                            _vbe2 = _vbe2[_vbe2['Tipo'].isin(_vbe_tipo_s)]
+                        if _vbe_vec_s:
+                            _vbe2 = _vbe2[_vbe2['Veículo'].isin(_vbe_vec_s)]
+                        _total_vbe = len(_vbe2)
+                        _LIMITE_VBE = 100
+                        if _total_vbe > _LIMITE_VBE:
+                            st.caption(f"📊 Exibindo {_LIMITE_VBE} de {_total_vbe:,} linhas × {len(_vbe2.columns)} colunas  —  use o botão abaixo para baixar tudo")
+                            st.dataframe(_vbe2.head(_LIMITE_VBE), width="stretch", height=500)
+                        else:
+                            st.caption(f"📊 {_total_vbe:,} linhas × {len(_vbe2.columns)} colunas")
+                            st.dataframe(_vbe2, width="stretch", height=500)
+                        _hoje_v = datetime.now().strftime('%Y%m%d')
+                        download_excel_button(
+                            st, _df_vbe,
+                            "📥 Baixar BE Detalhado por Veículo (Excel)",
+                            f"TC_Principal_BE_Detalhado_Veiculo_{ano}_{_hoje_v}.xlsx",
+                            "dl_be_det_veiculo_tc",
+                        )
+                else:
+                    st.info("ℹ️ Nenhum dado BE por veículo encontrado. Gere um Forecast no Best Estimate Simulador.")
+            except Exception as _e_v:
+                st.error(f"❌ Erro ao carregar BE Detalhados por Veículo: {_e_v}")
 
         _render_dados_detalhados()
 

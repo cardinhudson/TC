@@ -1664,6 +1664,7 @@ def consolidar_historico_tc_veiculos(tipo: str = 'real') -> list:
                         resultados.append(f"⚠️ Erro ao ler {caminho}: {e}")
             if dfs:
                 df_final = pd.concat(dfs, ignore_index=True)
+                df_final = normalizar_tipos_para_parquet(df_final)
                 destino = os.path.join(pasta_destino, nome_hist)
                 df_final.to_parquet(destino, index=False)
                 resultados.append(f"✅ {nome_hist}: {len(dfs)} ano(s) → {len(df_final):,} linhas")

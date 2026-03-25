@@ -30,6 +30,15 @@ COLUNAS_BE_DETALHADO = [
     'Total',
 ]
 
+COLUNAS_BE_DETALHADO_VEICULO = [
+    'Mes', 'Período', 'Nºconta', 'Centrocst', 'Nºdoc.ref.', 'Dt.lçto.',
+    'Valor', 'QTD', 'Type 05', 'Type 06', 'Account', 'USI', 'Oficina',
+    'Veículo',
+    'Doc.compra', 'Texto breve', 'Fornecedor', 'Material', 'Usuário',
+    'Fornec.', 'Tipo', 'Custo', 'massa FA - Actual', 'massa FP - Actual',
+    'Custo FP Veiculo', 'Total',
+]
+
 
 def reordenar_colunas_be(df: pd.DataFrame, colunas=None) -> pd.DataFrame:
     """Reordena *df* conforme COLUNAS_BE_DETALHADO.
@@ -47,24 +56,49 @@ def reordenar_colunas_be(df: pd.DataFrame, colunas=None) -> pd.DataFrame:
     return df[ordem + extras]
 
 
+def _gerar_excel_bytes_direto(df: pd.DataFrame) -> bytes:
+    """Gera bytes Excel diretamente de um DataFrame."""
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as w:
+        df.to_excel(w, index=False, sheet_name='Dados')
+    return buf.getvalue()
+
+
+_LIMITE_EXCEL_LINHAS = 30_000  # Acima disso usa CSV (muito mais rápido)
+
+
 def download_excel_button(
     st_mod, df: pd.DataFrame, label: str, file_name: str, key: str,
 ) -> None:
-    """Botão de download Excel via BytesIO (sem gravar no servidor)."""
+    """Botão de download Excel/CSV via BytesIO (sem gravar no servidor).
+
+    Para DataFrames grandes (>30K linhas), gera CSV ao invés de Excel
+    para evitar travamento de 30-60s na serialização openpyxl.
+    """
     try:
-        buf = BytesIO()
-        with pd.ExcelWriter(buf, engine='openpyxl') as w:
-            df.to_excel(w, index=False, sheet_name='Dados')
-        st_mod.download_button(
-            label,
-            data=buf.getvalue(),
-            file_name=file_name,
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            key=key,
-            use_container_width=True,
-        )
+        if len(df) <= _LIMITE_EXCEL_LINHAS:
+            data = _gerar_excel_bytes_direto(df)
+            st_mod.download_button(
+                label,
+                data=data,
+                file_name=file_name,
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                key=key,
+                use_container_width=True,
+            )
+        else:
+            csv_data = df.to_csv(index=False).encode('utf-8-sig')
+            csv_name = file_name.rsplit('.', 1)[0] + '.csv'
+            st_mod.download_button(
+                label.replace('Excel', 'CSV'),
+                data=csv_data,
+                file_name=csv_name,
+                mime='text/csv',
+                key=key,
+                use_container_width=True,
+            )
     except Exception as e:
-        st_mod.error(f"❌ Erro ao gerar Excel: {e}")
+        st_mod.error(f"❌ Erro ao gerar arquivo: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -445,6 +479,7 @@ def load_dea_dedicado_real(ano: int = 2026):
     return pd.read_parquet(caminho)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=None):
     """
     Distribui dados de BE por veículo usando EXATAMENTE a mesma lógica do
@@ -525,34 +560,41 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
     df['Percentual'] = df['Percentual'].fillna(0)
 
     # ══════════════════════════════════════════════════════════════════════
-    # CORREÇÃO: Para linhas onde FP sem Dedicada = 0 mas Custo FP != 0,
-    # usar Custo FP como base (caso de meses de PREVISÃO)
+    # FASE 13 (igual processamento Real): Custo Rateado = FP sem Ded × %
     # ══════════════════════════════════════════════════════════════════════
-    # Marcar linhas que são PREVISÃO (usam Custo FP como base, não adicionar D&A)
-    df['_is_previsao'] = False
-    if 'Custo FP' in df.columns:
-        # Criar máscara para linhas onde FP sem Dedicada = 0 mas Custo FP != 0
-        mask_sem_fp_ded = (df['FP sem Dedicada'].fillna(0) == 0) & (df['Custo FP'].fillna(0) != 0)
-        if mask_sem_fp_ded.any():
-            # Para essas linhas, usar Custo FP como FP sem Dedicada
-            # (para previsões, NÃO adicionar D&A dedicado pois já está incluído)
-            df.loc[mask_sem_fp_ded, 'FP sem Dedicada'] = df.loc[mask_sem_fp_ded, 'Custo FP']
-            df.loc[mask_sem_fp_ded, '_is_previsao'] = True
-
     df['Custo Rateado'] = df['FP sem Dedicada'] * df['Percentual']
 
     # ══════════════════════════════════════════════════════════════════════
     # FASE 14 (igual processamento Real): D&A dedicado por veículo
-    # NOTA: D&A só é adicionado para linhas REAIS, não para PREVISÕES
+    # D&A é adicionado por veículo usando dados reais + média para meses forecast
     # ══════════════════════════════════════════════════════════════════════
     if df_dea is not None and not df_dea.empty and 'Veículo' in df_dea.columns:
         # Usar D&A do arquivo Real que já tem alocação por veículo
-        cols_merge_dea = ['Oficina', 'Veículo', 'Período']
+        cols_merge_dea = ['Oficina', 'Veículo', 'Account', 'Período']
         cols_merge_dea = [c for c in cols_merge_dea if c in df_dea.columns and c in df.columns]
 
         if len(cols_merge_dea) >= 2:
-            # Agregar D&A por (Oficina, Veículo, Período)
+            # Agregar D&A por chaves de merge
             dea_agg = df_dea.groupby(cols_merge_dea, as_index=False)['D&A dedicado'].sum()
+
+            # Expandir D&A para meses forecast: usar média dos meses históricos
+            periodos_dea = set(dea_agg['Período'].unique()) if 'Período' in dea_agg.columns else set()
+            periodos_be = set(df['Período'].unique()) if 'Período' in df.columns else set()
+            periodos_faltantes = periodos_be - periodos_dea
+            if periodos_faltantes and 'Período' in cols_merge_dea:
+                # Calcular média D&A por (chaves sem Período)
+                cols_media = [c for c in cols_merge_dea if c != 'Período']
+                if cols_media:
+                    dea_media = dea_agg.groupby(cols_media, as_index=False)['D&A dedicado'].mean()
+                    # Criar linhas para cada período faltante
+                    linhas_expand = []
+                    for p in periodos_faltantes:
+                        tmp = dea_media.copy()
+                        tmp['Período'] = p
+                        linhas_expand.append(tmp)
+                    if linhas_expand:
+                        dea_agg = pd.concat([dea_agg] + linhas_expand, ignore_index=True)
+
             dea_agg = dea_agg.rename(columns={'D&A dedicado': '_dea_veiculo'})
 
             # Merge com dados rateados
@@ -563,16 +605,10 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
             _n_rows = df.groupby(cols_merge_dea)['Custo Rateado'].transform('count')
             df['D&A dedicado'] = df['_dea_veiculo'] / _n_rows.replace(0, 1)
             df.drop(columns=['_dea_veiculo'], inplace=True, errors='ignore')
-
-            # CORREÇÃO: Zerar D&A para linhas de previsão (já incluído no Custo FP)
-            df.loc[df['_is_previsao'] == True, 'D&A dedicado'] = 0
     else:
         # Fallback: ratear D&A pelo mesmo percentual (menos preciso)
         if tem_dea:
             df['D&A dedicado'] = df['D&A dedicado'] * df['Percentual']
-
-    # Remover coluna auxiliar
-    df.drop(columns=['_is_previsao'], inplace=True, errors='ignore')
 
     # Garantir coluna D&A dedicado existe
     if 'D&A dedicado' not in df.columns:
@@ -1100,7 +1136,7 @@ def _pivotar_detalhado(df, col_valor, col_periodo='Período'):
     if df is None or df.empty or col_valor not in df.columns:
         return pd.DataFrame(), []
 
-    df_w = df.copy()
+    df_w = df
     if col_periodo not in df_w.columns:
         return pd.DataFrame(), []
 

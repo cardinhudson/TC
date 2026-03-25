@@ -3191,15 +3191,29 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             width=900
         )
 
-        # Adicionar rótulos com valores nas barras
+        # Adicionar rótulos com valores nas barras (base interna com halo cinza)
         formato_rotulo = (
             ',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
         )
+        # Fundo cinza (halo) atrás do texto para legibilidade
+        rotulos_bg = grafico_barras.mark_text(
+            align='center',
+            baseline='bottom',
+            dy=14,
+            fontSize=12,
+            color='rgba(200,200,200,0.85)',
+            strokeWidth=4,
+            stroke='rgba(200,200,200,0.85)',
+        ).encode(
+            text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
+        ).transform_filter(
+            (alt.datum[coluna] != None) & (alt.datum[coluna] != 0)
+        )
         rotulos = grafico_barras.mark_text(
             align='center',
-            baseline='middle',
-            dy=-10,
-            color='black',
+            baseline='bottom',
+            dy=14,
+            color='#333333',
             fontSize=12
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -3756,6 +3770,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             # Criar gráfico principal com barras, rótulos e linha
             grafico_principal = alt.layer(
                 grafico_barras,
+                rotulos_bg,
                 rotulos,
                 linha_budget
             ).resolve_scale(
@@ -3780,12 +3795,12 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             if grafico_delta is not None:
                 grafico_final = alt.vconcat(
                     grafico_delta,
-                    grafico_barras + rotulos
+                    grafico_barras + rotulos_bg + rotulos
                 ).resolve_scale(
                     x='shared'  # Compartilhar eixo X entre os gráficos
                 )
             else:
-                grafico_final = grafico_barras + rotulos
+                grafico_final = grafico_barras + rotulos_bg + rotulos
         
         return grafico_final
     except Exception as e:
@@ -7336,15 +7351,17 @@ if is_main_page:
                 else:
                     st.info("ℹ️ Tabela Flex Bud disponível apenas quando há dados de budget e coluna 'Custo' nos dados.")
 
-    # ==========================================
-    # TAB 2: Volume
-    # ==========================================
-    if is_main_page:
-
-        _render_tab1()
+        # ==========================================
+        # FIM TAB 1: renderizar
+        # ==========================================
+        if is_main_page:
+            _render_tab1()
     with tab2:
         @st.fragment
         def _render_tab2():
+            # Inicializar variáveis de filtro de gráfico (definidas em _render_tab1)
+            oficina_selecionadas_grafico = ["Todos"]
+            veiculo_selecionados_grafico = ["Todos"]
             # IMPORTANTE: Usar a mesma lógica de filtragem em ambos os modos
             # para garantir que os volumes sejam consistentes
             df_vol = load_volume_data(ano_selecionado)
@@ -7587,6 +7604,9 @@ if is_main_page:
                     grafico_volume_veiculo = create_volume_veiculo_chart(df_vol_filtrado, df_budget_vol_para_grafico)
                     if grafico_volume_veiculo is not None:
                         st.altair_chart(grafico_volume_veiculo, use_container_width=True)
+
+        if is_main_page:
+            _render_tab2()
 
     # Gráfico 2: Soma do Valor por Oficina
     # Cache removido temporariamente para forçar atualização
@@ -8994,13 +9014,6 @@ if is_main_page:
             st.error(traceback.format_exc())
             return None
 
-
-    # ==========================================
-    # TAB 3: TC Ext por Veíc
-    # ==========================================
-    if is_main_page:
-
-        _render_tab2()
     with tab3:
         @st.fragment
         def _render_tab3():
@@ -10758,11 +10771,36 @@ if is_main_page:
                             st.dataframe(_be_det, width="stretch", height=500)
                             _hoje_ext = datetime.now().strftime('%Y%m%d')
                             download_excel_button(
-                                st, _be_det,
+                                st, _df_be_ext,
                                 "📥 Baixar BE Detalhado (Excel)",
                                 f"TC_Ext_BE_Detalhado_{_hoje_ext}.xlsx",
                                 "dl_be_det_ext",
                             )
+                            # Botão para baixar custos específicos
+                            _custos_esp_path_ext = os.path.join(
+                                _tc_ext_data_root(), "Forecast", "custos_especificos.parquet"
+                            )
+                            if os.path.exists(_custos_esp_path_ext):
+                                try:
+                                    _df_custos_esp_ext = pd.read_parquet(_custos_esp_path_ext)
+                                    if not _df_custos_esp_ext.empty:
+                                        if 'Descricao' in _df_custos_esp_ext.columns:
+                                            _df_custos_esp_ext = _df_custos_esp_ext.rename(columns={'Descricao': 'Texto breve'})
+                                        import io as _io
+                                        _buf_custos_ext = _io.BytesIO()
+                                        with pd.ExcelWriter(_buf_custos_ext, engine='openpyxl') as _wr:
+                                            _df_custos_esp_ext.to_excel(_wr, index=False, sheet_name='Custos Específicos')
+                                        _buf_custos_ext.seek(0)
+                                        st.download_button(
+                                            label="📥 Baixar Custos Específicos (Excel)",
+                                            data=_buf_custos_ext,
+                                            file_name=f"TC_Ext_Custos_Especificos_{_hoje_ext}.xlsx",
+                                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                            use_container_width=True,
+                                            key="dl_custos_esp_home_ext",
+                                        )
+                                except Exception:
+                                    pass
                     else:
                         st.info("ℹ️ Nenhum dado BE encontrado. Gere um Forecast no Best Estimate Simulador.")
                 else:

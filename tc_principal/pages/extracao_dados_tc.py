@@ -28,6 +28,24 @@ from tc_core.databricks_jobs import (
 from tc_principal.ui_components import injetar_css_global, render_header
 from tc_principal.shared import invalidar_cache_dados
 
+
+def _normalizar_tipos_parquet(df: pd.DataFrame) -> pd.DataFrame:
+    """Converte colunas object com tipos mistos para string antes de to_parquet."""
+    df = df.copy()
+    # Colunas que SEMPRE devem ser string (podem vir como serial numérico do Excel)
+    _COLUNAS_SEMPRE_STRING = ['Dt.lçto.', 'Nºdoc.ref.', 'Doc.compra', 'Nºdoc.ref']
+    for _cs in _COLUNAS_SEMPRE_STRING:
+        if _cs in df.columns:
+            df[_cs] = df[_cs].apply(lambda x: str(x) if pd.notna(x) else None)
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            try:
+                pd.to_numeric(df[col].dropna().head(100), errors='raise')
+            except (ValueError, TypeError):
+                df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) else None)
+    return df
+
+
 _PIPELINE_RUN_KEY = 'tc_pipeline_cloud_run'
 _EXCEL_CANDIDATOS = (
     'Reporting veículos.xlsx',
@@ -130,11 +148,14 @@ def _renderizar_painel_status_cloud(run_id: int, key_suffix: str = '') -> None:
     elif result == 'SUCCESS':
         st.success("✅ **Processamento concluído com sucesso!**")
         invalidar_cache_dados()
-        st.page_link(
-            "tc_principal/pages/home_tc.py",
-            label="📊 Ver gráficos atualizados",
-            icon="📊",
-        )
+        try:
+            st.page_link(
+                "tc_principal/pages/home_tc.py",
+                label="📊 Ver gráficos atualizados",
+                icon="📊",
+            )
+        except Exception:
+            st.markdown("[📊 Ver gráficos atualizados](/tc)")
     else:
         msg = status.get('state_message') or result or 'Falha desconhecida'
         st.error(f"❌ **Pipeline encerrado com erro** — {msg}")
@@ -596,6 +617,7 @@ def _consolidar_historico_tc_principal():
 
             if dfs:
                 df_final = pd.concat(dfs, ignore_index=True)
+                df_final = _normalizar_tipos_parquet(df_final)
                 destino = os.path.join(pasta_destino, nome_hist)
                 df_final.to_parquet(destino)
                 resultados.append(f"✅ {nome_hist}: {len(dfs)} ano(s) → {len(df_final):,} linhas")
@@ -1104,11 +1126,14 @@ def render():
                                 # Invalidar cache seletivamente (mantém filtros/opções)
                                 invalidar_cache_dados()
 
-                                st.page_link(
-                                    "tc_principal/pages/home_tc.py",
-                                    label="📊 Ver gráficos atualizados",
-                                    icon="📊",
-                                )
+                                try:
+                                    st.page_link(
+                                        "tc_principal/pages/home_tc.py",
+                                        label="📊 Ver gráficos atualizados",
+                                        icon="📊",
+                                    )
+                                except Exception:
+                                    st.markdown("[📊 Ver gráficos atualizados](/tc)")
 
                                 with st.expander("📁 Arquivos gerados", expanded=False):
                                     if 'arquivos' in resultado:
@@ -1189,11 +1214,14 @@ def render():
                                 # Invalidar cache seletivamente (mantém filtros/opções)
                                 invalidar_cache_dados()
 
-                                st.page_link(
-                                    "tc_principal/pages/home_tc.py",
-                                    label="📊 Ver gráficos atualizados",
-                                    icon="📊",
-                                )
+                                try:
+                                    st.page_link(
+                                        "tc_principal/pages/home_tc.py",
+                                        label="📊 Ver gráficos atualizados",
+                                        icon="📊",
+                                    )
+                                except Exception:
+                                    st.markdown("[📊 Ver gráficos atualizados](/tc)")
 
                                 with st.expander("📁 Arquivos gerados", expanded=False):
                                     if 'arquivos' in resultado:

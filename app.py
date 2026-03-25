@@ -263,6 +263,13 @@ st.sidebar.markdown(
 if not warmup_status.get("done"):
     st.sidebar.caption("Aquecimento inicial de arquivos em andamento para acelerar a primeira navegação.")
 
+# Botão para limpar cache (substitui o menu nativo do Streamlit Cloud)
+if st.sidebar.button("🗑️ Limpar Cache", use_container_width=True, help="Limpa todos os dados em cache e recarrega a página"):
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.sidebar.success("✅ Cache limpo!")
+    st.rerun()
+
 # Título principal (restaurado)
 st.markdown(
     """

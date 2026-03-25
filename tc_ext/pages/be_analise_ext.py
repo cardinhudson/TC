@@ -5765,6 +5765,40 @@ if is_main_page:
                                 df_budget_vol_filtrado = df_budget_vol_filtrado.copy()
                                 df_budget_vol_filtrado['Período'] = df_budget_vol_filtrado['Período'].apply(_normalizar_periodo_local)
 
+                            # ═══════════════════════════════════════════════════════
+                            # 🔧 CORREÇÃO: Combinar Período + Ano quando há múltiplos anos
+                            # Para que o selectbox mostre "Janeiro 2025", "Janeiro 2026", etc.
+                            # ═══════════════════════════════════════════════════════
+                            _tem_anos_ext = (
+                                'Ano' in df_real_tabela.columns
+                                and df_real_tabela['Ano'].dropna().nunique() > 1
+                            )
+                            if not _tem_anos_ext and 'Ano' in df_budget_filtrado.columns:
+                                _todos_anos = set(df_real_tabela['Ano'].dropna().unique()) if 'Ano' in df_real_tabela.columns else set()
+                                _todos_anos.update(df_budget_filtrado['Ano'].dropna().unique())
+                                _tem_anos_ext = len(_todos_anos) > 1
+
+                            def _periodo_com_ano(df):
+                                """Combina Período + Ano em uma única string quando há múltiplos anos."""
+                                if df is None or df.empty or 'Período' not in df.columns or 'Ano' not in df.columns:
+                                    return df
+                                df = df.copy()
+                                mask = df['Ano'].notna()
+                                df.loc[mask, 'Período'] = (
+                                    df.loc[mask, 'Período'].astype(str)
+                                    + ' '
+                                    + df.loc[mask, 'Ano'].astype(float).astype(int).astype(str)
+                                )
+                                return df
+
+                            if _tem_anos_ext:
+                                df_real_tabela = _periodo_com_ano(df_real_tabela)
+                                df_budget_filtrado = _periodo_com_ano(df_budget_filtrado)
+                                if df_volume_real_filtrado is not None:
+                                    df_volume_real_filtrado = _periodo_com_ano(df_volume_real_filtrado)
+                                if df_budget_vol_filtrado is not None:
+                                    df_budget_vol_filtrado = _periodo_com_ano(df_budget_vol_filtrado)
+
                             # Agrupar dados reais por categoria E período
                             # IMPORTANTE: Não verificar se Total está zerado antes de agrupar, pois pode haver
                             # valores positivos e negativos que se cancelam no total, mas são válidos por categoria
@@ -5945,24 +5979,21 @@ if is_main_page:
                                     periodos_set.update(df_budget_filtrado['Período'].dropna().astype(str).unique().tolist())
                                 if 'df_budget_vol_filtrado' in locals() and df_budget_vol_filtrado is not None and 'Período' in df_budget_vol_filtrado.columns:
                                     periodos_set.update(df_budget_vol_filtrado['Período'].dropna().astype(str).unique().tolist())
-                                # Garantir todos os meses sempre
-                                periodos_set.update(ORDEM_MESES)
+                                # Garantir todos os meses sempre (apenas se NÃO há múltiplos anos)
+                                if not _tem_anos_ext:
+                                    periodos_set.update(ORDEM_MESES)
                                 periodos_disponiveis = sorted([p for p in periodos_set if p and p != 'Todos'])
-                                # Ordenar meses cronologicamente
-                                meses_ordenados = []
-                                outros_periodos = []
-                                for periodo in periodos_disponiveis:
-                                    periodo_lower = str(periodo).lower()
-                                    if periodo_lower in ORDEM_MESES:
-                                        meses_ordenados.append(periodo)
-                                    else:
-                                        outros_periodos.append(periodo)
-                            
-                                meses_ordenados.sort(
-                                    key=lambda x: ORDEM_MESES.index(str(x).lower())
-                                    if str(x).lower() in ORDEM_MESES else 999
-                                )
-                                periodos_ordenados = meses_ordenados + outros_periodos
+
+                                def _ordem_periodo(periodo_str):
+                                    """Ordena períodos cronologicamente, suportando 'Janeiro' e 'Janeiro 2026'."""
+                                    s = str(periodo_str).strip().lower()
+                                    partes = s.split(' ', 1)
+                                    mes_nome = partes[0]
+                                    ano_val = int(partes[1]) if len(partes) > 1 and partes[1].isdigit() else 0
+                                    idx_mes = ORDEM_MESES.index(mes_nome) if mes_nome in ORDEM_MESES else 999
+                                    return (ano_val, idx_mes)
+
+                                periodos_ordenados = sorted(periodos_disponiveis, key=_ordem_periodo)
                             
                                 # Novo filtro de períodos - versão simplificada
                                 periodo_tabela_key = "filtro_periodo_tabela_flex"

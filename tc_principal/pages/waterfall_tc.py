@@ -1393,6 +1393,82 @@ except Exception:
     if 'Fonte' not in df_total.columns:
         df_total['Fonte'] = 'Real'
 
+# ═══ Carregar forecast_completo para aba Best Estimate (Histórico + BE) ═══
+_df_forecast_be = pd.DataFrame()
+try:
+    _df_fc_raw = load_forecast_completo()
+    if _df_fc_raw is not None and not _df_fc_raw.empty:
+        _df_forecast_be = normalizar_periodo(_df_fc_raw.copy())
+        # Normalizar valores de Período para capitalizado
+        if 'Período' in _df_forecast_be.columns:
+            _map_per = {
+                'janeiro': 'Janeiro', 'fevereiro': 'Fevereiro', 'março': 'Março',
+                'abril': 'Abril', 'maio': 'Maio', 'junho': 'Junho',
+                'julho': 'Julho', 'agosto': 'Agosto', 'setembro': 'Setembro',
+                'outubro': 'Outubro', 'novembro': 'Novembro', 'dezembro': 'Dezembro',
+            }
+            _df_forecast_be['Período'] = (
+                _df_forecast_be['Período'].astype(str).str.strip().str.lower()
+                .map(_map_per).fillna(_df_forecast_be['Período'])
+            )
+        # Converter colunas numéricas
+        for _c in list(COLUNAS_MONETARIAS) + ['Total', 'Volume', 'CPU']:
+            if _c in _df_forecast_be.columns and _df_forecast_be[_c].dtype == 'object':
+                _df_forecast_be[_c] = pd.to_numeric(_df_forecast_be[_c], errors='coerce')
+        # Garantir coluna Total (usar Custo FP se Total ausente ou NaN)
+        if 'Custo FP' in _df_forecast_be.columns:
+            _df_forecast_be['Custo FP'] = pd.to_numeric(_df_forecast_be['Custo FP'], errors='coerce').fillna(0.0)
+            if 'Total' not in _df_forecast_be.columns:
+                _df_forecast_be['Total'] = _df_forecast_be['Custo FP']
+            else:
+                _df_forecast_be['Total'] = pd.to_numeric(_df_forecast_be['Total'], errors='coerce')
+                _mask_total_vazio = _df_forecast_be['Total'].isna() | (_df_forecast_be['Total'] == 0)
+                _df_forecast_be.loc[_mask_total_vazio, 'Total'] = _df_forecast_be.loc[_mask_total_vazio, 'Custo FP']
+        # Filtrar por ano
+        if ano_selecionado != "Todos" and 'Ano' in _df_forecast_be.columns:
+            try:
+                _df_forecast_be = _df_forecast_be[_df_forecast_be['Ano'] == int(ano_selecionado)].copy()
+            except (ValueError, TypeError):
+                pass
+        # Normalizar coluna Tipo → Histórico / BE
+        if 'Tipo' in _df_forecast_be.columns:
+            import unicodedata as _ucd
+            def _norm_tipo_be(v):
+                if pd.isna(v):
+                    return 'BE'
+                txt = str(v).replace('\ufffd', '').strip().lower()
+                txt = _ucd.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
+                return 'Histórico' if 'hist' in txt else 'BE'
+            _df_forecast_be['Tipo'] = _df_forecast_be['Tipo'].apply(_norm_tipo_be)
+        # Adicionar coluna Fonte baseada no Tipo (Histórico=Real, BE/BE Manual=BE)
+        if 'Tipo' in _df_forecast_be.columns:
+            _df_forecast_be['Fonte'] = _df_forecast_be['Tipo'].apply(
+                lambda x: 'Real' if x == 'Histórico' else 'BE'
+            )
+        # Ratear por veículo se necessário
+        if 'Veículo' not in _df_forecast_be.columns or _df_forecast_be['Veículo'].dropna().astype(str).str.strip().replace('', pd.NA).dropna().empty:
+            try:
+                _ano_int = int(ano_selecionado) if ano_selecionado != "Todos" else None
+                _anos_pct = [_ano_int] if _ano_int else descobrir_anos_tc_principal()
+                _df_pct_all = []
+                for _a in _anos_pct:
+                    _pct = load_percentual_rateio_veiculos_real(_a)
+                    if _pct is not None and not _pct.empty:
+                        _df_pct_all.append(_pct)
+                if _df_pct_all:
+                    _df_pct_concat = pd.concat(_df_pct_all, ignore_index=True)
+                    _df_forecast_be = ratear_be_por_veiculo(
+                        _df_forecast_be, _df_pct_concat, col_custo='Custo FP',
+                    )
+                    if _df_forecast_be is not None and 'Custo FP Veiculo' in _df_forecast_be.columns:
+                        _df_forecast_be['Custo FP'] = _df_forecast_be['Custo FP Veiculo']
+                        if 'Total' in _df_forecast_be.columns:
+                            _df_forecast_be['Total'] = _df_forecast_be['Custo FP']
+            except Exception:
+                pass
+except Exception:
+    _df_forecast_be = pd.DataFrame()
+
 # Carregar dados de volume e budget
 df_volume = _load_tc_veiculos_volume(ano_selecionado)
 df_budget = _load_tc_veiculos_budget(ano_selecionado)
@@ -1718,10 +1794,12 @@ else:
         if "active_tab_waterfall_tc" not in st.session_state:
             st.session_state.active_tab_waterfall_tc = "📊 Real"
         
+        _tab_options_tc = ["📊 Real", "🔮 Best Estimate", "💰 Budget"]
+        _tab_index_tc = _tab_options_tc.index(st.session_state.active_tab_waterfall_tc) if st.session_state.active_tab_waterfall_tc in _tab_options_tc else 0
         active_tab_waterfall_tc = st.radio(
             "Selecionar análise:",
-            options=["📊 Real", "💰 Budget"],
-            index=0 if st.session_state.active_tab_waterfall_tc == "📊 Real" else 1,
+            options=_tab_options_tc,
+            index=_tab_index_tc,
             key="active_tab_waterfall_tc",
             horizontal=True,
             label_visibility="collapsed"
@@ -1787,9 +1865,48 @@ else:
         trimestre_final = None
         meses_selecionados = []
         
-        # TAB REAL
-        if active_tab_waterfall_tc == "📊 Real":
-            st.subheader("📊 Análise Real")
+        # TAB REAL / BEST ESTIMATE
+        if active_tab_waterfall_tc in ("📊 Real", "🔮 Best Estimate"):
+            _is_be_tab_tc = active_tab_waterfall_tc == "🔮 Best Estimate"
+            st.subheader("🔮 Análise Best Estimate" if _is_be_tab_tc else "📊 Análise Real")
+
+            # Aba BE: usar dados do forecast_completo (Histórico + BE) igual à Home
+            if _is_be_tab_tc:
+                if _df_forecast_be is not None and not _df_forecast_be.empty and 'Período' in _df_forecast_be.columns:
+                    _df_be_wf_tc = _df_forecast_be.copy()
+                    # Aplicar filtro de Oficina
+                    _of = st.session_state.get('filtro_oficina_waterfall_tc', ['Todos'])
+                    if 'Oficina' in _df_be_wf_tc.columns and _of and 'Todos' not in _of:
+                        _df_be_wf_tc = _df_be_wf_tc[_df_be_wf_tc['Oficina'].astype(str).isin(_of)]
+                    # Aplicar filtro de Veículo
+                    _vf = st.session_state.get('filtro_veiculo_waterfall_tc', ['Todos'])
+                    if 'Veículo' in _df_be_wf_tc.columns and _vf and 'Todos' not in _vf:
+                        _df_be_wf_tc = _df_be_wf_tc[_df_be_wf_tc['Veículo'].astype(str).isin(_vf)]
+                    # Aplicar filtro de USI
+                    _uf = st.session_state.get('filtro_usi_waterfall_tc', ['Todos'])
+                    if 'USI' in _df_be_wf_tc.columns and _uf and 'Todos' not in _uf:
+                        _df_be_wf_tc = _df_be_wf_tc[_df_be_wf_tc['USI'].astype(str).isin(_uf)]
+                    # Aplicar filtros extras da sidebar
+                    for _fc_col in ['Account', 'Type 05', 'Type 06', 'Type 07', 'Custo', 'Fornecedor', 'Fornec.']:
+                        _fvals = st.session_state.get(f'filtro_{_fc_col}_waterfall_tc', ['Todos'])
+                        if _fc_col in _df_be_wf_tc.columns and _fvals and 'Todos' not in _fvals:
+                            _df_be_wf_tc = _df_be_wf_tc[_df_be_wf_tc[_fc_col].astype(str).isin(_fvals)]
+                    # Aplicar fator de conversão e moeda
+                    _df_be_wf_tc = _apply_display_transforms_waterfall(
+                        _df_be_wf_tc, tipo_visualizacao, fator_conversao, moeda_codigo, taxas_cambio
+                    )
+                    # Substituir df_filtrado_waterfall_tc e periodos_unicos
+                    if 'Ano' in _df_be_wf_tc.columns:
+                        _df_be_wf_tc['Período_Ano'] = _df_be_wf_tc['Período'].astype(str) + ' ' + _df_be_wf_tc['Ano'].astype(str)
+                        df_filtrado_waterfall_tc = _df_be_wf_tc
+                        col_mes_waterfall_tc = 'Período_Ano'
+                        periodos_unicos = sort_mes_unique_waterfall_tc(_df_be_wf_tc['Período_Ano'].dropna().unique().tolist())
+                    else:
+                        df_filtrado_waterfall_tc = _df_be_wf_tc
+                        col_mes_waterfall_tc = 'Período'
+                        periodos_unicos = sort_mes_unique_waterfall_tc(_df_be_wf_tc['Período'].dropna().unique().tolist())
+                else:
+                    st.warning("⚠️ Dados de Best Estimate não disponíveis. Verifique se o arquivo forecast_completo.parquet existe.")
 
             # ── Escopo de Veículo (Todos vs modelo específico) ──
             _veic_opcoes_real = []
@@ -3190,7 +3307,7 @@ else:
                         fig.update_layout(
                             barmode='overlay',
                             title="",  # Remover título do gráfico completamente
-                            xaxis_title="Categoria / Período",
+                            xaxis_title="",
                             yaxis_title=f"{tipo_visualizacao} ({moeda_simbolo})",
                             height=560,
                             showlegend=False,
@@ -3248,8 +3365,80 @@ else:
                         # Exibir título acima do gráfico
                         st.markdown("### 🌊 Waterfall Analysis — TC Veículos")
                         
+                        # ═══ Caixas Efeito Flex/Mix e Efeito Operacional acima do gráfico ═══
+                        _delta_op = valor_final_grafico - valor_inicial_grafico
+                        _flex_mix_val = 0.0
+                        if 'flex_volume_delta' in locals() and abs(flex_volume_delta) > 1e-10:
+                            _flex_mix_val = flex_volume_delta
+                            _delta_op = valor_final_grafico - (valor_inicial_grafico + flex_volume_delta)
+                        _delta_op_color = "#1e8449" if _delta_op < 0 else "#c0392b"  # custo caiu=verde, subiu=vermelho
+                        _vol_delta = (volume_real_m2 - volume_real_m1) if 'volume_real_m2' in locals() and 'volume_real_m1' in locals() else 0
+                        _flex_mix_color = "#1e8449" if _vol_delta > 0 else "#c0392b"  # volume subiu=verde, caiu=vermelho
+                        if tipo_visualizacao == "CPU (Custo por Unidade)":
+                            _delta_op_str = f"{_delta_op:+,.1f}"
+                            _flex_mix_str = f"{_flex_mix_val:+,.1f}"
+                            _delta_op_unit = f"{moeda_simbolo}/vh"
+                        else:
+                            _sfx = ""
+                            if 'fator_conversao' in locals() and fator_conversao:
+                                if fator_conversao == 'K (milhares)': _sfx = ' K'
+                                elif fator_conversao == 'M (Milhões)': _sfx = ' M'
+                            _delta_op_str = f"{_delta_op:+,.1f}{_sfx}"
+                            _flex_mix_str = f"{_flex_mix_val:+,.1f}{_sfx}"
+                            _delta_op_unit = moeda_simbolo
+                        st.markdown(
+                            f"""
+                            <div style="display:flex;align-items:stretch;margin:0 40px 4px 40px;gap:0;">
+                                <div style="width:18%;display:flex;justify-content:center;">
+                                    <div style="border:2px solid #c9d1d9;border-radius:6px;padding:4px 14px;background:#fff;text-align:center;white-space:nowrap;">
+                                        <span style="color:#555;font-size:0.72rem;font-weight:600;">Efeito Flex/Mix</span><br>
+                                        <span style="color:{_flex_mix_color};font-weight:700;font-size:0.9rem;">{_flex_mix_str} {_delta_op_unit}</span>
+                                    </div>
+                                </div>
+                                <div style="flex:1;"></div>
+                                <div style="width:40%;display:flex;justify-content:center;">
+                                    <div style="border:2px solid #c9d1d9;border-radius:6px;padding:4px 14px;background:#fff;text-align:center;white-space:nowrap;">
+                                        <span style="color:#555;font-size:0.72rem;font-weight:600;">Efeito Operacional</span><br>
+                                        <span style="color:{_delta_op_color};font-weight:700;font-size:0.9rem;">{_delta_op_str} {_delta_op_unit}</span>
+                                    </div>
+                                </div>
+                                <div style="width:10%;"></div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        
                         # Exibir gráfico
                         plotly_chart_safe(fig, use_container_width=True)
+                        
+                        # ═══ Caixas de Volume abaixo do gráfico ═══
+                        _vol_m1_display = volume_m1_graph if ('volume_m1_graph' in dir() or 'volume_m1_graph' in locals()) and volume_m1_graph > 0 else (volume_real_m1 if 'volume_real_m1' in locals() else 0)
+                        _vol_m2_display = volume_m2_graph if ('volume_m2_graph' in dir() or 'volume_m2_graph' in locals()) and volume_m2_graph > 0 else (volume_real_m2 if 'volume_real_m2' in locals() else 0)
+                        if _vol_m1_display > 0 or _vol_m2_display > 0:
+                            _vol_delta = _vol_m2_display - _vol_m1_display
+                            _vol_delta_str = f"{_vol_delta:+,.0f}"
+                            _vol_delta_color = "#c0392b" if _vol_delta < 0 else "#1e8449"
+                            st.markdown(
+                                f"""
+                                <div style="display:flex;align-items:center;justify-content:center;gap:0;margin:-10px 0 24px 0;">
+                                    <div style="border:2px solid #c9d1d9;border-radius:8px;padding:8px 18px;text-align:center;background:#fff;min-width:120px;">
+                                        <span style="color:#1e6ba8;font-weight:700;font-size:0.85rem;">Volume</span><br>
+                                        <span style="color:#1e6ba8;font-weight:700;font-size:1.05rem;">{_vol_m1_display:,.0f} units</span>
+                                    </div>
+                                    <div style="flex:1;height:2px;background:#c9d1d9;min-width:20px;"></div>
+                                    <div style="border:2px solid #c9d1d9;border-radius:6px;padding:6px 14px;background:#fff;white-space:nowrap;">
+                                        <span style="color:{_vol_delta_color};font-weight:700;font-size:0.95rem;">{_vol_delta_str} units</span>
+                                    </div>
+                                    <div style="flex:1;height:2px;background:#c9d1d9;min-width:20px;"></div>
+                                    <div style="font-size:1.2rem;color:#c9d1d9;">&#10141;</div>
+                                    <div style="border:2px solid #c9d1d9;border-radius:8px;padding:8px 18px;text-align:center;background:#fff;min-width:120px;">
+                                        <span style="color:#1e6ba8;font-weight:700;font-size:0.85rem;">Volume</span><br>
+                                        <span style="color:#1e6ba8;font-weight:700;font-size:1.05rem;">{_vol_m2_display:,.0f} units</span>
+                                    </div>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
                         
                         # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
                         # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline
@@ -4102,8 +4291,32 @@ else:
                 elif df_budget_vol is None or df_budget_vol.empty:
                     st.warning("⚠️ Dados de volume de budget não disponíveis.")
                 else:
-                    # Preparar dados para análise (usar df_filtrado_waterfall_tc)
-                    df_analise_budget = df_filtrado_waterfall_tc.copy() if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0 else pd.DataFrame()
+                    # Preparar dados para análise: Real + BE (meses sem realizado usam BE)
+                    # _df_forecast_be já contém Histórico (Real) + BE, igual à Home
+                    if _df_forecast_be is not None and not _df_forecast_be.empty and 'Período' in _df_forecast_be.columns:
+                        _df_be_bud = _df_forecast_be.copy()
+                        # Aplicar filtros da sidebar
+                        _of = st.session_state.get('filtro_oficina_waterfall_tc', ['Todos'])
+                        if 'Oficina' in _df_be_bud.columns and _of and 'Todos' not in _of:
+                            _df_be_bud = _df_be_bud[_df_be_bud['Oficina'].astype(str).isin(_of)]
+                        _vf = st.session_state.get('filtro_veiculo_waterfall_tc', ['Todos'])
+                        if 'Veículo' in _df_be_bud.columns and _vf and 'Todos' not in _vf:
+                            _df_be_bud = _df_be_bud[_df_be_bud['Veículo'].astype(str).isin(_vf)]
+                        _uf = st.session_state.get('filtro_usi_waterfall_tc', ['Todos'])
+                        if 'USI' in _df_be_bud.columns and _uf and 'Todos' not in _uf:
+                            _df_be_bud = _df_be_bud[_df_be_bud['USI'].astype(str).isin(_uf)]
+                        for _fc_col in ['Account', 'Type 05', 'Type 06', 'Type 07', 'Custo', 'Fornecedor', 'Fornec.']:
+                            _fvals = st.session_state.get(f'filtro_{_fc_col}_waterfall_tc', ['Todos'])
+                            if _fc_col in _df_be_bud.columns and _fvals and 'Todos' not in _fvals:
+                                _df_be_bud = _df_be_bud[_df_be_bud[_fc_col].astype(str).isin(_fvals)]
+                        # Aplicar fator de conversão e moeda
+                        _df_be_bud = _apply_display_transforms_waterfall(
+                            _df_be_bud, tipo_visualizacao, fator_conversao, moeda_codigo, taxas_cambio
+                        )
+                        df_analise_budget = _df_be_bud
+                    else:
+                        # Fallback: usar apenas dados Real
+                        df_analise_budget = df_filtrado_waterfall_tc.copy() if df_filtrado_waterfall_tc is not None and len(df_filtrado_waterfall_tc) > 0 else pd.DataFrame()
 
                     # ═══ Bloco 3: Filtro defensivo — remover 'Sem Veículo' de parquets antigos ═══
                     if 'Veículo' in df_analise_budget.columns:
@@ -5295,8 +5508,77 @@ else:
                                     # Exibir título acima do gráfico
                                     st.markdown("### 🌊 Waterfall Analysis — TC Veículos")
                                         
+                                    # ═══ Caixas Efeito Flex/Mix e Efeito Operacional acima do gráfico Budget ═══
+                                    _delta_op_bud = total_real - flex_bud_total
+                                    _flex_mix_bud = flex_bud_menos_bud if 'flex_bud_menos_bud' in locals() else (flex_bud_total - bud_total)
+                                    _delta_op_bud_color = "#1e8449" if _delta_op_bud < 0 else "#c0392b"  # custo caiu=verde, subiu=vermelho
+                                    _vol_delta_bud = (volume_total_real - volume_total_budget) if 'volume_total_real' in locals() and 'volume_total_budget' in locals() else 0
+                                    _flex_mix_bud_color = "#1e8449" if _vol_delta_bud > 0 else "#c0392b"  # volume subiu=verde, caiu=vermelho
+                                    if tipo_visualizacao == "CPU (Custo por Unidade)":
+                                        _delta_op_bud_str = f"{_delta_op_bud:+,.1f}"
+                                        _flex_mix_bud_str = f"{_flex_mix_bud:+,.1f}"
+                                        _delta_op_bud_unit = f"{moeda_simbolo}/vh"
+                                    else:
+                                        _sfx_b = ""
+                                        if 'fator_conversao' in locals() and fator_conversao:
+                                            if fator_conversao == 'K (milhares)': _sfx_b = ' K'
+                                            elif fator_conversao == 'M (Milhões)': _sfx_b = ' M'
+                                        _delta_op_bud_str = f"{_delta_op_bud:+,.1f}{_sfx_b}"
+                                        _flex_mix_bud_str = f"{_flex_mix_bud:+,.1f}{_sfx_b}"
+                                        _delta_op_bud_unit = moeda_simbolo
+                                    st.markdown(
+                                        f"""
+                                        <div style="display:flex;align-items:stretch;margin:0 40px 4px 40px;gap:0;">
+                                            <div style="width:18%;display:flex;justify-content:center;">
+                                                <div style="border:2px solid #c9d1d9;border-radius:6px;padding:4px 14px;background:#fff;text-align:center;white-space:nowrap;">
+                                                    <span style="color:#555;font-size:0.72rem;font-weight:600;">Efeito Flex/Mix</span><br>
+                                                    <span style="color:{_flex_mix_bud_color};font-weight:700;font-size:0.9rem;">{_flex_mix_bud_str} {_delta_op_bud_unit}</span>
+                                                </div>
+                                            </div>
+                                            <div style="flex:1;"></div>
+                                            <div style="width:40%;display:flex;justify-content:center;">
+                                                <div style="border:2px solid #c9d1d9;border-radius:6px;padding:4px 14px;background:#fff;text-align:center;white-space:nowrap;">
+                                                    <span style="color:#555;font-size:0.72rem;font-weight:600;">Efeito Operacional</span><br>
+                                                    <span style="color:{_delta_op_bud_color};font-weight:700;font-size:0.9rem;">{_delta_op_bud_str} {_delta_op_bud_unit}</span>
+                                                </div>
+                                            </div>
+                                            <div style="width:10%;"></div>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+                                        
                                     # Exibir gráfico
                                     plotly_chart_safe(fig, use_container_width=True)
+                                    
+                                    # ═══ Caixas de Volume abaixo do gráfico Budget ═══
+                                    _vol_bud_m1 = volume_total_budget if 'volume_total_budget' in locals() and volume_total_budget > 0 else 0
+                                    _vol_bud_m2 = volume_total_real if 'volume_total_real' in locals() and volume_total_real > 0 else 0
+                                    if _vol_bud_m1 > 0 or _vol_bud_m2 > 0:
+                                        _vol_bud_delta = _vol_bud_m2 - _vol_bud_m1
+                                        _vol_bud_delta_str = f"{_vol_bud_delta:+,.0f}"
+                                        _vol_bud_delta_color = "#c0392b" if _vol_bud_delta < 0 else "#1e8449"
+                                        st.markdown(
+                                            f"""
+                                            <div style="display:flex;align-items:center;justify-content:center;gap:0;margin:-10px 0 24px 0;">
+                                                <div style="border:2px solid #c9d1d9;border-radius:8px;padding:8px 18px;text-align:center;background:#fff;min-width:120px;">
+                                                    <span style="color:#1e6ba8;font-weight:700;font-size:0.85rem;">Volume</span><br>
+                                                    <span style="color:#1e6ba8;font-weight:700;font-size:1.05rem;">{_vol_bud_m1:,.0f} units</span>
+                                                </div>
+                                                <div style="flex:1;height:2px;background:#c9d1d9;min-width:20px;"></div>
+                                                <div style="border:2px solid #c9d1d9;border-radius:6px;padding:6px 14px;background:#fff;white-space:nowrap;">
+                                                    <span style="color:{_vol_bud_delta_color};font-weight:700;font-size:0.95rem;">{_vol_bud_delta_str} units</span>
+                                                </div>
+                                                <div style="flex:1;height:2px;background:#c9d1d9;min-width:20px;"></div>
+                                                <div style="font-size:1.2rem;color:#c9d1d9;">&#10141;</div>
+                                                <div style="border:2px solid #c9d1d9;border-radius:8px;padding:8px 18px;text-align:center;background:#fff;min-width:120px;">
+                                                    <span style="color:#1e6ba8;font-weight:700;font-size:0.85rem;">Volume</span><br>
+                                                    <span style="color:#1e6ba8;font-weight:700;font-size:1.05rem;">{_vol_bud_m2:,.0f} units</span>
+                                                </div>
+                                            </div>
+                                            """,
+                                            unsafe_allow_html=True,
+                                        )
                                     
                                     # ═══ Criar dados para o painel por oficina (usando dados SEM filtro de oficina) ═══
                                     # O painel inferior sempre mostra TODAS as oficinas, independente do filtro inline

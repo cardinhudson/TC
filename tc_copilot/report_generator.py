@@ -2132,9 +2132,18 @@ def gerar_relatorio_mes(
         )
 
     # 5. Gerar Resumo Executivo via LLM (APÓS todas as seções, pois resume tudo)
+    # Se fonte é BE, adicionar nota ao contexto para o LLM
+    _dados_resumo_final = dados_resumo
+    if dados.get("fonte_dados") == "Best Estimate":
+        _nota_be = (
+            "⚠️ NOTA IMPORTANTE: Os dados deste mês são provenientes do Best Estimate "
+            "(previsão), pois ainda não há dados reais disponíveis para este período. "
+            "Mencionar brevemente esta informação no resumo.\n\n"
+        )
+        _dados_resumo_final = _nota_be + dados_resumo
     secoes_geradas["resumo_executivo"] = gerar_secao_relatorio(
         tipo_secao="resumo_executivo",
-        dados_formatados=dados_resumo,
+        dados_formatados=_dados_resumo_final,
         mes=mes_nome,
         ano=ano,
         idioma=idioma,
@@ -3124,6 +3133,14 @@ def gerar_relatorio_mes_local(
         moeda=moeda,
         simbolo=simbolo,
     )
+
+    # 4a. Adicionar nota de fonte BE ao resumo executivo, se aplicável
+    if dados.get("fonte_dados") == "Best Estimate":
+        _nota_be = (
+            "⚠️ **Nota:** Os dados deste mês são provenientes do Best Estimate "
+            "(previsão), pois ainda não há dados reais disponíveis para este período.\n\n"
+        )
+        secoes_geradas["resumo_executivo"] = _nota_be + secoes_geradas.get("resumo_executivo", "")
 
     # 4b. Pré-calcular tabelas de análise detalhada
     try:

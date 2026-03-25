@@ -4725,7 +4725,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
 
         **Persistência das configurações:**
         - O simulador salva o último conjunto aplicado em `config_forecast.json`
-        - O arquivo persiste modo global/detalhado, sensibilidades, inflação e produtividade
+        - O arquivo persiste modo global/detalhado, sensibilidades, inflação, produtividade e configuração de períodos
 
         ### 📊 Geração de Forecast
 
@@ -4734,7 +4734,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         - `forecast_historico.parquet` — Histórico sem os meses previstos, evitando duplicidade com a previsão
         - `forecast_previsao.parquet` — Apenas períodos futuros de BE e BE Manual
         - `forecast_veiculos_custo_fp.parquet` — Forecast rateado por veículo para os fluxos que exigem granularidade veicular
-        - `config_forecast.json` — Configurações aplicadas (modo, sensibilidade, inflação, produtividade)
+        - `config_forecast.json` — Configurações aplicadas (modo, sensibilidade, inflação, produtividade, períodos)
 
         Estes dados alimentam a página **Best Estimate (Análise)**, que usa o mesmo
         layout da Home (com gráficos e KPIs) mas com dados de Forecast.
@@ -8768,15 +8768,50 @@ elif indice_selecionado == "🔮 Guia de Best Estimate":
         st.markdown(r"""
 ### Sequência obrigatória
 
-1. Selecionar os períodos históricos que entram na média.
-2. Excluir meses anômalos, se aplicável.
-3. Calcular média histórica de custo no mesmo nível analítico exibido.
-4. Calcular volume médio histórico no mesmo perímetro.
-5. Definir volume futuro por período.
-6. Calcular proporção de volume futuro versus volume histórico.
-7. Aplicar sensibilidade sobre a variação de volume.
-8. Aplicar o fator monetário com inflação e produtividade.
-9. Somar custos manuais apenas como linhas adicionais, nunca misturando com a média histórica original.
+1. Carregar a base histórica consolidada e definir quais períodos entram na média.
+2. Remover da base de cálculo qualquer linha já marcada como BE, BE Manual ou Forecast para evitar circularidade.
+3. Excluir meses anômalos, se aplicável, mantendo apenas os períodos aprovados para média.
+4. Classificar cada linha como Fixo ou Variável a partir do conteúdo textual da coluna Custo.
+5. Calcular a média histórica de custo no mesmo nível analítico exibido pelo simulador.
+6. Calcular o volume médio histórico no mesmo perímetro usado na média de custo.
+7. Definir o volume futuro de cada período a projetar.
+8. Calcular a proporção de volume futuro versus volume histórico e transformá-la em variação percentual.
+9. Aplicar a sensibilidade da linha sobre a variação de volume.
+10. Aplicar o fator monetário com inflação e produtividade.
+11. Gravar o valor calculado como BE da linha.
+12. Somar BE Manual apenas como linhas adicionais, sem alterar a média histórica nem o forecast calculado pelo modelo.
+
+### Regra econômica real aplicada pelo sistema
+
+- Base do cálculo por linha:
+
+$$
+BE_{linha} = Média\ Histórica \times Fator\ de\ Variação \times Fator\ Monetário
+$$
+
+- Fator de variação:
+
+$$
+Fator\ de\ Variação = 1 + \left(\left(\frac{Volume\ Futuro}{Volume\ Médio\ Histórico} - 1\right) \times Sensibilidade\right)
+$$
+
+- Fator monetário:
+
+$$
+Fator\ Monetário = (1 + Inflação) \times (1 - Produtividade)
+$$
+
+- Quando o volume médio histórico é zero, o sistema força a proporção de volume para 1,0 para não distorcer o cálculo nem dividir por zero.
+- A inflação pode ser aplicada por Type 06; se não houver regra específica, o sistema usa fallback global ou zero, conforme a configuração disponível.
+- A produtividade é aplicada depois do ajuste de volume, também podendo ser específica por Type 06 ou global.
+
+### Como o sistema decide Fixo vs Variável
+
+- Se a coluna Custo contiver FIXO, FIX ou FIXED, a linha é tratada como Fixo.
+- Caso contrário, a linha é tratada como Variável, salvo classificações já normalizadas anteriormente no pipeline.
+- Essa distinção é crítica porque altera a sensibilidade padrão:
+    - Fixo: sensibilidade padrão 0%
+    - Variável: sensibilidade padrão 100%
 
 ### Fórmula geral
 
@@ -8804,6 +8839,13 @@ Passos:
 ### BE Manual
 
 Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linha separada identificada como BE Manual. O consolidado final do período passa a ser R$ 123.248, mas o valor projetado pelo modelo continua R$ 115.248.
+
+### Leitura correta da ordem do cálculo
+
+1. O sistema nunca parte do consolidado final para calcular média; ele parte apenas das linhas históricas válidas.
+2. O efeito de volume entra antes do bloco monetário.
+3. Inflação e produtividade são multiplicativas entre si, não aditivas.
+4. O BE Manual não recalcula o forecast do modelo; ele só complementa o consolidado final.
         """)
 
     with st.expander("🚗 **TC Veículos — Resumo operacional (Simulador + consumo na Home)**", expanded=False):
@@ -9107,17 +9149,28 @@ Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linh
         Best_Estimate = Média_Histórica * Fator_Variação * Fator_Monetário
         ```
         
-        **Onde:**
-        - `Média_Histórica` = Média dos custos históricos para a combinação de chaves
-        - `Fator_Variação` = 1 + (Variação_Percentual_Volume * Sensibilidade)
-        - `Fator_Monetário` = (1 + Inflação / 100) × (1 - Produtividade / 100)
+        **Onde, na implementação real:**
+        - `Média_Histórica` = média calculada apenas sobre linhas históricas válidas, excluindo `BE`, `BE Manual` e `Forecast`
+        - `Fator_Variação` = `1 + (Variação_Percentual_Volume * Sensibilidade)`
+        - `Fator_Monetário` = `(1 + Inflação / 100) × (1 - Produtividade / 100)`
+        - `Sensibilidade` pode ser global ou específica por `Type 06`
+        - `Inflação` pode ser global ou específica por `Type 06`
+        - `Produtividade` pode ser global ou específica por `Type 06`
         
         **Cálculo Detalhado Passo a Passo:**
+
+        **0. Higienizar a base antes da média:**
+        ```
+        Base_para_média = Base_Histórica sem tipos ['BE', 'BE Manual', 'Forecast']
+        ```
+        - Este passo evita que um forecast antigo contamine a nova média histórica
+        - Meses removidos manualmente pelo usuário também ficam fora da média
         
         **1. Calcular Proporção de Volume:**
         ```
         proporção_volume = Volume_do_Mês_Futuro / Volume_Médio_Histórico
         ```
+        - Se `Volume_Médio_Histórico <= 0`, o sistema usa `proporção_volume = 1.0`
         
         **2. Calcular Variação Percentual:**
         ```
@@ -9131,8 +9184,9 @@ Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linh
         ```
         variação_ajustada = variação_percentual * sensibilidade
         ```
-        - Para custos fixos: `sensibilidade = 0` → `variação_ajustada = 0`
-        - Para custos variáveis: `sensibilidade = 1.0` → `variação_ajustada = variação_percentual`
+        - Para custos fixos: sensibilidade padrão = `0.0` → volume não altera o valor, salvo override manual
+        - Para custos variáveis: sensibilidade padrão = `1.0` → volume entra integralmente, salvo override manual
+        - Para custos semi-variáveis ou ajustes finos: o usuário pode configurar sensibilidades intermediárias
         
         **4. Calcular Fator de Variação:**
         ```
@@ -9143,11 +9197,20 @@ Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linh
         ```
         fator_monetário = (1.0 + (inflação / 100.0)) * (1.0 - (produtividade / 100.0))
         ```
+        - O sistema aplica inflação e produtividade de forma multiplicativa
+        - A produtividade reduz o efeito monetário total e entra depois do ajuste de volume
         
         **6. Calcular Best Estimate Final:**
         ```
         Best_Estimate = Média_Histórica * fator_variação * fator_monetário
         ```
+
+        **7. Persistir e consolidar:**
+        ```
+        Consolidado_Final = Histórico + BE + BE_Manual
+        ```
+        - O valor `BE` calculado pelo modelo é salvo separadamente do `BE Manual`
+        - O consolidado final combina as camadas, mas o cálculo do modelo continua rastreável
         """)
         
         with st.expander("**📐 Exemplo Completo de Cálculo**", expanded=False):
@@ -9226,9 +9289,19 @@ Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linh
                     - Fórmula: `Best_Estimate_Variável = Média_Histórica_Variável * (Volume_Futuro/Volume_Histórico) * (1 + Inflação/100) * (1 - Produtividade/100)`
 
                 **Identificação no Sistema:**
-                - A coluna `Custo` (ou `Tipo_Custo`) contém os valores: `'Fixo'` ou `'Variável'`
-                - Esta classificação vem do merge com a Base Conso (Dados SAPIENS.xlsx)
-                - Cada linha de dados deve ter esta classificação para o cálculo correto
+                                - O sistema procura na coluna `Custo` textos contendo `FIXO`, `FIX` ou `FIXED`
+                                - Se encontrar esses termos, a linha é classificada como `Fixo`
+                                - Se não encontrar, a linha segue como `Variável` ou mantém a classificação já normalizada anteriormente
+                                - Em alguns fluxos a classificação já chega tratada após merges e normalizações, mas a regra textual continua sendo o fallback operacional
+                                - Cada linha precisa ter essa classificação correta porque a sensibilidade aplicada depende dela
+
+                                **Como calcular na prática:**
+                                - **Fixo:**
+                                    `BE_Fixo = Média_Histórica_Fixo × Fator_Monetário`
+                                - **Variável:**
+                                    `BE_Variável = Média_Histórica_Variável × Fator_Variação × Fator_Monetário`
+                                - **Semi-variável / ajuste manual:**
+                                    usa a mesma fórmula geral, mudando apenas a sensibilidade para um valor intermediário
                 """)
         
         st.markdown("---")
@@ -9258,6 +9331,11 @@ Se houver um custo manual de R$ 8.000 para o mesmo período, ele entra como linh
         - **Custos Fixos:** Não são afetados pela proporção (sensibilidade = 0%), mas ainda sofrem inflação e produtividade
         - **Custos Variáveis:** São multiplicados pela proporção (sensibilidade = 100%) e depois ajustados por inflação e produtividade
         - **Custos Semi-Variáveis:** São multiplicados por `1 + (proporção - 1) * sensibilidade` e depois passam pelo fator monetário
+
+        **Regras de fallback importantes:**
+        - Se o volume médio histórico for zero, o sistema usa proporção = 1,0
+        - Isso evita divisão por zero e impede explosões artificiais no forecast
+        - Nessa situação, a linha fica dependente apenas da média histórica e do fator monetário
         """)
         
         st.success("""

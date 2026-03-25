@@ -149,6 +149,11 @@ def _validar_abas_excel(caminho: str, abas_obrigatorias: list[str]) -> None:
 def normalizar_tipos_para_parquet(df: pd.DataFrame) -> pd.DataFrame:
     """Normaliza tipos de dados para evitar erros ao salvar parquet."""
     df = df.copy()
+    # Colunas que SEMPRE devem ser string (podem vir como serial numérico do Excel)
+    _COLUNAS_SEMPRE_STRING = ['Dt.lçto.', 'Nºdoc.ref.', 'Doc.compra', 'Nºdoc.ref']
+    for _cs in _COLUNAS_SEMPRE_STRING:
+        if _cs in df.columns:
+            df[_cs] = df[_cs].apply(lambda x: str(x) if pd.notna(x) else None)
     colunas_numericas = []
     for col in df.columns:
         try:
