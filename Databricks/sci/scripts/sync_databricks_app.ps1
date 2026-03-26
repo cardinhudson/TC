@@ -246,6 +246,8 @@ function Invoke-WorkspaceImportTree {
         [string[]]$DatabricksArgs
     )
 
+    $createdFolders = @{}
+
     $allFiles = Get-ChildItem -Path $LocalRoot -Recurse -File |
         Where-Object {
             $_.FullName -notlike "*\__pycache__\*" -and
@@ -261,7 +263,15 @@ function Invoke-WorkspaceImportTree {
     foreach ($file in $allFiles) {
         $relPath = $file.FullName.Substring($LocalRoot.TrimEnd('\').Length + 1) -replace '\\','/'
         $remotePath = "$RemoteRoot/$relPath"
+        $remoteDir = (Split-Path -Path $remotePath -Parent) -replace '\\','/'
         try {
+            if (-not [string]::IsNullOrWhiteSpace($remoteDir) -and -not $createdFolders.ContainsKey($remoteDir)) {
+                $mkdirOutput = & $DatabricksExe @DatabricksArgs workspace mkdirs $remoteDir 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Falha ao criar pasta remota '$remoteDir': $mkdirOutput"
+                }
+                $createdFolders[$remoteDir] = $true
+            }
             $output = & $DatabricksExe @DatabricksArgs workspace import $remotePath --file $file.FullName --format AUTO --overwrite 2>&1
             if ($LASTEXITCODE -ne 0) {
                 throw "Exit code $LASTEXITCODE : $output"
@@ -306,17 +316,17 @@ function Invoke-DatabricksAppDeploy {
     )
 
     Write-Host "" -ForegroundColor Cyan
-    Write-Host "Disparando deploy SNAPSHOT do app '$TargetAppName'..." -ForegroundColor Cyan
+    Write-Host "Executando deploy SNAPSHOT do app '$TargetAppName' e aguardando conclusao..." -ForegroundColor Cyan
 
     try {
-        $deployOutput = & $DatabricksExe @DatabricksArgs apps deploy $TargetAppName --mode SNAPSHOT --source-code-path $TargetWorkspacePath --no-wait 2>&1
+        $deployOutput = & $DatabricksExe @DatabricksArgs apps deploy $TargetAppName --mode SNAPSHOT --source-code-path $TargetWorkspacePath --timeout 30m 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERRO: Deploy retornou codigo $LASTEXITCODE" -ForegroundColor Red
             Write-Host $deployOutput -ForegroundColor Yellow
             exit 1
         }
 
-        Write-Host "Deploy SNAPSHOT disparado com sucesso." -ForegroundColor Green
+        Write-Host "Deploy SNAPSHOT concluido com sucesso." -ForegroundColor Green
         $deployOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
     } catch {
         throw "Falha ao disparar deploy do app '$TargetAppName': $($_.Exception.Message)"

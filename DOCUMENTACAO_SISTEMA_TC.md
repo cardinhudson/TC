@@ -202,8 +202,12 @@ dados/
     â”‚       â””â”€â”€ df_vol_veiculos_BUD.parquet
     â”œâ”€â”€ historico_consolidado/
     â””â”€â”€ Forecast/                 # Outputs do Best Estimate (TC VeÃ­culos)
+        â”œâ”€â”€ forecast_historico.parquet
+        â”œâ”€â”€ forecast_previsao.parquet
         â”œâ”€â”€ forecast_completo.parquet
-        â””â”€â”€ premissas.json
+        â”œâ”€â”€ forecast_veiculos_custo_fp.parquet
+        â”œâ”€â”€ custos_especificos.parquet
+        â””â”€â”€ config_forecast.json
 ```
 
 Prioriza histÃ³rico consolidado para anÃ¡lises multi-anos. Budget e Real separados. HistÃ³rico sempre concatenado, nunca substituÃ­do.
@@ -324,13 +328,14 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 2. `variaÃ§Ã£o_percentual = proporÃ§Ã£o - 1.0`
 3. `variaÃ§Ã£o_ajustada = variaÃ§Ã£o Ã— sensibilidade`
 4. `fator_variaÃ§Ã£o = 1.0 + variaÃ§Ã£o_ajustada`
-5. `fator_inflaÃ§Ã£o = 1.0 + (inflaÃ§Ã£o / 100.0)`
-6. `BE = MÃ©dia_HistÃ³rica Ã— fator_variaÃ§Ã£o Ã— fator_inflaÃ§Ã£o`
+5. `fator_monetÃ¡rio = (1.0 + inflaÃ§Ã£o / 100.0) Ã— (1.0 - produtividade / 100.0)`
+6. `BE = MÃ©dia_HistÃ³rica Ã— fator_variaÃ§Ã£o Ã— fator_monetÃ¡rio`
 
 ### Simulador â€” Funcionalidades
-- ConfiguraÃ§Ã£o interativa (perÃ­odos, sensibilidades, inflaÃ§Ã£o, volume)
+- ConfiguraÃ§Ã£o interativa (perÃ­odos, sensibilidades, inflaÃ§Ã£o, produtividade e volume)
 - Custos EspecÃ­ficos (BE Manual): Pontual ou Constante, rateio automÃ¡tico
-- Salvos em `dados/TC_Ext/Forecast/custos_especificos.parquet`
+- PersistÃªncia das premissas em `config_forecast.json`
+- ValidaÃ§Ã£o de convergÃªncia dos meses histÃ³ricos no fluxo veicular
 
 ### Arquivos Gerados
 - `forecast_completo.parquet`
@@ -338,6 +343,13 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 - `forecast_previsao.parquet`
 - `df_final_historico_forecast.parquet`
 - `custos_especificos.parquet`
+- `config_forecast.json`
+
+### Regra CrÃ­tica do TC VeÃ­culos
+- No fluxo veicular, o arquivo `forecast_veiculos_custo_fp.parquet` Ã© gerado com a mesma lÃ³gica do Real:
+    - `Custo Rateado = FP sem Dedicada Ã— Percentual`
+    - `Custo FP Veiculo = Custo Rateado + D&A dedicado`
+- Na anÃ¡lise, meses `HistÃ³rico` sÃ£o sobrepostos pelo Real para garantir igualdade numÃ©rica com o realizado.
 
 **Nomenclatura:** "HistÃ³rico" (real), "BE" (forecast), "BE Manual" (custos especÃ­ficos)
 

@@ -922,6 +922,26 @@ def fase10_salvamento(config: Dict, df_principal: pd.DataFrame,
         arquivos[nome] = caminho
         print(f"   ✅ {nome} → {caminho} ({len(df_out):,} linhas)")
 
+    # ── Gerar parquets otimizados (THIN + AGG) — df_principal Real ──
+    try:
+        from tc_core.parquet_schemas import gerar_thin, gerar_agg
+        _df_full = df_principal.copy()
+        if 'Ano' not in _df_full.columns:
+            _df_full['Ano'] = ano
+        _df_full = normalizar_tipos_para_parquet(_df_full)
+        # THIN
+        df_thin = gerar_thin(_df_full, 'df_principal_thin')
+        caminho_thin = os.path.join(pasta, 'df_principal_thin.parquet')
+        df_thin.to_parquet(caminho_thin, index=False)
+        print(f"  💾 df_principal_thin.parquet — {df_thin.shape[0]} linhas × {df_thin.shape[1]} cols (THIN)")
+        # AGG
+        df_agg = gerar_agg(_df_full, 'df_principal_agg_home')
+        caminho_agg = os.path.join(pasta, 'df_principal_agg_home.parquet')
+        df_agg.to_parquet(caminho_agg, index=False)
+        print(f"  💾 df_principal_agg_home.parquet — {df_agg.shape[0]} linhas (AGG)")
+    except Exception as e:
+        print(f"  ⚠️ Erro ao gerar THIN/AGG df_principal Real: {e}")
+
     return arquivos
 
 
@@ -976,6 +996,16 @@ def fase10b_sapiens_detalhado(config: Dict, df_principal: pd.DataFrame) -> str:
     print(f"   ✅ df_tc_sapiens.parquet → {caminho}")
     print(f"   📊 {len(df):,} linhas × {len(df.columns)} colunas")
     print(f"   Colunas: {list(df.columns)}")
+
+    # ── Gerar THIN do Sapiens (remover colunas pesadas de texto) ──
+    try:
+        from tc_core.parquet_schemas import gerar_thin
+        df_thin = gerar_thin(df, 'df_tc_sapiens_thin')
+        caminho_thin = os.path.join(pasta, 'df_tc_sapiens_thin.parquet')
+        df_thin.to_parquet(caminho_thin, index=False, engine='pyarrow')
+        print(f"   ✅ df_tc_sapiens_thin.parquet → {caminho_thin} ({len(df_thin):,} linhas × {len(df_thin.columns)} cols, THIN)")
+    except Exception as e:
+        print(f"   ⚠️ Erro ao gerar THIN sapiens: {e}")
 
     return caminho
 
@@ -1244,6 +1274,19 @@ def fase16_salvamento_veiculos(config: Dict, df_fp_sem_da: pd.DataFrame,
         arquivos[nome] = caminho
         print(f"   ✅ {nome} → {caminho} ({len(df_out):,} linhas)")
 
+    # ── Gerar AGG de veículos Real ──
+    try:
+        from tc_core.parquet_schemas import gerar_agg
+        _df_veiculo = df_custo_fp_veiculo.copy()
+        _df_veiculo['Ano'] = ano
+        _df_veiculo = normalizar_tipos_para_parquet(_df_veiculo)
+        df_agg = gerar_agg(_df_veiculo, 'df_veiculos_agg_home')
+        caminho_agg = os.path.join(pasta, 'df_veiculos_agg_home.parquet')
+        df_agg.to_parquet(caminho_agg, index=False, engine='pyarrow')
+        print(f"   ✅ df_veiculos_agg_home.parquet → {caminho_agg} ({len(df_agg):,} linhas, AGG)")
+    except Exception as e:
+        print(f"   ⚠️ Erro ao gerar AGG veículos Real: {e}")
+
     return arquivos
 
 
@@ -1407,6 +1450,17 @@ def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
     if excel_path is None:
         return pd.DataFrame([{'Conferência': 'ERRO', 'Status': '❌ Excel não encontrado'}])
 
+    # ── Oficinas válidas (presentes no Budget) — mesmo filtro da extração ──
+    pasta_bud = os.path.join(pasta_tc, 'BUD')
+    caminho_bud_principal = os.path.join(pasta_bud, 'df_principal_BUD.parquet')
+    if os.path.exists(caminho_bud_principal):
+        _df_bud = pd.read_parquet(caminho_bud_principal, columns=['Oficina'])
+        oficinas_bud = sorted(_df_bud['Oficina'].dropna().unique().tolist())
+        oficinas_bud = [ofi for ofi in oficinas_bud if ofi not in OFICINAS_INVALIDAS]
+        del _df_bud
+    else:
+        oficinas_bud = None
+
     # ── helpers ────────────────────────────────────────────────
     def _add(nome, val_excel, val_parquet):
         diff = abs(val_excel - val_parquet)
@@ -1457,6 +1511,9 @@ def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
             df = df[df['Account'] != 'Redis']
         # Excluir oficinas inválidas
         df = df[~df['Oficina'].isin(OFICINAS_INVALIDAS)]
+        # Excluir oficinas ausentes no Budget (mesma lógica de fase1_sapiens)
+        if oficinas_bud is not None:
+            df = df[df['Oficina'].isin(oficinas_bud)]
         return df
 
     def _ler_redis_melt() -> pd.DataFrame:
@@ -1464,6 +1521,9 @@ def executar_conferencias(ano: int, tipo: str = 'real') -> pd.DataFrame:
         df_m = _ler_aba_melt('massa - REDIS')
         # Remover linhas zeradas
         df_m = df_m[df_m['_valor'] != 0]
+        # Excluir oficinas ausentes no Budget (mesma lógica de fase1b_redis)
+        if oficinas_bud is not None and 'Oficina' in df_m.columns:
+            df_m = df_m[df_m['Oficina'].isin(oficinas_bud)]
         return df_m
 
     # ── caminhos dos parquets ─────────────────────────────────

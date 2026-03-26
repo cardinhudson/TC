@@ -26,9 +26,12 @@ from tc_core.finance.currency_db import (
 )
 
 from tc_core.utils.portabilidade import get_data_root as _get_data_root
+from tc_core.data_router import read_optimized as _read_optimized
+from tc_core.feature_flags import get_flag as _get_flag
+from tc_core.telemetry import log_data_source, perf_timer
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
-from tc_principal.shared import COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button
+from tc_principal.shared import COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button, build_cpu_tooltip_payload
 
 
 def _tc_ext_data_root() -> str:
@@ -174,12 +177,43 @@ def _hist_consolidado(*parts: str) -> str:
 def _load_ext_delta_or_parquet(tabela_delta: str, parquet_hist_parts: tuple, ano_param) -> pd.DataFrame | None:
     """Cadeia de fallback para carregar dados TC_Ext.
 
-    1. historico_consolidado (parquet — contém todos os anos)
-    2. SCI_DELTA_ROOT/TC_Ext/{ano}/{tabela} — suplemento por ano quando hist não existe
+    1. THIN/AGG otimizado do historico_consolidado (quando flag ON)
+    2. historico_consolidado (parquet — contém todos os anos)
+    3. SCI_DELTA_ROOT/TC_Ext/{ano}/{tabela} — suplemento por ano quando hist não existe
     """
     parquet_path = _hist_consolidado(*parquet_hist_parts)
+
+    # Tentar variância otimizada (THIN) quando flag está ativa
+    if _get_flag("SCI_USE_OPTIMIZED_PARQUETS", default="false") == "true":
+        base, ext = os.path.splitext(parquet_path)
+        thin_path = base + "_thin" + ext
+        if os.path.exists(thin_path):
+            with perf_timer() as t:
+                df = pd.read_parquet(thin_path)
+            log_data_source(
+                consumer=f"tc_ext_{tabela_delta}",
+                logical_dataset=os.path.basename(thin_path).replace('.parquet', ''),
+                physical_path=thin_path,
+                mode="THIN",
+                nrows=len(df),
+                ncols=len(df.columns),
+                load_ms=t.elapsed_ms,
+            )
+            return df
+
     if os.path.exists(parquet_path):
-        return pd.read_parquet(parquet_path)
+        with perf_timer() as t:
+            df = pd.read_parquet(parquet_path)
+        log_data_source(
+            consumer=f"tc_ext_{tabela_delta}",
+            logical_dataset=os.path.basename(parquet_path).replace('.parquet', ''),
+            physical_path=parquet_path,
+            mode="FULL",
+            nrows=len(df),
+            ncols=len(df.columns),
+            load_ms=t.elapsed_ms,
+        )
+        return df
 
     if ano_param and ano_param != "Todos":
         delta_root = os.environ.get("SCI_DELTA_ROOT", "")
@@ -188,7 +222,18 @@ def _load_ext_delta_or_parquet(tabela_delta: str, parquet_hist_parts: tuple, ano
                 ano_str = str(int(ano_param))
                 delta_path = os.path.join(delta_root, "TC_Ext", ano_str, tabela_delta)
                 if os.path.exists(delta_path):
-                    return pd.read_parquet(delta_path)
+                    with perf_timer() as t:
+                        df = pd.read_parquet(delta_path)
+                    log_data_source(
+                        consumer=f"tc_ext_{tabela_delta}",
+                        logical_dataset=tabela_delta,
+                        physical_path=delta_path,
+                        mode="FULL",
+                        nrows=len(df),
+                        ncols=len(df.columns),
+                        load_ms=t.elapsed_ms,
+                    )
+                    return df
             except Exception:
                 pass
 
@@ -9288,7 +9333,8 @@ if is_main_page:
                 )
                 return df_cpu
 
-            def _plot_rank(df_rank, coluna_valor, titulo, moeda, df_flex_line=None):
+            def _plot_rank(df_rank, coluna_valor, titulo, moeda, df_flex_line=None,
+                           hover_payloads_bar=None, hover_payloads_budget=None):
                 if df_rank is None or df_rank.empty or coluna_valor not in df_rank.columns:
                     st.info("ℹ️ Sem dados para o gráfico com os filtros atuais.")
                     return
@@ -9299,6 +9345,16 @@ if is_main_page:
 
                 eixo_x = df_plot.columns[0]
                 valores = df_plot[coluna_valor].tolist()
+
+                # ── Hover rico (Type 05 → Type 06) se payload disponível ──
+                bar_hover_kwargs: dict = {}
+                if hover_payloads_bar:
+                    _ht = [hover_payloads_bar.get(str(cat).strip(), f'{cat}<br>{coluna_valor}: {v:,.2f}')
+                           for cat, v in zip(df_plot[eixo_x], valores)]
+                    bar_hover_kwargs = dict(hovertext=_ht, hovertemplate='%{hovertext}<extra></extra>')
+                else:
+                    bar_hover_kwargs = dict(hovertemplate=f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>")
+
                 fig = go.Figure(
                     data=[
                         go.Bar(
@@ -9311,9 +9367,7 @@ if is_main_page:
                                 colorscale='Blues',
                                 showscale=False
                             ),
-                            hovertemplate=(
-                                f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>"
-                            ),
+                            **bar_hover_kwargs,
                         )
                     ]
                 )
@@ -9322,6 +9376,16 @@ if is_main_page:
                     df_line = df_flex_line.copy()
                     df_line = df_line[df_line[eixo_x].isin(df_plot[eixo_x])]
                     df_line = df_line.set_index(eixo_x).reindex(df_plot[eixo_x]).reset_index()
+
+                    # ── Hover rico para Flex Bud ──
+                    bud_hover_kwargs: dict = {}
+                    if hover_payloads_budget:
+                        _htb = [hover_payloads_budget.get(str(cat).strip(), f'{cat}<br>Flex Bud: {v:,.2f}')
+                                for cat, v in zip(df_line[eixo_x], df_line[coluna_valor].fillna(0))]
+                        bud_hover_kwargs = dict(hovertext=_htb, hovertemplate='%{hovertext}<extra></extra>')
+                    else:
+                        bud_hover_kwargs = dict(hovertemplate=f"%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra></extra>")
+
                     fig.add_trace(
                         go.Scatter(
                             x=df_line[eixo_x],
@@ -9332,9 +9396,7 @@ if is_main_page:
                             marker=dict(size=6),
                             text=[f"{v:,.2f}" for v in df_line[coluna_valor].fillna(0).tolist()],
                             textposition='top center',
-                            hovertemplate=(
-                                f"%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra></extra>"
-                            )
+                            **bud_hover_kwargs,
                         )
                     )
 
@@ -9357,6 +9419,40 @@ if is_main_page:
                 st.warning("⚠️ Sem dados Real para o Tab 3 com os filtros atuais.")
             else:
                 moeda_label = moeda_simbolo if 'moeda_simbolo' in locals() else "R$"
+
+                # ── Tooltip rico: helper local para Tab 3 ──
+                _sufixo_t3 = ''
+                try:
+                    if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+                        if fator_conversao == "K (milhares)":
+                            _sufixo_t3 = ' K'
+                        elif fator_conversao == "M (Milhões)":
+                            _sufixo_t3 = ' M'
+                except Exception:
+                    pass
+                _is_cpu_t3 = tipo_visualizacao == "CPU (Custo por Unidade)"
+
+                def _tooltip_por_cat(cat_col, categorias, serie='Real', df_src=None, vol_src=None):
+                    """Constrói tooltip rico por categoria (Oficina/Veículo)."""
+                    try:
+                        _df = df_src if df_src is not None else base_real
+                        _vol = vol_src if vol_src is not None else base_vol
+                        if _df is None or _df.empty or 'Type 05' not in _df.columns:
+                            return None
+                        _vol_dict: dict = {}
+                        if (_vol is not None and not _vol.empty
+                                and 'Volume' in _vol.columns and cat_col in _vol.columns):
+                            _tmp = _vol.copy()
+                            _tmp['_cat'] = _tmp[cat_col].astype(str).str.strip()
+                            _tmp['Volume'] = pd.to_numeric(_tmp['Volume'], errors='coerce').fillna(0)
+                            _vg = _tmp.groupby('_cat', as_index=False)['Volume'].sum()
+                            _vol_dict = dict(zip(_vg['_cat'], _vg['Volume']))
+                        return build_cpu_tooltip_payload(
+                            _df, categorias, 'Total', _vol_dict, moeda_label, _sufixo_t3,
+                            serie_label=serie, is_cpu=_is_cpu_t3, group_col=cat_col,
+                        )
+                    except Exception:
+                        return None
 
                 # Resumo (estilo Tab 1)
                 linha_resumo_tab3, linha_resumo_tab3_formatado = _resumo_tab3(
@@ -9393,7 +9489,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_of = None
-                        _plot_rank(df_cpu_of, 'CPU', "📊 CPU por Oficina", moeda_label, df_flex_of)
+                        _cats_of = df_cpu_of['Oficina'].tolist() if not df_cpu_of.empty else []
+                        _hover_of = _tooltip_por_cat('Oficina', _cats_of)
+                        _hover_of_b = _tooltip_por_cat('Oficina', _cats_of, serie='Flex Bud',
+                                                       df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_cpu_of, 'CPU', "📊 CPU por Oficina", moeda_label, df_flex_of,
+                                   hover_payloads_bar=_hover_of, hover_payloads_budget=_hover_of_b)
                     else:
                         coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
                         df_tot_of = _agregar_total(base_real, ['Oficina'], coluna_valor)
@@ -9409,7 +9510,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_of = None
-                        _plot_rank(df_tot_of, 'Valor', "📊 Custo Total por Oficina", moeda_label, df_flex_of)
+                        _cats_of2 = df_tot_of['Oficina'].tolist() if not df_tot_of.empty else []
+                        _hover_of2 = _tooltip_por_cat('Oficina', _cats_of2)
+                        _hover_of2_b = _tooltip_por_cat('Oficina', _cats_of2, serie='Flex Bud',
+                                                        df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_tot_of, 'Valor', "📊 Custo Total por Oficina", moeda_label, df_flex_of,
+                                   hover_payloads_bar=_hover_of2, hover_payloads_budget=_hover_of2_b)
                 else:
                     st.info("ℹ️ Coluna 'Oficina' não encontrada para o gráfico por Oficina.")
 
@@ -9435,7 +9541,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_veic = None
-                        _plot_rank(df_cpu_veic, 'CPU', "📊 CPU por Veículo", moeda_label, df_flex_veic)
+                        _cats_v = df_cpu_veic['Veículo'].tolist() if not df_cpu_veic.empty else []
+                        _hover_v = _tooltip_por_cat('Veículo', _cats_v)
+                        _hover_v_b = _tooltip_por_cat('Veículo', _cats_v, serie='Flex Bud',
+                                                      df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_cpu_veic, 'CPU', "📊 CPU por Veículo", moeda_label, df_flex_veic,
+                                   hover_payloads_bar=_hover_v, hover_payloads_budget=_hover_v_b)
                     else:
                         coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
                         df_tot_veic = _agregar_total(base_real, ['Veículo'], coluna_valor)
@@ -9451,7 +9562,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_veic = None
-                        _plot_rank(df_tot_veic, 'Valor', "📊 Custo Total por Veículo", moeda_label, df_flex_veic)
+                        _cats_v2 = df_tot_veic['Veículo'].tolist() if not df_tot_veic.empty else []
+                        _hover_v2 = _tooltip_por_cat('Veículo', _cats_v2)
+                        _hover_v2_b = _tooltip_por_cat('Veículo', _cats_v2, serie='Flex Bud',
+                                                       df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_tot_veic, 'Valor', "📊 Custo Total por Veículo", moeda_label, df_flex_veic,
+                                   hover_payloads_bar=_hover_v2, hover_payloads_budget=_hover_v2_b)
                 else:
                     st.info("ℹ️ Coluna 'Veículo' não encontrada para o gráfico por Veículo.")
 

@@ -22,14 +22,18 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo Instalando dependencias...
     call %VENV_DIR%\Scripts\activate.bat
     pip install -r requirements.txt
+    set "SCI_USE_OPTIMIZED_PARQUETS=true"
+    echo   SCI_USE_OPTIMIZED_PARQUETS = true
     echo.
     echo Ambiente virtual criado e dependencias instaladas!
     echo.
 ) else (
     echo Ativando ambiente virtual...
     call %VENV_DIR%\Scripts\activate.bat
+    set "SCI_USE_OPTIMIZED_PARQUETS=true"
     echo.
     echo Ambiente virtual ativado!
+    echo   SCI_USE_OPTIMIZED_PARQUETS = true
     echo.
     echo Para executar a aplicacao, use:
     echo   streamlit run app.py

@@ -29,3 +29,5 @@ env:
     value: "/Workspace/Users/u235107@inetpsa.com/Drafts/sci/delta"
   - name: SCI_DEFAULT_DATASET_KEY
     value: "TC_Principal"
+  - name: SCI_USE_OPTIMIZED_PARQUETS
+    value: "true"

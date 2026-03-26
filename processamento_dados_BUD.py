@@ -733,7 +733,24 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
     # Normalizar e salvar
     df_final = normalizar_tipos_para_parquet(df_final)
     df_final.to_parquet(config['CAMINHO_DF_FINAL'])
-    
+
+    # ── Gerar parquets otimizados (THIN + AGG) — df_final_BUD ──
+    try:
+        from tc_core.parquet_schemas import gerar_thin, gerar_agg
+        _pasta_final = os.path.dirname(config['CAMINHO_DF_FINAL'])
+        # THIN
+        df_thin = gerar_thin(df_final, 'df_final_thin_BUD')
+        caminho_thin = os.path.join(_pasta_final, 'df_final_thin_BUD.parquet')
+        df_thin.to_parquet(caminho_thin, index=False)
+        log(f"  💾 df_final_thin_BUD — {df_thin.shape[0]} linhas × {df_thin.shape[1]} cols (THIN)")
+        # AGG
+        df_agg = gerar_agg(df_final, 'df_final_agg_BUD')
+        caminho_agg = os.path.join(_pasta_final, 'df_final_agg_BUD.parquet')
+        df_agg.to_parquet(caminho_agg, index=False)
+        log(f"  💾 df_final_agg_BUD — {df_agg.shape[0]} linhas (AGG)")
+    except Exception as e:
+        log(f"  ⚠️ Erro ao gerar THIN/AGG df_final BUD: {e}")
+
     df_vol = normalizar_tipos_para_parquet(df_vol)
     if 'Volume' in df_vol.columns:
         df_vol['Volume'] = df_vol['Volume'].astype('float64')
@@ -821,6 +838,18 @@ def salvar_e_consolidar_bud(df_final: pd.DataFrame, df_vol: pd.DataFrame, df_ke5
             df_consolidado = df_consolidado.drop_duplicates()
             df_consolidado = normalizar_tipos_para_parquet(df_consolidado)
             df_consolidado.to_parquet(caminho_historico)
+            # Gerar variante THIN do histórico consolidado (df_final)
+            if nome_df == 'df_final':
+                try:
+                    from tc_core.parquet_schemas import THIN_SCHEMAS
+                    _thin_drop = THIN_SCHEMAS.get('df_final_thin_BUD', {}).get('drop_columns', [])
+                    drop = [c for c in _thin_drop if c in df_consolidado.columns]
+                    if drop:
+                        base, ext = os.path.splitext(caminho_historico)
+                        df_consolidado.drop(columns=drop).to_parquet(base + '_thin' + ext, index=False)
+                        log(f"  💾 THIN histórico BUD: {os.path.basename(base + '_thin' + ext)}")
+                except Exception as e:
+                    log(f"  ⚠️ Erro THIN histórico BUD: {e}")
             return df_consolidado
         else:
             df_consolidado = df_novo

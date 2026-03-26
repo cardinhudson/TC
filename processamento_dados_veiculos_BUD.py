@@ -1284,6 +1284,20 @@ def fase18_salvamento_veiculos(config: Dict,
         arquivos_salvos[nome] = caminho
         print(f"  💾 {nome} — {df.shape[0]} linhas × {df.shape[1]} colunas → {caminho}")
 
+    # ── Gerar parquets otimizados (veículos AGG) ──
+    try:
+        from tc_core.parquet_schemas import gerar_agg
+        df_veiculo_full = df_custo_fp_veiculo.copy()
+        if 'Ano' not in df_veiculo_full.columns:
+            df_veiculo_full['Ano'] = ano
+        df_veiculo_full = normalizar_tipos_para_parquet(df_veiculo_full)
+        df_agg = gerar_agg(df_veiculo_full, 'df_veiculos_agg_home_BUD')
+        caminho_agg = os.path.join(pasta, 'df_veiculos_agg_home_BUD.parquet')
+        df_agg.to_parquet(caminho_agg, index=False)
+        print(f"  💾 df_veiculos_agg_home_BUD.parquet — {df_agg.shape[0]} linhas (AGG) → {caminho_agg}")
+    except Exception as e:
+        print(f"  ⚠️ Erro ao gerar AGG veículos BUD: {e}")
+
     print()
     return arquivos_salvos
 
@@ -1326,6 +1340,27 @@ def fase12_salvamento(config: Dict,
         df.to_parquet(caminho, index=False)
         arquivos_salvos[nome] = caminho
         print(f"  💾 {nome} — {df.shape[0]} linhas × {df.shape[1]} colunas → {caminho}")
+
+    # ── Gerar parquets otimizados (THIN + AGG) — df_principal_BUD ──
+    try:
+        from tc_core.parquet_schemas import gerar_thin, gerar_agg
+        # Preparar df_principal com Ano normalizado
+        _df_full = df_principal.copy()
+        if 'Ano' not in _df_full.columns:
+            _df_full['Ano'] = ano
+        _df_full = normalizar_tipos_para_parquet(_df_full)
+        # THIN
+        df_thin = gerar_thin(_df_full, 'df_principal_thin_BUD')
+        caminho_thin = os.path.join(pasta, 'df_principal_thin_BUD.parquet')
+        df_thin.to_parquet(caminho_thin, index=False)
+        print(f"  💾 df_principal_thin_BUD.parquet — {df_thin.shape[0]} linhas × {df_thin.shape[1]} cols (THIN) → {caminho_thin}")
+        # AGG
+        df_agg = gerar_agg(_df_full, 'df_principal_agg_home_BUD')
+        caminho_agg = os.path.join(pasta, 'df_principal_agg_home_BUD.parquet')
+        df_agg.to_parquet(caminho_agg, index=False)
+        print(f"  💾 df_principal_agg_home_BUD.parquet — {df_agg.shape[0]} linhas (AGG) → {caminho_agg}")
+    except Exception as e:
+        print(f"  ⚠️ Erro ao gerar THIN/AGG principal BUD: {e}")
 
     print()
     return arquivos_salvos

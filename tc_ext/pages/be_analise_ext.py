@@ -29,6 +29,7 @@ from tc_core.finance.currency_db import (
 
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
+from tc_principal.shared import build_cpu_tooltip_payload
 
 
 def _normalizar_texto_sem_acento(valor) -> str:
@@ -9547,7 +9548,8 @@ if is_main_page:
                 partes = [f"{row[categoria]}: {_formatar_num_ptbr(row['Volume'], 0)}" for _, row in agg.iterrows()]
                 return " | ".join(partes) if partes else "-"
 
-            def _plot_rank(df_rank, coluna_valor, titulo, moeda, df_flex_line=None):
+            def _plot_rank(df_rank, coluna_valor, titulo, moeda, df_flex_line=None,
+                           hover_payloads_bar=None, hover_payloads_budget=None):
                 if df_rank is None or df_rank.empty or coluna_valor not in df_rank.columns:
                     st.info("ℹ️ Sem dados para o gráfico com os filtros atuais.")
                     return
@@ -9558,6 +9560,16 @@ if is_main_page:
 
                 eixo_x = df_plot.columns[0]
                 valores = df_plot[coluna_valor].tolist()
+
+                # ── Hover rico (Type 05 → Type 06) se payload disponível ──
+                bar_hover_kwargs: dict = {}
+                if hover_payloads_bar:
+                    _ht = [hover_payloads_bar.get(str(cat).strip(), f'{cat}<br>{coluna_valor}: {v:,.2f}')
+                           for cat, v in zip(df_plot[eixo_x], valores)]
+                    bar_hover_kwargs = dict(hovertext=_ht, hovertemplate='%{hovertext}<extra></extra>')
+                else:
+                    bar_hover_kwargs = dict(hovertemplate=f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>")
+
                 fig = go.Figure(
                     data=[
                         go.Bar(
@@ -9570,9 +9582,7 @@ if is_main_page:
                                 colorscale='Blues',
                                 showscale=False
                             ),
-                            hovertemplate=(
-                                f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>"
-                            ),
+                            **bar_hover_kwargs,
                         )
                     ]
                 )
@@ -9581,6 +9591,16 @@ if is_main_page:
                     df_line = df_flex_line.copy()
                     df_line = df_line[df_line[eixo_x].isin(df_plot[eixo_x])]
                     df_line = df_line.set_index(eixo_x).reindex(df_plot[eixo_x]).reset_index()
+
+                    # ── Hover rico para Flex Bud ──
+                    bud_hover_kwargs: dict = {}
+                    if hover_payloads_budget:
+                        _htb = [hover_payloads_budget.get(str(cat).strip(), f'{cat}<br>Flex Bud: {v:,.2f}')
+                                for cat, v in zip(df_line[eixo_x], df_line[coluna_valor].fillna(0))]
+                        bud_hover_kwargs = dict(hovertext=_htb, hovertemplate='%{hovertext}<extra></extra>')
+                    else:
+                        bud_hover_kwargs = dict(hovertemplate=f"%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra></extra>")
+
                     fig.add_trace(
                         go.Scatter(
                             x=df_line[eixo_x],
@@ -9591,9 +9611,7 @@ if is_main_page:
                             marker=dict(size=6),
                             text=[f"{v:,.2f}" for v in df_line[coluna_valor].fillna(0).tolist()],
                             textposition='top center',
-                            hovertemplate=(
-                                f"%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra></extra>"
-                            )
+                            **bud_hover_kwargs,
                         )
                     )
 
@@ -9616,6 +9634,40 @@ if is_main_page:
                 st.warning("⚠️ Sem dados Real para o Tab 3 com os filtros atuais.")
             else:
                 moeda_label = moeda_simbolo if 'moeda_simbolo' in locals() else "R$"
+
+                # ── Tooltip rico: helper local para Tab 3 ──
+                _sufixo_t3 = ''
+                try:
+                    if fator_conversao and fator_conversao != "Nenhum" and tipo_visualizacao == "Custo Total":
+                        if fator_conversao == "K (milhares)":
+                            _sufixo_t3 = ' K'
+                        elif fator_conversao == "M (Milhões)":
+                            _sufixo_t3 = ' M'
+                except Exception:
+                    pass
+                _is_cpu_t3 = tipo_visualizacao == "CPU (Custo por Unidade)"
+
+                def _tooltip_por_cat(cat_col, categorias, serie='Real', df_src=None, vol_src=None):
+                    """Constrói tooltip rico por categoria (Oficina/Veículo)."""
+                    try:
+                        _df = df_src if df_src is not None else base_real
+                        _vol = vol_src if vol_src is not None else base_vol
+                        if _df is None or _df.empty or 'Type 05' not in _df.columns:
+                            return None
+                        _vol_dict: dict = {}
+                        if (_vol is not None and not _vol.empty
+                                and 'Volume' in _vol.columns and cat_col in _vol.columns):
+                            _tmp = _vol.copy()
+                            _tmp['_cat'] = _tmp[cat_col].astype(str).str.strip()
+                            _tmp['Volume'] = pd.to_numeric(_tmp['Volume'], errors='coerce').fillna(0)
+                            _vg = _tmp.groupby('_cat', as_index=False)['Volume'].sum()
+                            _vol_dict = dict(zip(_vg['_cat'], _vg['Volume']))
+                        return build_cpu_tooltip_payload(
+                            _df, categorias, 'Total', _vol_dict, moeda_label, _sufixo_t3,
+                            serie_label=serie, is_cpu=_is_cpu_t3, group_col=cat_col,
+                        )
+                    except Exception:
+                        return None
 
                 # Resumo (estilo Tab 1)
                 linha_resumo_tab3, linha_resumo_tab3_formatado = _resumo_tab3(
@@ -9650,7 +9702,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_of = None
-                        _plot_rank(df_cpu_of, 'CPU', "📊 CPU por Oficina", moeda_label, df_flex_of)
+                        _cats_of = df_cpu_of['Oficina'].tolist() if not df_cpu_of.empty else []
+                        _hover_of = _tooltip_por_cat('Oficina', _cats_of)
+                        _hover_of_b = _tooltip_por_cat('Oficina', _cats_of, serie='Flex Bud',
+                                                       df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_cpu_of, 'CPU', "📊 CPU por Oficina", moeda_label, df_flex_of,
+                                   hover_payloads_bar=_hover_of, hover_payloads_budget=_hover_of_b)
                     else:
                         coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
                         df_tot_of = _agregar_total(base_real, ['Oficina'], coluna_valor)
@@ -9666,7 +9723,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_of = None
-                        _plot_rank(df_tot_of, 'Valor', "📊 Custo Total por Oficina", moeda_label, df_flex_of)
+                        _cats_of2 = df_tot_of['Oficina'].tolist() if not df_tot_of.empty else []
+                        _hover_of2 = _tooltip_por_cat('Oficina', _cats_of2)
+                        _hover_of2_b = _tooltip_por_cat('Oficina', _cats_of2, serie='Flex Bud',
+                                                        df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_tot_of, 'Valor', "📊 Custo Total por Oficina", moeda_label, df_flex_of,
+                                   hover_payloads_bar=_hover_of2, hover_payloads_budget=_hover_of2_b)
                 else:
                     st.info("ℹ️ Coluna 'Oficina' não encontrada para o gráfico por Oficina.")
 
@@ -9690,7 +9752,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_veic = None
-                        _plot_rank(df_cpu_veic, 'CPU', "📊 CPU por Veículo", moeda_label, df_flex_veic)
+                        _cats_v = df_cpu_veic['Veículo'].tolist() if not df_cpu_veic.empty else []
+                        _hover_v = _tooltip_por_cat('Veículo', _cats_v)
+                        _hover_v_b = _tooltip_por_cat('Veículo', _cats_v, serie='Flex Bud',
+                                                      df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_cpu_veic, 'CPU', "📊 CPU por Veículo", moeda_label, df_flex_veic,
+                                   hover_payloads_bar=_hover_v, hover_payloads_budget=_hover_v_b)
                     else:
                         coluna_valor = 'Total' if 'Total' in base_real.columns else 'Valor'
                         df_tot_veic = _agregar_total(base_real, ['Veículo'], coluna_valor)
@@ -9706,7 +9773,12 @@ if is_main_page:
                                 )
                             except Exception:
                                 df_flex_veic = None
-                        _plot_rank(df_tot_veic, 'Valor', "📊 Custo Total por Veículo", moeda_label, df_flex_veic)
+                        _cats_v2 = df_tot_veic['Veículo'].tolist() if not df_tot_veic.empty else []
+                        _hover_v2 = _tooltip_por_cat('Veículo', _cats_v2)
+                        _hover_v2_b = _tooltip_por_cat('Veículo', _cats_v2, serie='Flex Bud',
+                                                       df_src=df_budget_tab3, vol_src=df_budget_vol_tab3)
+                        _plot_rank(df_tot_veic, 'Valor', "📊 Custo Total por Veículo", moeda_label, df_flex_veic,
+                                   hover_payloads_bar=_hover_v2, hover_payloads_budget=_hover_v2_b)
                 else:
                     st.info("ℹ️ Coluna 'Veículo' não encontrada para o gráfico por Veículo.")
 

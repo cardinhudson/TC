@@ -888,20 +888,24 @@ Se essa troca de base não acontecer, o usuário enxerga custo consolidado com r
         st.markdown(r"""
 ### 🔮 Lógica de forecast do Best Estimate
 
-O forecast parte da média histórica, ajusta o efeito de volume pela sensibilidade e depois aplica os fatores monetários de inflação e produtividade.
+O Best Estimate do TC Veículos parte apenas da base histórica real válida, projeta os meses futuros com regra econômica explícita e depois consolida tudo em arquivos reutilizados pela análise.
+
+Nos meses históricos, o comportamento esperado é simples: o Best Estimate deve reproduzir o Real. Nos meses futuros, o sistema calcula o forecast a partir da média histórica, do volume projetado, da sensibilidade e do bloco monetário de inflação e produtividade.
 
 **Ordem exata do cálculo**
-1. Selecionar os períodos históricos que entram na média.
-2. Calcular a média mensal histórica por combinação de chaves.
-3. Calcular o volume médio histórico da mesma combinação.
-4. Obter o volume do mês futuro.
-5. Calcular a proporção de volume futuro versus histórico.
-6. Transformar a proporção em variação percentual.
-7. Aplicar a sensibilidade correspondente ao tipo de custo ou ao Type 06.
-8. Aplicar inflação conforme configuração global ou por Type 06.
-9. Aplicar produtividade conforme configuração global ou por Type 06.
-10. Gravar o forecast da linha.
-11. Consolidar linhas históricas, BE e BE Manual.
+1. Carregar a base histórica real e remover qualquer linha antiga de BE, BE Manual ou Forecast da base usada para média.
+2. Aplicar os filtros do simulador sem eliminar os períodos históricos necessários para compor a referência.
+3. Calcular a média histórica por combinação de chaves do custo.
+4. Calcular o volume médio histórico da mesma combinação lógica.
+5. Ler o volume futuro configurado para o mês projetado.
+6. Calcular a proporção de volume futuro versus volume médio histórico.
+7. Transformar essa proporção em variação percentual.
+8. Aplicar a sensibilidade correspondente ao tipo de custo ou ao Type 06.
+9. Aplicar inflação e produtividade no bloco monetário final.
+10. Gravar o forecast linha a linha.
+11. Persistir três camadas no consolidado: Histórico, BE e BE Manual.
+12. Gerar o forecast por veículo com a mesma lógica do Real para FP sem Dedicada e D&A dedicado.
+13. Validar convergência: meses históricos do arquivo rateado devem fechar com o Real.
 
 **Fórmulas explícitas**
 
@@ -918,11 +922,16 @@ Varia\c{c}\tilde{a}o\ Ajustada = Varia\c{c}\tilde{a}o\ Percentual \times Sensibi
 $$
 
 $$
-Fator\ Monet\acute{a}rio = (1 + Infla\c{c}\tilde{a}o) \times (1 - Produtividade)
+Fator\ de\ Varia\c{c}\tilde{a}o = 1 + Varia\c{c}\tilde{a}o\ Ajustada
 $$
 
 $$
-Forecast = M\acute{e}dia\ Hist\acute{o}rica \times (1 + Varia\c{c}\tilde{a}o\ Ajustada) \times Fator\ Monet\acute{a}rio
+Fator\ Monet\acute{a}rio = 
+(1 + \frac{Infla\c{c}\tilde{a}o}{100}) \times (1 - \frac{Produtividade}{100})
+$$
+
+$$
+Forecast = M\acute{e}dia\ Hist\acute{o}rica \times Fator\ de\ Varia\c{c}\tilde{a}o \times Fator\ Monet\acute{a}rio
 $$
 
 **Exemplo numérico completo**
@@ -941,11 +950,58 @@ Passo a passo:
 5. Fator monetário = (1 + 0,04) × (1 - 0,03) = 1,0088.
 6. Forecast = 100.000 × 1,12 × 1,0088 = R$ 112.985,60.
 
-Na prática operacional do sistema, a produtividade reduz o custo projetado após o ajuste de volume e é aplicada como redutor multiplicativo, não como uma simples subtração manual no final.
+Na prática operacional do sistema, a produtividade reduz o custo projetado após o ajuste de volume e é aplicada como redutor multiplicativo, não como subtração manual no final.
+
+### 🚗 Rateio do forecast por veículo
+
+Quando o fluxo exige granularidade veicular, o forecast consolidado é convertido em `forecast_veiculos_custo_fp.parquet` usando a mesma regra econômica do processamento Real.
+
+**Regra correta do rateio por veículo**
+
+$$
+Custo\ Rateado = FP\ sem\ Dedicada \times Percentual
+$$
+
+$$
+Custo\ FP\ Veiculo = Custo\ Rateado + D\&A\ dedicado
+$$
+
+Isto é propositalmente diferente de `Custo FP × Percentual`. O D&A dedicado não pode ser espalhado proporcionalmente junto com o restante do custo, porque ele já pertence ao veículo correto.
+
+**Fontes usadas no rateio do BE**
+- Percentual de rateio: `df_veiculos_percentual_rateio.parquet` carregado por `load_percentual_rateio_veiculos_real(ano)`.
+- D&A dedicado: `df_dea_dedicado.parquet` carregado por `load_dea_dedicado_real(ano)`.
+- Base de custo: `forecast_completo.parquet`.
+
+**Fallback correto para linhas sem correspondência direta**
+- Primeiro fallback: distribuição média por período entre veículos conhecidos, normalizada para fechar 100% no período.
+- Último fallback: distribuição uniforme somente para períodos totalmente órfãos, sem nenhum veículo conhecido naquele período.
+
+### ✅ Garantia dos meses históricos na análise
+
+Na análise de Best Estimate, os meses marcados como `Histórico` precisam ser numericamente idênticos ao Real.
+
+Por isso o sistema faz duas proteções complementares:
+- Na geração do arquivo por veículo, valida a convergência entre meses históricos do BE e do Real.
+- Na camada de análise, quando a série de BE contém linhas `Histórico`, esses meses são sobrepostos pelos dados reais antes da exibição.
+
+Essa segunda proteção elimina divergência visual mesmo quando um parquet de forecast antigo ainda existir no ambiente. Isso é especialmente importante no Databricks, onde o deploy sincroniza o código do app, mas os arquivos em `dados/` são gerados no próprio ambiente.
+
+### 💾 Persistência e arquivos gerados
+
+O simulador persiste a configuração aplicada em `config_forecast.json`, não em `premissas.json`.
+
+Arquivos principais gerados em `dados/TC_Principal/Forecast/`:
+- `forecast_historico.parquet`: histórico isolado.
+- `forecast_previsao.parquet`: apenas meses projetados.
+- `forecast_completo.parquet`: consolidado com Histórico, BE e BE Manual.
+- `forecast_veiculos_custo_fp.parquet`: consolidado rateado por veículo.
+- `custos_especificos.parquet`: camada manual do BE.
+- `config_forecast.json`: premissas persistidas da última execução.
 
 ### 💰 BE Manual
 
-O BE Manual entra como linha separada no consolidado final. Ele não substitui o forecast calculado; ele é somado como camada adicional, podendo ainda ser rateado por veículo conforme os percentuais vigentes do arquivo de rateio.
+O BE Manual entra como linha separada no consolidado final. Ele não substitui o forecast calculado; ele é somado como camada adicional e, quando necessário, também participa do fluxo de rateio por veículo no consolidado final.
         """)
 
 
@@ -4684,7 +4740,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         ### 🔮 Premissas do Simulador BE
 
         O Simulador de Best Estimate permite configurar premissas de **sensibilidade**, **inflação**,
-        **produtividade** e **volume** para projetar cenários futuros:
+        **produtividade** e **volume** para projetar cenários futuros, mantendo os meses históricos alinhados ao Real:
 
         **Fórmula Geral:**
         ```
@@ -4695,6 +4751,13 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         - `Fator_Variação` = 1 + (Variação_Volume × Sensibilidade)
         - `Fator_Monetário` = (1 + Inflação / 100) × (1 - Produtividade / 100)
         - `Variação_Volume` = (Volume_Futuro / Volume_Médio_Histórico) − 1
+
+        **Sequência correta do motor:**
+        - Base histórica real válida → média histórica → volume histórico → volume futuro
+        - Ajuste por sensibilidade
+        - Aplicação de inflação e produtividade
+        - Consolidação de Histórico + BE + BE Manual
+        - Rateio por veículo com a mesma regra do Real quando o fluxo exigir granularidade veicular
 
         **Sensibilidade (impacto do volume no custo):**
         - Controla o quanto a variação de volume afeta o custo
@@ -4719,6 +4782,14 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         - É aplicada no mesmo bloco monetário da inflação, como fator redutor multiplicativo
         - Exemplo: produtividade de 5% reduz o custo projetado em 5% após o ajuste de volume
 
+                **Rateio do forecast por veículo:**
+                - O arquivo por veículo não usa a simplificação `Custo FP × Percentual`
+                - A regra correta é:
+                    - `Custo Rateado = FP sem Dedicada × Percentual`
+                    - `Custo FP Veiculo = Custo Rateado + D&A dedicado`
+                - Os percentuais vêm do Real e o D&A dedicado também vem do Real
+                - Se faltar match direto, o fallback prioritário usa distribuição média por período, não distribuição uniforme imediata
+
         **Resultado por tipo de custo:**
         - **Custo Fixo BE** = Média Histórica × (1 + Inflação%) × (1 - Produtividade%) — sem ajuste de volume
         - **Custo Variável BE** = Média Histórica × (Vol_Futuro / Vol_Histórico) × (1 + Inflação%) × (1 - Produtividade%)
@@ -4726,6 +4797,7 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         **Persistência das configurações:**
         - O simulador salva o último conjunto aplicado em `config_forecast.json`
         - O arquivo persiste modo global/detalhado, sensibilidades, inflação, produtividade e configuração de períodos
+                - O arquivo canônico de configuração não é `premissas.json`
 
         ### 📊 Geração de Forecast
 
@@ -4735,6 +4807,11 @@ elif indice_selecionado == "📐 Regras e Cálculo" and modulo_doc == "🚗 TC V
         - `forecast_previsao.parquet` — Apenas períodos futuros de BE e BE Manual
         - `forecast_veiculos_custo_fp.parquet` — Forecast rateado por veículo para os fluxos que exigem granularidade veicular
         - `config_forecast.json` — Configurações aplicadas (modo, sensibilidade, inflação, produtividade, períodos)
+
+        **Garantia de consistência na análise:**
+        - O gerador valida a convergência dos meses históricos contra o Real no arquivo por veículo
+        - A análise de BE sobrepõe os meses `Histórico` com o dado Real antes da exibição
+        - Isso garante que meses históricos do gráfico de BE fechem exatamente com o Real, inclusive no Databricks
 
         Estes dados alimentam a página **Best Estimate (Análise)**, que usa o mesmo
         layout da Home (com gráficos e KPIs) mas com dados de Forecast.
@@ -6281,8 +6358,8 @@ elif indice_selecionado == "🧮 Cálculo por Tabelas/Gráficos (Normal vs CPU)"
         - 🟣 **Roxo claro** (`#C4B5FD`): meses de **Best Estimate** (projetados)
 
         ### 📊 Volume
-        - **Barras**: Volume Budget (degradê verde)
-        - **Linha tracejada**: Volume Realizado (laranja)
+        - **Barras**: Volume Realizado (degradê verde)
+        - **Linha tracejada**: Volume Budget (laranja)
         - **Por Veículo**: Barras agrupadas por modelo
 
         ### 📊 Custos por Oficina

@@ -4,6 +4,9 @@
 > funcionamento 100% no Databricks usando apenas Workspace Files.
 > Sem DBFS, sem Volumes, sem Secrets, sem Snowflake, sem Delta obrigatório.
 
+> **v2.29** — Inclui: Data Router (THIN/AGG/FULL), Telemetria, Debug Panel,
+> forecast_agg.parquet, Waterfall dimension fix, Home forecast bypass fix.
+
 ---
 
 ## Arquitetura atual (Fase 1)
@@ -481,6 +484,139 @@ mistos (ex: coluna com int e string). Isso é normalizado por `_normalize_pandas
 
 ---
 
+## Deploy v2.29 — Passo a Passo Completo
+
+### O que mudou nesta versão
+
+| Componente | Alteração |
+|-----------|-----------|
+| `tc_core/data_router.py` | Data Router com `read_optimized()` — seleciona THIN/AGG/FULL |
+| `tc_core/telemetry.py` | Módulo de telemetria (`log_data_source`, `perf_timer`) |
+| `tc_core/feature_flags.py` | Flag `SCI_DEBUG_DATA_TRACE` adicionada |
+| `tc_core/ui/debug_panel.py` | Painel de debug no rodapé do app |
+| `tc_core/parquet_schemas.py` | Schemas THIN/AGG + documentação multi-planta |
+| `tc_principal/shared.py` | Loaders com telemetria + `read_optimized` |
+| `tc_principal/pages/home_tc.py` | Fix: Home usa `load_forecast_completo()` (bypass correto) |
+| `tc_principal/pages/waterfall_tc.py` | Fix: Remove "Account"/"Texto breve" das dimensões base |
+| `tc_principal/pages/best_estimate_simulador_tc.py` | Gera `forecast_agg.parquet` ao salvar |
+| `pages/1_Waterfall.py` | Fix: Mesma limpeza de dimensões para TC_Ext |
+| `tc_ext/pages/home_ext.py` | Telemetria de carregamento de dados |
+| `app.py` | Debug panel integrado |
+| `app.yaml` | `SCI_USE_OPTIMIZED_PARQUETS=true` |
+
+### Pré-requisito: Configurar Databricks CLI
+
+O script `sync_databricks_app.ps1` precisa de autenticação no Databricks CLI.
+
+**Opção A — Token pessoal (.databrickscfg)**:
+
+1. No Databricks: **Settings → Developer → Access tokens → Generate new token**
+2. Crie o arquivo `%USERPROFILE%\.databrickscfg`:
+```ini
+[DEFAULT]
+host = https://adb-5678659344564033.13.azuredatabricks.net
+token = dapi_SEU_TOKEN_AQUI
+```
+
+**Opção B — Variáveis de ambiente (.env)**:
+
+Crie `.env` na raiz do projeto:
+```
+DATABRICKS_HOST=https://adb-5678659344564033.13.azuredatabricks.net
+DATABRICKS_TOKEN=dapi_SEU_TOKEN_AQUI
+```
+
+**Opção C — Profile nomeado (múltiplos ambientes)**:
+
+```ini
+# %USERPROFILE%\.databrickscfg
+[meu_profile]
+host = https://adb-5678659344564033.13.azuredatabricks.net
+token = dapi_SEU_TOKEN_AQUI
+```
+
+E defina a variável `SCI_DATABRICKS_PROFILE=meu_profile` no `.env` ou execute:
+```powershell
+.\scripts\sync_databricks_app.ps1 -Profile meu_profile
+```
+
+### Passo 1 — Testar autenticação
+
+```powershell
+databricks current-user me
+```
+
+Sucesso: retorna JSON com seu `userName`. Se der erro, revise `.databrickscfg`.
+
+### Passo 2 — Sincronizar e fazer deploy
+
+```powershell
+# Sync completo (espelho local + upload + deploy SNAPSHOT)
+.\scripts\sync_databricks_app.ps1
+
+# Se quiser só upload sem deploy:
+.\scripts\sync_databricks_app.ps1 -SkipDeploy
+
+# Se quiser só deploy (código já está no Workspace):
+.\scripts\sync_databricks_app.ps1 -DeployOnly
+
+# Modo watch (sync contínuo em tempo real):
+.\scripts\sync_databricks_app.ps1 -Watch
+```
+
+O script faz:
+1. Atualiza espelhos locais: `Databricks/sci_app/` e `Databricks/sci/`
+2. Upload de todos os arquivos para `/Workspace/.../sci_app/sci_app`
+3. Deploy SNAPSHOT do app `sci` com `--no-wait`
+
+### Passo 3 — Executar notebooks de processamento (no Databricks)
+
+Abra o Databricks e execute **na ordem**:
+
+1. **`notebooks/00_validar_ambiente_databricks.py`** — confirma que Excel e paths OK
+2. **`notebooks/03_processar_e_publicar_delta.py`** (`ANO=2026`, `RUN_BUDGET=true`, `RUN_REAL=true`)
+   - Gera parquets: FULL + THIN + AGG
+3. **`notebooks/05_validacao_pos_job.py`** (`ANO=2026`)
+   - Confirma se todos os parquets obrigatórios existem
+
+> O `forecast_agg.parquet` NÃO é gerado pelos notebooks — é gerado automaticamente
+> pelo **Best Estimate Simulator** quando o usuário salva o forecast no app.
+
+### Passo 4 — Validação end-to-end no App
+
+Acesse o app SCI no Databricks e execute:
+
+| Teste | O que verificar | Critério |
+|-------|----------------|----------|
+| **Home** | Gráfico de Custo FP por período | Barras roxas + Flex Budget laranja |
+| **Home + BE** | Ativar checkbox "Incluir BE" | Barras históricas + BE roxo claro aparecem |
+| **Waterfall** | Gráfico cascata por Oficina | Sem colunas fantasma "Account"/"Texto breve" |
+| **Waterfall** coluna BE | Meses futuros aparecem em roxo claro | Valores batem com forecast |
+| **BE Simulator** | Salvar forecast | Deve gerar `forecast_agg.parquet` automaticamente |
+| **Debug Panel** | Definir `SCI_DEBUG_DATA_TRACE=true` no app.yaml | Painel no rodapé mostra THIN/AGG/FULL por dataset |
+
+### Passo 5 — Ativar debug de telemetria (opcional)
+
+Adicione no `app.yaml`:
+```yaml
+  - name: SCI_DEBUG_DATA_TRACE
+    value: "true"
+```
+
+Depois de deploy, o rodapé do app mostrará uma tabela com:
+- Dataset carregado → fonte usada (THIN/AGG/FULL) → nrows → tempo de load
+
+Para desativar, remova a variável ou mude para `"false"`.
+
+### Passo 6 — Limpeza pós-deploy
+
+Após validação completa, você pode:
+1. Desativar `SCI_DEBUG_DATA_TRACE` no `app.yaml`
+2. Confirmar que o Job diário está configurado para rodar `notebooks/03` + `notebooks/05`
+3. Verificar que `SCI_USE_OPTIMIZED_PARQUETS=true` está no `app.yaml` (já está)
+
+---
+
 ## Checklist de aceite
 
 Execute após cada deploy ou mudança:
@@ -490,6 +626,10 @@ Execute após cada deploy ou mudança:
 - [ ] Notebook 03 → tabela RESUMO FINAL com `Status=OK` para todas as tabelas
 - [ ] Notebook 05 → `CHECK SAÚDE: OK`
 - [ ] Notebook 06 → exibe dados de `tc_principal_real` com `LINHAS > 0`
+- [ ] Home → gráfico Custo FP por período sem erros
+- [ ] Waterfall → sem colunas fantasma "Account" / "Texto breve"
+- [ ] BE Simulator → salvar gera `forecast_agg.parquet`
+- [ ] Debug Panel → ativando `SCI_DEBUG_DATA_TRACE=true`, mostra tabela de telemetria
 - [ ] Job configurado → `existing_cluster_id` não é `__DEFINIR_NA_UI__`
 - [ ] Job agendado → `pause_status = UNPAUSED`
 

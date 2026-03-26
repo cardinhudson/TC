@@ -10,10 +10,13 @@ Prioridade de leitura:
 
 Flags atuais
 -------------
-``SCI_DATA_BACKEND``   — ``"local"`` | ``"snowflake"``  (padrão: local)
-``SCI_EMAIL_BACKEND``  — ``"graph"`` | ``"smtp"``       (padrão: graph)
-``SCI_LLM_PROVIDER``   — ``"openai"`` | ``"azure_openai"`` | ``"databricks"``
-``SCI_SCHEDULER``      — ``"apscheduler"`` | ``"databricks_jobs"``
+``SCI_DATA_BACKEND``           — ``"local"`` | ``"snowflake"``  (padrão: local)
+``SCI_EMAIL_BACKEND``          — ``"graph"`` | ``"smtp"``       (padrão: graph)
+``SCI_LLM_PROVIDER``           — ``"openai"`` | ``"azure_openai"`` | ``"databricks"``
+``SCI_SCHEDULER``              — ``"apscheduler"`` | ``"databricks_jobs"``
+``SCI_USE_OPTIMIZED_PARQUETS`` — ``"true"`` | ``"false"``      (padrão: false)
+``SCI_DEBUG_DATA_TRACE``       — ``"true"`` | ``"false"``      (padrão: false)
+``SCI_DEBUG_PERF_TRACE``       — ``"true"`` | ``"false"``      (padrão: false)
 """
 
 from __future__ import annotations
@@ -29,6 +32,9 @@ _DEFAULTS: dict[str, str] = {
     "SCI_EMAIL_BACKEND": "graph",
     "SCI_LLM_PROVIDER": "openai",
     "SCI_SCHEDULER": "apscheduler",
+    "SCI_USE_OPTIMIZED_PARQUETS": "false",
+    "SCI_DEBUG_DATA_TRACE": "false",
+    "SCI_DEBUG_PERF_TRACE": "false",
 }
 
 

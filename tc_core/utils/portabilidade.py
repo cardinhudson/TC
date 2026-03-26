@@ -358,6 +358,7 @@ def _workspace_list_sdk(ws_path: str) -> list[dict] | None:
                     "object_type": _object_type_name(
                         getattr(obj, "object_type", "")
                     ),
+                    "file_size": getattr(obj, "file_size", 0) or 0,
                 }
             )
         return objects
@@ -578,8 +579,17 @@ def mirror_workspace_tree(
                 if any(name.lower().endswith(ext) for ext in extensions):
                     target = local_path / name
                     if target.exists():
-                        continue  # already cached
-                    emit(f"[SCI] ⬇ {name}")
+                        # Verificar se tamanho mudou (cache stale)
+                        remote_size = obj.get("file_size", 0)
+                        if remote_size:
+                            local_size = target.stat().st_size
+                            if abs(remote_size - local_size) < 10:
+                                continue  # tamanho compatível → cache válido
+                            emit(f"[SCI] ♻ {name} (tamanho mudou: {local_size}→{remote_size})")
+                        else:
+                            continue  # sem info de tamanho remoto → manter cache
+                    else:
+                        emit(f"[SCI] ⬇ {name}")
                     content = _workspace_download(obj["path"])
                     if content:
                         target.parent.mkdir(parents=True, exist_ok=True)

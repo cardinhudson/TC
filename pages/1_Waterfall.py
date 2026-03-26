@@ -994,6 +994,15 @@ def _render_post_waterfall_panel_ext(
 st.title("🌊 Waterfall Analysis")
 st.markdown("---")
 
+# ═══ Cache para forecast parquet (lido 2× na página, agora cached) ═══
+@st.cache_data(ttl=60, max_entries=2, show_spinner=False)
+def _load_forecast_ext_parquet():
+    """Lê forecast_completo.parquet do TC_Ext uma única vez (cached)."""
+    _path = os.path.join(_DATA_ROOT, "TC_Ext", "Forecast", "forecast_completo.parquet")
+    if os.path.exists(_path):
+        return pd.read_parquet(_path)
+    return None
+
 # ========== CONFIGURAÇÕES INICIAIS (mesmas do app.py) ==========
 # Inicializar banco de taxas
 inicializar_banco_taxas()
@@ -1041,8 +1050,9 @@ except Exception as e:
 _be_merged = False
 try:
     _fc_path = os.path.join(_DATA_ROOT, "TC_Ext", "Forecast", "forecast_completo.parquet")
-    if os.path.exists(_fc_path):
-        _df_fc = pd.read_parquet(_fc_path)
+    _df_fc = _load_forecast_ext_parquet()
+    if _df_fc is not None:
+        _df_fc = _df_fc.copy()
         if 'Período' not in _df_fc.columns:
             for _c in _df_fc.columns:
                 if 'per' in str(_c).lower() and 'odo' in str(_c).lower():
@@ -1085,8 +1095,9 @@ except Exception:
 _df_forecast_be = pd.DataFrame()
 try:
     _fc_be_path = os.path.join(_DATA_ROOT, "TC_Ext", "Forecast", "forecast_completo.parquet")
-    if os.path.exists(_fc_be_path):
-        _df_forecast_be = pd.read_parquet(_fc_be_path)
+    _df_fc_raw = _load_forecast_ext_parquet()
+    if _df_fc_raw is not None:
+        _df_forecast_be = _df_fc_raw.copy()
         # Normalizar coluna Período
         if 'Período' not in _df_forecast_be.columns:
             for _c in _df_forecast_be.columns:
@@ -1853,7 +1864,7 @@ else:
                             df_temp = df_analise[df_analise['Período'].astype(str) == str(mes_final)].copy()
                     
                     # Obter dimensões de categoria disponíveis
-                    dims_cat = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise.columns]
+                    dims_cat = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo"] if c in df_analise.columns]
                     
                     if not dims_cat:
                         st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")
@@ -4005,7 +4016,7 @@ else:
                                     st.markdown("---")
                                 
                                 # Obter dimensões de categoria disponíveis
-                                dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo", "Account", "Texto breve"] if c in df_analise_budget.columns]
+                                dims_cat_budget = [c for c in ["Type 05", "Type 06", "Type 07", "Oficina", "Veículo", "Custo"] if c in df_analise_budget.columns]
                                 
                                 if not dims_cat_budget:
                                     st.warning("⚠️ Nenhuma dimensão de categoria encontrada nos dados.")

@@ -157,26 +157,54 @@ else:
 
 
 def _assert_parquets_esperados() -> None:
-    if DATASET_KEY != "TC_Principal":
-        return  # Validação de parquets TC_Principal não se aplica a outros datasets
     faltando = []
-    if RUN_BUDGET:
-        for path in [
-            DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_principal_BUD.parquet",
-            DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_vol_veiculos_BUD.parquet",
-            DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_veiculos_custo_fp_BUD.parquet",
-        ]:
-            if not path.exists():
-                faltando.append(str(path))
+    if DATASET_KEY == "TC_Ext":
+        if RUN_BUDGET:
+            for path in [
+                DATA_ROOT / "TC_Ext" / str(ANO) / "BUD" / "df_final_BUD.parquet",
+                DATA_ROOT / "TC_Ext" / str(ANO) / "BUD" / "df_final_thin_BUD.parquet",
+                DATA_ROOT / "TC_Ext" / str(ANO) / "BUD" / "df_final_agg_BUD.parquet",
+                DATA_ROOT / "TC_Ext" / "historico_consolidado" / "BUD" / "df_final_historico_BUD.parquet",
+            ]:
+                if not path.exists():
+                    faltando.append(str(path))
 
-    if RUN_REAL:
-        for path in [
-            DATA_ROOT / "TC_Principal" / str(ANO) / "df_principal.parquet",
-            DATA_ROOT / "TC_Principal" / str(ANO) / "df_vol_veiculos.parquet",
-            DATA_ROOT / "TC_Principal" / str(ANO) / "df_veiculos_custo_fp.parquet",
-        ]:
-            if not path.exists():
-                faltando.append(str(path))
+        if RUN_REAL:
+            for path in [
+                DATA_ROOT / "TC_Ext" / str(ANO) / "df_final.parquet",
+                DATA_ROOT / "TC_Ext" / str(ANO) / "df_final_thin.parquet",
+                DATA_ROOT / "TC_Ext" / str(ANO) / "df_final_agg.parquet",
+                DATA_ROOT / "TC_Ext" / "historico_consolidado" / "df_final_historico.parquet",
+                DATA_ROOT / "TC_Ext" / "historico_consolidado" / "df_final_historico_thin.parquet",
+            ]:
+                if not path.exists():
+                    faltando.append(str(path))
+    else:
+        if RUN_BUDGET:
+            for path in [
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_principal_BUD.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_principal_thin_BUD.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_principal_agg_home_BUD.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_vol_veiculos_BUD.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_veiculos_custo_fp_BUD.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "BUD" / "df_veiculos_agg_home_BUD.parquet",
+            ]:
+                if not path.exists():
+                    faltando.append(str(path))
+
+        if RUN_REAL:
+            for path in [
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_principal.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_principal_thin.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_principal_agg_home.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_vol_veiculos.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_veiculos_custo_fp.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_veiculos_agg_home.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_tc_sapiens.parquet",
+                DATA_ROOT / "TC_Principal" / str(ANO) / "df_tc_sapiens_thin.parquet",
+            ]:
+                if not path.exists():
+                    faltando.append(str(path))
 
     if faltando:
         raise RuntimeError(

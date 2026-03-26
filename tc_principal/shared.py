@@ -18,6 +18,8 @@ from tc_core.constants import ORDEM_MESES  # noqa: F401 — re-exportado para as
 from tc_core.utils.portabilidade import get_base_path, get_data_root
 from tc_core.data_source import read_table
 from tc_core.feature_flags import get_flag
+from tc_core.data_router import read_optimized
+from tc_core.telemetry import log_data_source, perf_timer
 
 # ═══════════════════════════════════════════════════════════════
 #  ORDEM CANÔNICA DE COLUNAS — BE DETALHADO (24 colunas)
@@ -183,7 +185,7 @@ def _pasta_tc_principal_real(ano):
     return _join_data_root('TC_Principal', str(ano))
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def descobrir_anos_tc_principal():
     """Descobre anos que possuem dados processados em dados/TC_Principal/{ano}/BUD/."""
     from tc_core.data_source import list_available_years
@@ -205,7 +207,7 @@ def descobrir_anos_tc_principal():
     return anos
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def obter_timestamp_parquets(ano):
     """Retorna timestamp mais recente entre os parquets do ano."""
     pasta = _pasta_tc_principal(ano)
@@ -220,17 +222,32 @@ def obter_timestamp_parquets(ano):
     return ts_max if ts_max > 0 else None
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+def _read_parquet_traced(caminho: str, consumer: str, columns=None) -> "pd.DataFrame | None":
+    """Lê parquet direto com telemetria (para datasets sem variante otimizada)."""
+    if not os.path.exists(caminho):
+        return None
+    with perf_timer() as t:
+        df = pd.read_parquet(caminho, columns=columns)
+    log_data_source(
+        consumer=consumer,
+        logical_dataset=os.path.basename(caminho).replace('.parquet', ''),
+        physical_path=caminho,
+        mode="FULL",
+        nrows=len(df),
+        ncols=len(df.columns),
+        load_ms=t.elapsed_ms,
+    )
+    return df
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_principal(ano, columns=None):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_principal_BUD', columns)
-    caminho = os.path.join(_pasta_tc_principal(ano), 'df_principal_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho, columns=columns)
+    return read_optimized('TC_Principal', str(ano), 'BUD', 'df_principal_BUD', prefer='thin', columns=columns, consumer='load_principal')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_volume_bud(ano, columns=None):
     if _use_snowflake():
         df = read_table('TC_Principal', str(ano), 'BUD', 'df_vol_veiculos_BUD', columns)
@@ -238,15 +255,13 @@ def load_volume_bud(ano, columns=None):
             df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
         return df
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    df = pd.read_parquet(caminho, columns=columns)
-    if 'Volume' in df.columns:
+    df = _read_parquet_traced(caminho, 'load_volume_bud', columns=columns)
+    if df is not None and 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_volume_actual(ano, columns=None):
     if _use_snowflake():
         df = read_table('TC_Principal', str(ano), 'BUD', 'df_vol_veiculos_actual', columns)
@@ -254,45 +269,37 @@ def load_volume_actual(ano, columns=None):
             df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
         return df
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_vol_veiculos_actual.parquet')
-    if not os.path.exists(caminho):
-        return None
-    df = pd.read_parquet(caminho, columns=columns)
-    if 'Volume' in df.columns:
+    df = _read_parquet_traced(caminho, 'load_volume_actual', columns=columns)
+    if df is not None and 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_tempo_veiculos(ano):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_tempo_veiculos_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_tempo_veiculos_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_tempo_veiculos')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_dea_dedicado(ano):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_dea_dedicado_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_dea_dedicado_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_dea_dedicado')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_volume_fa(ano):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_volume_fa_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_volume_fa_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_volume_fa')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_tc_sapiens(ano, columns=None):
     """Carrega df_tc_sapiens.parquet — dados Sapiens detalhados com todas as colunas.
     O arquivo é gerado pela fase10b e salvo na pasta Real (não BUD).
@@ -300,108 +307,88 @@ def load_tc_sapiens(ano, columns=None):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_tc_sapiens', columns)
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tc_sapiens.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho, columns=columns)
+    return _read_parquet_traced(caminho, 'load_tc_sapiens', columns=columns)
 
 
 # ═══════════════════════════════════════════════════════════════
 #  DATA LOADING — Novos parquets de veículos (Fases 13–17)
 # ═══════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_fp_sem_da_veiculos(ano):
     """Custo FP sem D&A Dedicado (base de rateio)."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_fp_sem_da_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_fp_sem_da_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_fp_sem_da_veiculos')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_percentual_rateio_veiculos(ano):
     """Percentuais de rateio por veículo."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_percentual_rateio_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_percentual_rateio_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_percentual_rateio_veiculos')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_custo_rateado_veiculos(ano):
     """Custo rateado por veículo (FP sem Ded × Percentual)."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_custo_rateado_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_rateado_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_custo_rateado_veiculos')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_custo_fp_veiculo(ano, columns=None):
     """Custo FP final por veículo (rateado + D&A)."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_custo_fp_BUD', columns)
-    caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_custo_fp_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho, columns=columns)
+    return read_optimized('TC_Principal', str(ano), 'BUD', 'df_veiculos_custo_fp_BUD', prefer='agg', columns=columns, consumer='load_custo_fp_veiculo')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_cpu_veiculo(ano):
     """CPU (Custo Por Unidade) por modelo de veículo."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), 'BUD', 'df_veiculos_cpu_BUD')
     caminho = os.path.join(_pasta_tc_principal(ano), 'df_veiculos_cpu_BUD.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_cpu_veiculo')
 
 
 # ═══════════════════════════════════════════════════════════════
 #  DATA LOADING — REAL (cached)
 # ═══════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_principal_real(ano, columns=None):
     """Tabela principal Real (Sapiens)."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_principal', columns)
-    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_principal.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho, columns=columns)
+    return read_optimized('TC_Principal', str(ano), '', 'df_principal', prefer='thin', columns=columns, consumer='load_principal_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_volume_fa_real(ano):
     """Volume FA + Tempo FA Real."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_volume_fa')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_volume_fa.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_volume_fa_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_tempo_veiculos_real(ano):
     """Tempo Veículo Real."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_tempo_veiculos')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_tempo_veiculos.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_tempo_veiculos_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_volume_veiculos_real(ano):
     """Volume de veículos Real (processado da aba 'Volume Actual')."""
     if _use_snowflake():
@@ -410,48 +397,39 @@ def load_volume_veiculos_real(ano):
             df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
         return df
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_vol_veiculos.parquet')
-    if not os.path.exists(caminho):
-        return None
-    df = pd.read_parquet(caminho)
-    if 'Volume' in df.columns:
+    df = _read_parquet_traced(caminho, 'load_volume_veiculos_real')
+    if df is not None and 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_comparativo(ano):
     """Comparativo Real × Budget."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_comparativo_real_budget')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_comparativo_real_budget.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_comparativo')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_custo_fp_veiculo_real(ano):
     """Custo FP final por veículo (rateado + D&A) — Real."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_veiculos_custo_fp')
-    caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_custo_fp.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return read_optimized('TC_Principal', str(ano), '', 'df_veiculos_custo_fp', prefer='agg', consumer='load_custo_fp_veiculo_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_cpu_veiculo_real(ano):
     """CPU (Custo Por Unidade) por modelo de veículo — Real."""
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_veiculos_cpu')
     caminho = os.path.join(_pasta_tc_principal_real(ano), 'df_veiculos_cpu.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_cpu_veiculo_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_percentual_rateio_veiculos_real(ano):
     """Percentuais de rateio por veículo — Real (baseados em tempos reais)."""
     if _use_snowflake():
@@ -460,12 +438,10 @@ def load_percentual_rateio_veiculos_real(ano):
         _pasta_tc_principal_real(ano),
         'df_veiculos_percentual_rateio.parquet',
     )
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_percentual_rateio_veiculos_real')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_dea_dedicado_real(ano: int = 2026):
     """
     Carrega arquivo de D&A dedicado por veículo do processamento Real.
@@ -474,12 +450,10 @@ def load_dea_dedicado_real(ano: int = 2026):
     if _use_snowflake():
         return read_table('TC_Principal', str(ano), '', 'df_dea_dedicado')
     caminho = _join_data_root('TC_Principal', str(ano), 'df_dea_dedicado.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_dea_dedicado_real')
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=None):
     """
     Distribui dados de BE por veículo usando EXATAMENTE a mesma lógica do
@@ -528,7 +502,9 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
         return _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo)
 
     # ── Evitar colisão de colunas no merge ──
-    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo', 'Custo Rateado']
+    # Inclui 'D&A dedicado' para evitar contaminação de valores pré-existentes
+    # no df_be; a coluna será recalculada a partir de df_dea (Fase 14).
+    colunas_dropar = ['Veículo', 'Percentual', 'Custo FP Veiculo', 'Custo Rateado', 'D&A dedicado']
     df_be_limpo = df_be.drop(
         columns=[c for c in colunas_dropar if c in df_be.columns],
         errors='ignore',
@@ -541,21 +517,40 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
     # ══════════════════════════════════════════════════════════════════════
     df = pd.merge(df_be_limpo, pct, on=['Oficina', 'Período'], how='left')
 
-    # Fallback para linhas sem veículo
+    # Fallback para linhas sem veículo — distribuir pro-rata por período
+    # (mesma lógica de fase13_custo_rateado_veiculos do Real)
     mask_sem = df['Veículo'].isna()
     if mask_sem.any():
-        veiculos_unicos = pct['Veículo'].dropna().unique()
-        if len(veiculos_unicos) > 0:
-            linhas_sem = df[mask_sem].drop(
+        df_com = df[~mask_sem].copy()
+        df_sem = df[mask_sem].drop(columns=['Veículo', 'Percentual'], errors='ignore')
+        # Distribuição média por Período entre veículos conhecidos
+        dist_periodo = (
+            pct.groupby(['Período', 'Veículo'])['Percentual']
+            .mean().reset_index()
+        )
+        # Normalizar para soma por Período = 1.0
+        soma_per = dist_periodo.groupby('Período')['Percentual'].transform('sum')
+        dist_periodo['Percentual'] = dist_periodo['Percentual'] / soma_per.replace(0, 1)
+        # Expandir linhas sem veículo usando distribuição do período
+        df_sem_expanded = pd.merge(df_sem, dist_periodo, on='Período', how='left')
+        # Fallback global para períodos sem nenhum veículo conhecido
+        mask_still = df_sem_expanded['Veículo'].isna()
+        if mask_still.any():
+            veiculos_unicos = pct['Veículo'].dropna().unique()
+            n_veic = max(1, len(veiculos_unicos))
+            linhas_orfas = df_sem_expanded[mask_still].drop(
                 columns=['Veículo', 'Percentual'], errors='ignore',
             )
             expansoes = []
             for v in veiculos_unicos:
-                tmp = linhas_sem.copy()
+                tmp = linhas_orfas.copy()
                 tmp['Veículo'] = v
-                tmp['Percentual'] = 1.0 / len(veiculos_unicos)
+                tmp['Percentual'] = 1.0 / n_veic
                 expansoes.append(tmp)
-            df = pd.concat([df[~mask_sem]] + expansoes, ignore_index=True)
+            df_sem_expanded = pd.concat(
+                [df_sem_expanded[~mask_still]] + expansoes, ignore_index=True
+            )
+        df = pd.concat([df_com, df_sem_expanded], ignore_index=True)
 
     df['Percentual'] = df['Percentual'].fillna(0)
 
@@ -606,9 +601,9 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
             df['D&A dedicado'] = df['_dea_veiculo'] / _n_rows.replace(0, 1)
             df.drop(columns=['_dea_veiculo'], inplace=True, errors='ignore')
     else:
-        # Fallback: ratear D&A pelo mesmo percentual (menos preciso)
-        if tem_dea:
-            df['D&A dedicado'] = df['D&A dedicado'] * df['Percentual']
+        # Sem df_dea — D&A dedicado = 0 (coluna foi dropada na limpeza)
+        if 'D&A dedicado' not in df.columns:
+            df['D&A dedicado'] = 0
 
     # Garantir coluna D&A dedicado existe
     if 'D&A dedicado' not in df.columns:
@@ -618,6 +613,20 @@ def ratear_be_por_veiculo(df_be, df_percentual, col_custo='Custo FP', df_dea=Non
     # Custo FP Veiculo = Custo Rateado + D&A dedicado
     # ══════════════════════════════════════════════════════════════════════
     df['Custo FP Veiculo'] = df['Custo Rateado'] + df['D&A dedicado']
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Validação de fechamento (igual Real fase 14)
+    # ══════════════════════════════════════════════════════════════════════
+    _custo_fp_orig = df_be[col_custo].sum() if col_custo in df_be.columns else 0
+    _custo_fp_veic = df['Custo FP Veiculo'].sum()
+    _diff_fech = abs(_custo_fp_orig - _custo_fp_veic)
+    if _diff_fech > 1.0:
+        import logging
+        logging.warning(
+            'ratear_be_por_veiculo: diferenca de fechamento R$ %.2f '
+            '(original=%.2f, veiculos=%.2f)',
+            _diff_fech, _custo_fp_orig, _custo_fp_veic,
+        )
 
     return df
 
@@ -639,18 +648,33 @@ def _ratear_be_por_veiculo_simples(df_be, df_percentual, col_custo='Custo FP'):
 
     mask_sem = df['Veículo'].isna()
     if mask_sem.any():
-        veiculos_unicos = pct['Veículo'].dropna().unique()
-        if len(veiculos_unicos) > 0:
-            linhas_sem = df[mask_sem].drop(
+        df_com = df[~mask_sem].copy()
+        df_sem = df[mask_sem].drop(columns=['Veículo', 'Percentual'], errors='ignore')
+        # Distribuição média por Período (mesma lógica do Real fase13)
+        dist_periodo = (
+            pct.groupby(['Período', 'Veículo'])['Percentual']
+            .mean().reset_index()
+        )
+        soma_per = dist_periodo.groupby('Período')['Percentual'].transform('sum')
+        dist_periodo['Percentual'] = dist_periodo['Percentual'] / soma_per.replace(0, 1)
+        df_sem_expanded = pd.merge(df_sem, dist_periodo, on='Período', how='left')
+        mask_still = df_sem_expanded['Veículo'].isna()
+        if mask_still.any():
+            veiculos_unicos = pct['Veículo'].dropna().unique()
+            n_veic = max(1, len(veiculos_unicos))
+            linhas_orfas = df_sem_expanded[mask_still].drop(
                 columns=['Veículo', 'Percentual'], errors='ignore',
             )
             expansoes = []
             for v in veiculos_unicos:
-                tmp = linhas_sem.copy()
+                tmp = linhas_orfas.copy()
                 tmp['Veículo'] = v
-                tmp['Percentual'] = 1.0 / len(veiculos_unicos)
+                tmp['Percentual'] = 1.0 / n_veic
                 expansoes.append(tmp)
-            df = pd.concat([df[~mask_sem]] + expansoes, ignore_index=True)
+            df_sem_expanded = pd.concat(
+                [df_sem_expanded[~mask_still]] + expansoes, ignore_index=True
+            )
+        df = pd.concat([df_com, df_sem_expanded], ignore_index=True)
 
     df['Percentual'] = df['Percentual'].fillna(0)
     df['Custo FP Veiculo'] = df[col_custo] * df['Percentual']
@@ -670,7 +694,7 @@ def _pasta_historico_bud():
     return _join_data_root('TC_Principal', 'historico_consolidado', 'BUD')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_principal():
     """Tabela principal consolidada multi-ano (Real)."""
     if _use_snowflake():
@@ -681,7 +705,7 @@ def load_historico_principal():
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_volume():
     """Volume consolidado multi-ano (Real)."""
     if _use_snowflake():
@@ -698,7 +722,7 @@ def load_historico_volume():
     return df
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_custo_fp_veiculo():
     """Custo FP por veículo consolidado multi-ano (Real)."""
     if _use_snowflake():
@@ -709,7 +733,7 @@ def load_historico_custo_fp_veiculo():
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_principal_bud():
     """Tabela principal consolidada multi-ano (Budget)."""
     if _use_snowflake():
@@ -720,7 +744,7 @@ def load_historico_principal_bud():
     return pd.read_parquet(caminho)
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_volume_bud():
     """Volume consolidado multi-ano (Budget)."""
     if _use_snowflake():
@@ -737,7 +761,7 @@ def load_historico_volume_bud():
     return df
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_historico_custo_fp_veiculo_bud():
     """Custo FP por veículo consolidado multi-ano (Budget)."""
     if _use_snowflake():
@@ -756,18 +780,23 @@ def _pasta_forecast_tc():
     return _join_data_root('TC_Principal', 'Forecast')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=120, show_spinner=False)
 def load_forecast_completo():
     """Forecast completo (Real + BE) — gerado pelo BE Simulador."""
     if _use_snowflake():
         return read_table('TC_Principal', '', 'Forecast', 'forecast_completo')
-    caminho = os.path.join(_pasta_forecast_tc(), 'forecast_completo.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return read_optimized('TC_Principal', '', 'Forecast', 'forecast_completo', prefer='thin', consumer='load_forecast_completo')
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=120, show_spinner=False)
+def load_forecast_agg():
+    """Forecast agregado (macro: Ano/Período/Oficina/Tipo) para charts Home."""
+    if _use_snowflake():
+        return read_table('TC_Principal', '', 'Forecast', 'forecast_completo')
+    return read_optimized('TC_Principal', '', 'Forecast', 'forecast_completo', prefer='agg', consumer='load_forecast_agg')
+
+
+@st.cache_data(ttl=120, show_spinner=False)
 def load_forecast_volume():
     """Volume do forecast — gerado pelo BE Simulador."""
     if _use_snowflake():
@@ -776,10 +805,8 @@ def load_forecast_volume():
             df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
         return df
     caminho = os.path.join(_pasta_forecast_tc(), 'df_vol_historico.parquet')
-    if not os.path.exists(caminho):
-        return None
-    df = pd.read_parquet(caminho)
-    if 'Volume' in df.columns:
+    df = _read_parquet_traced(caminho, 'load_forecast_volume')
+    if df is not None and 'Volume' in df.columns:
         df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce').fillna(0)
     return df
 
@@ -791,7 +818,7 @@ def _get_file_mtime(caminho):
     return 0
 
 
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=120, show_spinner=False)
 def load_custo_fp_veiculo_forecast(_file_mtime=None):
     """Custo FP por veículo do Forecast — gerado pelo BE Simulador.
     
@@ -804,9 +831,7 @@ def load_custo_fp_veiculo_forecast(_file_mtime=None):
     if _use_snowflake():
         return read_table('TC_Principal', '', 'Forecast', 'forecast_veiculos_custo_fp')
     caminho = os.path.join(_pasta_forecast_tc(), 'forecast_veiculos_custo_fp.parquet')
-    if not os.path.exists(caminho):
-        return None
-    return pd.read_parquet(caminho)
+    return _read_parquet_traced(caminho, 'load_custo_fp_veiculo_forecast')
 
 
 def load_custo_fp_veiculo_forecast_fresh():
@@ -919,8 +944,10 @@ def calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual, col_custo='Cus
     """
     if df_vol_bud is None or df_vol_actual is None:
         return None
-    if 'Custo' not in df_principal.columns:
+    if df_principal.empty or df_vol_bud.empty or df_vol_actual.empty:
         return None
+
+    _has_custo = 'Custo' in df_principal.columns
 
     # Determinar colunas de agrupamento
     cols_agrup = ['Ano', 'Período'] if tem_ano and 'Ano' in df_principal.columns else ['Período']
@@ -933,7 +960,11 @@ def calcular_flex_budget(df_principal, df_vol_bud, df_vol_actual, col_custo='Cus
     vol_act_per = vol_act_per.rename(columns={'Volume': 'Vol_Actual'})
 
     # Custo fixo e total por período (e ano se aplicável)
-    fixo_mask = mask_custo_fixo(df_principal['Custo'])
+    if _has_custo:
+        fixo_mask = mask_custo_fixo(df_principal['Custo'])
+    else:
+        # Sem coluna 'Custo': tratar tudo como variável (Flex = Total × Proporção)
+        fixo_mask = pd.Series(False, index=df_principal.index)
 
     custo_fixo = (df_principal[fixo_mask]
                   .groupby(cols_agrup, as_index=False)[col_custo].sum()
@@ -1021,6 +1052,390 @@ def calcular_cpu(custo, volume):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  TOOLTIP RICO — CPU POR PERÍODO (Barras + Budget)
+# ═══════════════════════════════════════════════════════════════
+
+def build_cpu_tooltip_payload(
+    df_detail: pd.DataFrame,
+    periodos: list[str],
+    valor_col: str,
+    volume_por_periodo: dict[str, float],
+    moeda_simbolo: str,
+    sufixo: str,
+    serie_label: str = "Real",
+    n_type05: int = 5,
+    n_type06: int = 5,
+    is_cpu: bool = False,
+    group_col: str = "Período",
+    flex_mode: bool = False,
+    vol_actual_dict: dict[str, float] | None = None,
+) -> dict[str, str]:
+    """Pré-computa tooltip rico (nível Waterfall) por grupo (Período, Oficina, etc.).
+
+    Retorna ``{grupo: hover_html_string}`` pronto para ``hovertext`` do Plotly.
+
+    Parameters
+    ----------
+    df_detail : DataFrame com colunas ``group_col``, ``valor_col``, e opcionalmente
+        ``Type 05``, ``Type 06``.
+    periodos : lista de valores do grupo presentes no gráfico (strings).
+    valor_col : coluna monetária a agregar (``'Custo FP'`` ou ``'Total'``).
+    volume_por_periodo : dicionário ``{grupo: volume}``.
+    moeda_simbolo : ``'€'``, ``'$'``, ``'R$'``.
+    sufixo : ``''``, ``' K'``, ``' M'``.
+    serie_label : rótulo da série (``'Real'``, ``'BE'``, ``'Flex Bud'``, etc.).
+    n_type05 : quantos Type 05 exibir (top N).
+    n_type06 : quantos Type 06 exibir dentro de cada Type 05 (top N).
+    is_cpu : True quando o gráfico já está em modo CPU (valores /veíc).
+    group_col : coluna de agrupamento (``'Período'``, ``'Oficina'``, ``'Veículo'``).
+    flex_mode : Se True, calcula Flex Budget (Fixo + NãoFixo × Vol_Actual/Vol_Budget).
+    vol_actual_dict : Volume actual por período (necessário quando flex_mode=True).
+    """
+    result: dict[str, str] = {}
+    if df_detail is None or df_detail.empty:
+        return result
+    if valor_col not in df_detail.columns or group_col not in df_detail.columns:
+        return result
+
+    has_t05 = 'Type 05' in df_detail.columns
+    has_t06 = 'Type 06' in df_detail.columns
+
+    df = df_detail.copy()
+    df[valor_col] = pd.to_numeric(df[valor_col], errors='coerce').fillna(0)
+    df['_grp'] = df[group_col].astype(str).str.strip()
+
+    # Flex Budget: classificar fixa/variável
+    if flex_mode:
+        if 'Custo' in df.columns:
+            df['_is_fixo'] = mask_custo_fixo(df['Custo'])
+        else:
+            df['_is_fixo'] = False
+
+    def _calc_flex_sum(d_slice, prop):
+        if not flex_mode:
+            return d_slice[valor_col].sum()
+        fixo = d_slice.loc[d_slice['_is_fixo'], valor_col].sum()
+        nao_fixo = d_slice.loc[~d_slice['_is_fixo'], valor_col].sum()
+        return fixo + nao_fixo * prop
+
+    for per in periodos:
+        per_str = str(per).strip()
+        mask = df['_grp'] == per_str
+        df_per = df.loc[mask]
+        if df_per.empty:
+            result[per_str] = f'<b>{per_str}</b> — {serie_label}<br>Sem dados'
+            continue
+
+        # Calcular total (Flex se flex_mode)
+        _prop = 1.0
+        if flex_mode:
+            _vr = (vol_actual_dict or {}).get(per_str, 0)
+            _vb = volume_por_periodo.get(per_str, 0)
+            _prop = (_vr / _vb) if _vb else 1.0
+            total_per = _calc_flex_sum(df_per, _prop)
+            vol = _vr  # CPU usa vol actual (consistente com gráfico)
+        else:
+            total_per = df_per[valor_col].sum()
+            vol = volume_por_periodo.get(per_str, 0)
+        cpu_val = (total_per / vol) if vol else 0.0
+
+        # ── Cabeçalho ──
+        parts: list[str] = [f'<b>{per_str}</b> — {serie_label}']
+        if is_cpu:
+            parts.append(f'CPU: {moeda_simbolo} {cpu_val:,.2f}/veíc')
+            parts.append(f'Total: {moeda_simbolo} {total_per:,.2f}{sufixo}')
+        else:
+            parts.append(f'Total: {moeda_simbolo} {total_per:,.2f}{sufixo}')
+            if vol:
+                parts.append(f'CPU: {moeda_simbolo} {cpu_val:,.2f}/veíc')
+        if vol:
+            parts.append(f'Volume: {vol:,.0f} unid.')
+
+        # ── Breakdown Type 05 → Type 06 ──
+        if has_t05:
+            abs_total = abs(total_per) if total_per != 0 else 1
+            if flex_mode:
+                _t05_rows = []
+                for _t05k in df_per['Type 05'].unique():
+                    _t05s = df_per.loc[df_per['Type 05'] == _t05k]
+                    _t05_rows.append({'Type 05': _t05k, valor_col: _calc_flex_sum(_t05s, _prop)})
+                t05_agg = (pd.DataFrame(_t05_rows).sort_values(valor_col, key=lambda s: s.abs(), ascending=False)
+                           if _t05_rows else pd.DataFrame(columns=['Type 05', valor_col]))
+            else:
+                t05_agg = (
+                    df_per.groupby('Type 05', as_index=False)[valor_col]
+                    .sum()
+                    .sort_values(valor_col, key=lambda s: s.abs(), ascending=False)
+                )
+            top_t05 = t05_agg.head(n_type05)
+            if not top_t05.empty:
+                parts.append('──────────')
+                parts.append(f'<b>Type 05 (Top {min(n_type05, len(top_t05))}):</b>')
+                for _, row05 in top_t05.iterrows():
+                    t05_name = str(row05['Type 05']).strip()
+                    t05_val = row05[valor_col]
+                    t05_pct = t05_val / abs_total * 100 if abs_total else 0
+                    if is_cpu and vol:
+                        _t05_cpu = t05_val / vol
+                        parts.append(
+                            f'• <b>{t05_name}</b>: {moeda_simbolo} {_t05_cpu:,.2f}/veíc ({t05_pct:.1f}%)'
+                        )
+                    else:
+                        parts.append(
+                            f'• <b>{t05_name}</b>: {moeda_simbolo} {t05_val:,.0f}{sufixo} ({t05_pct:.1f}%)'
+                        )
+                    # Sub-breakdown Type 06
+                    if has_t06:
+                        df_t05 = df_per.loc[df_per['Type 05'].astype(str).str.strip() == t05_name]
+                        abs_t05 = abs(t05_val) if t05_val != 0 else 1
+                        if flex_mode:
+                            _t06_rows = []
+                            for _t06k in df_t05['Type 06'].unique():
+                                _t06s = df_t05.loc[df_t05['Type 06'] == _t06k]
+                                _t06_rows.append({'Type 06': _t06k, valor_col: _calc_flex_sum(_t06s, _prop)})
+                            t06_agg = (pd.DataFrame(_t06_rows).sort_values(valor_col, key=lambda s: s.abs(), ascending=False)
+                                       if _t06_rows else pd.DataFrame(columns=['Type 06', valor_col]))
+                        else:
+                            t06_agg = (
+                                df_t05.groupby('Type 06', as_index=False)[valor_col]
+                                .sum()
+                                .sort_values(valor_col, key=lambda s: s.abs(), ascending=False)
+                            )
+                        top_t06 = t06_agg.head(n_type06)
+                        top_t06_sum = top_t06[valor_col].sum()
+                        for _, row06 in top_t06.iterrows():
+                            t06_name = str(row06['Type 06']).strip()
+                            if len(t06_name) > 30:
+                                t06_name = t06_name[:27] + '...'
+                            t06_val = row06[valor_col]
+                            t06_pct = t06_val / abs_t05 * 100 if abs_t05 else 0
+                            if is_cpu and vol:
+                                _t06_cpu = t06_val / vol
+                                parts.append(
+                                    f'   {t06_name}: {moeda_simbolo} {_t06_cpu:,.2f}/veíc ({t06_pct:.1f}%)'
+                                )
+                            else:
+                                parts.append(
+                                    f'   {t06_name}: {moeda_simbolo} {t06_val:,.0f}{sufixo} ({t06_pct:.1f}%)'
+                                )
+                        outros_t06 = t05_val - top_t06_sum
+                        if abs(outros_t06) > 0.5:
+                            pct_o = outros_t06 / abs_t05 * 100 if abs_t05 else 0
+                            if is_cpu and vol:
+                                _o_cpu = outros_t06 / vol
+                                parts.append(
+                                    f'   Outros: {moeda_simbolo} {_o_cpu:,.2f}/veíc ({pct_o:.1f}%)'
+                                )
+                            else:
+                                parts.append(
+                                    f'   Outros: {moeda_simbolo} {outros_t06:,.0f}{sufixo} ({pct_o:.1f}%)'
+                                )
+            # Outros Type 05 (restante)
+            outros_t05_val = total_per - top_t05[valor_col].sum()
+            if abs(outros_t05_val) > 0.5:
+                pct_o5 = outros_t05_val / abs_total * 100 if abs_total else 0
+                if is_cpu and vol:
+                    _o5_cpu = outros_t05_val / vol
+                    parts.append(
+                        f'• Outros Type 05: {moeda_simbolo} {_o5_cpu:,.2f}/veíc ({pct_o5:.1f}%)'
+                    )
+                else:
+                    parts.append(
+                        f'• Outros Type 05: {moeda_simbolo} {outros_t05_val:,.0f}{sufixo} ({pct_o5:.1f}%)'
+                    )
+
+        result[per_str] = '<br>'.join(parts)
+
+    return result
+
+
+def build_delta_tooltip_payload(
+    df_real: pd.DataFrame,
+    df_bud: pd.DataFrame,
+    periodos: list[str],
+    valor_col: str,
+    vol_real: dict[str, float],
+    vol_bud: dict[str, float],
+    moeda_simbolo: str,
+    sufixo: str,
+    serie_label: str = "Delta (Real - Flex Bud)",
+    n_type05: int = 5,
+    n_type06: int = 5,
+    is_cpu: bool = False,
+    group_col: str = "Período",
+) -> dict[str, str]:
+    """Pré-computa tooltip rico para o gráfico Delta (Real − Flex Bud).
+
+    Calcula o Flex Budget por Type 05/06 usando a mesma fórmula de
+    ``calcular_flex_budget`` (Fixo + NãoFixo × Vol_Actual/Vol_Budget) para
+    garantir coerência com o valor exibido no gráfico.
+
+    Retorna ``{grupo: hover_html}`` pronto para ``hovertext`` do Plotly.
+    """
+    result: dict[str, str] = {}
+    if df_real is None or df_real.empty or df_bud is None or df_bud.empty:
+        return result
+    if valor_col not in df_real.columns or group_col not in df_real.columns:
+        return result
+    if valor_col not in df_bud.columns or group_col not in df_bud.columns:
+        return result
+
+    has_t05 = 'Type 05' in df_real.columns and 'Type 05' in df_bud.columns
+    has_t06 = 'Type 06' in df_real.columns and 'Type 06' in df_bud.columns
+    has_custo = 'Custo' in df_bud.columns
+
+    dfr = df_real.copy()
+    dfb = df_bud.copy()
+    dfr[valor_col] = pd.to_numeric(dfr[valor_col], errors='coerce').fillna(0)
+    dfb[valor_col] = pd.to_numeric(dfb[valor_col], errors='coerce').fillna(0)
+    dfr['_grp'] = dfr[group_col].astype(str).str.strip()
+    dfb['_grp'] = dfb[group_col].astype(str).str.strip()
+
+    # Classificar cada linha do budget como fixa ou variável
+    if has_custo:
+        dfb['_is_fixo'] = mask_custo_fixo(dfb['Custo'])
+    else:
+        dfb['_is_fixo'] = False  # sem coluna Custo, tudo variável
+
+    def _calc_flex(db_slice: pd.DataFrame, proporcao: float) -> float:
+        """Calcula Flex = Fixo + NãoFixo × proporção para um slice do budget."""
+        fixo = db_slice.loc[db_slice['_is_fixo'], valor_col].sum()
+        nao_fixo = db_slice.loc[~db_slice['_is_fixo'], valor_col].sum()
+        return fixo + nao_fixo * proporcao
+
+    for per in periodos:
+        per_str = str(per).strip()
+        dr = dfr.loc[dfr['_grp'] == per_str]
+        db = dfb.loc[dfb['_grp'] == per_str]
+
+        total_real = dr[valor_col].sum() if not dr.empty else 0.0
+
+        # Calcular Flex Budget com a mesma fórmula do gráfico
+        vr = vol_real.get(per_str, 0)
+        vb = vol_bud.get(per_str, 0)
+        proporcao = (vr / vb) if vb else 1.0
+        total_flex = _calc_flex(db, proporcao) if not db.empty else 0.0
+        delta_total = total_real - total_flex
+
+        delta_vol = vr - vb
+        cpu_real = (total_real / vr) if vr else 0.0
+        cpu_flex = (total_flex / vr) if vr else 0.0  # CPU Flex usa Vol_Actual
+        delta_cpu = cpu_real - cpu_flex
+
+        # ── Cabeçalho (somente deltas) ──
+        parts: list[str] = [f'<b>{per_str}</b> — {serie_label}']
+        if is_cpu:
+            parts.append(f'Δ CPU: {moeda_simbolo} {delta_cpu:+,.2f}/veíc')
+            parts.append(f'Δ Total: {moeda_simbolo} {delta_total:+,.2f}{sufixo}')
+        else:
+            parts.append(f'Δ Total: {moeda_simbolo} {delta_total:+,.2f}{sufixo}')
+            if vr or vb:
+                parts.append(f'Δ CPU: {moeda_simbolo} {delta_cpu:+,.2f}/veíc')
+        if vr or vb:
+            parts.append(f'Δ Volume: {delta_vol:+,.0f} unid. (Real: {vr:,.0f} | Bud: {vb:,.0f})')
+
+        # ── Breakdown Type 05 → Type 06 (delta com Flex) ──
+        if has_t05:
+            # Real por Type 05
+            r05 = dr.groupby('Type 05', as_index=False)[valor_col].sum().rename(
+                columns={valor_col: '_real'}
+            )
+            # Flex por Type 05 (Fixo + NãoFixo × proporção)
+            all_t05 = db['Type 05'].unique() if not db.empty else []
+            flex05_rows = []
+            for t05 in all_t05:
+                db_t05 = db.loc[db['Type 05'] == t05]
+                flex05_rows.append({'Type 05': t05, '_flex': _calc_flex(db_t05, proporcao)})
+            b05 = pd.DataFrame(flex05_rows) if flex05_rows else pd.DataFrame(columns=['Type 05', '_flex'])
+
+            m05 = r05.merge(b05, on='Type 05', how='outer').fillna(0)
+            m05['_delta'] = m05['_real'] - m05['_flex']
+            m05 = m05.sort_values('_delta', key=lambda s: s.abs(), ascending=False)
+            top_t05 = m05.head(n_type05)
+
+            abs_delta_total = abs(delta_total) if delta_total != 0 else 1
+
+            if not top_t05.empty:
+                parts.append('──────────')
+                parts.append(f'<b>Type 05 Δ (Top {min(n_type05, len(top_t05))}):</b>')
+                for _, row05 in top_t05.iterrows():
+                    t05_name = str(row05['Type 05']).strip()
+                    t05_delta = row05['_delta']
+                    t05_pct = t05_delta / abs_delta_total * 100 if abs_delta_total else 0
+                    if is_cpu and vr:
+                        _t05_cpu = t05_delta / vr
+                        parts.append(
+                            f'• <b>{t05_name}</b>: {moeda_simbolo} {_t05_cpu:+,.2f}/veíc ({t05_pct:+.1f}%)'
+                        )
+                    else:
+                        parts.append(
+                            f'• <b>{t05_name}</b>: {moeda_simbolo} {t05_delta:+,.0f}{sufixo} ({t05_pct:+.1f}%)'
+                        )
+                    # Sub-breakdown Type 06
+                    if has_t06:
+                        r06 = dr.loc[dr['Type 05'].astype(str).str.strip() == t05_name]
+                        r06_agg = r06.groupby('Type 06', as_index=False)[valor_col].sum().rename(
+                            columns={valor_col: '_real'}
+                        )
+                        db_t05 = db.loc[db['Type 05'].astype(str).str.strip() == t05_name]
+                        all_t06 = db_t05['Type 06'].unique() if not db_t05.empty else []
+                        flex06_rows = []
+                        for t06 in all_t06:
+                            db_t06 = db_t05.loc[db_t05['Type 06'] == t06]
+                            flex06_rows.append({'Type 06': t06, '_flex': _calc_flex(db_t06, proporcao)})
+                        b06_agg = pd.DataFrame(flex06_rows) if flex06_rows else pd.DataFrame(columns=['Type 06', '_flex'])
+
+                        m06 = r06_agg.merge(b06_agg, on='Type 06', how='outer').fillna(0)
+                        m06['_delta'] = m06['_real'] - m06['_flex']
+                        m06 = m06.sort_values('_delta', key=lambda s: s.abs(), ascending=False)
+                        top_t06 = m06.head(n_type06)
+                        for _, row06 in top_t06.iterrows():
+                            t06_name = str(row06['Type 06']).strip()
+                            if len(t06_name) > 30:
+                                t06_name = t06_name[:27] + '...'
+                            t06_delta = row06['_delta']
+                            t06_pct = t06_delta / abs_delta_total * 100 if abs_delta_total else 0
+                            if is_cpu and vr:
+                                _t06_cpu = t06_delta / vr
+                                parts.append(
+                                    f'   {t06_name}: {moeda_simbolo} {_t06_cpu:+,.2f}/veíc ({t06_pct:+.1f}%)'
+                                )
+                            else:
+                                parts.append(
+                                    f'   {t06_name}: {moeda_simbolo} {t06_delta:+,.0f}{sufixo} ({t06_pct:+.1f}%)'
+                                )
+                        outros_t06 = t05_delta - top_t06['_delta'].sum()
+                        if abs(outros_t06) > 0.5:
+                            pct_o = outros_t06 / abs_delta_total * 100 if abs_delta_total else 0
+                            if is_cpu and vr:
+                                _o_cpu = outros_t06 / vr
+                                parts.append(
+                                    f'   Outros: {moeda_simbolo} {_o_cpu:+,.2f}/veíc ({pct_o:+.1f}%)'
+                                )
+                            else:
+                                parts.append(
+                                    f'   Outros: {moeda_simbolo} {outros_t06:+,.0f}{sufixo} ({pct_o:+.1f}%)'
+                                )
+                # Outros Type 05
+                outros_t05 = delta_total - top_t05['_delta'].sum()
+                if abs(outros_t05) > 0.5:
+                    pct_o5 = outros_t05 / abs_delta_total * 100 if abs_delta_total else 0
+                    if is_cpu and vr:
+                        _o5_cpu = outros_t05 / vr
+                        parts.append(
+                            f'• Outros Type 05: {moeda_simbolo} {_o5_cpu:+,.2f}/veíc ({pct_o5:+.1f}%)'
+                        )
+                    else:
+                        parts.append(
+                            f'• Outros Type 05: {moeda_simbolo} {outros_t05:+,.0f}{sufixo} ({pct_o5:+.1f}%)'
+                        )
+
+        result[per_str] = '<br>'.join(parts)
+
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════
 #  FORMATAÇÃO PT-BR
 # ═══════════════════════════════════════════════════════════════
 
@@ -1058,8 +1473,10 @@ def calcular_flex_budget_detalhado(
     """
     if df_vol_bud is None or df_vol_actual is None:
         return None
-    if 'Custo' not in df_principal.columns:
+    if df_principal.empty or df_vol_bud.empty or df_vol_actual.empty:
         return None
+
+    _has_custo = 'Custo' in df_principal.columns
 
     cols_agrup_vol = (
         ['Ano', 'Período']
@@ -1095,7 +1512,11 @@ def calcular_flex_budget_detalhado(
     agr = df_principal.groupby(grp_cols, as_index=False)[col_custo].sum()
 
     # Classificar Fixo / Variável
-    agr['_is_fixo'] = mask_custo_fixo(agr['Custo'])
+    if _has_custo and 'Custo' in agr.columns:
+        agr['_is_fixo'] = mask_custo_fixo(agr['Custo'])
+    else:
+        # Sem coluna 'Custo': tratar tudo como variável
+        agr['_is_fixo'] = False
 
     # Juntar proporção
     agr = agr.merge(prop, on=cols_agrup_vol, how='left')

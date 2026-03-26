@@ -204,32 +204,57 @@ Cascading: A seleÃ§Ã£o de Oficina filtra os VeÃ­culos disponÃ­veis.
 
 **FÃ³rmula Geral:**
 ```
-BE = MÃ©dia_HistÃ³rica Ã— Fator_VariaÃ§Ã£o Ã— Fator_InflaÃ§Ã£o
+BE = MÃ©dia_HistÃ³rica Ã— Fator_VariaÃ§Ã£o Ã— Fator_MonetÃ¡rio
 ```
 
 Onde:
 - Fator_VariaÃ§Ã£o = 1 + (VariaÃ§Ã£o_Volume Ã— Sensibilidade)
-- Fator_InflaÃ§Ã£o = 1 + (InflaÃ§Ã£o / 100)
+- Fator_MonetÃ¡rio = (1 + InflaÃ§Ã£o / 100) Ã— (1 - Produtividade / 100)
 - VariaÃ§Ã£o_Volume = (Volume_Futuro / Volume_MÃ©dio_HistÃ³rico) âˆ’ 1
 
+**SequÃªncia correta do cÃ¡lculo:**
+1. Carregar apenas a base histÃ³rica real vÃ¡lida.
+2. Remover linhas antigas de BE / BE Manual / Forecast da base usada para mÃ©dia.
+3. Calcular mÃ©dia histÃ³rica e volume mÃ©dio histÃ³rico por combinaÃ§Ã£o de chaves.
+4. Aplicar o volume futuro configurado.
+5. Aplicar sensibilidade.
+6. Aplicar inflaÃ§Ã£o e produtividade no bloco monetÃ¡rio final.
+7. Consolidar HistÃ³rico + BE + BE Manual.
+8. Gerar o arquivo rateado por veÃ­culo com a mesma lÃ³gica econÃ´mica do Real.
+9. Validar convergÃªncia dos meses histÃ³ricos contra o Real.
+
 **Resultado por tipo de custo:**
-- **Custo Fixo BE** = MÃ©dia HistÃ³rica Ã— (1 + InflaÃ§Ã£o%) â€” sem ajuste de volume
-- **Custo VariÃ¡vel BE** = MÃ©dia HistÃ³rica Ã— (Vol_Futuro / Vol_HistÃ³rico) Ã— (1 + InflaÃ§Ã£o%)
+- **Custo Fixo BE** = MÃ©dia HistÃ³rica Ã— (1 + InflaÃ§Ã£o%) Ã— (1 - Produtividade%) â€” sem ajuste de volume
+- **Custo VariÃ¡vel BE** = MÃ©dia HistÃ³rica Ã— (Vol_Futuro / Vol_HistÃ³rico) Ã— (1 + InflaÃ§Ã£o%) Ã— (1 - Produtividade%)
 
 **Sensibilidade:**
 | Tipo | Sensibilidade | FÃ³rmula |
 |------|---------------|---------|
-| Fixo | 0% | BE = MÃ©dia Ã— 1,0 Ã— (1 + InflaÃ§Ã£o%) |
-| VariÃ¡vel | 100% | BE = MÃ©dia Ã— (Vol_Futuro / Vol_HistÃ³rico) Ã— (1 + InflaÃ§Ã£o%) |
-| Semi-variÃ¡vel | 0% < s < 100% | BE = MÃ©dia Ã— (1 + Var_Volume Ã— s) Ã— (1 + InflaÃ§Ã£o%) |
+| Fixo | 0% | BE = MÃ©dia Ã— 1,0 Ã— (1 + InflaÃ§Ã£o%) Ã— (1 - Produtividade%) |
+| VariÃ¡vel | 100% | BE = MÃ©dia Ã— (Vol_Futuro / Vol_HistÃ³rico) Ã— (1 + InflaÃ§Ã£o%) Ã— (1 - Produtividade%) |
+| Semi-variÃ¡vel | 0% < s < 100% | BE = MÃ©dia Ã— (1 + Var_Volume Ã— s) Ã— (1 + InflaÃ§Ã£o%) Ã— (1 - Produtividade%) |
 
 **GeraÃ§Ã£o de Forecast:**
-- `forecast_completo.parquet` â€” ProjeÃ§Ã£o mÃªs a mÃªs
-- `premissas.json` â€” Premissas utilizadas
+- `forecast_historico.parquet` â€” HistÃ³rico isolado
+- `forecast_previsao.parquet` â€” Apenas meses projetados
+- `forecast_completo.parquet` â€” Consolidado com HistÃ³rico + BE + BE Manual
+- `forecast_veiculos_custo_fp.parquet` â€” Consolidado rateado por veÃ­culo
+- `custos_especificos.parquet` â€” Camada manual do BE
+- `config_forecast.json` â€” Premissas utilizadas
 
 **FunÃ§Ã£o `ratear_be_por_veiculo()`:**
-Distribui custo BE proporcionalmente usando percentuais de rateio.
-Fallback: se nÃ£o encontrar percentual â†’ distribui igualitariamente (1/N).
+Distribui o forecast por veÃ­culo usando a mesma regra do Real:
+- `Custo Rateado = FP sem Dedicada Ã— Percentual`
+- `Custo FP Veiculo = Custo Rateado + D&A dedicado`
+
+Os percentuais vÃªm do Real (`df_veiculos_percentual_rateio.parquet`) e o D&A dedicado tambÃ©m vem do Real (`df_dea_dedicado.parquet`).
+
+Fallback correto:
+- primeiro tenta distribuiÃ§Ã£o mÃ©dia por perÃ­odo entre veÃ­culos conhecidos;
+- distribuiÃ§Ã£o uniforme sÃ³ Ã© usada como Ãºltimo fallback, para perÃ­odos totalmente Ã³rfÃ£os.
+
+**Garantia na anÃ¡lise:**
+Na leitura analÃ­tica do BE, meses marcados como `HistÃ³rico` sÃ£o sobrepostos pelos dados reais antes da exibiÃ§Ã£o. Isso garante que Jan/Fev e demais meses histÃ³ricos fechem exatamente com o Real mesmo se um parquet antigo ainda existir no ambiente.
 
 ---
 
@@ -250,8 +275,12 @@ dados/TC_Principal/
 â”‚   â”œâ”€â”€ df_veiculos_custo_fp.parquet
 â”‚   â””â”€â”€ df_vol_veiculos_actual.parquet
 â”œâ”€â”€ Forecast/
+â”‚   â”œâ”€â”€ forecast_historico.parquet
+â”‚   â”œâ”€â”€ forecast_previsao.parquet
 â”‚   â”œâ”€â”€ forecast_completo.parquet
-â”‚   â””â”€â”€ premissas.json
+â”‚   â”œâ”€â”€ forecast_veiculos_custo_fp.parquet
+â”‚   â”œâ”€â”€ custos_especificos.parquet
+â”‚   â””â”€â”€ config_forecast.json
 â””â”€â”€ historico_consolidado/
 ```
 
@@ -289,7 +318,7 @@ tc_principal/
     â””â”€â”€ waterfall_tc.py                # Waterfall
 
 Obs.: a **anÃ¡lise** de Best Estimate / Forecast (Real + BE) Ã© exibida no prÃ³prio `home_tc.py`
-consumindo `dados/TC_Principal/Forecast/forecast_completo.parquet`.
+consumindo `dados/TC_Principal/Forecast/forecast_completo.parquet` e, quando hÃ¡ granularidade veicular, `dados/TC_Principal/Forecast/forecast_veiculos_custo_fp.parquet`.
 ```
 
 ### Pipeline de Processamento (processamento_dados_veiculos.py)
@@ -412,7 +441,54 @@ tc_copilot/
 
 ---
 
-## 13) Guia de Build (EXE)
+## 13) Otimização de Dados — THIN / AGG / Data Router
+
+### Motivação
+Parquets grandes (>10 mil linhas) são desnecessários para KPIs macro e gráficos de período.
+O sistema gera variantes otimizadas após cada processamento de dados.
+
+### Variantes
+
+| Variante | Descrição | Exemplo |
+|----------|-----------|---------|
+| **FULL** | Parquet original com todas as colunas | `df_principal.parquet` |
+| **THIN** | Remove colunas de detalhe (`Texto breve`, `Material`, `Fornec.`, `Centrocst`, `Nºconta`, `Dt.lçto.`, `Usuário`) | `df_principal_thin.parquet` |
+| **AGG**  | Pré-agregado por dimensões macro (`Ano`, `Período`, `Oficina`/`Tipo`) | `df_principal_agg_home.parquet` |
+
+### Schemas (tc_core/parquet_schemas.py)
+Cada variante tem schema explícito definindo:
+- `remove_columns` (THIN) — colunas a remover
+- `group_keys` + `sum_columns` (AGG) — chaves de agrupamento e métricas
+
+### Data Router (tc_core/data_router.py)
+Feature flag: `SCI_USE_OPTIMIZED_PARQUETS` (default: True)
+
+```
+read_optimized(domain, ano, subfolder, table, prefer='thin'|'agg', consumer='...')
+```
+
+Lógica: tenta variante preferida → se não existir, fallback para FULL.
+Telemetria registra qual fonte (THIN/AGG/FULL) foi usada.
+
+### Parquets Otimizados Gerados
+
+**TC_Principal (Real/BUD):**
+- `df_principal_thin.parquet` / `df_principal_agg_home.parquet`
+- `df_veiculos_agg_home.parquet`
+
+**TC_Ext (Real/BUD):**
+- `df_final_thin.parquet` / `df_final_agg.parquet`
+
+**Forecast (Best Estimate):**
+- `forecast_agg.parquet` — pré-agregado por [Ano, Período, Oficina, Tipo]
+
+### Debug Panel
+Ativar `SCI_DEBUG_DATA_TRACE=true` (ou via feature flags) para ver painel de telemetria
+no rodapé do app mostrando fonte (THIN/AGG/FULL) de cada dataset carregado.
+
+---
+
+## 14) Guia de Build (EXE)
 
 - `streamlit-desktop-app build app.py --name Stellantis-Cost-Intelligence`
 - PÃ³s-build: copiar `dados/`, mÃ³dulos, pÃ¡ginas para `dist/<NOME>/_internal/`

@@ -524,6 +524,18 @@ meses_ano = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 
+# ═══ Cache para leituras de parquet inline (evita releituras a cada rerun) ═══
+@st.cache_data(ttl=60, max_entries=10, show_spinner=False)
+def _ler_parquet_cached(caminho: str):
+    """Lê parquet com cache. Retorna None se não existe."""
+    if os.path.exists(caminho):
+        try:
+            return pd.read_parquet(caminho)
+        except Exception:
+            return None
+    return None
+
+
 # Função para aplicar filtros com cache
 @st.cache_data(ttl=3600, max_entries=50, show_spinner=False)
 def aplicar_filtros(df_total_cache, oficina_selecionadas_cache, veiculo_selecionados_cache, 
@@ -1196,7 +1208,9 @@ caminho_historico = os.path.join(_TC_EXT_ROOT, "historico_consolidado", "df_fina
 if os.path.exists(caminho_historico):
     try:
         # Carregar dados do histórico consolidado para obter todos os períodos disponíveis
-        df_historico_periodos = pd.read_parquet(caminho_historico)
+        df_historico_periodos = _ler_parquet_cached(caminho_historico)
+        if df_historico_periodos is None:
+            df_historico_periodos = pd.DataFrame()
         
         if 'Período' in df_historico_periodos.columns:
             # Pegar períodos únicos dos dados históricos consolidados
@@ -2081,13 +2095,9 @@ Estes custos seguirão as mesmas regras de rateio por veículo que os dados norm
 def carregar_custos_especificos():
     """Carrega custos específicos do arquivo parquet"""
     caminho_custos = os.path.join(_TC_EXT_ROOT, "Forecast", "custos_especificos.parquet")
-    if os.path.exists(caminho_custos):
-        try:
-            df = pd.read_parquet(caminho_custos)
-            return df
-        except Exception as e:
-            st.warning(f"⚠️ Erro ao carregar custos específicos: {str(e)}")
-            return pd.DataFrame()
+    df = _ler_parquet_cached(caminho_custos)
+    if df is not None:
+        return df.copy()
     return pd.DataFrame()
 
 def salvar_custos_especificos(df):

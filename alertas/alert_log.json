@@ -1,31 +1,5 @@
 [
   {
-    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:00:22",
-    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
-    "timestamp": "2026-03-08T09:00:22",
-    "periodo": "Março",
-    "ano": 2026,
-    "severidade": "critico",
-    "total_desvio": 823199.33,
-    "notificacoes_enviadas": {
-      "email": false,
-      "teams": true
-    }
-  },
-  {
-    "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:02:56",
-    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
-    "timestamp": "2026-03-08T09:02:56",
-    "periodo": "Março",
-    "ano": 2026,
-    "severidade": "critico",
-    "total_desvio": 823199.33,
-    "notificacoes_enviadas": {
-      "email": false,
-      "teams": true
-    }
-  },
-  {
     "id": "rule_ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2_2026-03-08T09:05:30",
     "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
     "timestamp": "2026-03-08T09:05:30",
@@ -2256,6 +2230,851 @@
     "notificacoes_enviadas": {
       "email": false,
       "teams": false
+    }
+  },
+  {
+    "id": "1d77c252-9028-46fd-aac8-5dbb2bad99ed",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-25T14:06:12",
+    "titulo": "teste3 - Março",
+    "mensagem": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 80.6% | Moeda: BRL\n\n🔴🔴🔴 Burden\n├─ 🔴🔴🔴 Material Losses: 1.754,2 kBRL (313,9 R$/veíc) | ∆ +1.853,4 kBRL (∆ +331,7 R$/veíc)\n│   [█████░░░░░] representa 46% do desvio total · ∆ +1.853,4 kBRL · 1868.0%\n│  ├─ Scraps: +2.095,6 kBRL (∆ +375,0 R$/veíc)\n│  │  ├─ 📍 AS: +1.999,6 kBRL (∆ +357,8 R$/veíc)\n│  │  │   • jogo assento (+1.134,9 k)\n│  │  │   • capa encosto banco inteirico tras (+69,0 k)\n│  │  │   • capa encosto banco inteirico tras bise (+66,8 k)\n│  │  ├─ 📍 BS: +125,9 kBRL (∆ +22,5 R$/veíc)\n│  │  │   • módulo de comutação integrado (+67,1 k)\n│  │  │   • painel interno porta tras esq mont (+3,5 k)\n│  │  │   • painel interno tampa tras mont (+2,7 k)\n│  │  └─ 📍 SM: +15,6 kBRL (∆ +2,8 R$/veíc)\n│  │      • comando freio secundario conj (+8,5 k)\n│  │      • jogo trava (+5,7 k)\n│  │      • armacao almofada assento tras esq (+0,5 k)\n│  ├─ Scrap Sales: +508,7 kBRL (∆ +91,0 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +435,7 kBRL (∆ +78,0 R$/veíc)\n│  │  └─ 📍 GS: +73,0 kBRL (∆ +13,1 R$/veíc)\n│  ├─ Inventory Adjustments: -40,2 kBRL (∆ -7,2 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -710,6 kBRL (∆ -127,2 R$/veíc)\n├─ 🔴🔴🔴 Maintenance: 1.346,5 kBRL (241,0 R$/veíc) | ∆ +616,8 kBRL (∆ +110,4 R$/veíc)\n│   [██░░░░░░░░] representa 15% do desvio total · ∆ +616,8 kBRL · 84.5%\n│  ├─ Material: +920,0 kBRL (∆ +164,6 R$/veíc)\n│  │  ├─ 📍 GS: +400,2 kBRL (∆ +71,6 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+66,0 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  ├─ 📍 BS: +228,8 kBRL (∆ +41,0 R$/veíc)\n│  │  │   • placa elet.rede completa w. mini 2 fanuc (+60,1 k)\n│  │  │   • scanner de rea s30a-4011ba - sick (+38,4 k)\n│  │  │   • redutor rv a97l-0318-0203/53 fanuc (+28,4 k)\n│  │  ├─ 📍 PS: +195,0 kBRL (∆ +34,9 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +87,7 kBRL (∆ +15,7 R$/veíc)\n│  │  │   • morca fixa ga9 pemax 50101 (+19,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • conversor rs485udp p195 int00034 lap pol (+17,3 k)\n│  │  ├─ 📍 PL: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • chapa compensado naval 1040x690x10 aman (+8,6 k)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  └─ 📍 QY: +12,9 kBRL (∆ +2,3 R$/veíc)\n│  │      • cabo da ponta de prova 200002645 inficon (+7,5 k)\n│  │      • adaptador de ponteira para medicao (+2,7 k)\n│  │      • apalpador p/ med ponta d=3mm 12454 faro (+2,0 k)\n│  └─ Service: -303,2 kBRL (∆ -54,3 R$/veíc)\n│     ├─ 📍 SM: +26,5 kBRL (∆ +4,7 R$/veíc)\n│     │   • 0053800038 - servicos tecnicos (+26,5 k)\n│     └─ 📍 PL: +9,7 kBRL (∆ +1,7 R$/veíc)\n│         • serviço de mecanico/eletricista/serralhe (+9,7 k)\n├─ 🔴🔴 Consumption Material: 656,1 kBRL (117,4 R$/veíc) | ∆ +141,0 kBRL (∆ +25,2 R$/veíc)\n│   [█░░░░░░░░░] representa 3% do desvio total · ∆ +141,0 kBRL · 27.4%\n│  └─ Consumption Material: +141,0 kBRL (∆ +25,2 R$/veíc)\n│     ├─ 📍 GS: +81,8 kBRL (∆ +14,6 R$/veíc)\n│     │   • papel toalha montagem cx. c/06 rls (+25,7 k)\n│     │   • placa nylon 2mx1mx12mm - indaco (+23,9 k)\n│     │   • placa nylon 2mx1mx60mm - indaco (+23,3 k)\n│     ├─ 📍 BS: +45,3 kBRL (∆ +8,1 R$/veíc)\n│     │   • graxa rocol un 00 balde 20kg itw chemica (+18,6 k)\n│     │   • luva flexcut ca33997 cano longo g danny (+8,2 k)\n│     │   • eletrodo n001341872 (+8,1 k)\n│     ├─ 📍 PS: +37,3 kBRL (∆ +6,7 R$/veíc)\n│     │   • lixa p400 gold c125mm 2361409941 cx/50 (+21,8 k)\n│     │   • boina de espuma verm 83mm pn28874 3m (+8,4 k)\n│     │   • tinta epoxi cinza ral7035 c catalizador (+6,1 k)\n│     ├─ 📍 AS: +30,8 kBRL (∆ +5,5 R$/veíc)\n│     │   • despesas terceiros (+17,0 k)\n│     │   • luva dannyblack tam m usinagem (+9,9 k)\n│     │   • rolo de gravacao vis y4409526 brady (+3,6 k)\n│     ├─ 📍 QY: +16,0 kBRL (∆ +2,9 R$/veíc)\n│     │   • graxa lubrificante sintetica nyogel 760g (+19,6 k)\n│     │   • tonner tk 342 - kyocera laser fs2020d (+1,7 k)\n│     │   • luva dannyblack tam g usinagem (+1,5 k)\n│     └─ 📍 SM: +12,5 kBRL (∆ +2,2 R$/veíc)\n│         • bolsa de ombro personalizada (+15,9 k)\n│         • capacete seg v-gard c/jugular branco (+4,1 k)\n│         • canecas (+2,8 k)\n├─ 🟢 Energy: 512,6 kBRL (91,7 R$/veíc) | ∆ -859,4 kBRL (∆ -153,8 R$/veíc)\n│   [██░░░░░░░░] representa 21% do desvio total · ∆ -859,4 kBRL · 62.6%\n│  ├─ Water: +94,6 kBRL (∆ +16,9 R$/veíc)\n│  │  └─ 📍 GS: +109,3 kBRL (∆ +19,6 R$/veíc)\n│  │      • serviço fornecimento água tratada (+113,4 k)\n│  │      • locacao de maquinas e equipamentos (+0,9 k)\n│  │      • 0054550003 - agua (-0,0 k)\n│  ├─ Gas: -418,4 kBRL (∆ -74,9 R$/veíc)\n│  └─ Electricity: -535,5 kBRL (∆ -95,8 R$/veíc)\n└─ 🟢 Trips: -567,9 kBRL (-101,6 R$/veíc) | ∆ -591,8 kBRL (∆ -105,9 R$/veíc)\n    [█░░░░░░░░░] representa 15% do desvio total · ∆ -591,8 kBRL · 2483.5%\n   └─ Trips: -591,8 kBRL (∆ -105,9 R$/veíc)",
+    "generated_texts": {
+      "plain_text_tree": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 80.6% | Moeda: BRL\n\n🔴🔴🔴 Burden\n├─ 🔴🔴🔴 Material Losses: 1.754,2 kBRL (313,9 R$/veíc) | ∆ +1.853,4 kBRL (∆ +331,7 R$/veíc)\n│   [█████░░░░░] representa 46% do desvio total · ∆ +1.853,4 kBRL · 1868.0%\n│  ├─ Scraps: +2.095,6 kBRL (∆ +375,0 R$/veíc)\n│  │  ├─ 📍 AS: +1.999,6 kBRL (∆ +357,8 R$/veíc)\n│  │  │   • jogo assento (+1.134,9 k)\n│  │  │   • capa encosto banco inteirico tras (+69,0 k)\n│  │  │   • capa encosto banco inteirico tras bise (+66,8 k)\n│  │  ├─ 📍 BS: +125,9 kBRL (∆ +22,5 R$/veíc)\n│  │  │   • módulo de comutação integrado (+67,1 k)\n│  │  │   • painel interno porta tras esq mont (+3,5 k)\n│  │  │   • painel interno tampa tras mont (+2,7 k)\n│  │  └─ 📍 SM: +15,6 kBRL (∆ +2,8 R$/veíc)\n│  │      • comando freio secundario conj (+8,5 k)\n│  │      • jogo trava (+5,7 k)\n│  │      • armacao almofada assento tras esq (+0,5 k)\n│  ├─ Scrap Sales: +508,7 kBRL (∆ +91,0 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +435,7 kBRL (∆ +78,0 R$/veíc)\n│  │  └─ 📍 GS: +73,0 kBRL (∆ +13,1 R$/veíc)\n│  ├─ Inventory Adjustments: -40,2 kBRL (∆ -7,2 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -710,6 kBRL (∆ -127,2 R$/veíc)\n├─ 🔴🔴🔴 Maintenance: 1.346,5 kBRL (241,0 R$/veíc) | ∆ +616,8 kBRL (∆ +110,4 R$/veíc)\n│   [██░░░░░░░░] representa 15% do desvio total · ∆ +616,8 kBRL · 84.5%\n│  ├─ Material: +920,0 kBRL (∆ +164,6 R$/veíc)\n│  │  ├─ 📍 GS: +400,2 kBRL (∆ +71,6 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+66,0 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  ├─ 📍 BS: +228,8 kBRL (∆ +41,0 R$/veíc)\n│  │  │   • placa elet.rede completa w. mini 2 fanuc (+60,1 k)\n│  │  │   • scanner de rea s30a-4011ba - sick (+38,4 k)\n│  │  │   • redutor rv a97l-0318-0203/53 fanuc (+28,4 k)\n│  │  ├─ 📍 PS: +195,0 kBRL (∆ +34,9 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 AS: +87,7 kBRL (∆ +15,7 R$/veíc)\n│  │  │   • morca fixa ga9 pemax 50101 (+19,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • conversor rs485udp p195 int00034 lap pol (+17,3 k)\n│  │  ├─ 📍 PL: +27,2 kBRL (∆ +4,9 R$/veíc)\n│  │  │   • chapa compensado naval 1040x690x10 aman (+8,6 k)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  └─ 📍 QY: +12,9 kBRL (∆ +2,3 R$/veíc)\n│  │      • cabo da ponta de prova 200002645 inficon (+7,5 k)\n│  │      • adaptador de ponteira para medicao (+2,7 k)\n│  │      • apalpador p/ med ponta d=3mm 12454 faro (+2,0 k)\n│  └─ Service: -303,2 kBRL (∆ -54,3 R$/veíc)\n│     ├─ 📍 SM: +26,5 kBRL (∆ +4,7 R$/veíc)\n│     │   • 0053800038 - servicos tecnicos (+26,5 k)\n│     └─ 📍 PL: +9,7 kBRL (∆ +1,7 R$/veíc)\n│         • serviço de mecanico/eletricista/serralhe (+9,7 k)\n├─ 🔴🔴 Consumption Material: 656,1 kBRL (117,4 R$/veíc) | ∆ +141,0 kBRL (∆ +25,2 R$/veíc)\n│   [█░░░░░░░░░] representa 3% do desvio total · ∆ +141,0 kBRL · 27.4%\n│  └─ Consumption Material: +141,0 kBRL (∆ +25,2 R$/veíc)\n│     ├─ 📍 GS: +81,8 kBRL (∆ +14,6 R$/veíc)\n│     │   • papel toalha montagem cx. c/06 rls (+25,7 k)\n│     │   • placa nylon 2mx1mx12mm - indaco (+23,9 k)\n│     │   • placa nylon 2mx1mx60mm - indaco (+23,3 k)\n│     ├─ 📍 BS: +45,3 kBRL (∆ +8,1 R$/veíc)\n│     │   • graxa rocol un 00 balde 20kg itw chemica (+18,6 k)\n│     │   • luva flexcut ca33997 cano longo g danny (+8,2 k)\n│     │   • eletrodo n001341872 (+8,1 k)\n│     ├─ 📍 PS: +37,3 kBRL (∆ +6,7 R$/veíc)\n│     │   • lixa p400 gold c125mm 2361409941 cx/50 (+21,8 k)\n│     │   • boina de espuma verm 83mm pn28874 3m (+8,4 k)\n│     │   • tinta epoxi cinza ral7035 c catalizador (+6,1 k)\n│     ├─ 📍 AS: +30,8 kBRL (∆ +5,5 R$/veíc)\n│     │   • despesas terceiros (+17,0 k)\n│     │   • luva dannyblack tam m usinagem (+9,9 k)\n│     │   • rolo de gravacao vis y4409526 brady (+3,6 k)\n│     ├─ 📍 QY: +16,0 kBRL (∆ +2,9 R$/veíc)\n│     │   • graxa lubrificante sintetica nyogel 760g (+19,6 k)\n│     │   • tonner tk 342 - kyocera laser fs2020d (+1,7 k)\n│     │   • luva dannyblack tam g usinagem (+1,5 k)\n│     └─ 📍 SM: +12,5 kBRL (∆ +2,2 R$/veíc)\n│         • bolsa de ombro personalizada (+15,9 k)\n│         • capacete seg v-gard c/jugular branco (+4,1 k)\n│         • canecas (+2,8 k)\n├─ 🟢 Energy: 512,6 kBRL (91,7 R$/veíc) | ∆ -859,4 kBRL (∆ -153,8 R$/veíc)\n│   [██░░░░░░░░] representa 21% do desvio total · ∆ -859,4 kBRL · 62.6%\n│  ├─ Water: +94,6 kBRL (∆ +16,9 R$/veíc)\n│  │  └─ 📍 GS: +109,3 kBRL (∆ +19,6 R$/veíc)\n│  │      • serviço fornecimento água tratada (+113,4 k)\n│  │      • locacao de maquinas e equipamentos (+0,9 k)\n│  │      • 0054550003 - agua (-0,0 k)\n│  ├─ Gas: -418,4 kBRL (∆ -74,9 R$/veíc)\n│  └─ Electricity: -535,5 kBRL (∆ -95,8 R$/veíc)\n└─ 🟢 Trips: -567,9 kBRL (-101,6 R$/veíc) | ∆ -591,8 kBRL (∆ -105,9 R$/veíc)\n    [█░░░░░░░░░] representa 15% do desvio total · ∆ -591,8 kBRL · 2483.5%\n   └─ Trips: -591,8 kBRL (∆ -105,9 R$/veíc)"
+    },
+    "severidade": "critico",
+    "tipo": "automatico",
+    "lido": false,
+    "metadata": {
+      "periodo": "Março",
+      "ano": 2026,
+      "modo": "flex_bud_x_real",
+      "modo_label": "Budget Flex × Real",
+      "moeda": "BRL",
+      "proporcao_mes": 0.8065,
+      "total_desvio": 1160135.42,
+      "volume_total": 5588.0,
+      "regra_nome": "teste3"
+    },
+    "ranking": {
+      "periodo": "Março",
+      "volume_total": 5588.0,
+      "moeda": "BRL",
+      "simbolo": "R$",
+      "severidade": "critico",
+      "total_desvio": 1160135.42,
+      "itens": [
+        {
+          "type_06": "Material Losses",
+          "type_05": "Burden",
+          "real": 1754213.33,
+          "esperado": -99223.1,
+          "desvio": 1853436.43,
+          "desvio_pct": 1867.95,
+          "cpu_real": 313.9251,
+          "cpu_esperado": -17.7565,
+          "delta_cpu": 331.6815,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Scraps",
+              "desvio": 2095568.23,
+              "delta_cpu": 375.0122,
+              "esperado": 34612.46,
+              "oficinas": [
+                {
+                  "oficina": "AS",
+                  "desvio": 1999617.82,
+                  "delta_cpu": 357.8414,
+                  "textos": [
+                    {
+                      "texto": "jogo assento",
+                      "valor": 1134898.58
+                    },
+                    {
+                      "texto": "capa encosto banco inteirico tras",
+                      "valor": 68975.8
+                    },
+                    {
+                      "texto": "capa encosto banco inteirico tras bise",
+                      "valor": 66753.38
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 125895.86,
+                  "delta_cpu": 22.5297,
+                  "textos": [
+                    {
+                      "texto": "módulo de comutação integrado",
+                      "valor": 67057.07
+                    },
+                    {
+                      "texto": "painel interno porta tras esq mont",
+                      "valor": 3531.88
+                    },
+                    {
+                      "texto": "painel interno tampa tras mont",
+                      "valor": 2746.76
+                    }
+                  ]
+                },
+                {
+                  "oficina": "SM",
+                  "desvio": 15645.8,
+                  "delta_cpu": 2.7999,
+                  "textos": [
+                    {
+                      "texto": "comando freio secundario conj",
+                      "valor": 8530.18
+                    },
+                    {
+                      "texto": "jogo trava",
+                      "valor": 5743.78
+                    },
+                    {
+                      "texto": "armacao almofada assento tras esq",
+                      "valor": 536.44
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Scrap Sales",
+              "desvio": 508698.48,
+              "delta_cpu": 91.0341,
+              "esperado": -508698.48,
+              "oficinas": [
+                {
+                  "oficina": "SM",
+                  "desvio": 435697.21,
+                  "delta_cpu": 77.9702,
+                  "textos": []
+                },
+                {
+                  "oficina": "GS",
+                  "desvio": 73001.28,
+                  "delta_cpu": 13.0639,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Inventory Adjustments",
+              "desvio": -40248.28,
+              "delta_cpu": -7.2026,
+              "esperado": 40248.28,
+              "oficinas": []
+            },
+            {
+              "account": "Stock Obsolescence % Overstock",
+              "desvio": -710582.01,
+              "delta_cpu": -127.1621,
+              "esperado": 334614.65,
+              "oficinas": []
+            }
+          ]
+        },
+        {
+          "type_06": "Maintenance",
+          "type_05": "Burden",
+          "real": 1346458.51,
+          "esperado": 729642.58,
+          "desvio": 616815.93,
+          "desvio_pct": 84.54,
+          "cpu_real": 240.9554,
+          "cpu_esperado": 130.5731,
+          "delta_cpu": 110.3822,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Material",
+              "desvio": 919978.16,
+              "delta_cpu": 164.6346,
+              "esperado": 330581.73,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 400235.92,
+                  "delta_cpu": 71.6242,
+                  "textos": [
+                    {
+                      "texto": "tubo aco s/ costura sch 40 3/4\"",
+                      "valor": 104187.85
+                    },
+                    {
+                      "texto": "cabo flex 120,00mm - preto - 1kv",
+                      "valor": 66000.08
+                    },
+                    {
+                      "texto": "tubo metalon 40 x 40 x 3,0 stalx",
+                      "valor": 57353.5
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 228845.54,
+                  "delta_cpu": 40.953,
+                  "textos": [
+                    {
+                      "texto": "placa elet.rede completa w. mini 2 fanuc",
+                      "valor": 60105.33
+                    },
+                    {
+                      "texto": "scanner de rea s30a-4011ba - sick",
+                      "valor": 38436.34
+                    },
+                    {
+                      "texto": "redutor rv a97l-0318-0203/53 fanuc",
+                      "valor": 28387.4
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PS",
+                  "desvio": 194977.8,
+                  "delta_cpu": 34.8922,
+                  "textos": [
+                    {
+                      "texto": "bomba 17k658 1500 cc graco",
+                      "valor": 85757.42
+                    },
+                    {
+                      "texto": "kit reparo camisa graco 289548 eflo 1500",
+                      "valor": 41676.84
+                    },
+                    {
+                      "texto": "inversor 3f 380-480v 75kw atv630d75n4",
+                      "valor": 33806.36
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 87725.72,
+                  "delta_cpu": 15.6989,
+                  "textos": [
+                    {
+                      "texto": "morca fixa ga9 pemax 50101",
+                      "valor": 19504.18
+                    },
+                    {
+                      "texto": "pirometro 42x pc auto hedson technologie",
+                      "valor": 19251.31
+                    },
+                    {
+                      "texto": "conversor rs485udp p195 int00034 lap pol",
+                      "valor": 17320.06
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PL",
+                  "desvio": 27184.28,
+                  "delta_cpu": 4.8648,
+                  "textos": [
+                    {
+                      "texto": "chapa compensado naval 1040x690x10 aman",
+                      "valor": 8625.52
+                    },
+                    {
+                      "texto": "chapa pp 1240x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "chapa pp 770x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    }
+                  ]
+                },
+                {
+                  "oficina": "QY",
+                  "desvio": 12898.77,
+                  "delta_cpu": 2.3083,
+                  "textos": [
+                    {
+                      "texto": "cabo da ponta de prova 200002645 inficon",
+                      "valor": 7549.91
+                    },
+                    {
+                      "texto": "adaptador de ponteira para medicao",
+                      "valor": 2666.09
+                    },
+                    {
+                      "texto": "apalpador p/ med ponta d=3mm 12454 faro",
+                      "valor": 2044.92
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Service",
+              "desvio": -303162.23,
+              "delta_cpu": -54.2524,
+              "esperado": 399060.85,
+              "oficinas": [
+                {
+                  "oficina": "SM",
+                  "desvio": 26453.63,
+                  "delta_cpu": 4.734,
+                  "textos": [
+                    {
+                      "texto": "0053800038 - servicos tecnicos",
+                      "valor": 26453.63
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PL",
+                  "desvio": 9726.74,
+                  "delta_cpu": 1.7406,
+                  "textos": [
+                    {
+                      "texto": "serviço de mecanico/eletricista/serralhe",
+                      "valor": 9726.74
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Consumption Material",
+          "type_05": "Burden",
+          "real": 656081.29,
+          "esperado": 515033.49,
+          "desvio": 141047.79,
+          "desvio_pct": 27.39,
+          "cpu_real": 117.409,
+          "cpu_esperado": 92.1678,
+          "delta_cpu": 25.2412,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Consumption Material",
+              "desvio": 141047.79,
+              "delta_cpu": 25.2412,
+              "esperado": 515033.49,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 81814.05,
+                  "delta_cpu": 14.641,
+                  "textos": [
+                    {
+                      "texto": "papel toalha montagem cx. c/06 rls",
+                      "valor": 25733.81
+                    },
+                    {
+                      "texto": "placa nylon 2mx1mx12mm - indaco",
+                      "valor": 23905.77
+                    },
+                    {
+                      "texto": "placa nylon 2mx1mx60mm - indaco",
+                      "valor": 23287.59
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 45339.18,
+                  "delta_cpu": 8.1137,
+                  "textos": [
+                    {
+                      "texto": "graxa rocol un 00 balde 20kg itw chemica",
+                      "valor": 18566.59
+                    },
+                    {
+                      "texto": "luva flexcut ca33997 cano longo g danny",
+                      "valor": 8210.17
+                    },
+                    {
+                      "texto": "eletrodo n001341872",
+                      "valor": 8092.32
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PS",
+                  "desvio": 37288.67,
+                  "delta_cpu": 6.673,
+                  "textos": [
+                    {
+                      "texto": "lixa p400 gold c125mm 2361409941 cx/50",
+                      "valor": 21847.01
+                    },
+                    {
+                      "texto": "boina de espuma verm 83mm pn28874 3m",
+                      "valor": 8392.48
+                    },
+                    {
+                      "texto": "tinta epoxi cinza ral7035 c catalizador",
+                      "valor": 6124.32
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 30757.43,
+                  "delta_cpu": 5.5042,
+                  "textos": [
+                    {
+                      "texto": "despesas terceiros",
+                      "valor": 16979.6
+                    },
+                    {
+                      "texto": "luva dannyblack tam m usinagem",
+                      "valor": 9879.69
+                    },
+                    {
+                      "texto": "rolo de gravacao vis y4409526 brady",
+                      "valor": 3604.76
+                    }
+                  ]
+                },
+                {
+                  "oficina": "QY",
+                  "desvio": 16010.24,
+                  "delta_cpu": 2.8651,
+                  "textos": [
+                    {
+                      "texto": "graxa lubrificante sintetica nyogel 760g",
+                      "valor": 19600.3
+                    },
+                    {
+                      "texto": "tonner tk 342 - kyocera laser fs2020d",
+                      "valor": 1718.33
+                    },
+                    {
+                      "texto": "luva dannyblack tam g usinagem",
+                      "valor": 1512.41
+                    }
+                  ]
+                },
+                {
+                  "oficina": "SM",
+                  "desvio": 12462.32,
+                  "delta_cpu": 2.2302,
+                  "textos": [
+                    {
+                      "texto": "bolsa de ombro personalizada",
+                      "valor": 15900.0
+                    },
+                    {
+                      "texto": "capacete seg v-gard c/jugular branco",
+                      "valor": 4065.42
+                    },
+                    {
+                      "texto": "canecas",
+                      "valor": 2800.0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type_06": "Energy",
+          "type_05": "Burden",
+          "real": 512590.14,
+          "esperado": 1371977.79,
+          "desvio": -859387.64,
+          "desvio_pct": -62.64,
+          "cpu_real": 91.7305,
+          "cpu_esperado": 245.5222,
+          "delta_cpu": -153.7916,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Water",
+              "desvio": 94557.1,
+              "delta_cpu": 16.9215,
+              "esperado": 16048.54,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 109281.48,
+                  "delta_cpu": 19.5565,
+                  "textos": [
+                    {
+                      "texto": "serviço fornecimento água tratada",
+                      "valor": 113401.65
+                    },
+                    {
+                      "texto": "locacao de maquinas e equipamentos",
+                      "valor": 933.99
+                    },
+                    {
+                      "texto": "0054550003 - agua",
+                      "valor": -0.73
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Gas",
+              "desvio": -418407.84,
+              "delta_cpu": -74.8761,
+              "esperado": 662276.67,
+              "oficinas": []
+            },
+            {
+              "account": "Electricity",
+              "desvio": -535536.9,
+              "delta_cpu": -95.837,
+              "esperado": 693652.58,
+              "oficinas": []
+            }
+          ]
+        },
+        {
+          "type_06": "Trips",
+          "type_05": "Burden",
+          "real": -567949.15,
+          "esperado": 23827.94,
+          "desvio": -591777.09,
+          "desvio_pct": -2483.54,
+          "cpu_real": -101.6373,
+          "cpu_esperado": 4.2641,
+          "delta_cpu": -105.9014,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Trips",
+              "desvio": -591777.09,
+              "delta_cpu": -105.9014,
+              "esperado": 23827.94,
+              "oficinas": []
+            }
+          ]
+        }
+      ]
+    },
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
+    }
+  },
+  {
+    "id": "498be7a0-0a1c-491d-b24e-74f6635e9a37",
+    "rule_id": "ffb07d1a-d3bc-4ede-8c24-02dc080d5ca2",
+    "timestamp": "2026-03-25T20:57:21",
+    "titulo": "teste3 - Março",
+    "mensagem": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 80.6% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 1.100,4 kBRL (196,9 R$/veíc) | ∆ +370,8 kBRL (∆ +66,4 R$/veíc)\n│   [███░░░░░░░] representa 26% do desvio total · ∆ +370,8 kBRL · 50.8%\n│  ├─ Material: +760,9 kBRL (∆ +136,2 R$/veíc)\n│  │  ├─ 📍 GS: +363,9 kBRL (∆ +65,1 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +169,0 kBRL (∆ +30,2 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 BS: +155,9 kBRL (∆ +27,9 R$/veíc)\n│  │  │   • placa elet.rede completa w. mini 2 fanuc (+60,1 k)\n│  │  │   • scanner de rea s30a-4011ba - sick (+38,4 k)\n│  │  │   • redutor rv a97l-0318-0203/53 fanuc (+28,4 k)\n│  │  ├─ 📍 AS: +80,6 kBRL (∆ +14,4 R$/veíc)\n│  │  │   • morca fixa ga9 pemax 50101 (+19,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • conversor rs485udp p195 int00034 lap pol (+17,3 k)\n│  │  ├─ 📍 PL: +23,3 kBRL (∆ +4,2 R$/veíc)\n│  │  │   • chapa compensado naval 1040x690x10 aman (+8,6 k)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -390,1 kBRL (∆ -69,8 R$/veíc)\n├─ 🟢 Material Losses: -180,2 kBRL (-32,2 R$/veíc) | ∆ -81,0 kBRL (∆ -14,5 R$/veíc)\n│   [█░░░░░░░░░] representa 6% do desvio total · ∆ -81,0 kBRL · 81.6%\n│  ├─ Scrap Sales: +508,7 kBRL (∆ +91,0 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +435,7 kBRL (∆ +78,0 R$/veíc)\n│  │  └─ 📍 GS: +73,0 kBRL (∆ +13,1 R$/veíc)\n│  ├─ Scraps: +161,2 kBRL (∆ +28,8 R$/veíc)\n│  │  ├─ 📍 BS: +98,4 kBRL (∆ +17,6 R$/veíc)\n│  │  │   • módulo de comutação integrado (+67,1 k)\n│  │  │   • painel interno porta tras esq mont (+3,1 k)\n│  │  │   • painel interno tampa tras mont (+2,0 k)\n│  │  ├─ 📍 AS: +92,8 kBRL (∆ +16,6 R$/veíc)\n│  │  │   • alça de liberação do banco traseiro (+39,8 k)\n│  │  │   • capa encosto assento diant esq (+20,6 k)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  └─ 📍 SM: +15,6 kBRL (∆ +2,8 R$/veíc)\n│  │      • comando freio secundario conj (+8,5 k)\n│  │      • jogo trava (+5,7 k)\n│  │      • armacao almofada assento tras esq (+0,5 k)\n│  ├─ Inventory Adjustments: -40,2 kBRL (∆ -7,2 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -710,6 kBRL (∆ -127,2 R$/veíc)\n└─ 🟢 Energy: 398,3 kBRL (71,3 R$/veíc) | ∆ -973,7 kBRL (∆ -174,3 R$/veíc)\n    [███████░░░] representa 68% do desvio total · ∆ -973,7 kBRL · 71.0%\n   ├─ Water: -19,8 kBRL (∆ -3,5 R$/veíc)\n   ├─ Gas: -418,4 kBRL (∆ -74,9 R$/veíc)\n   └─ Electricity: -535,5 kBRL (∆ -95,8 R$/veíc)",
+    "generated_texts": {
+      "plain_text_tree": "Relatorio de Alertas - Março\nBudget Flex × Real | P = 80.6% | Moeda: BRL\n\n🟢 Burden\n├─ 🔴🔴🔴 Maintenance: 1.100,4 kBRL (196,9 R$/veíc) | ∆ +370,8 kBRL (∆ +66,4 R$/veíc)\n│   [███░░░░░░░] representa 26% do desvio total · ∆ +370,8 kBRL · 50.8%\n│  ├─ Material: +760,9 kBRL (∆ +136,2 R$/veíc)\n│  │  ├─ 📍 GS: +363,9 kBRL (∆ +65,1 R$/veíc)\n│  │  │   • tubo aco s/ costura sch 40 3/4\" (+104,2 k)\n│  │  │   • tubo metalon 40 x 40 x 3,0 stalx (+57,4 k)\n│  │  │   • cabo flex 120,00mm - preto - 1kv (+47,1 k)\n│  │  ├─ 📍 PS: +169,0 kBRL (∆ +30,2 R$/veíc)\n│  │  │   • bomba 17k658 1500 cc graco (+85,8 k)\n│  │  │   • kit reparo camisa graco 289548 eflo 1500 (+41,7 k)\n│  │  │   • inversor 3f 380-480v 75kw atv630d75n4 (+33,8 k)\n│  │  ├─ 📍 BS: +155,9 kBRL (∆ +27,9 R$/veíc)\n│  │  │   • placa elet.rede completa w. mini 2 fanuc (+60,1 k)\n│  │  │   • scanner de rea s30a-4011ba - sick (+38,4 k)\n│  │  │   • redutor rv a97l-0318-0203/53 fanuc (+28,4 k)\n│  │  ├─ 📍 AS: +80,6 kBRL (∆ +14,4 R$/veíc)\n│  │  │   • morca fixa ga9 pemax 50101 (+19,5 k)\n│  │  │   • pirometro 42x pc auto hedson technologie (+19,3 k)\n│  │  │   • conversor rs485udp p195 int00034 lap pol (+17,3 k)\n│  │  ├─ 📍 PL: +23,3 kBRL (∆ +4,2 R$/veíc)\n│  │  │   • chapa compensado naval 1040x690x10 aman (+8,6 k)\n│  │  │   • chapa pp 1240x660x3mm embal std nº 103 (+5,4 k)\n│  │  │   • chapa pp 770x660x3mm embal std nº 103 (+5,4 k)\n│  │  └─ 📍 QY: +0,1 kBRL (∆ +0,0 R$/veíc)\n│  └─ Service: -390,1 kBRL (∆ -69,8 R$/veíc)\n├─ 🟢 Material Losses: -180,2 kBRL (-32,2 R$/veíc) | ∆ -81,0 kBRL (∆ -14,5 R$/veíc)\n│   [█░░░░░░░░░] representa 6% do desvio total · ∆ -81,0 kBRL · 81.6%\n│  ├─ Scrap Sales: +508,7 kBRL (∆ +91,0 R$/veíc) ⚠ menos receita\n│  │  ├─ 📍 SM: +435,7 kBRL (∆ +78,0 R$/veíc)\n│  │  └─ 📍 GS: +73,0 kBRL (∆ +13,1 R$/veíc)\n│  ├─ Scraps: +161,2 kBRL (∆ +28,8 R$/veíc)\n│  │  ├─ 📍 BS: +98,4 kBRL (∆ +17,6 R$/veíc)\n│  │  │   • módulo de comutação integrado (+67,1 k)\n│  │  │   • painel interno porta tras esq mont (+3,1 k)\n│  │  │   • painel interno tampa tras mont (+2,0 k)\n│  │  ├─ 📍 AS: +92,8 kBRL (∆ +16,6 R$/veíc)\n│  │  │   • alça de liberação do banco traseiro (+39,8 k)\n│  │  │   • capa encosto assento diant esq (+20,6 k)\n│  │  │   • capa encosto assento diant dir (+9,6 k)\n│  │  └─ 📍 SM: +15,6 kBRL (∆ +2,8 R$/veíc)\n│  │      • comando freio secundario conj (+8,5 k)\n│  │      • jogo trava (+5,7 k)\n│  │      • armacao almofada assento tras esq (+0,5 k)\n│  ├─ Inventory Adjustments: -40,2 kBRL (∆ -7,2 R$/veíc)\n│  └─ Stock Obsolescence % Overstock: -710,6 kBRL (∆ -127,2 R$/veíc)\n└─ 🟢 Energy: 398,3 kBRL (71,3 R$/veíc) | ∆ -973,7 kBRL (∆ -174,3 R$/veíc)\n    [███████░░░] representa 68% do desvio total · ∆ -973,7 kBRL · 71.0%\n   ├─ Water: -19,8 kBRL (∆ -3,5 R$/veíc)\n   ├─ Gas: -418,4 kBRL (∆ -74,9 R$/veíc)\n   └─ Electricity: -535,5 kBRL (∆ -95,8 R$/veíc)"
+    },
+    "severidade": "critico",
+    "tipo": "automatico",
+    "lido": false,
+    "metadata": {
+      "periodo": "Março",
+      "ano": 2026,
+      "modo": "flex_bud_x_real",
+      "modo_label": "Budget Flex × Real",
+      "moeda": "BRL",
+      "proporcao_mes": 0.8065,
+      "total_desvio": -683887.12,
+      "volume_total": 5588.0,
+      "regra_nome": "teste3"
+    },
+    "ranking": {
+      "periodo": "Março",
+      "volume_total": 5588.0,
+      "moeda": "BRL",
+      "simbolo": "R$",
+      "severidade": "critico",
+      "total_desvio": -683887.12,
+      "itens": [
+        {
+          "type_06": "Maintenance",
+          "type_05": "Burden",
+          "real": 1100442.25,
+          "esperado": 729642.58,
+          "desvio": 370799.67,
+          "desvio_pct": 50.82,
+          "cpu_real": 196.9295,
+          "cpu_esperado": 130.5731,
+          "delta_cpu": 66.3564,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Material",
+              "desvio": 760918.57,
+              "delta_cpu": 136.1701,
+              "esperado": 330581.73,
+              "oficinas": [
+                {
+                  "oficina": "GS",
+                  "desvio": 363898.74,
+                  "delta_cpu": 65.1215,
+                  "textos": [
+                    {
+                      "texto": "tubo aco s/ costura sch 40 3/4\"",
+                      "valor": 104187.85
+                    },
+                    {
+                      "texto": "tubo metalon 40 x 40 x 3,0 stalx",
+                      "valor": 57353.5
+                    },
+                    {
+                      "texto": "cabo flex 120,00mm - preto - 1kv",
+                      "valor": 47142.91
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PS",
+                  "desvio": 168971.65,
+                  "delta_cpu": 30.2383,
+                  "textos": [
+                    {
+                      "texto": "bomba 17k658 1500 cc graco",
+                      "valor": 85757.42
+                    },
+                    {
+                      "texto": "kit reparo camisa graco 289548 eflo 1500",
+                      "valor": 41676.84
+                    },
+                    {
+                      "texto": "inversor 3f 380-480v 75kw atv630d75n4",
+                      "valor": 33806.36
+                    }
+                  ]
+                },
+                {
+                  "oficina": "BS",
+                  "desvio": 155911.74,
+                  "delta_cpu": 27.9012,
+                  "textos": [
+                    {
+                      "texto": "placa elet.rede completa w. mini 2 fanuc",
+                      "valor": 60105.33
+                    },
+                    {
+                      "texto": "scanner de rea s30a-4011ba - sick",
+                      "valor": 38436.34
+                    },
+                    {
+                      "texto": "redutor rv a97l-0318-0203/53 fanuc",
+                      "valor": 28387.4
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 80619.37,
+                  "delta_cpu": 14.4272,
+                  "textos": [
+                    {
+                      "texto": "morca fixa ga9 pemax 50101",
+                      "valor": 19504.18
+                    },
+                    {
+                      "texto": "pirometro 42x pc auto hedson technologie",
+                      "valor": 19251.31
+                    },
+                    {
+                      "texto": "conversor rs485udp p195 int00034 lap pol",
+                      "valor": 17320.06
+                    }
+                  ]
+                },
+                {
+                  "oficina": "PL",
+                  "desvio": 23280.2,
+                  "delta_cpu": 4.1661,
+                  "textos": [
+                    {
+                      "texto": "chapa compensado naval 1040x690x10 aman",
+                      "valor": 8625.52
+                    },
+                    {
+                      "texto": "chapa pp 1240x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    },
+                    {
+                      "texto": "chapa pp 770x660x3mm embal std nº 103",
+                      "valor": 5388.88
+                    }
+                  ]
+                },
+                {
+                  "oficina": "QY",
+                  "desvio": 126.74,
+                  "delta_cpu": 0.0227,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Service",
+              "desvio": -390118.9,
+              "delta_cpu": -69.8137,
+              "esperado": 399060.85,
+              "oficinas": []
+            }
+          ]
+        },
+        {
+          "type_06": "Material Losses",
+          "type_05": "Burden",
+          "real": -180187.34,
+          "esperado": -99223.1,
+          "desvio": -80964.24,
+          "desvio_pct": -81.6,
+          "cpu_real": -32.2454,
+          "cpu_esperado": -17.7565,
+          "delta_cpu": -14.4889,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Scrap Sales",
+              "desvio": 508698.48,
+              "delta_cpu": 91.0341,
+              "esperado": -508698.48,
+              "oficinas": [
+                {
+                  "oficina": "SM",
+                  "desvio": 435697.21,
+                  "delta_cpu": 77.9702,
+                  "textos": []
+                },
+                {
+                  "oficina": "GS",
+                  "desvio": 73001.28,
+                  "delta_cpu": 13.0639,
+                  "textos": []
+                }
+              ]
+            },
+            {
+              "account": "Scraps",
+              "desvio": 161167.56,
+              "delta_cpu": 28.8417,
+              "esperado": 34612.46,
+              "oficinas": [
+                {
+                  "oficina": "BS",
+                  "desvio": 98350.37,
+                  "delta_cpu": 17.6003,
+                  "textos": [
+                    {
+                      "texto": "módulo de comutação integrado",
+                      "valor": 67057.07
+                    },
+                    {
+                      "texto": "painel interno porta tras esq mont",
+                      "valor": 3104.09
+                    },
+                    {
+                      "texto": "painel interno tampa tras mont",
+                      "valor": 2011.81
+                    }
+                  ]
+                },
+                {
+                  "oficina": "AS",
+                  "desvio": 92762.64,
+                  "delta_cpu": 16.6003,
+                  "textos": [
+                    {
+                      "texto": "alça de liberação do banco traseiro",
+                      "valor": 39760.0
+                    },
+                    {
+                      "texto": "capa encosto assento diant esq",
+                      "valor": 20616.75
+                    },
+                    {
+                      "texto": "capa encosto assento diant dir",
+                      "valor": 9571.97
+                    }
+                  ]
+                },
+                {
+                  "oficina": "SM",
+                  "desvio": 15645.8,
+                  "delta_cpu": 2.7999,
+                  "textos": [
+                    {
+                      "texto": "comando freio secundario conj",
+                      "valor": 8530.18
+                    },
+                    {
+                      "texto": "jogo trava",
+                      "valor": 5743.78
+                    },
+                    {
+                      "texto": "armacao almofada assento tras esq",
+                      "valor": 536.44
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "account": "Inventory Adjustments",
+              "desvio": -40248.28,
+              "delta_cpu": -7.2026,
+              "esperado": 40248.28,
+              "oficinas": []
+            },
+            {
+              "account": "Stock Obsolescence % Overstock",
+              "desvio": -710582.01,
+              "delta_cpu": -127.1621,
+              "esperado": 334614.65,
+              "oficinas": []
+            }
+          ]
+        },
+        {
+          "type_06": "Energy",
+          "type_05": "Burden",
+          "real": 398255.23,
+          "esperado": 1371977.79,
+          "desvio": -973722.55,
+          "desvio_pct": -70.97,
+          "cpu_real": 71.2697,
+          "cpu_esperado": 245.5222,
+          "delta_cpu": -174.2524,
+          "severidade": "critico",
+          "accounts": [
+            {
+              "account": "Water",
+              "desvio": -19777.81,
+              "delta_cpu": -3.5393,
+              "esperado": 16048.54,
+              "oficinas": []
+            },
+            {
+              "account": "Gas",
+              "desvio": -418407.84,
+              "delta_cpu": -74.8761,
+              "esperado": 662276.67,
+              "oficinas": []
+            },
+            {
+              "account": "Electricity",
+              "desvio": -535536.9,
+              "delta_cpu": -95.837,
+              "esperado": 693652.58,
+              "oficinas": []
+            }
+          ]
+        }
+      ]
+    },
+    "notificacoes_enviadas": {
+      "email": false,
+      "teams": true
     }
   }
 ]

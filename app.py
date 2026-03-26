@@ -376,3 +376,8 @@ PAGES = {
 
 pg = st.navigation(PAGES, expanded=False)
 pg.run()
+
+# ── Debug panel (telemetria de dados) ──
+if os.environ.get("SCI_DEBUG_DATA_TRACE", "false") == "true":
+    from tc_core.ui.debug_panel import render_data_trace_panel
+    render_data_trace_panel()

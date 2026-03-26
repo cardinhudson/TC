@@ -23,8 +23,9 @@ from tc_principal.ui_components import (
 
 from tc_principal.shared import (
     ratear_be_por_veiculo, load_percentual_rateio_veiculos_real,
-    load_dea_dedicado_real,
+    load_dea_dedicado_real, load_custo_fp_veiculo_real,
 )
+from tc_core.parquet_schemas import gerar_agg
 
 # --- Config Forecast persistence ---
 _CONFIG_FORECAST_TC_PATH = os.path.join(_DATA_ROOT, "TC_Principal", "Forecast", "config_forecast.json")
@@ -6014,6 +6015,15 @@ if aplicar_config_forecast:
             info_forecast = salvar_arquivo(df_forecast_final, "forecast_previsao", "BE")
             info_consolidado = salvar_arquivo(df_forecast_completo, nome_arquivo_base, "Consolidado")
             
+            # ── Gerar variante AGG otimizada para gráficos macro ──
+            if info_consolidado['sucesso'] and df_forecast_completo is not None and not df_forecast_completo.empty:
+                try:
+                    df_fc_agg = gerar_agg(df_forecast_completo, "forecast_agg")
+                    salvar_arquivo(df_fc_agg, "forecast_agg", "Forecast AGG (otimizado)")
+                    adicionar_mensagem("info", f"📊 Forecast AGG gerado: {len(df_fc_agg):,} linhas (de {len(df_forecast_completo):,})")
+                except Exception as e_agg:
+                    adicionar_mensagem("warning", f"⚠️ Não foi possível gerar forecast_agg: {e_agg}")
+            
             # 🔧 DEBUG: Verificar resultado do salvamento
             adicionar_mensagem("info", f"🔍 DEBUG: Resultado do salvamento:")
             adicionar_mensagem("info", f"   - Histórico: {'✅' if info_historico['sucesso'] else '❌'} - {info_historico.get('mensagem', info_historico.get('parquet', 'N/A'))}")
@@ -6061,6 +6071,29 @@ if aplicar_config_forecast:
                         if info_veiculos['sucesso']:
                             veiculos_gerados = df_forecast_veiculos['Veículo'].nunique() if 'Veículo' in df_forecast_veiculos.columns else 0
                             adicionar_mensagem("success", f"✅ Arquivo com veículo gerado: {veiculos_gerados} veículos, {info_veiculos.get('linhas', 0):,} linhas")
+                            
+                            # ── Validação de convergência: meses históricos devem = Real ──
+                            try:
+                                _df_real_veic = load_custo_fp_veiculo_real(ano_forecast)
+                                if _df_real_veic is not None and 'Período' in _df_real_veic.columns and 'Período' in df_forecast_veiculos.columns:
+                                    _periodos_real = set(_df_real_veic['Período'].unique())
+                                    _periodos_be = set(df_forecast_veiculos['Período'].unique())
+                                    _periodos_hist = _periodos_real & _periodos_be
+                                    if _periodos_hist:
+                                        _chk = ['Veículo', 'Oficina', 'Período']
+                                        _r = _df_real_veic[_df_real_veic['Período'].isin(_periodos_hist)].groupby(_chk)['Custo FP Veiculo'].sum().reset_index()
+                                        _b = df_forecast_veiculos[df_forecast_veiculos['Período'].isin(_periodos_hist)].groupby(_chk)['Custo FP Veiculo'].sum().reset_index()
+                                        _r = _r.rename(columns={'Custo FP Veiculo': 'Real'})
+                                        _b = _b.rename(columns={'Custo FP Veiculo': 'BE'})
+                                        _cmp = pd.merge(_r, _b, on=_chk, how='outer').fillna(0)
+                                        _diff_abs = (_cmp['BE'] - _cmp['Real']).abs().sum()
+                                        _n_div = ((_cmp['BE'] - _cmp['Real']).abs() > 1).sum()
+                                        if _diff_abs < 1.0:
+                                            adicionar_mensagem("success", f"✅ Convergência OK: meses históricos ({len(_periodos_hist)}) idênticos ao Real (diff: R$ {_diff_abs:.2f})")
+                                        else:
+                                            adicionar_mensagem("warning", f"⚠️ Divergência nos meses históricos: {_n_div} combinações com diff total R$ {_diff_abs:,.2f}")
+                            except Exception as _e_conv:
+                                adicionar_mensagem("info", f"ℹ️ Validação convergência: {str(_e_conv)}")
                         else:
                             adicionar_mensagem("warning", f"⚠️ Erro ao salvar arquivo com veículo: {info_veiculos.get('mensagem', 'N/A')}")
                     else:

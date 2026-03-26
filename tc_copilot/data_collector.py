@@ -7,6 +7,7 @@ Agrega dados por mês, calcula variações e formata para envio à LLM.
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
@@ -149,14 +150,21 @@ def _mes_anterior(mes_numero: int) -> tuple[int, str]:
 #  CARREGAMENTO DE DADOS (sem Streamlit cache — leitura direta)
 # ═══════════════════════════════════════════════════════════════
 
+@functools.lru_cache(maxsize=32)
 def _ler_parquet(caminho: str) -> pd.DataFrame | None:
-    """Lê parquet com tratamento de erro."""
+    """Lê parquet com tratamento de erro (resultado cacheado via lru_cache)."""
     if os.path.exists(caminho):
         try:
             return pd.read_parquet(caminho)
         except Exception as e:
             logger.warning("Erro ao ler %s: %s", caminho, e)
     return None
+
+
+def limpar_cache_dados() -> None:
+    """Limpa todos os caches de leitura de dados (parquet + config)."""
+    _ler_parquet.cache_clear()
+    _carregar_config_forecast.cache_clear()
 
 
 def _pasta_real(ano: int) -> str:
@@ -192,6 +200,7 @@ def carregar_principal_real(ano: int) -> pd.DataFrame | None:
 def carregar_volume_real(ano: int) -> pd.DataFrame | None:
     df = _ler_parquet(os.path.join(_pasta_real(ano), "df_vol_veiculos.parquet"))
     if df is not None and "Volume" in df.columns:
+        df = df.copy()
         df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
     return df
 
@@ -213,6 +222,7 @@ def carregar_principal_bud(ano: int) -> pd.DataFrame | None:
 def carregar_volume_bud(ano: int) -> pd.DataFrame | None:
     df = _ler_parquet(os.path.join(_pasta_bud(ano), "df_vol_veiculos_BUD.parquet"))
     if df is not None and "Volume" in df.columns:
+        df = df.copy()
         df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
     return df
 
@@ -220,6 +230,7 @@ def carregar_volume_bud(ano: int) -> pd.DataFrame | None:
 def carregar_volume_actual(ano: int) -> pd.DataFrame | None:
     df = _ler_parquet(os.path.join(_pasta_bud(ano), "df_vol_veiculos_actual.parquet"))
     if df is not None and "Volume" in df.columns:
+        df = df.copy()
         df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
     return df
 
@@ -241,6 +252,7 @@ def carregar_historico_principal() -> pd.DataFrame | None:
 def carregar_historico_volume() -> pd.DataFrame | None:
     df = _ler_parquet(os.path.join(_pasta_historico(), "df_vol_historico.parquet"))
     if df is not None and "Volume" in df.columns:
+        df = df.copy()
         df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
     return df
 
@@ -291,8 +303,9 @@ def _extrair_be_do_forecast(
     return df_be if not df_be.empty else None
 
 
+@functools.lru_cache(maxsize=1)
 def _carregar_config_forecast() -> dict | None:
-    """Carrega config_forecast.json do TC_Principal/Forecast."""
+    """Carrega config_forecast.json do TC_Principal/Forecast (cacheado)."""
     caminho = os.path.join(_pasta_forecast(), "config_forecast.json")
     if os.path.exists(caminho):
         try:

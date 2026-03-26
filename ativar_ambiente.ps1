@@ -24,14 +24,18 @@ if (-not (Test-Path "$venvPath\Scripts\Activate.ps1")) {
     Write-Host "Instalando dependências..." -ForegroundColor Yellow
     & "$venvPath\Scripts\Activate.ps1"
     pip install -r requirements.txt
+    $env:SCI_USE_OPTIMIZED_PARQUETS = "true"
+    Write-Host "  SCI_USE_OPTIMIZED_PARQUETS = true" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "Ambiente virtual criado e dependências instaladas!" -ForegroundColor Green
     Write-Host ""
 } else {
     Write-Host "Ativando ambiente virtual..." -ForegroundColor Yellow
     & "$venvPath\Scripts\Activate.ps1"
+    $env:SCI_USE_OPTIMIZED_PARQUETS = "true"
     Write-Host ""
     Write-Host "Ambiente virtual ativado!" -ForegroundColor Green
+    Write-Host "  SCI_USE_OPTIMIZED_PARQUETS = true" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "Para executar a aplicação, use:" -ForegroundColor Cyan
     Write-Host "  streamlit run app.py" -ForegroundColor White

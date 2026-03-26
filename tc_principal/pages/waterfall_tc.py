@@ -2235,7 +2235,7 @@ else:
                     # Obter dimensões de categoria disponíveis
                     dims_base_real = [
                         "Type 05", "Type 06", "Type 07", "Oficina",
-                        "Veículo", "Custo", "Account", "Texto breve"
+                        "Veículo", "Custo",
                     ]
                     colunas_real_disponiveis = set(df_analise.columns) & set(df_temp.columns)
                     dims_cat = [
@@ -4437,7 +4437,7 @@ else:
                             # Obter dimensões de categoria disponíveis
                             dims_base_budget = [
                                 "Type 05", "Type 06", "Type 07", "Oficina",
-                                "Veículo", "Custo", "Account", "Texto breve"
+                                "Veículo", "Custo",
                             ]
                             colunas_budget_disponiveis = set(df_analise_budget.columns)
                             if df_budget is not None and not df_budget.empty:
