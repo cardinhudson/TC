@@ -10639,480 +10639,1305 @@ elif indice_selecionado == "📦 Guia de Build (EXE)":
 # SEÇÃO: PRÓXIMOS PASSOS
 # ==========================================
 elif indice_selecionado == "🚀 Próximos Passos":
-    st.header("🚀 Próximos Passos — TC Copilot")
+    st.header("🚀 Próximos Passos — SCI LATAM (Multiplantas)")
 
     st.markdown("""
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-        <h2 style="color: white; margin: 0;">🚀 Próximos Passos — TC Copilot</h2>
-        <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">Visão completa, escopo funcional, plano técnico e roadmap</p>
+        <h2 style="color: white; margin: 0;">🚀 Próximos Passos — SCI LATAM (Multiplantas)</h2>
+        <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">Plano multiplantas: 5 fábricas, 2 países, evolução não-regressiva</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    Este documento apresenta a **visão completa**, o **escopo funcional**, o **plano técnico**,
-    o **processo corporativo** para obter acesso à API de IA da Stellantis, e o **roadmap** necessário
-    para desenvolver o **Agente de Inteligência Artificial do TC Veículos** — uma evolução estratégica
-    que permitirá análises automáticas, resumos diários, identificação de variações e comentários
-    inteligentes sobre o desempenho das oficinas e dos modelos.
+    Este documento apresenta o **plano completo** para a evolução do **Stellantis Cost Intelligence (SCI)**
+    rumo ao modelo **SCI LATAM (Multiplantas)** — cobrindo **5 plantas** em **2 países**:
+
+    🇧🇷 **Brasil:** Betim · Porto Real · Goiana
+    🇦🇷 **Argentina:** Córdoba · Palomar
+
+    **Princípio fundamental:** toda evolução é **NÃO REGRESSIVA** — nenhum cálculo, regra ou output
+    existente pode ser quebrado. Qualquer mudança é incremental e validada por gates de aprovação.
+
+    > 📌 **Momento atual:** apenas PLANEJAMENTO + DOCUMENTAÇÃO. Nenhuma implementação será executada agora.
+
+    ---
+
+    #### 🔑 Por que um novo workspace (e não continuar no atual)?
+
+    O repositório atual (`TC`) cresceu organicamente e acumulou **dívida estrutural significativa**:
+
+    | Problema | Evidência |
+    |----------|-----------|
+    | **61 scripts .py soltos na raiz** | `_test_*`, `_verify_*`, `_diag_*`, `corrigir_*`, `debug_*`, `comparar_*` |
+    | **19 arquivos temporários `_*.py`** | Testes ad-hoc, scripts de diagnóstico, backups manuais |
+    | **16 markdowns + 10 HTMLs + 15 txts na raiz** | Documentação solta, logs de deploy, resultados de sync |
+    | **7 planilhas Excel na raiz** | Dados brutos misturados com código |
+    | **Notebooks triplicados** | Mesmos 7 notebooks em `notebooks/`, `Databricks/sci/notebooks/` e `Databricks/sci_app/notebooks/` |
+    | **Código quadruplicado** | `processamento_dados*.py` repetido em 4 lugares (raiz, `Databricks/sci/`, `Databricks/sci_app/`, `Databricks/pulled_from_workspace/`) |
+    | **3 cópias do app inteiro** | `Databricks/sci/`, `Databricks/sci_app/`, `Databricks/pulled_from_workspace/` — todas com `pages/`, `tc_core/`, `tc_ext/`, etc. |
+    | **Módulos legacy + novos misturados** | `jobs/` vs `notebooks/` vs `Databricks/sci/notebooks/` fazem coisas parecidas |
+
+    O SCI LATAM é a oportunidade de **começar limpo**, com estrutura planejada, sem arrastar essa dívida.
+    Vamos **aproveitar 100% dos cálculos e regras de negócio** do projeto atual — mas organizados corretamente.
     """)
 
     # ------------------------------------------------------------------
-    # 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)
+    # 0) Visão SCI LATAM e princípio não-regressivo
     # ------------------------------------------------------------------
-    with st.expander("🟦 0) Como conseguir acesso à API de LLM da Stellantis (GENAI Gateway)", expanded=False):
+    with st.expander("🟦 0) Visão SCI LATAM e Princípio Não-Regressivo", expanded=False):
         st.markdown("""
-        Antes de iniciar o desenvolvimento do agente, é **obrigatório** seguir o processo corporativo
-        da Stellantis para obter acesso à API oficial **GENAI Gateway**, que conecta os modelos de
-        LLMs usados internamente (GPT, Llama, Mistral, Cohere etc.).
+        #### 🎯 Objetivo
+        Contextualizar a evolução do SCI para o modelo multiplantas (SCI LATAM), definindo
+        a regra de ouro que norteia todo o plano: **nada do que já funciona pode quebrar**.
 
         ---
 
-        #### 0.1 – O que é o GENAI Gateway
-
-        A Stellantis disponibiliza uma plataforma corporativa de IA generativa chamada:
-
-        ✔️ **GENAI Platform / GENAI Gateway**
-
-        Ela oferece:
-        - Acesso seguro a modelos LLM empresariais
-        - Suporte a **GPT‑4**, **Llama 3**, **Mistral**, **Cohere**, **Bedrock**, **Azure OpenAI**
-        - Funções de:
-          - Embeddings
-          - Vetorizações
-          - Vector Store (OpenSearch)
-          - Criação de workspaces
-          - Upload de documentos da área
-          - Agentes customizados internos
-
-        Toda comunicação é feita via API corporativa utilizando:
-        - **OAuth2** (PingFederate)
-        - **mTLS** (certificado digital cliente)
-        - **GraphQL**
-
-        > 🔒 Esta é a **única forma segura e aprovada** de usar LLMs dentro da Stellantis.
+        #### 📋 O que fazer
+        1. Documentar formalmente o escopo SCI LATAM: 5 plantas (Betim, Porto Real, Goiana, Córdoba, Palomar)
+        2. Registrar a regra de ouro: **evolução não-regressiva** — cálculos, regras e outputs atuais permanecem intactos
+        3. Definir a arquitetura conceitual em camadas:
+           - **Plant Layer** — segregação lógica por planta (dados, configs, processamento)
+           - **Country Layer** — consolidação por país (BR, AR)
+           - **Region Layer** — consolidação LATAM (baseada apenas em outputs oficiais)
+        4. Mapear o que já existe (SCI atual = planta Betim) e o que será estendido
+        5. Estabelecer vocabulário padronizado: plant_id, country_code, region_code
 
         ---
 
-        #### 0.2 – Passo a Passo Oficial para Obter Acesso
+        #### 📦 Artefatos / Outputs esperados
+        - Documento de visão SCI LATAM (1–2 páginas)
+        - Diagrama de camadas (Plant → Country → Region)
+        - Glossário de termos multiplantas
+        - Mapa de funcionalidades existentes vs. novas
 
-        **Passo 1 — Submeter o caso de uso no Brightidea (AI Use Case Factory)**
+        ---
 
-        Registrar a iniciativa no portal corporativo informando:
-        - Descrição do problema
-        - Caso de uso
-        - Valor financeiro estimado
-        - Impacto esperado
-        - Unidade envolvida
-        - Benefícios gerados
+        #### ✅ Critérios de aceite
+        - Documento aprovado por pelo menos 1 stakeholder de cada país
+        - Diagrama de camadas validado pela equipe técnica
+        - Glossário sem ambiguidades entre termos BR e AR
 
-        **Passo 2 — Avaliação pelo GenAI Ambassador**
+        ---
 
-        Após o envio no Brightidea, um GenAI Ambassador fará:
-        - Avaliação técnica inicial
-        - Validação do alinhamento estratégico
-        - Análise de riscos
-        - Triagem de viabilidade de implementação
-
-        **Passo 3 — Passar pelo EA Gate (Enterprise Architecture Gate)**
-
-        Existem duas aprovações possíveis:
-        - **EA Gate 1** → libera uso da API para testes / POC
-        - **EA Gate 2** → libera uso em produção
-
-        A arquitetura revisa: segurança, alinhamento com políticas corporativas, aderência à plataforma GENAI, impacto em dados e estruturas internas.
-
-        **Passo 4 — Solicitar credenciais PingFederate (OAuth2)**
-
-        A API exige: `client_id`, `client_secret`, endpoint do PingFederate.
-        Sem isso, nenhuma chamada à API será aceita.
-
-        **Passo 5 — Solicitar certificado mTLS (dupla autenticação)**
-
-        É necessário gerar:
-        - Certificado digital cliente
-        - Chave privada
-        - Registro no CMP da Stellantis
-
-        Esse certificado deve ser enviado em todas as requisições API junto com o token OAuth2.
-
-        **Passo 6 — (Se necessário) solicitar conta cloud corporativa**
-
-        Dependendo da complexidade, pode ser solicitado pela TI uma conta AWS/Azure para:
-        - Hospedar seu agente
-        - Armazenar documentos corporativos
-        - Gerenciar o vector store
-
-        **Passo 7 — Testar no GENAI Playground e StellAI Lab**
-
-        Antes da integração:
-        - **GENAI Playground** → testes de prompts
-        - **StellAI Lab** → testes avançados e prototipagem de agentes
-
-        **Passo 8 — Integrar o TC Veículos ao GENAI Gateway**
-
-        Após aprovação e credenciais liberadas:
-        - Conectar ao endpoint GraphQL
-        - Configurar tokens e certificados
-        - Acionar modelos de IA
-        - Criar embeddings e vector store
-        - Integrar com parquets e tabelas do TC Veículos
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Escopo cresce além das 5 plantas iniciais | Travar MVP em 5 plantas; novas plantas só após validação completa |
+        | Termos diferentes entre BR e AR geram confusão | Glossário oficial + revisão cruzada |
+        | Resistência organizacional | Envolver controllers locais desde o início |
         """)
 
     # ------------------------------------------------------------------
-    # 1) Visão Geral do Agente de IA
+    # 1) O que faremos inicialmente — Novo Workspace Databricks
     # ------------------------------------------------------------------
-    with st.expander("🟦 1) Visão Geral do Agente de IA", expanded=False):
+    with st.expander("🟦 1) O que Faremos Inicialmente — Novo Workspace no Databricks", expanded=False):
         st.markdown("""
-        O **TC Copilot** será uma camada inteligente dentro do projeto, responsável por:
+        #### 🎯 Objetivo
+        Criar um **novo workspace/pasta** no Databricks para o SCI LATAM, **completamente separado**
+        do projeto atual (`sci_app` / `sci`), aproveitando a oportunidade para corrigir todos os
+        problemas estruturais acumulados.
 
-        - Responder perguntas sobre dados do TC Veículos
-        - Gerar resumos diários automáticos
-        - Identificar as maiores variações por oficina e modelo
-        - Apontar deltas relevantes e tendências
-        - Analisar **Budget × Real × Best Estimate (BE)**
-        - Explicar desvios de FP, FA, CPU, Flex Budget e Rateios
-        - Detectar anomalias de custo
-        - Gerar comentários e insights automáticos para diretoria
+        ---
 
-        O agente será capaz de entender tanto perguntas simples quanto análises profundas.
+        #### 📋 Por que separar e não continuar no workspace atual?
 
-        > **Exemplo:** *"Explique os principais impactos do mês e destaque qual oficina teve o maior desvio."*
-        """)
+        O workspace atual tem **dívida estrutural grave** que não queremos arrastar:
 
-    # ------------------------------------------------------------------
-    # 2) O que o Agente será capaz de fazer
-    # ------------------------------------------------------------------
-    with st.expander("🟦 2) O que o Agente será capaz de fazer", expanded=False):
-        st.markdown("""
-        #### ✔ Perguntas sobre dados
-        - Qual oficina teve maior aumento no FP?
-        - Qual modelo apresentou maior CPU?
-        - Onde aconteceu o maior desvio do Real × Budget?
-
-        #### ✔ Resumos automáticos
-        - Resumo diário consolidado
-        - Resumo semanal de performance
-        - Comentário executivo do mês
-
-        #### ✔ Insights automáticos
-        - Identificação de anomalias
-        - Tendências por oficina
-        - Comportamento por modelo
-        - Drivers principais de aumento de custo
-
-        #### ✔ Suporte operacional
-        - Comparação entre plantas
-        - Explicações de rateio
-        - Análises de volume × custo
-        """)
-
-    # ------------------------------------------------------------------
-    # 3) Como o Agente irá funcionar tecnicamente
-    # ------------------------------------------------------------------
-    with st.expander("🟦 3) Como o Agente irá funcionar tecnicamente", expanded=False):
-        st.markdown("""
-        O agente será composto por **três camadas**:
-
-        #### 3.1 – Base de Conhecimento
-        Alimentada com:
-        - Parquets do TC Veículos e TC Ext
-        - Tabelas consolidadas de FA, FP, CPU
-        - BE, Budget, Real
-        - Flex Budget
-        - Tabelas de debug
-        - Dados por oficina e modelo
-
-        Esses dados serão indexados no **vector store** da plataforma GENAI.
-
-        #### 3.2 – LLM Corporativo Stellantis
-        O agente irá usar:
-        - GPT‑4 corporativo
-        - Llama 3
-        - Mistral
-        - Cohere
-        - Ou qualquer modelo disponibilizado
-
-        Através do **GENAI Gateway**.
-
-        #### 3.3 – Camada de raciocínio
-        O agente executará:
-        1. Recebe a pergunta
-        2. Entende qual dado procurar
-        3. Busca no vector store
-        4. Faz cálculos (CPU, FP, FA, BE etc)
-        5. Gera resposta estruturada
-        """)
-
-    # ------------------------------------------------------------------
-    # 4) Checklist para acessar a API GENAI
-    # ------------------------------------------------------------------
-    with st.expander("🟦 4) Checklist para acessar a API GENAI", expanded=False):
-        st.markdown("""
-        - [ ] Enviar caso no Brightidea
-        - [ ] Passar pela avaliação do GenAI Ambassador
-        - [ ] Ser aprovado no EA Gate
-        - [ ] Solicitar credenciais PingFederate
-        - [ ] Solicitar certificado mTLS
-        - [ ] Integrar com GENAI Playground
-        - [ ] Criar account cloud se necessário
-        - [ ] Construir workspace e knowledge base
-        - [ ] Conectar o sistema ao GENAI Gateway
-        """)
-
-    # ------------------------------------------------------------------
-    # 5) Diagrama de Alto Nível
-    # ------------------------------------------------------------------
-    with st.expander("🟦 5) Diagrama de Alto Nível", expanded=False):
-        st.markdown("""
+        **1. Código quadruplicado no repositório local:**
         ```
-        Usuário
-           ↓
-        SCI (Stellantis Cost Intelligence) – Pergunta
-           ↓
-        TC Copilot (Agente de IA)
-           ↓
-        GENAI Gateway – LLM Corporativo
-           ↓
-        Vector Store + Embeddings (parquets do TC)
-           ↓
-        Raciocínio do Agente
-           ↓
-        Resposta Inteligente
+        processamento_dados.py  → existe em 4 lugares:
+          ├── raiz/
+          ├── Databricks/sci/
+          ├── Databricks/sci_app/
+          └── Databricks/pulled_from_workspace/
         ```
-        """)
+        Qual é o "certo"? Ninguém sabe com certeza. No novo workspace, haverá **uma única fonte de verdade**.
 
-    # ------------------------------------------------------------------
-    # 6) Roadmap de Implementação
-    # ------------------------------------------------------------------
-    with st.expander("🟦 6) Roadmap de Implementação", expanded=False):
-        st.markdown("""
-        #### Fase 1 – Preparação dos dados
-        - Consolidar parquets
-        - Organizar base de conhecimento
-        - Documentar variáveis e métricas
+        **2. Notebooks triplicados:**
+        ```
+        00_validar_ambiente_databricks.py → 3 cópias:
+          ├── notebooks/
+          ├── Databricks/sci/notebooks/
+          └── Databricks/sci_app/notebooks/
+        ```
+        No SCI LATAM, cada notebook existirá em **um único lugar**.
 
-        #### Fase 2 – Integração GENAI
-        - Obter credenciais
-        - Criar chamada básica via GraphQL
-        - Criar embeddings da base interna
+        **3. Três cópias inteiras do app:**
+        ```
+        Databricks/
+          ├── sci/          ← cópia do app + notebooks
+          ├── sci_app/      ← outra cópia do app
+          └── pulled_from_workspace/  ← mais uma cópia
+        ```
+        Todas com `pages/`, `tc_core/`, `tc_ext/`, `tc_principal/` duplicados.
 
-        #### Fase 3 – Construção das habilidades
-        - Perguntas operacionais
-        - Resumos automáticos
-        - Análise por oficina
-        - Identificação de anomalias
-
-        #### Fase 4 – Produção
-        - Teste interno
-        - Validação com diretoria
-        - Logs e auditoria
-        - Publicação final
-        """)
-
-    # ------------------------------------------------------------------
-    # 7) Exemplos de perguntas
-    # ------------------------------------------------------------------
-    with st.expander("🟦 7) Exemplos de perguntas que o Agente poderá responder", expanded=False):
-        st.markdown("""
-        - *"Resumo diário do Real × Budget."*
-        - *"Quem puxou o delta de FP da oficina BS?"*
-        - *"Qual modelo teve maior CPU no mês?"*
-        - *"Faça um comentário executivo do mês."*
-        - *"Mostre as oficinas com maior variação de FA."*
-        """)
-
-    # ------------------------------------------------------------------
-    # 8) Considerações de Segurança
-    # ------------------------------------------------------------------
-    with st.expander("🟦 8) Considerações de Segurança", expanded=False):
-        st.markdown("""
-        - 🔒 Nenhum dado sai da Stellantis
-        - 🔐 Toda comunicação usa **mTLS + PingFederate**
-        - ✅ A API GENAI é homologada pela TI
-        - 📂 O agente só acessa dados internos do TC
-        - 📋 Logs de auditoria são mantidos
-        """)
-
-    # ------------------------------------------------------------------
-    # 9) Conclusão Executiva
-    # ------------------------------------------------------------------
-    with st.expander("🟦 9) Conclusão Executiva", expanded=False):
-        st.markdown("""
-        O **TC Copilot** é um avanço estratégico que:
-
-        - ✅ Aumenta a eficiência do time
-        - ✅ Reduz retrabalhos técnicos
-        - ✅ Acelera análises complexas
-        - ✅ Melhora a qualidade das explicações executivas
-        - ✅ Fortalece governança e transparência
-        - ✅ Suporta tomadas de decisão críticas
-
-        O projeto está alinhado com a **estratégia global de IA da Stellantis** e utiliza as
-        tecnologias oficiais aprovadas, garantindo **segurança, escalabilidade e compliance**.
-        """)
-
-    # ------------------------------------------------------------------
-    # 10) Preenchimento do formulário Brightidea
-    # ------------------------------------------------------------------
-    with st.expander("🟦 10) Preenchimento do Formulário Brightidea (AI Use Case Factory)", expanded=False):
-        st.markdown("""
-        Formulário oficial:
-
-        👉 [https://stellantis.brightidea.com/AIUseCaseFactory](https://stellantis.brightidea.com/AIUseCaseFactory)
-
-        **RESPOSTAS COMPLETAS E PRONTAS PARA O BRIGHTIDEA (AI USE CASE FACTORY)**
-
-        **Caso de Uso:** Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos)
-
-        **Slogan:** A evolução da controladoria industrial
+        **4. Raiz do repositório poluída:**
+        - 61 scripts Python soltos (testes ad-hoc, diagnósticos, correções pontuais)
+        - 19 arquivos `_*.py` temporários
+        - 16 markdowns, 10 HTMLs, 15 TXTs, 7 planilhas Excel — tudo misturado
 
         ---
 
-        #### 📌 1) Descrição do caso de uso (função do usuário, problema, contexto)
-        **Função do principal usuário:**
-        Analistas, especialistas e gestores de Controladoria Industrial, Controlling, Custos de Manufatura, FP&A (Financial Planning & Analysis — Planejamento e Análise Financeira), e equipes de performance fabril das plantas da Stellantis.
+        #### 📋 O que fazer
+        1. **Criar novo workspace no Databricks:**
+           ```
+           /Workspace/Users/u235107@inetpsa.com/sci_latam/
+           ```
+        2. **Estrutura inicial planejada:**
+           ```
+           sci_latam/
+           ├── app.py                     # Entry point Streamlit
+           ├── app.yaml                   # Config do Databricks App
+           ├── requirements.txt           # Deps únicas e limpas
+           ├── config/
+           │   ├── plants_master.json     # Cadastro das 5 plantas
+           │   ├── settings_dev.json      # Config ambiente DEV
+           │   └── settings_prod.json     # Config ambiente PROD
+           ├── notebooks/                 # ÚNICO lugar para notebooks
+           │   ├── 00_validar_ambiente.py
+           │   ├── 01_criar_tabelas_delta.py
+           │   ├── 02_carga_dados.py
+           │   ├── 03_processar_publicar.py
+           │   ├── 04_prevalidar.py
+           │   └── 05_validacao_pos_job.py
+           ├── src/
+           │   ├── core/                  # Motor de cálculo (migrado do tc_core)
+           │   │   ├── backend.py
+           │   │   ├── io_delta.py
+           │   │   ├── io_excel.py
+           │   │   ├── transform.py
+           │   │   └── constants.py
+           │   ├── finance/               # Regras financeiras (FP, FA, CPU, BE, Flex)
+           │   ├── plants/                # Plant Layer — config e lógica por planta
+           │   ├── consolidation/         # Consolidação BR e LATAM
+           │   └── exports/               # Geração de relatórios e exports
+           ├── pages/                     # Páginas Streamlit (UI)
+           ├── tests/                     # Testes organizados
+           │   ├── test_core/
+           │   ├── test_finance/
+           │   ├── test_plants/
+           │   └── test_regression/       # Golden tests de regressão
+           ├── scripts/                   # Automação (sync, deploy, CI)
+           └── docs/                      # Documentação vive aqui
+           ```
+        3. **Não copiar lixo:** nenhum `_test_*`, `_verify_*`, `_diag_*`, `corrigir_*`, `debug_*` solto
+        4. **Nenhuma duplicação:** cada arquivo existe em exatamente 1 lugar
 
-        **Problema a ser resolvido:**
-        Hoje, análises de custo industrial (FP (Fluxo Principal), FA (Fluxo Auxiliar), Redis (receitas internas/redistribuições do processo), CPU (Custo Por Unidade), Budget (orçado), Real (realizado), BE (Best Estimate — melhor estimativa/forecast) e Flex (Flex Budget — orçamento flexível)) exigem muito esforço manual para consolidação, interpretação, validação e elaboração de comentários executivos. Isso atrasa a tomada de decisão, gera retrabalho e produz inconsistências entre plantas.
+        ---
 
-        O sistema Stellantis Cost Intelligence (SCI) já automatiza cálculos e consolida dados (módulo TC Veículos), mas não interpreta os resultados. A equipe precisa diariamente:
-        - analisar desvios
-        - identificar impactos
-        - gerar resumos
-        - explicar variações por oficina
-        - comentar principais movimentos
-        - detectar comportamentos anômalos
+        #### 📦 Artefatos / Outputs esperados
+        - Workspace `sci_latam/` criado no Databricks com estrutura vazia
+        - Repo GitHub `SCI-LATAM` (ou branch `sci-latam` no repo atual) com a mesma estrutura
+        - `README.md` documentando a estrutura e as convenções
+        - `.gitignore` limpo (sem `dist/`, `build/`, `__pycache__/`, `*.xlsx`, `*.html` temporários)
 
-        Tudo isso ainda é manual.
+        ---
 
-        **Contexto de negócios:**
-        O projeto Stellantis Cost Intelligence (SCI — plataforma interna de inteligência de custos) propõe criar um Agente de IA (Inteligência Artificial) integrado ao TC Veículos, usando o GENAI Gateway (Gateway corporativo de IA Generativa), capaz de interpretar dados internos automaticamente e fornecer:
-        - análises instantâneas
-        - explicações sobre variações
-        - comentários executivos
-        - identificação automática de anomalias
-        - insights sobre oficinas/modelos mais críticos
-        - resumos diários de performance
-        - suporte à gestão industrial e financeira
+        #### ✅ Critérios de aceite
+        - Workspace acessível no Databricks
+        - Estrutura de pastas criada conforme o diagrama acima
+        - Zero arquivos duplicados
+        - `README.md` com instruções de setup completas
+        - O repositório antigo (`TC`) continua funcionando normalmente (não tocamos nele)
 
-        Isso reduz retrabalho, padroniza análises e aumenta velocidade na tomada de decisão.
+        ---
 
-        #### 📌 2) Categoria de Recursos de IA
-        **Seleção:** Busca de Conhecimento – Recuperação, Adaptação e Reformulação de Informações
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Esquecer de migrar algum módulo essencial | Checklist de migração vs. inventário do repo atual |
+        | Novo workspace vazio causa confusão | README claro + comunicação com a equipe |
+        | Repo antigo continua recebendo commits por hábito | Comunicar que novo desenvolvimento vai no SCI LATAM |
+        """)
 
-        **Motivo:** o agente analisará bases internas (parquets, tabelas, cálculos do TC (Transformation Cost — custo de transformação)) e gerará análises contextualizadas.
-        Também envolve interpretação de dados estruturados → mas a função principal é entender e explicar, não prever.
+    # ------------------------------------------------------------------
+    # 2) Reaproveitamento de notebooks e módulos existentes
+    # ------------------------------------------------------------------
+    with st.expander("🟦 2) Reaproveitamento de Notebooks e Módulos Existentes", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Migrar **seletivamente** os notebooks, módulos e regras de negócio do projeto atual
+        para o novo workspace, sem arrastar código duplicado, scripts temporários ou dívida técnica.
 
-        #### 📌 3) Domínio de Negócios
-        **Seleção:** Manufacturing / Industrial Finance / Controladoria Industrial
+        ---
 
-        #### 📌 4) Escala regional do caso de uso
-        **Seleção:** Múltiplas regiões (América do Sul e outras regiões futuramente).
-        O processo de controladoria industrial é similar entre plantas LATAM (Latin America — América Latina), podendo escalar para EU (Europe — Europa) e NA (North America — América do Norte) facilmente.
+        #### 📋 Inventário do que será reaproveitado
 
-        #### 📌 5) Marcas que podem se beneficiar
-        **Seleção:** Todas as marcas Stellantis.
-        Processo de custo fabril é transversal (Fiat, Peugeot, Citroën, Jeep, RAM, etc).
+        **Notebooks (origem: `notebooks/` — fonte de verdade):**
 
-        #### 📌 6) Redução anual estimada de custos
-        **Seleção:** 100–500 mil €/ano
+        | Notebook atual | Destino no SCI LATAM | Ação |
+        |---------------|----------------------|------|
+        | `00_validar_ambiente_databricks.py` | `notebooks/00_validar_ambiente.py` | Migrar + parametrizar por plant_id |
+        | `01_criar_tabelas_delta.py` | `notebooks/01_criar_tabelas_delta.py` | Migrar + schemas multi-planta |
+        | `02_carga_snowflake.py` | `notebooks/02_carga_dados.py` | Migrar + adapter por fonte de dados |
+        | `03_processar_e_publicar_delta.py` | `notebooks/03_processar_publicar.py` | Migrar + plant_id como parâmetro |
+        | `04_prevalidar_excel.py` | `notebooks/04_prevalidar.py` | Migrar como está |
+        | `05_validacao_pos_job.py` | `notebooks/05_validacao_pos_job.py` | Migrar + validação multi-planta |
+        | `06_ui_consulta_workspace.py` | Absorvido pela UI principal | Não migrar como notebook separado |
 
-        **Justificativa prática:**
-        - redução do tempo de análise manual
-        - eliminação de retrabalho
-        - padronização de explicações
-        - velocidade de diagnóstico
-        - apoio direto à tomada de decisão fabril
+        **Módulos core (origem: `tc_core/`):**
 
-        #### 📌 7) Receita anual estimada
-        **Seleção:** Não aplicável
+        | Módulo atual | Destino | Ação |
+        |-------------|---------|------|
+        | `tc_core/constants.py` | `src/core/constants.py` | Migrar + adicionar constantes multi-planta |
+        | `tc_core/data_source.py` | `src/core/data_source.py` | Migrar + parametrizar paths por plant_id |
+        | `tc_core/data_router.py` | `src/core/data_router.py` | Migrar + rotas por planta |
+        | `tc_core/finance/` | `src/finance/` | Migrar integralmente (regras de cálculo são o ativo principal) |
+        | `tc_core/ui/` | `src/ui/` ou `pages/` | Avaliar; pode ser simplificado |
+        | `tc_core/utils/` | `src/core/utils/` | Migrar funções realmente usadas |
+        | `src/sci_core/` | Merge com `src/core/` | Unificar; eliminar duplicação `tc_core` vs `src/sci_core` |
 
-        #### 📌 8) Pessoas impactadas
-        **Seleção:** 50 a 100 usuários
+        **Módulos de domínio:**
 
-        Inclui:
-        - times de controladoria fabril
-        - times de custos
-        - FP&A
-        - gestores de performance industrial
-        - diretoria de manufatura
-        - controllers regionais
+        | Módulo atual | Destino | Ação |
+        |-------------|---------|------|
+        | `tc_principal/` | `pages/` (componentes UI) | Migrar componentes úteis, descartar acoplamento |
+        | `tc_ext/` | `src/finance/ext/` | Migrar lógica de cálculo, reorganizar |
+        | `tc_copilot/` | Não migrar agora | Funcionalidade futura; manter referência no repo antigo |
+        | `processamento_dados*.py` (raiz) | `src/core/processing.py` | Consolidar 4 variantes em 1 módulo parametrizado |
 
-        #### 📌 9) Como isso cria valor / modelo de negócio
-        O SCI cria um mecanismo contínuo de geração de valor, pois:
-        - substitui análises manuais repetitivas
-        - reduz tempo de elaboração de comentários executivos
-        - detecta problemas antecipadamente
-        - evita inconsistências entre plantas
-        - amplia governança e padronização
-        - acelera a tomada de decisão
-        - facilita comparações entre modelos e oficinas
-        - disponibiliza inteligência financeira 24/7
+        **O que NÃO migrar:**
+        - 19 scripts `_*.py` temporários
+        - Scripts de correção pontual (`corrigir_*.py`, `limpar_*.py`, `remover_*.py`)
+        - Scripts de debug (`debug_*.py`, `diag_*.py`, `diagnostico_*.py`)
+        - Planilhas Excel da raiz (dados vão para Delta tables)
+        - HTMLs de teste, TXTs de log
+        - `Databricks/pulled_from_workspace/` (cópia morta)
+        - `Databricks/sci_app/` (será substituído pelo novo workspace)
+        - `dist/`, `build/` (artefatos de build)
 
-        **Medições claras de valor:**
-        - horas de retrabalho eliminadas
-        - velocidade para fechar custos diários/mensais
-        - quantidade de análises automatizadas
-        - número de alertas antecipados por anomalias detectadas
-        - produtividade do time de controladoria
+        ---
 
-        #### 📌 10) Disponibilidade dos dados
-        **Seleção:** Tenho muitos dados de boa qualidade prontos para uso.
+        #### 📋 O que fazer — passo a passo
+        1. Gerar inventário completo do repo atual (script automático)
+        2. Classificar cada arquivo: **migrar / descartar / referência futura**
+        3. Para cada arquivo a migrar:
+           - Copiar para o destino no SCI LATAM
+           - Adaptar imports e paths
+           - Adicionar parâmetro `plant_id` onde necessário
+           - Rodar teste básico de importação
+        4. Criar testes de smoke: cada módulo migrado importa sem erro
+        5. Documentar o mapeamento origem → destino
 
-        **Justificativa:**
-        O sistema Stellantis Cost Intelligence (SCI) já contém:
-        - parquets consolidados
-        - tabelas tratadas (FP, FA, Redis, CPU, BE, Flex)
-        - dados padronizados por oficina e modelo
-        - tabelas auxiliares (debug, massa, rateios, percentuais)
-        - banco de dados estruturado em Python
+        ---
 
-        Tudo já está higienizado e pronto para indexação via GENAI (IA Generativa).
+        #### 📦 Artefatos / Outputs esperados
+        - Planilha de inventário: arquivo → classificação → destino
+        - Módulos migrados e funcionais no novo workspace
+        - Testes de smoke passando
+        - Documento de mapeamento origem → destino
 
-        #### 📌 11) Tipo de dados
-        **Selecione TODOS os aplicáveis:**
-        - ✔ Texto plano (CSV, parquet, etc.)
-        - ✔ Documentos (documentação técnica do sistema, PDF, notas internas)
-        - ✔ Dados estruturados (tabelas, parquets, bancos internos)
+        ---
 
-        #### 📌 12) Qualidade dos dados
-        **Seleção:** Precisa, consistente e confiável para tomada de decisão.
+        #### ✅ Critérios de aceite
+        - Todo módulo migrado importa sem erro no Databricks
+        - Zero duplicação: cada função/classe existe em exatamente 1 arquivo
+        - Nenhum arquivo do tipo `_test_*`, `corrigir_*`, `debug_*` no novo repo
+        - Planilha de inventário 100% preenchida
 
-        **Motivo:** O processo do TC Veículos já foi padronizado e validado internamente.
+        ---
 
-        #### 📌 13) Recursos / expertise necessários
-        - Engenheiros de dados (para ingestão inicial do vector store (base vetorial))
-        - Suporte GENAI COE (Center of Excellence — Centro de Excelência de IA Generativa) (para mTLS (mutual TLS — TLS mútuo) + OAuth2 (OAuth 2.0 — protocolo de autorização) via PingFederate)
-        - Desenvolvedor Python (integração TC (Transformation Cost) × GENAI (IA Generativa))
-        - Especialista de controladoria (validação dos insights)
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Esquecer função importante que estava em script solto | Inventário automático + grep por funções chamadas |
+        | Imports quebrados após reorganização | Teste de smoke obrigatório para cada módulo migrado |
+        | Resistência a "jogar fora" código | Nada é jogado fora — repo antigo continua intacto como referência |
+        """)
 
-        #### 📌 14) Soluções concorrentes
-        Não existe solução semelhante dentro da Stellantis.
-        Processos atuais são manuais e fragmentados.
+    # ------------------------------------------------------------------
+    # 3) Passo a passo inicial no Databricks
+    # ------------------------------------------------------------------
+    with st.expander("🟦 3) Passo a Passo Inicial no Databricks", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Detalhar exatamente o que fazer no Databricks para criar o novo workspace SCI LATAM,
+        configurar o ambiente e preparar tudo para receber os módulos migrados.
 
-        #### 📌 15) Prazos desejados
-        POC (Proof of Concept — prova de conceito) após aprovação — sem data rígida.
-        Pode acompanhar calendário de FECHAMENTO MENSAL e BE.
+        ---
 
-        #### 📌 16) Tags
-        cost-control, industrial-finance, manufacturing, genai, tc-veiculos, scicontroller, insights
+        #### 📋 O que fazer — sequência exata
 
-        #### 📌 17) Patrocinador de Negócio
-        Seu gestor ou diretor da área de Controlling/Manufatura (preencher com o nome interno).
+        **Etapa 3.1 — Criar pasta no Workspace**
+        ```
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam
+        ```
+        Subpastas:
+        ```
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/notebooks
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/config
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/src
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/pages
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/tests
+        databricks workspace mkdirs /Workspace/Users/u235107@inetpsa.com/sci_latam/scripts
+        ```
 
-        #### 📌 18) Líder de TIC (se conhecido)
-        Colocar o responsável de TI/IS (Tecnologia da Informação / Information Systems — Sistemas de Informação) local da planta ou região.
+        **Etapa 3.2 — Configurar o Databricks App (se aplicável)**
+        - Criar `app.yaml` com referência ao novo path
+        - Configurar variáveis de ambiente: `SCI_ENV=dev`, `SCI_PLANT=BTM`
+        - Definir cluster / serverless compute
 
-        #### 📌 19) Já houve alguma ação?
-        Sim — desenvolvimento do Stellantis Cost Intelligence (SCI) (módulo TC Veículos), consolidação dos dados, definição do caso de uso e preparação para integração ao GENAI Gateway.
+        **Etapa 3.3 — Criar o primeiro notebook de smoke test**
+        ```python
+        # notebooks/00_validar_ambiente.py
+        # Databricks notebook source
+        import sys
+        print(f"Python: {sys.version}")
+        print(f"Workspace: sci_latam")
+        print(f"Status: OK")
 
-        #### 📌 20) LLM alvo
-        GPT‑4 / GPT‑5.2 (Azure OpenAI via GENAI Gateway (Gateway corporativo de IA Generativa))
+        # Verificar acesso ao catalog/schema
+        spark.sql("SHOW DATABASES").display()
+        ```
 
-        #### 📌 21) Plataforma alvo
-        Azure (Microsoft)
+        **Etapa 3.4 — Configurar Delta tables (schema)**
+        - Criar catalog/schema dedicado:
+          ```sql
+          CREATE SCHEMA IF NOT EXISTS sci_latam_dev;
+          CREATE SCHEMA IF NOT EXISTS sci_latam_prod;
+          ```
+        - Definir tabelas Delta por planta:
+          ```sql
+          CREATE TABLE IF NOT EXISTS sci_latam_dev.raw_data_{plant_id} (...)
+          CREATE TABLE IF NOT EXISTS sci_latam_dev.processed_{plant_id} (...)
+          ```
 
-        Melhor integração com Python, Streamlit e GENAI Gateway.
+        **Etapa 3.5 — Configurar secrets**
+        - Criar scope: `databricks secrets create-scope sci-latam`
+        - Registrar secrets necessários (Snowflake, APIs, etc.)
+
+        **Etapa 3.6 — Primeiro sync local → Databricks**
+        ```powershell
+        # Do repositório local para o workspace
+        databricks workspace import-dir ./sci_latam /Workspace/Users/u235107@inetpsa.com/sci_latam --overwrite
+        ```
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Workspace `sci_latam/` ativo no Databricks
+        - Notebook 00 executando com sucesso
+        - Schemas `sci_latam_dev` e `sci_latam_prod` criados
+        - Secret scope configurado
+        - Primeiro sync local → Databricks funcionando
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - `databricks workspace ls /Workspace/Users/u235107@inetpsa.com/sci_latam` mostra a estrutura
+        - Notebook 00 roda sem erro
+        - `SHOW TABLES IN sci_latam_dev` retorna resultado (mesmo que vazio)
+        - Sync local → Databricks funciona sem erro
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Permissões insuficientes para criar schema | Solicitar ao admin do Databricks antes de começar |
+        | Nome de workspace conflita com existente | Usar nome único `sci_latam` (não `sci` nem `sci_app`) |
+        | Secret scope com nome duplicado | Verificar scopes existentes antes de criar |
+        """)
+
+    # ------------------------------------------------------------------
+    # 4) Sincronização com GitHub e GitHub Copilot CLI
+    # ------------------------------------------------------------------
+    with st.expander("🟦 4) Sincronização com GitHub e GitHub Copilot CLI", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Definir como o novo workspace SCI LATAM será sincronizado com GitHub,
+        e como aproveitar o **GitHub CLI** e o **GitHub Copilot CLI** para produtividade.
+
+        ---
+
+        #### 📋 Estratégia de repositório GitHub
+
+        **Opção A — Novo repo (recomendada):**
+        ```
+        github.com/[org]/SCI-LATAM
+        ```
+        ✅ Histórico limpo, sem 61 scripts soltos, sem pastas duplicadas
+        ✅ CI/CD configurado do zero, sem herança de configs antigas
+        ✅ Repo antigo (`TC`) continua como referência read-only
+
+        **Opção B — Branch no repo atual:**
+        ```
+        github.com/[org]/TC  →  branch: sci-latam
+        ```
+        ⚠️ Mantém histórico, mas arrastra toda a sujeira do `main`
+
+        ---
+
+        #### 📋 Sincronização Databricks ↔ GitHub
+
+        **Fluxo principal:**
+        ```
+        Desenvolvedor (VS Code)
+            ↓  git push
+        GitHub (SCI-LATAM)
+            ↓  sync script (PowerShell / GitHub Actions)
+        Databricks Workspace (sci_latam/)
+        ```
+
+        **Script de sync (evolução do atual `sync_databricks_app.ps1`):**
+        ```powershell
+        # scripts/sync_to_databricks.ps1
+        param(
+            [string]$Env = "dev",        # dev ou prod
+            [switch]$Watch,              # modo watch (auto-sync)
+            [switch]$DryRun              # apenas mostrar o que seria feito
+        )
+        $LocalPath = "./sci_latam"
+        $WorkspacePath = "/Workspace/Users/u235107@inetpsa.com/sci_latam"
+
+        databricks workspace import-dir $LocalPath $WorkspacePath --overwrite
+        ```
+
+        **Automação via GitHub Actions:**
+        ```yaml
+        # .github/workflows/sync-databricks.yml
+        on:
+          push:
+            branches: [main, develop]
+        jobs:
+          sync:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/checkout@v4
+              - name: Sync to Databricks
+                run: databricks workspace import-dir ...
+        ```
+
+        ---
+
+        #### 📋 GitHub CLI — comandos essenciais
+
+        **Instalação e setup:**
+        ```powershell
+        winget install GitHub.cli
+        gh auth login
+        gh repo create SCI-LATAM --private --description "SCI LATAM - Multiplantas"
+        ```
+
+        **Workflow diário:**
+        ```powershell
+        # Criar feature branch
+        gh issue create --title "Implementar Plant Layer" --body "..."
+        git checkout -b feature/plant-layer
+
+        # Ao terminar
+        git push -u origin feature/plant-layer
+        gh pr create --title "feat: Plant Layer" --body "Closes #1"
+
+        # Review e merge
+        gh pr merge --squash
+        ```
+
+        ---
+
+        #### 📋 GitHub Copilot CLI — produtividade no terminal
+
+        **Instalação:**
+        ```powershell
+        gh extension install github/gh-copilot
+        ```
+
+        **Uso prático no SCI LATAM:**
+        ```powershell
+        # Explicar comando complexo
+        gh copilot explain "databricks workspace import-dir ./sci_latam /Workspace/... --overwrite"
+
+        # Sugerir comando
+        gh copilot suggest "sync local folder to databricks workspace"
+
+        # Ajuda com git
+        gh copilot suggest "squash last 3 commits into one"
+        ```
+
+        **Integração com VS Code:**
+        - GitHub Copilot Chat no VS Code já conhece o contexto do projeto
+        - Usar `@workspace` para perguntas sobre a estrutura
+        - Usar `@terminal` para sugestões de comandos
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Repositório GitHub criado e configurado
+        - Script de sync `scripts/sync_to_databricks.ps1`
+        - GitHub Actions workflow para sync automático
+        - `.github/PULL_REQUEST_TEMPLATE.md` com checklist
+        - Documentação de workflow (branch strategy, PRs, releases)
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - `gh repo view` mostra o repo acessível
+        - Script de sync funciona: local → Databricks em 1 comando
+        - GitHub Actions roda em cada push (pelo menos lint + sync)
+        - Copilot CLI instalado e funcional no terminal
+        - PR template com checklist de promoção
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Token do Databricks expira e sync falha silenciosamente | Health check no workflow + alerta |
+        | Conflito de sync: Databricks editado diretamente sem PR | Política: nunca editar direto no workspace; sempre via repo |
+        | GitHub Actions sem acesso à rede corporativa | Runner self-hosted ou sync manual via script local |
+        """)
+
+    # ------------------------------------------------------------------
+    # 5) Cadastro e Configuração de Plantas (Plant Layer)
+    # ------------------------------------------------------------------
+    with st.expander("🟦 5) Cadastro e Configuração de Plantas (Plant Layer)", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Criar a estrutura de dados que permite ao SCI reconhecer e segregar informações por planta,
+        sem alterar o processamento existente de Betim.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Criar tabela-mestra de plantas (`plants_master`):
+           - `plant_id` (ex.: BTM, PTR, GOI, CBA, PLM)
+           - `plant_name` (nome completo)
+           - `country_code` (BR, AR)
+           - `region_code` (LATAM)
+           - `currency` (BRL, ARS)
+           - `timezone`
+           - `status` (ativo/inativo)
+        2. Configurar parâmetros por planta:
+           - Paths de dados de entrada (parquets, CSVs)
+           - Paths de outputs
+           - Regras de câmbio (se aplicável)
+           - Calendário fiscal específico
+        3. Garantir retrocompatibilidade: Betim = plant_id BTM, comportamento idêntico ao atual
+        4. Criar mecanismo de fallback: se plant_id não informado, assume BTM (backward compatible)
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Arquivo `plants_master.json` ou tabela equivalente
+        - Schema documentado (tipos, obrigatoriedades, exemplos)
+        - Config por planta (`plant_config_{id}.json` ou seção no config central)
+        - Script de seed/inicialização com as 5 plantas
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Todas as 5 plantas cadastradas e carregáveis
+        - Betim funciona exatamente como antes (teste de regressão)
+        - Config de cada planta contém todos os campos obrigatórios
+        - Teste unitário: carregar planta por ID retorna dados corretos
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Hardcode de Betim espalhado pelo código | Auditoria de grep + refactor incremental |
+        | Plantas AR com calendário fiscal diferente | Campo de calendário fiscal no config |
+        | Moedas diferentes geram confusão nos totais | Consolidação sempre em moeda base (BRL) com taxa explícita |
+        """)
+
+    # ------------------------------------------------------------------
+    # 6) Contratos, ingestão e validações por planta
+    # ------------------------------------------------------------------
+    with st.expander("🟦 6) Contratos, Ingestão e Validações por Planta", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Definir como os dados de cada planta entram no SCI, quais validações são aplicadas,
+        e como garantir que dados corrompidos não contaminem o processamento.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir o **contrato de dados** por planta:
+           - Colunas obrigatórias (schema)
+           - Tipos esperados (int, float, string, date)
+           - Ranges válidos (ex.: CPU > 0, volumes >= 0)
+           - Encoding e formato (UTF-8, parquet, CSV)
+        2. Criar pipeline de ingestão parametrizado por `plant_id`:
+           - Leitura do path configurado
+           - Validação contra o schema
+           - Quarentena de registros inválidos (log + isolamento)
+           - Stamp de metadados: plant_id, data_ingestão, versão_schema
+        3. Reaproveitar o pipeline atual (Betim) como template base
+        4. Adicionar coluna `plant_id` em todos os DataFrames processados
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Schema de contrato por planta (JSON Schema ou Pydantic model)
+        - Script de validação de ingestão
+        - Log de quarentena (registros rejeitados + motivo)
+        - Dashboard ou relatório de qualidade de ingestão
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Dados de Betim passam 100% na validação (regressão)
+        - Dados inválidos sintéticos são corretamente rejeitados
+        - Coluna `plant_id` presente em todos os DataFrames pós-ingestão
+        - Log de quarentena funcional e consultável
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Plantas AR enviam dados em formato diferente | Schema por planta com adapter de normalização |
+        | Volume de dados de 5 plantas causa lentidão | Processamento paralelo por planta + cache |
+        | Dados históricos sem plant_id | Migration script: dados antigos recebem plant_id=BTM |
+        """)
+
+    # ------------------------------------------------------------------
+    # 7) Processamento core unificado (sem fork)
+    # ------------------------------------------------------------------
+    with st.expander("🟦 7) Processamento Core Unificado (Sem Fork)", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Garantir que o motor de cálculo existente (FP, FA, Redis, CPU, BE, Flex, Rateios)
+        seja reutilizado por todas as plantas **sem duplicação de código**.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Auditar o código de processamento atual e identificar dependências hardcoded de Betim
+        2. Parametrizar o processamento:
+           - Todas as funções de cálculo recebem `plant_id` como parâmetro
+           - Configs carregados dinamicamente a partir do `plant_config`
+           - Paths de entrada/saída resolvidos via config (não hardcoded)
+        3. Manter **um único motor de cálculo** — sem fork, sem cópia, sem branch por planta
+        4. Criar test harness: executar processamento de Betim antes e depois da parametrização,
+           outputs devem ser idênticos (diff zero)
+        5. Documentar quais funções foram parametrizadas e quais já eram genéricas
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Relatório de auditoria: funções hardcoded vs. parametrizadas
+        - Código refatorado com `plant_id` como parâmetro
+        - Test harness de regressão (comparação de outputs)
+        - Documentação técnica atualizada
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Processamento de Betim gera outputs **idênticos** ao baseline (diff zero)
+        - Processamento de uma planta nova (ex.: Porto Real) executa sem erro com dados de teste
+        - Zero duplicação de lógica de cálculo entre plantas
+        - Cobertura de testes: todas as funções parametrizadas possuem teste
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Refactor quebra cálculos existentes | Test harness obrigatório antes de qualquer merge |
+        | Plantas AR têm regras fiscais diferentes | Regras de negócio em config por planta, não no código |
+        | Tentação de fazer fork "temporário" | Code review obrigatório; proibido aprovar fork |
+        """)
+
+    # ------------------------------------------------------------------
+    # 8) UI/Exports por planta + consolidado
+    # ------------------------------------------------------------------
+    with st.expander("🟦 8) UI / Exports por Planta + Consolidado", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Permitir que a interface (Streamlit) e os exports (Excel, parquet) operem tanto
+        por planta individual quanto de forma consolidada (BR, LATAM).
+
+        ---
+
+        #### 📋 O que fazer
+        1. Adicionar seletor de planta na UI (sidebar ou filtro global):
+           - Lista dinâmica a partir de `plants_master`
+           - Opção "Todas" para visão consolidada
+           - Opção por país (BR, AR) e por região (LATAM)
+        2. Filtrar todos os DataFrames exibidos pelo `plant_id` selecionado
+        3. Gráficos e tabelas: respeitar o filtro de planta ativo
+        4. Exports (Excel, parquet): incluir coluna `plant_id` e permitir export filtrado ou completo
+        5. Manter a experiência atual como default: ao abrir, mostra Betim (ou "Todas" conforme decisão)
+        6. Labels e títulos dinâmicos: exibir nome da planta nos headers
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Componente de seletor de planta (reutilizável)
+        - Lógica de filtragem centralizada (não espalhada por cada página)
+        - Templates de export com plant_id
+        - Screenshots/mockups da UI com filtro ativo
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Seletor de planta funcional em todas as páginas principais
+        - Filtro por Betim mostra dados idênticos ao sistema atual
+        - Export Excel inclui coluna plant_id
+        - Consolidado (Todas) soma corretamente dados de múltiplas plantas
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | UI fica lenta com dados de 5 plantas | Cache por planta + lazy loading |
+        | Usuário confunde visão consolidada com individual | Badge/indicador visual claro da planta ativa |
+        | Métricas consolidadas somam moedas diferentes | Conversão para moeda base antes de consolidar |
+        """)
+
+    # ------------------------------------------------------------------
+    # 9) Governança e trilha de auditoria
+    # ------------------------------------------------------------------
+    with st.expander("🟦 9) Governança e Trilha de Auditoria", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Garantir rastreabilidade completa: quem processou, quando, qual planta, quais dados,
+        qual versão do sistema, e quais outputs foram gerados.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Implementar log de processamento por execução:
+           - Timestamp, plant_id, versão do SCI, usuário (se aplicável)
+           - Contagem de registros de entrada e saída
+           - Hash dos arquivos de entrada (integridade)
+           - Status: sucesso, falha parcial, erro
+        2. Implementar log de auditoria de dados:
+           - Registro de qualquer alteração manual (rateios_manuais, ajustes)
+           - Quem alterou, quando, valor anterior, valor novo
+        3. Manter histórico de versões de outputs:
+           - Cada processamento gera outputs versionados (não sobrescreve)
+           - Possibilidade de comparar versões
+        4. Dashboard de governança: visão consolidada dos logs por planta
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Tabela de logs de processamento (`processing_log`)
+        - Tabela de auditoria de dados (`audit_trail`)
+        - Script de consulta de histórico
+        - Dashboard de governança (nova aba ou seção na Documentação)
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Todo processamento gera entrada no log (sem exceção)
+        - Alterações manuais são rastreáveis (quem, quando, o quê)
+        - Outputs versionados: possível recuperar resultado de qualquer execução anterior
+        - Dashboard exibe logs das últimas N execuções por planta
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Logs crescem demais e ocupam espaço | Política de retenção (ex.: 12 meses) + compactação |
+        | Usuários esquecem de registrar alterações manuais | Tornar registro automático via sistema (não manual) |
+        | Logs sem padrão dificultam consulta | Schema fixo e validado para todos os logs |
+        """)
+
+    # ------------------------------------------------------------------
+    # 10) Consolidação BR e consolidação LATAM
+    # ------------------------------------------------------------------
+    with st.expander("🟦 10) Consolidação BR e Consolidação LATAM", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Criar as visões consolidadas por país (BR) e por região (LATAM), baseadas
+        **exclusivamente** em outputs oficiais das plantas — sem reprocessamento.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir quais métricas/outputs são consolidáveis:
+           - CPU total, FP total, FA total por oficina/modelo
+           - Volumes totais
+           - Budget × Real × BE agregados
+        2. Implementar consolidação BR:
+           - Soma/agregação dos outputs de Betim + Porto Real + Goiana
+           - Moeda única: BRL (sem conversão necessária)
+        3. Implementar consolidação LATAM:
+           - Soma/agregação de BR + AR
+           - Conversão de ARS → BRL (ou USD) com taxa configurável
+           - Taxa de câmbio versionada e auditável
+        4. Regra: consolidação é **read-only** sobre outputs — nunca altera dados das plantas
+        5. Gerar outputs consolidados separados (BR_consolidado, LATAM_consolidado)
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Módulo de consolidação (`consolidation.py` ou equivalente)
+        - Tabela de taxas de câmbio (`exchange_rates`)
+        - Outputs: `outputs/BR_consolidado/`, `outputs/LATAM_consolidado/`
+        - Relatório de consolidação com breakdown por planta
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Consolidação BR de Betim sozinho = output atual (regressão)
+        - Consolidação LATAM com dados de teste de todas as 5 plantas gera resultado correto
+        - Taxa de câmbio aplicada corretamente e registrada no log
+        - Consolidação não altera outputs individuais das plantas
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Taxa de câmbio desatualizada distorce consolidação | Taxa versionada + alerta se idade > 30 dias |
+        | Nem todas as plantas têm dados no mesmo período | Validação de completude antes de consolidar |
+        | Dupla contagem por erro de agregação | Testes de reconciliação: soma das partes = total |
+        """)
+
+    # ------------------------------------------------------------------
+    # 11) Comparativos entre plantas
+    # ------------------------------------------------------------------
+    with st.expander("🟦 11) Comparativos entre Plantas", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Permitir análises comparativas de performance entre as 5 plantas,
+        gerando benchmarks, rankings e deltas.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir métricas comparáveis entre plantas:
+           - CPU/unidade (normalizado por volume)
+           - % de desvio Budget × Real
+           - FP e FA por oficina (normalizados)
+           - Mix de modelos
+        2. Criar visão de ranking:
+           - Melhor/pior planta por métrica
+           - Tendência mensal por planta
+        3. Criar visão de delta:
+           - Planta A vs. Planta B (selecionável)
+           - Destaque de maiores diferenças
+        4. Normalização: garantir que comparações sejam justas (moeda, volume, mix)
+        5. Visualizações: gráficos de radar, barras comparativas, heatmaps
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Módulo de comparativos (`plant_comparison.py`)
+        - Página/aba de comparativos na UI
+        - Templates de gráficos comparativos
+        - Export de ranking em Excel
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Comparativo entre Betim e Betim (mesma planta) mostra delta zero
+        - Normalização por volume funciona corretamente
+        - Rankings ordenam corretamente (asc e desc)
+        - Gráficos renderizam sem erro com 2, 3, 4 ou 5 plantas
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Comparação injusta por mix de modelos diferente | Normalização por volume e mix |
+        | Plantas com dados incompletos distorcem ranking | Indicador de completude visível |
+        | Sensibilidade política de rankings | Acesso configurável por perfil/permissão |
+        """)
+
+    # ------------------------------------------------------------------
+    # 12) Ambiente DEV — setup e convenções
+    # ------------------------------------------------------------------
+    with st.expander("🟦 12) Ambiente DEV — Setup e Convenções", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Definir o ambiente de desenvolvimento (DEV) como espaço de evolução contínua
+        e experimentação controlada, separado logicamente de PROD.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir a separação DEV × PROD:
+           - **Paths de dados:** `data/dev/` vs `data/prod/`
+           - **Configurações:** `config_dev.json` vs `config_prod.json`
+           - **Variável de ambiente:** `SCI_ENV=dev` ou `SCI_ENV=prod`
+        2. Branch strategy:
+           - `main` = PROD (protegido, merge via PR)
+           - `develop` = DEV (desenvolvimento ativo)
+           - Feature branches: `feature/plant-layer`, `feature/consolidation`, etc.
+        3. Definir convenções de código:
+           - Naming: snake_case, prefixos por módulo
+           - Commits: conventional commits (feat:, fix:, docs:)
+           - Testes obrigatórios para novas funcionalidades
+        4. Pipeline de CI em DEV:
+           - Lint (flake8/ruff)
+           - Testes unitários
+           - Validação de schemas
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Documento de convenções DEV (`CONTRIBUTING.md`)
+        - Arquivo de configuração DEV (`config_dev.json`)
+        - Script de setup do ambiente DEV
+        - Template de feature branch
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Ambiente DEV funciona isoladamente (sem impactar PROD)
+        - Mudanças em DEV não aparecem em PROD até promoção explícita
+        - Pipeline CI roda em cada push para develop
+        - Novo desenvolvedor consegue configurar DEV em até 30 minutos seguindo o guia
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Dev usa dados de PROD acidentalmente | Variável SCI_ENV obrigatória + validação no boot |
+        | Branches divergem demais e merge fica complexo | Merges frequentes develop → feature e vice-versa |
+        | Falta de testes em DEV contamina PROD | Gate de cobertura mínima para aprovar PR |
+        """)
+
+    # ------------------------------------------------------------------
+    # 13) Ambiente PROD — estabilidade operacional
+    # ------------------------------------------------------------------
+    with st.expander("🟦 13) Ambiente PROD — Estabilidade Operacional", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Garantir que o sistema PROD (em operação, "sempre rodando") tenha estabilidade,
+        monitoramento e processos de deploy controlados.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir política de PROD:
+           - Apenas código aprovado via PR + review entra em PROD
+           - Deploy controlado (nunca direto na main)
+           - Rollback documentado e testado
+        2. Monitoramento básico:
+           - Health check: sistema responde? Dados carregam?
+           - Alerta se processamento falha
+           - Log de acessos e erros
+        3. Versionamento:
+           - Tags semânticas (v2.1.0, v2.2.0)
+           - Changelog atualizado a cada release
+           - Documentação versionada junto com o código
+        4. Backup e recovery:
+           - Backup dos dados processados (outputs)
+           - Procedimento de recovery documentado
+           - Tempo máximo de indisponibilidade aceitável (SLA informal)
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Documento de política PROD (`PRODUCTION.md`)
+        - Script de deploy controlado
+        - Script de rollback
+        - Checklist de deploy (pré e pós)
+        - CHANGELOG.md
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Deploy em PROD só acontece via processo documentado
+        - Rollback funciona e restaura versão anterior em menos de 15 minutos
+        - Health check retorna status de todas as plantas
+        - Changelog reflete todas as mudanças desde a última release
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Deploy quebra PROD | Checklist + smoke test pós-deploy obrigatório |
+        | Ninguém atualiza o changelog | Changelog como requisito do PR template |
+        | Dados de PROD corrompidos | Backup antes de cada processamento |
+        """)
+
+    # ------------------------------------------------------------------
+    # 14) Promoção DEV → PROD (checklist, gates, validações)
+    # ------------------------------------------------------------------
+    with st.expander("🟦 14) Promoção DEV → PROD (Checklist, Gates, Validações)", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Definir o processo seguro e auditável para promover mudanças de DEV para PROD,
+        garantindo que apenas código validado e testado chegue ao sistema em operação.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Criar **checklist de promoção** (PR template):
+           - [ ] Testes unitários passando
+           - [ ] Testes de regressão executados (Betim baseline = OK)
+           - [ ] Sem hardcodes de plant_id
+           - [ ] Changelog atualizado
+           - [ ] Documentação atualizada (se aplicável)
+           - [ ] Code review aprovado por pelo menos 1 revisor
+           - [ ] Smoke test em DEV bem-sucedido
+        2. Criar **gates de aprovação**:
+           - Gate técnico: CI verde + testes OK
+           - Gate funcional: validação de outputs por usuário-chave
+           - Gate de governança: log de promoção registrado
+        3. Definir **pipeline de release**:
+           - Merge develop → main via PR
+           - Tag automática com versão semântica
+           - Deploy automático ou semi-automático para PROD
+        4. Documentar procedimento de rollback emergencial
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - PR template com checklist de promoção
+        - Pipeline de CI/CD (GitHub Actions ou equivalente)
+        - Documento de rollback emergencial
+        - Log de promoções (histórico)
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Nenhuma mudança chega a PROD sem passar pelo checklist completo
+        - Pipeline de CI bloqueia merge se testes falham
+        - Histórico de promoções auditável
+        - Rollback testado e funcional
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Pressão para pular gates ("é urgente") | Processo documentado; exceções exigem justificativa formal |
+        | CI verde mas output incorreto | Gate funcional obrigatório (validação por humano) |
+        | Rollback falha sob pressão | Simular rollback periodicamente (drill) |
+        """)
+
+    # ------------------------------------------------------------------
+    # 15) Mecanismos anti-regressão
+    # ------------------------------------------------------------------
+    with st.expander("🟦 15) Mecanismos Anti-Regressão", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Implementar salvaguardas automáticas que detectem qualquer regressão nos cálculos,
+        regras ou outputs do SCI antes que ela chegue a PROD.
+
+        ---
+
+        #### 📋 O que fazer
+        1. **Baseline de outputs:** salvar snapshot dos outputs atuais de Betim como referência
+           - Parquets de FP, FA, CPU, BE, Flex, Rateios
+           - Totais por oficina e modelo
+           - Hash dos arquivos
+        2. **Comparativo automático DEV vs baseline:**
+           - Após cada processamento em DEV, comparar outputs com baseline
+           - Alertar se qualquer diferença for detectada
+           - Diferenciar: diferença esperada (nova funcionalidade) vs. regressão
+        3. **Testes de sanidade por planta:**
+           - Soma de outputs > 0
+           - Número de registros dentro do range esperado
+           - Métricas-chave dentro de bounds (ex.: CPU entre X e Y)
+        4. **Golden test:** processar dados de Betim com código novo e comparar, byte a byte,
+           com output anterior
+        5. **Dashboard de regressão:** visão rápida do status de regressão por planta
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Snapshot de baseline (versionado)
+        - Script de comparação automática (`regression_check.py`)
+        - Relatório de diferenças (se houver)
+        - Dashboard de status de regressão
+        - Integração com CI: falha automática se regressão detectada
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Golden test de Betim passa com diff zero no baseline
+        - Alteração intencional (nova planta) não dispara falso positivo
+        - Regressão real é detectada e bloqueia promoção
+        - Dashboard de regressão acessível e atualizado
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Baseline desatualizado após mudança legítima | Processo de atualização de baseline documentado |
+        | Falsos positivos por diferenças de arredondamento | Tolerância configurável (epsilon) |
+        | Testes de regressão muito lentos | Executar em paralelo; subset rápido para CI, completo para release |
+        """)
+
+    # ------------------------------------------------------------------
+    # 16) Azure como caminho opcional (condicional)
+    # ------------------------------------------------------------------
+    with st.expander("🟦 16) Azure como Caminho Opcional (Condicional)", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Documentar o caminho de migração/expansão para Azure como infraestrutura cloud,
+        **caso e quando** a Stellantis disponibilize essa opção para o projeto SCI.
+
+        > ⚠️ **Este passo é condicional.** Só se aplica se/quando a infraestrutura Azure
+        > corporativa for disponibilizada. O SCI LATAM funciona sem Azure.
+
+        ---
+
+        #### 📋 O que fazer (quando aplicável)
+        1. Mapear serviços Azure equivalentes ao stack atual:
+           - **Azure Blob Storage** → armazenamento de parquets e outputs
+           - **Azure SQL / Cosmos DB** → dados estruturados (se necessário)
+           - **Azure App Service / Container Apps** → hospedagem do Streamlit
+           - **Azure DevOps / GitHub Actions** → CI/CD
+           - **Azure Monitor** → monitoramento e alertas
+        2. Definir estratégia de migração:
+           - Migração incremental (não big-bang)
+           - Dual-run: manter PROD local funcionando enquanto Azure é validado
+           - Critérios de cutover: quando mudar para Azure como primário
+        3. Estimar custos mensais de Azure por tier
+        4. Documentar requisitos de segurança: rede, identidade, certificados
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Documento de arquitetura Azure proposta
+        - Mapa de serviços: stack atual → serviço Azure
+        - Estimativa de custos (3 cenários: mínimo, médio, máximo)
+        - Plano de migração incremental
+        - Checklist de segurança Azure
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Documento aprovado pela TI/IS local
+        - Estimativa de custos validada
+        - Plano de migração não exige downtime
+        - Todos os requisitos de segurança mapeados
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Azure não é aprovado pela TI | Manter stack local como fallback permanente |
+        | Custos maiores que o esperado | Estimativa de 3 cenários + revisão trimestral |
+        | Migração causa downtime | Dual-run obrigatório durante transição |
+        """)
+
+    # ------------------------------------------------------------------
+    # 17) Roadmap e cronograma macro
+    # ------------------------------------------------------------------
+    with st.expander("🟦 17) Roadmap e Cronograma Macro", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Estabelecer o roadmap de alto nível para a implementação do SCI LATAM,
+        com fases, dependências e marcos de entrega.
+
+        ---
+
+        #### 📋 O que fazer
+        1. Definir fases do roadmap:
+           - **Fase 0 — Fundação** (atual): planejamento, documentação, glossário, Plant Layer conceitual
+           - **Fase 1 — Novo Workspace:** criar workspace `sci_latam/` no Databricks, repo GitHub, estrutura de pastas, CI básico
+           - **Fase 2 — Migração Seletiva:** migrar módulos core (`tc_core`, `finance`, notebooks), eliminar duplicações, testes de smoke
+           - **Fase 3 — Parametrização:** refactor do core para aceitar plant_id, test harness, baseline de Betim
+           - **Fase 4 — Segunda planta (piloto):** onboarding de Porto Real como planta piloto
+           - **Fase 5 — Brasil completo:** onboarding de Goiana, consolidação BR
+           - **Fase 6 — Argentina:** onboarding de Córdoba e Palomar, consolidação LATAM
+           - **Fase 7 — Comparativos e otimização:** dashboards comparativos, benchmarks, refinamentos
+        2. Definir dependências entre fases (não paralelizável: Fase N depende de N-1)
+        3. Definir marcos de entrega (milestones) por fase
+        4. Identificar riscos de cronograma e planos de contingência
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Roadmap visual (diagrama de Gantt simplificado ou timeline)
+        - Lista de milestones por fase
+        - Matriz de dependências
+        - Plano de contingência por fase
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Roadmap aprovado pelos stakeholders principais
+        - Cada fase tem milestone e critério de conclusão claros
+        - Dependências explícitas (nenhuma fase começa sem a anterior concluída)
+        - Plano de contingência documentado para as 2 fases mais críticas
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Cronograma irrealista | Fases incrementais com revisão ao final de cada uma |
+        | Dependência de times externos (TI, AR) | Identificar dependências cedo e engajar stakeholders |
+        | Scope creep durante execução | Cada fase tem escopo congelado após aprovação |
+        """)
+
+    # ------------------------------------------------------------------
+    # 18) Conclusão executiva e decisões pendentes
+    # ------------------------------------------------------------------
+    with st.expander("🟦 18) Conclusão Executiva e Decisões Pendentes", expanded=False):
+        st.markdown("""
+        #### 🎯 Objetivo
+        Consolidar a visão do plano SCI LATAM, registrar decisões já tomadas e
+        listar decisões pendentes que dependem de stakeholders.
+
+        ---
+
+        #### 📋 Decisões já tomadas
+        - ✅ SCI LATAM é a próxima evolução do SCI atual
+        - ✅ 5 plantas no escopo inicial (3 BR + 2 AR)
+        - ✅ Evolução não-regressiva: cálculos, regras e outputs atuais permanecem intactos
+        - ✅ Código único (sem fork por planta)
+        - ✅ Dois ambientes: DEV e PROD
+        - ✅ Consolidação baseada em outputs oficiais
+        - ✅ Azure é condicional (não bloqueante)
+        - ✅ **Novo workspace no Databricks** (`sci_latam/`) — separado do atual
+        - ✅ **Novo repositório GitHub** (ou branch dedicada) — estrutura limpa desde o início
+        - ✅ **Aproveitamento seletivo** dos módulos existentes — sem arrastar dívida técnica
+        - ✅ **Notebooks migrados e unificados** — uma única cópia de cada
+        - ✅ **Sincronização via script + GitHub Actions** — não editar direto no workspace
+
+        #### 📋 Decisões pendentes
+        - ❓ Moeda base para consolidação LATAM: BRL ou USD?
+        - ❓ Fonte oficial de taxa de câmbio ARS/BRL
+        - ❓ Responsáveis por planta (data owners) na Argentina
+        - ❓ Calendário fiscal AR vs BR: alinhamento ou execução separada?
+        - ❓ Nível de acesso: cada planta vê apenas seus dados ou todas veem tudo?
+        - ❓ SLA informal de disponibilidade do sistema PROD
+        - ❓ Quem aprova o gate funcional de promoção DEV → PROD?
+        - ❓ Novo repo (`SCI-LATAM`) ou branch (`sci-latam`) no repo atual?
+        - ❓ Cluster Databricks: compartilhado ou dedicado para SCI LATAM?
+        - ❓ Catalog Unity Catalog: schema único ou por planta?
+
+        #### 📋 Próximos gates
+        1. **Gate de Planejamento:** aprovação deste documento pelos stakeholders
+        2. **Gate de Fundação:** Plant Layer e baseline implementados e validados
+        3. **Gate de Piloto:** Porto Real onboarded e processando corretamente
+        4. **Gate BR:** 3 plantas BR funcionando + consolidação BR validada
+        5. **Gate LATAM:** 5 plantas + consolidação LATAM validada
+
+        ---
+
+        #### 📦 Artefatos / Outputs esperados
+        - Ata de decisões (atualizada a cada gate)
+        - Lista de pendências com responsáveis e prazo
+        - Relatório de status por gate
+
+        ---
+
+        #### ✅ Critérios de aceite
+        - Todas as decisões pendentes têm responsável atribuído
+        - Cronograma de resolução das pendências definido
+        - Stakeholders cientes e comprometidos com o plano
+        - Documento assinado / aprovado formalmente
+
+        ---
+
+        #### ⚠️ Riscos comuns + Mitigação
+        | Risco | Mitigação |
+        |-------|-----------|
+        | Decisões pendentes travam o início da Fase 1 | Priorizar decisões bloqueantes; assumir defaults onde possível |
+        | Falta de engajamento da Argentina | Envolver AR desde a Fase 0 (planejamento) |
+        | Documento fica obsoleto | Revisão obrigatória a cada gate |
         """)
 
 # Rodapé
