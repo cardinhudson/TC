@@ -89,33 +89,33 @@ AGG_SCHEMAS: dict[str, dict] = {
     # --- Veículos ---
     "df_veiculos_agg_home": {
         "source": "df_veiculos_custo_fp",
-        "group_keys": ["Ano", "Período", "Oficina", "Veículo"],
+        "group_keys": ["Ano", "Período", "Oficina", "Veículo", "Type 05", "Type 06", "Account", "Custo"],
         "sum_columns": ["Custo FP Veiculo", "Custo Rateado", "D&A dedicado"],
-        "description": "Agregado Home veículos — Real",
+        "description": "Agregado Home/Waterfall veículos — Real",
     },
     "df_veiculos_agg_home_BUD": {
         "source": "df_veiculos_custo_fp_BUD",
-        "group_keys": ["Ano", "Período", "Oficina", "Veículo"],
+        "group_keys": ["Ano", "Período", "Oficina", "Veículo", "Type 05", "Type 06", "Account", "Custo"],
         "sum_columns": ["Custo FP Veiculo", "Custo Rateado", "D&A dedicado"],
-        "description": "Agregado Home veículos — Budget",
+        "description": "Agregado Home/Waterfall veículos — Budget",
     },
     # --- TC_Ext ---
     "df_final_agg": {
         "source": "df_final",
-        "group_keys": ["Ano", "Período", "Oficina", "Veículo"],
+        "group_keys": ["Ano", "Período", "Oficina", "Veículo", "Type 05", "Type 06", "Account", "Custo"],
         "sum_columns": ["Total", "Valor"],
         "description": "Agregado TC_Ext — Real",
     },
     "df_final_agg_BUD": {
         "source": "df_final_BUD",
-        "group_keys": ["Ano", "Período", "Oficina", "Veículo"],
+        "group_keys": ["Ano", "Período", "Oficina", "Veículo", "Type 05", "Type 06", "Account", "Custo"],
         "sum_columns": ["Total", "Valor"],
         "description": "Agregado TC_Ext — Budget",
     },
     # --- Forecast ---
     "forecast_agg": {
         "source": "forecast_completo",
-        "group_keys": ["Ano", "Período", "Oficina", "Tipo"],
+        "group_keys": ["Ano", "Período", "Oficina", "Tipo", "Type 05", "Type 06"],
         "sum_columns": ["Custo FP", "FP sem Dedicada", "D&A dedicado"],
         "description": "Agregado Forecast (Histórico/BE)",
     },

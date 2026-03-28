@@ -1497,7 +1497,7 @@ else:
                     partes = x_str.split(' ', 1)
                     mes_nome = partes[0].lower()
                     try:
-                        ano = int(partes[1])
+                        ano = int(float(partes[1]))
                         mes_idx = MES_POS.get(mes_nome, 99)
                         return (ano, mes_idx)
                     except (ValueError, IndexError):

@@ -34,14 +34,14 @@ echo.
 REM ---- 2. Sincronizar app (Databricks + espelhos) ----
 echo [2/3] Sincronizando app com Databricks...
 if "%DBX_PROFILE%"=="" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\sync_databricks_app.ps1"
+    call ".\sync_app.bat"
 ) else (
-    powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\sync_databricks_app.ps1" -Profile "%DBX_PROFILE%"
+    call ".\sync_app.bat" sync "%DBX_PROFILE%"
 )
 if errorlevel 1 (
-    echo [AVISO] Sincronizacao retornou com avisos. Verifique acima.
-    echo         Continuando para executar o app...
-    echo.
+    echo [ERRO] Falha no sync/deploy. Execucao do app cancelada.
+    pause
+    exit /b 1
 )
 echo       Sincronizacao concluida.
 echo.

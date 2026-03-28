@@ -1174,6 +1174,8 @@ def build_cpu_tooltip_payload(
                 for _, row05 in top_t05.iterrows():
                     t05_name = str(row05['Type 05']).strip()
                     t05_val = row05[valor_col]
+                    if abs(t05_val) < 0.5:
+                        continue
                     t05_pct = t05_val / abs_total * 100 if abs_total else 0
                     if is_cpu and vol:
                         _t05_cpu = t05_val / vol
@@ -1208,6 +1210,8 @@ def build_cpu_tooltip_payload(
                             if len(t06_name) > 30:
                                 t06_name = t06_name[:27] + '...'
                             t06_val = row06[valor_col]
+                            if abs(t06_val) < 0.5:
+                                continue
                             t06_pct = t06_val / abs_t05 * 100 if abs_t05 else 0
                             if is_cpu and vol:
                                 _t06_cpu = t06_val / vol
@@ -1361,6 +1365,8 @@ def build_delta_tooltip_payload(
                 for _, row05 in top_t05.iterrows():
                     t05_name = str(row05['Type 05']).strip()
                     t05_delta = row05['_delta']
+                    if abs(t05_delta) < 0.5:
+                        continue
                     t05_pct = t05_delta / abs_delta_total * 100 if abs_delta_total else 0
                     if is_cpu and vr:
                         _t05_cpu = t05_delta / vr
@@ -1394,6 +1400,8 @@ def build_delta_tooltip_payload(
                             if len(t06_name) > 30:
                                 t06_name = t06_name[:27] + '...'
                             t06_delta = row06['_delta']
+                            if abs(t06_delta) < 0.5:
+                                continue
                             t06_pct = t06_delta / abs_delta_total * 100 if abs_delta_total else 0
                             if is_cpu and vr:
                                 _t06_cpu = t06_delta / vr

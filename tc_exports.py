@@ -43,6 +43,10 @@ def _otimizar_tipos(df: pd.DataFrame) -> pd.DataFrame:
             if unique_ratio < 0.5:
                 df[col] = df[col].astype("category")
 
+    # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+    if "Ano" in df.columns:
+        df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce").fillna(0).astype(int)
+
     # Converter floats para tipos menores
     for col in df.select_dtypes(include=["float64"]).columns:
         df[col] = pd.to_numeric(df[col], downcast="float")

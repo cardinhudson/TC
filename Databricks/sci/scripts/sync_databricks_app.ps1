@@ -259,28 +259,40 @@ function Invoke-WorkspaceImportTree {
     $ok = 0
     $fail = 0
     $failedFiles = @()
+    $maxRetries = 3
 
     foreach ($file in $allFiles) {
         $relPath = $file.FullName.Substring($LocalRoot.TrimEnd('\').Length + 1) -replace '\\','/'
         $remotePath = "$RemoteRoot/$relPath"
         $remoteDir = (Split-Path -Path $remotePath -Parent) -replace '\\','/'
-        try {
-            if (-not [string]::IsNullOrWhiteSpace($remoteDir) -and -not $createdFolders.ContainsKey($remoteDir)) {
-                $mkdirOutput = & $DatabricksExe @DatabricksArgs workspace mkdirs $remoteDir 2>&1
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Falha ao criar pasta remota '$remoteDir': $mkdirOutput"
+        $uploaded = $false
+        for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+            try {
+                if (-not [string]::IsNullOrWhiteSpace($remoteDir) -and -not $createdFolders.ContainsKey($remoteDir)) {
+                    $mkdirOutput = & $DatabricksExe @DatabricksArgs workspace mkdirs $remoteDir 2>&1
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Falha ao criar pasta remota '$remoteDir': $mkdirOutput"
+                    }
+                    $createdFolders[$remoteDir] = $true
                 }
-                $createdFolders[$remoteDir] = $true
+                $output = & $DatabricksExe @DatabricksArgs workspace import $remotePath --file $file.FullName --format AUTO --overwrite 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Exit code $LASTEXITCODE : $output"
+                }
+                $ok++
+                $uploaded = $true
+                break
+            } catch {
+                if ($attempt -lt $maxRetries) {
+                    $wait = $attempt * 5
+                    Write-Host "  RETRY ($attempt/$maxRetries): $relPath - aguardando ${wait}s..." -ForegroundColor Yellow
+                    Start-Sleep -Seconds $wait
+                } else {
+                    Write-Host "  FALHA: $relPath - $($_.Exception.Message)" -ForegroundColor Red
+                    $failedFiles += $relPath
+                    $fail++
+                }
             }
-            $output = & $DatabricksExe @DatabricksArgs workspace import $remotePath --file $file.FullName --format AUTO --overwrite 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                throw "Exit code $LASTEXITCODE : $output"
-            }
-            $ok++
-        } catch {
-            Write-Host "  FALHA: $relPath - $($_.Exception.Message)" -ForegroundColor Red
-            $failedFiles += $relPath
-            $fail++
         }
     }
     Write-Host "Upload direto: $ok OK, $fail falhas (de $total arquivos)" -ForegroundColor $(if ($fail -eq 0) { "Green" } else { "Yellow" })

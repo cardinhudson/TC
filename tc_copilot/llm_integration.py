@@ -41,13 +41,22 @@ def _criar_cliente(api_key: str | None = None):
 #  CLIENTE DATABRICKS CLAUDE
 # ═══════════════════════════════════════════════════════════════
 
+# Sentinela para diferenciar rate-limit de outros erros
+_RATE_LIMITED = "__RATE_LIMITED__"
+
+
 def _chamar_claude_com_mensagens(
     messages: list[dict],
     model: str = "databricks-claude-opus-4-6",
     temperature: float = 0.3,
     max_tokens: int = 4096,
 ) -> str | None:
-    """Chama Claude via Databricks Model Serving (OpenAI-compatible)."""
+    """Chama Claude via Databricks Model Serving (OpenAI-compatible).
+
+    Implementa retry com backoff exponencial para erros 429 (rate-limit).
+    """
+    import time as _time
+
     cfg = carregar_databricks_cfg()
     url = cfg.get("url") or ""
     token = cfg.get("token") or ""
@@ -56,33 +65,56 @@ def _chamar_claude_com_mensagens(
         logger.warning("Databricks Claude não configurado (url/token vazios).")
         return None
     try:
-        from openai import OpenAI
-        client = OpenAI(
-            api_key=token,
-            base_url=f"{url.rstrip('/')}/serving-endpoints",
-        )
-        # Separar system do resto
-        system_text = ""
-        user_messages = []
-        for m in messages:
-            if m["role"] == "system":
-                system_text += m["content"] + "\n"
-            else:
-                user_messages.append(m)
-        api_messages = []
-        if system_text.strip():
-            api_messages.append({"role": "system", "content": system_text.strip()})
-        api_messages.extend(user_messages)
-        response = client.chat.completions.create(
-            model=endpoint,
-            messages=api_messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logger.error("Erro ao chamar Databricks Claude: %s", e)
+        from openai import OpenAI, RateLimitError
+    except ImportError:
+        logger.error("Pacote openai não instalado.")
         return None
+
+    client = OpenAI(
+        api_key=token,
+        base_url=f"{url.rstrip('/')}/serving-endpoints",
+    )
+    # Separar system do resto
+    system_text = ""
+    user_messages = []
+    for m in messages:
+        if m["role"] == "system":
+            system_text += m["content"] + "\n"
+        else:
+            user_messages.append(m)
+    api_messages = []
+    if system_text.strip():
+        api_messages.append({"role": "system", "content": system_text.strip()})
+    api_messages.extend(user_messages)
+
+    # Retry com backoff: 3 tentativas (waits: 2s, 4s, 8s)
+    _MAX_RETRIES = 3
+    _BASE_WAIT = 2
+    last_err = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model=endpoint,
+                messages=api_messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content.strip()
+        except RateLimitError as e:
+            last_err = e
+            wait = _BASE_WAIT * (2 ** (attempt - 1))  # 2, 4, 8
+            logger.warning(
+                "Rate-limit 429 (tentativa %d/%d) — aguardando %ds...",
+                attempt, _MAX_RETRIES, wait,
+            )
+            _time.sleep(wait)
+        except Exception as e:
+            logger.error("Erro ao chamar Databricks Claude: %s", e)
+            return None
+
+    # Todas as tentativas falharam por rate-limit
+    logger.error("Rate-limit persistente após %d tentativas: %s", _MAX_RETRIES, last_err)
+    return _RATE_LIMITED
 
 
 def gerar_texto(
@@ -285,8 +317,20 @@ def responder_consulta_live(
     # --- Provider Databricks Claude ---
     if carregar_provider() == "databricks_claude":
         texto = _chamar_claude_com_mensagens(messages, _model, temperature=0.3, max_tokens=4096)
-        if texto:
+        if texto and texto != _RATE_LIMITED:
             return texto
+        if texto == _RATE_LIMITED:
+            if idioma == "pt-BR":
+                return (
+                    "⚠️ **Rate-limit atingido** no endpoint Databricks. "
+                    "O modelo está temporariamente sobrecarregado.\n\n"
+                    "Aguarde alguns segundos e tente novamente."
+                )
+            return (
+                "⚠️ **Rate-limit reached** on the Databricks endpoint. "
+                "The model is temporarily overloaded.\n\n"
+                "Wait a few seconds and try again."
+            )
         if idioma == "pt-BR":
             return "⚠️ Erro ao consultar Claude (Databricks). Verifique endpoint e token."
         return "⚠️ Error querying Claude (Databricks). Check endpoint and token."

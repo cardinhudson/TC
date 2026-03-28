@@ -208,18 +208,12 @@ Regra para nao regredir:
 
 Quando o app no Databricks estiver funcionando melhor que a copia local, a fonte de verdade passa a ser o Workspace remoto do Databricks App.
 
-### Utilitario criado
-
-Arquivo local:
-
-- `tools/databricks/pull_databricks_app.py`
-
 Fluxo:
 
-1. pull remoto do app no Databricks
-2. atualizacao de `TC-Cloud/sci_app`
-3. propagacao para raiz do repo e espelhos locais
-4. validacao final dos destinos
+1. exportar o workspace remoto do app com `databricks workspace export-dir`
+2. salvar o espelho em `Databricks/pulled_from_workspace`
+3. propagar para a raiz do repo e espelhos locais sem apagar artefatos extras locais
+4. validar que os arquivos puxados e os arquivos locais publicados estao identicos
 
 Objetivo:
 
@@ -228,7 +222,59 @@ Objetivo:
 
 ---
 
-## 11) Correcao especifica da page de Documentacao
+## 11) Contrato dos parquets otimizados no cloud
+
+Quando `SCI_USE_OPTIMIZED_PARQUETS=true`, o Databricks App pode ler variantes `agg` ou `thin` em vez dos parquets full.
+
+Regra critica:
+- se o schema AGG estiver incompleto, o cloud quebra mesmo quando o local parece normal.
+
+Contratos obrigatorios hoje:
+
+`df_veiculos_agg_home` e `df_veiculos_agg_home_BUD`
+- chaves: `Ano`, `Período`, `Oficina`, `Veículo`, `Type 05`, `Type 06`, `Account`, `Custo`
+
+`forecast_agg`
+- chaves: `Ano`, `Período`, `Oficina`, `Tipo`, `Type 05`, `Type 06`
+
+`df_final_agg` e `df_final_agg_BUD`
+- chaves: `Ano`, `Período`, `Oficina`, `Veículo`, `Type 05`, `Type 06`, `Account`, `Custo`
+
+Se qualquer uma dessas colunas sair do AGG, os sintomas mais provaveis sao:
+- waterfall com `Type 06 nao encontrada`;
+- tooltip do Best Estimate jogando tudo em `Outros`;
+- divergencia entre local e Databricks.
+
+---
+
+## 12) Protecao anti-regressao no app
+
+O `tc_core/data_router.py` passou a validar cada AGG contra o schema central em `tc_core/parquet_schemas.py`.
+
+Comportamento esperado:
+- AGG valido: leitura otimizada normal;
+- AGG desatualizado: warning no log e fallback automatico para o parquet full.
+
+Isso reduz risco operacional, mas nao substitui a reprocessacao correta dos dados.
+
+---
+
+## 13) Incidentes corrigidos e licao operacional
+
+Incidentes recentes corrigidos:
+
+1. Waterfall de veiculos quebrando no cloud por falta de `Type 06` nos AGG veiculares.
+2. Tooltip do Best Estimate perdendo quebra por `Type 05/Type 06` porque `forecast_agg` estava subagregado demais.
+3. AGG de TC Ext gerado sem `Type 05`, `Type 06`, `Account` e `Custo`, abrindo risco de regressao futura.
+4. Rotulo delta com baixa legibilidade, corrigido para preto nas paginas relevantes.
+5. Workspace remoto ficando mais atualizado que o local, exigindo sincronizacao reversa Databricks -> local.
+
+Licao operacional:
+- quando o remoto estiver mais correto, ele passa a ser a fonte de verdade operacional ate o repositorio local ser alinhado.
+
+---
+
+## 14) Correcao especifica da page de Documentacao
 
 Problema observado no app:
 
@@ -259,7 +305,7 @@ Resultado esperado:
 
 ---
 
-## 12) Item novo no indice da page de Documentacao
+## 15) Item novo no indice da page de Documentacao
 
 Novo item funcional na sidebar:
 
@@ -275,7 +321,7 @@ Esse item deve ser usado como referencia interna para:
 
 ---
 
-## 13) Slide novo na Apresentacao Visual
+## 16) Slide novo na Apresentacao Visual
 
 Foi incluido um slide especifico para o ambiente cloud / Databricks, seguindo o mesmo layout, cabecalho, duracao, destaque e apoio visual dos demais slides.
 
@@ -287,21 +333,23 @@ Mensagem central desse slide:
 
 ---
 
-## 14) Checklist anti-regressao
+## 17) Checklist anti-regressao
 
 Antes de publicar novas alteracoes locais, validar:
 
 1. o app continua lendo `SCI_SHARED_DATA_ROOT` corretamente
 2. `app.py` ainda configura o ambiente antes de importar paginas
 3. os notebooks 00, 01, 03 e 05 continuam coerentes com o backend atual
-4. o modulo TC Veiculos continua lendo os mesmos parquets esperados
-5. a page de Documentacao encontra seus arquivos markdown dentro do app
-6. o fluxo de sync local nao remove artefatos necessarios do app
-7. uploads do Workspace continuam usando `workspace.upload()` com remocao previa quando necessario
+4. os AGG mantem `Type 05`, `Type 06`, `Account` e `Custo` quando o consumidor depende dessas dimensoes
+5. `forecast_agg` mantem `Type 05` e `Type 06` para o tooltip do Best Estimate
+6. o `data_router.py` continua com fallback para FULL quando encontrar AGG desatualizado
+7. a page de Documentacao encontra seus arquivos markdown dentro do app
+8. o fluxo de pull Databricks -> local continua disponivel para recuperar a fonte de verdade operacional
+9. uploads do Workspace continuam usando `workspace.upload()` com remocao previa quando necessario
 
 ---
 
-## 15) Resumo executivo final
+## 18) Resumo executivo final
 
 Hoje, o estado considerado estavel do ambiente cloud e:
 

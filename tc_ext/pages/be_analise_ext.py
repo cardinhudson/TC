@@ -925,6 +925,10 @@ def load_data(ano_selecionado_param, mtime_forecast=None):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
@@ -1489,6 +1493,10 @@ def load_volume_data(ano_selecionado_param):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception:
         return None
@@ -1732,6 +1740,10 @@ def load_budget_data(ano_selecionado_param):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception:
         return None
@@ -1818,6 +1830,10 @@ def load_budget_volume_data(ano_selecionado_param):
         # Converter ints para tipos menores
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
+
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
 
         return df
     except Exception as e:

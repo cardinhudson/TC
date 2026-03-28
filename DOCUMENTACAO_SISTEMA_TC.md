@@ -321,7 +321,41 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 
 ---
 
-## 6) Best Estimate â€” TC Estendido
+## 6) Parquets Otimizados, Contratos e NÃ£o RegressÃ£o
+
+O sistema possui variantes `thin` e `agg` definidas em `tc_core/parquet_schemas.py` e lidas por `tc_core/data_router.py` quando `SCI_USE_OPTIMIZED_PARQUETS=true`.
+
+Regra operacional:
+- validar sempre com a flag otimizada ligada antes de concluir que uma correÃ§Ã£o estÃ¡ pronta;
+- local com flag desligada pode esconder problema que sÃ³ aparece no cloud.
+
+Contratos obrigatÃ³rios dos AGG que impactam anÃ¡lise:
+
+`df_veiculos_agg_home` e `df_veiculos_agg_home_BUD`
+- precisam manter `Type 05`, `Type 06`, `Account` e `Custo` alÃ©m de `Ano`, `PerÃ­odo`, `Oficina` e `VeÃ­culo`.
+
+`forecast_agg`
+- precisa manter `Type 05` e `Type 06` para preservar a quebra correta dos tooltips do Best Estimate.
+
+`df_final_agg` e `df_final_agg_BUD`
+- precisam manter `Type 05`, `Type 06`, `Account` e `Custo` para nÃ£o perder granularidade em anÃ¡lises futuras de TC Ext.
+
+ProteÃ§Ã£o implementada:
+- `data_router.py` valida o AGG contra o schema esperado;
+- se faltarem colunas, o app faz fallback automÃ¡tico para o parquet full.
+
+Incidentes reais que justificam esse contrato:
+- waterfall de veÃ­culos no Databricks quebrando por ausÃªncia de `Type 06` no AGG;
+- tooltip do Best Estimate jogando tudo em `Outros` por ausÃªncia de `Type 05/Type 06` em `forecast_agg`.
+
+Checklist mÃ­nimo antes de deploy:
+1. regenerar AGG a partir do FULL quando houver mudanÃ§a de schema;
+2. validar Waterfall, Home e Best Estimate com `SCI_USE_OPTIMIZED_PARQUETS=true`;
+3. confirmar que local e cloud estÃ£o alinhados antes do sync final.
+
+---
+
+## 7) Best Estimate â€” TC Estendido
 
 ### FÃ³rmula Passo a Passo
 1. `proporÃ§Ã£o_volume = Volume_Futuro / Volume_MÃ©dio_HistÃ³rico`
@@ -355,7 +389,7 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 
 ---
 
-## 7) Flex Bud â€” Ano Completo e GovernanÃ§a
+## 8) Flex Bud â€” Ano Completo e GovernanÃ§a
 
 ### Ano completo (12 meses)
 - GrÃ¡ficos/tabelas exibem 12 meses do ano
@@ -378,7 +412,7 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 
 ---
 
-## 8) ApresentaÃ§Ã£o Visual (Roteiro 5 Minutos)
+## 9) ApresentaÃ§Ã£o Visual (Roteiro 5 Minutos)
 
 **0:00â€“0:30** â€” O que Ã© o SCI: plataforma para decisÃ£o estratÃ©gica em custos de manufatura
 **0:30â€“1:30** â€” TC Estendido: custo total e CPU, Flex Budget
@@ -397,7 +431,7 @@ Excel â†’ Notebook â†’ Merges â†’ Parquet â†’ Consolidar His
 
 ---
 
-## 9) Guia de Build (EXE)
+## 10) Guia de Build (EXE)
 
 ### Comando
 ```powershell
@@ -431,7 +465,7 @@ NÃ£o rodar `pyinstaller` direto do `.spec`.
 
 ---
 
-## 10) Chatbot de DocumentaÃ§Ã£o
+## 11) Chatbot de DocumentaÃ§Ã£o
 
 Assistente virtual que responde perguntas sobre o sistema baseado na documentaÃ§Ã£o completa.
 
@@ -446,7 +480,7 @@ Assistente virtual que responde perguntas sobre o sistema baseado na documentaÃ
 
 ---
 
-## 11) TC Copilot â€” PrÃ³ximos Passos (GENAI Gateway)
+## 12) TC Copilot â€” PrÃ³ximos Passos (GENAI Gateway)
 
 ### IntegraÃ§Ã£o GENAI Stellantis
 - Modelos: GPT-4, Llama 3, Mistral, Cohere via GENAI Gateway

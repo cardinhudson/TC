@@ -29,6 +29,21 @@ from tc_core.utils.portabilidade import get_data_root
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+#  Validação de colunas: se o agg não tem as colunas do schema, fallback.
+# ---------------------------------------------------------------------------
+
+def _agg_schema_columns(variant_name: str) -> set[str]:
+    """Retorna o conjunto de colunas esperadas no schema AGG (lazy import)."""
+    try:
+        from tc_core.parquet_schemas import AGG_SCHEMAS
+        schema = AGG_SCHEMAS.get(variant_name)
+        if schema:
+            return set(schema.get("group_keys", [])) | set(schema.get("sum_columns", []))
+    except Exception:
+        pass
+    return set()
+
+# ---------------------------------------------------------------------------
 #  Mapeamento: parquet original → variante otimizada
 # ---------------------------------------------------------------------------
 
@@ -108,16 +123,38 @@ def read_optimized(
                 logger.info("DataRouter: usando %s (otimizado)", variant_name)
                 with perf_timer() as t:
                     df = pd.read_parquet(path, columns=columns)
-                log_data_source(
-                    consumer=consumer,
-                    logical_dataset=table,
-                    physical_path=path,
-                    mode=mode,
-                    nrows=len(df),
-                    ncols=len(df.columns),
-                    load_ms=t.elapsed_ms,
-                )
-                return df
+                # Validar que o agg tem todas as colunas do schema atualizado
+                if prefer == "agg" and columns is None:
+                    expected = _agg_schema_columns(variant_name)
+                    if expected and not expected.issubset(set(df.columns)):
+                        missing = expected - set(df.columns)
+                        logger.warning(
+                            "DataRouter: %s desatualizado (faltam %s), fallback para %s",
+                            variant_name, missing, table,
+                        )
+                        # Não retornar — cairá no fallback full abaixo
+                    else:
+                        log_data_source(
+                            consumer=consumer,
+                            logical_dataset=table,
+                            physical_path=path,
+                            mode=mode,
+                            nrows=len(df),
+                            ncols=len(df.columns),
+                            load_ms=t.elapsed_ms,
+                        )
+                        return df
+                else:
+                    log_data_source(
+                        consumer=consumer,
+                        logical_dataset=table,
+                        physical_path=path,
+                        mode=mode,
+                        nrows=len(df),
+                        ncols=len(df.columns),
+                        load_ms=t.elapsed_ms,
+                    )
+                    return df
             logger.info(
                 "DataRouter: %s não encontrado, fallback para %s",
                 variant_name, table,

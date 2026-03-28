@@ -6,6 +6,7 @@ import numpy as np
 import unicodedata
 from datetime import datetime
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from versionamento import obter_versao_atual, verificar_mudancas_paginas
 from tc_principal.ui_components import render_sidebar_global, render_inline_summary_metrics
 
@@ -31,7 +32,17 @@ from tc_core.feature_flags import get_flag as _get_flag
 from tc_core.telemetry import log_data_source, perf_timer
 from tc_ext.normalizacao import padronizar_colunas
 from tc_ext.metricas_tc_ext import cpu_por_chaves
-from tc_principal.shared import COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button, build_cpu_tooltip_payload
+from tc_principal.shared import COLUNAS_BE_DETALHADO, reordenar_colunas_be, download_excel_button, build_cpu_tooltip_payload, build_delta_tooltip_payload
+from tc_ext.utils.home_chart_style import (
+    PADRONIZAR_HOME_TCEXT as _STD,
+    purple_gradient_scale, purple_colorscale_plotly,
+    flex_line_config, flex_circle_size, flex_label_config,
+    delta_bar_size, delta_label_config_pos, delta_label_config_neg,
+    apply_chart_height, legend_bottom, transparent_view_config,
+    bar_label_bg_config, bar_label_fg_config, rank_layout_config,
+    ORANGE_FLEX, DELTA_LABEL_COLOR, LABEL_BG, LABEL_FG,
+    PURPLE_LIGHT, PURPLE_DARK, DELTA_GREEN, DELTA_RED, LABEL_FONT_SIZE,
+)
 
 
 def _tc_ext_data_root() -> str:
@@ -877,6 +888,10 @@ def load_data(ano_selecionado_param):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
@@ -1247,6 +1262,10 @@ def load_data(ano_selecionado_param):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception as e:
         st.error(f"❌ Erro ao carregar dados: {str(e)}")
@@ -1326,6 +1345,10 @@ def load_volume_data(ano_selecionado_param):
         # Converter ints para tipos menores
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
+
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
 
         return df
     except Exception:
@@ -1576,6 +1599,10 @@ def load_budget_data(ano_selecionado_param):
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
 
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+
         return df
     except Exception:
         return None
@@ -1654,6 +1681,10 @@ def load_budget_volume_data(ano_selecionado_param):
         # Converter ints para tipos menores
         for col in df.select_dtypes(include=['int64']).columns:
             df[col] = pd.to_numeric(df[col], downcast='integer')
+
+        # Normalizar coluna Ano para int (parquets podem ter float por NaN em concat)
+        if 'Ano' in df.columns:
+            df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
 
         return df
     except Exception:
@@ -2864,6 +2895,242 @@ def calcular_flex_budget(df_real, df_real_vol, df_budget, df_budget_vol, tipo_vi
         return None
 
 
+# ═══════════════════════════════════════════════════════════════
+#  PLOTLY PERIOD CHART  (padrão TC Veículos — ativado por _STD)
+# ═══════════════════════════════════════════════════════════════
+
+def _render_period_plotly(
+    chart_data: pd.DataFrame,
+    budget_data,            # DataFrame | None
+    coluna: str,
+    coluna_periodo_grafico: str,
+    ordem_periodos: list,
+    titulo_y: str,
+    tipo_viz: str,
+    moeda_simbolo: str,
+    tem_ano: bool = False,
+    hover_payloads_bar: dict | None = None,
+    hover_payloads_budget: dict | None = None,
+    hover_payloads_delta: dict | None = None,
+):
+    """Renderiza gráfico de Período usando Plotly (mesmo padrão do TC Veículos).
+
+    Recebe dados JÁ PREPARADOS por create_period_chart (aggregation, Flex calc, etc.).
+    Retorna um plotly.graph_objects.Figure.
+    """
+    try:
+        x_col = coluna_periodo_grafico
+        tem_flex = budget_data is not None and len(budget_data) > 0
+
+        # ── Subplots: delta em cima, barras embaixo ──
+        n_rows = 2 if tem_flex else 1
+        row_heights = [0.162, 0.838] if tem_flex else [1.0]
+        fig = make_subplots(
+            rows=n_rows, cols=1, shared_xaxes=True,
+            vertical_spacing=0.17,
+            row_heights=row_heights,
+        )
+        bar_row = n_rows  # barras sempre na última linha
+
+        # ════════════════════════════════════════
+        # BARRAS PRINCIPAIS (degradê roxo)
+        # ════════════════════════════════════════
+        df_agg = chart_data.copy()
+        # Criar chave de hover antes de converter para Categorical
+        df_agg['_hover_key'] = df_agg[x_col].astype(str).str.strip()
+        df_agg[x_col] = pd.Categorical(df_agg[x_col], categories=ordem_periodos, ordered=True)
+        df_agg = df_agg.sort_values(x_col)
+        # Substituir NaN por 0 para plotar (NaN = sem dado naquele período)
+        vals = df_agg[coluna].fillna(0).values
+
+        # Gerar cores degradê roxo (claro→escuro proporcional ao valor)
+        v_min = float(vals.min()) if len(vals) > 0 else 0
+        v_max = float(vals.max()) if len(vals) > 0 else 1
+        if v_max == v_min:
+            v_max = v_min + 1
+        bar_colors = []
+        for v in vals:
+            t = (v - v_min) / (v_max - v_min) if v_max > v_min else 0.5
+            r = int(216 + t * (76 - 216))
+            g = int(180 + t * (29 - 180))
+            b = int(254 + t * (149 - 254))
+            bar_colors.append(f'rgb({r},{g},{b})')
+
+        # ── Tooltip rico (se disponível) ──
+        _real_hover = None
+        if hover_payloads_bar:
+            _real_hover = [hover_payloads_bar.get(p, '') for p in df_agg['_hover_key']]
+            if not any(_real_hover):
+                _real_hover = None
+        _bar_kw = (
+            dict(hovertext=_real_hover, hovertemplate='%{hovertext}<extra></extra>')
+            if _real_hover
+            else dict(hovertemplate=f'%{{x}}<br>{coluna}: %{{y:,.2f}}<extra>Real</extra>')
+        )
+
+        fig.add_trace(go.Bar(
+            x=df_agg[x_col].astype(str),
+            y=vals,
+            name='Real',
+            marker_color=bar_colors,
+            textposition='none',
+            showlegend=False,
+            **_bar_kw,
+        ), row=bar_row, col=1)
+
+        # Rótulos na base interna com caixa cinza
+        for idx_row in range(len(df_agg)):
+            _val = vals[idx_row]
+            if pd.notna(_val) and _val != 0:
+                fig.add_annotation(
+                    x=str(df_agg[x_col].iloc[idx_row]),
+                    y=_val * 0.05,
+                    text=f'{_val:,.2f}',
+                    showarrow=False,
+                    font=dict(size=LABEL_FONT_SIZE, color=LABEL_FG),
+                    bgcolor=LABEL_BG,
+                    borderpad=2,
+                    xref=f'x{bar_row}' if bar_row > 1 else 'x',
+                    yref=f'y{bar_row}' if bar_row > 1 else 'y',
+                    yanchor='bottom',
+                )
+
+        # ════════════════════════════════════════
+        # LINHA FLEX BUD (laranja pontilhada)
+        # ════════════════════════════════════════
+        if tem_flex:
+            bud = budget_data.copy()
+            bud[x_col] = pd.Categorical(bud[x_col], categories=ordem_periodos, ordered=True)
+            bud = bud.sort_values(x_col)
+            flex_vals = bud[coluna].fillna(0).values
+
+            # ── Tooltip rico Flex Bud ──
+            _flex_hover = None
+            if hover_payloads_budget:
+                bud['_hover_key'] = bud[x_col].astype(str).str.strip()
+                _flex_hover = [hover_payloads_budget.get(p, '') for p in bud['_hover_key']]
+                if not any(_flex_hover):
+                    _flex_hover = None
+            _flex_kw = (
+                dict(hovertext=_flex_hover, hovertemplate='%{hovertext}<extra></extra>')
+                if _flex_hover
+                else dict(hovertemplate=f'%{{x}}<br>Flex Bud: %{{y:,.2f}}<extra>Flex Bud</extra>')
+            )
+
+            fig.add_trace(go.Scatter(
+                x=bud[x_col].astype(str),
+                y=flex_vals,
+                name='Flex Bud',
+                mode='lines+markers+text',
+                line=dict(color=ORANGE_FLEX, width=2, dash='dot'),
+                marker=dict(color=ORANGE_FLEX, size=7),
+                text=flex_vals,
+                texttemplate='%{y:,.2f}',
+                textposition='top center',
+                cliponaxis=False,
+                textfont=dict(size=11, color=ORANGE_FLEX),
+                **_flex_kw,
+            ), row=bar_row, col=1)
+
+            # ════════════════════════════════════════
+            # DELTA (mini-barras no topo)
+            # ════════════════════════════════════════
+            delta_real = df_agg.groupby(x_col, as_index=False, observed=False)[coluna].sum()
+            delta_flex_agg = bud.groupby(x_col, as_index=False, observed=False)[coluna].sum()
+            delta_flex_agg = delta_flex_agg.rename(columns={coluna: '_Flex'})
+            delta_data = delta_real.merge(delta_flex_agg, on=x_col, how='left')
+            delta_data['_Flex'] = delta_data['_Flex'].fillna(0)
+            delta_data['Delta'] = delta_data[coluna].fillna(0) - delta_data['_Flex']
+            # Criar chave de hover antes de converter para Categorical
+            delta_data['_hover_key'] = delta_data[x_col].astype(str).str.strip()
+            delta_data[x_col] = pd.Categorical(delta_data[x_col], categories=ordem_periodos, ordered=True)
+            delta_data = delta_data.sort_values(x_col)
+
+            delta_colors = [DELTA_GREEN if d < 0 else DELTA_RED for d in delta_data['Delta']]
+
+            # ── Tooltip rico Delta ──
+            _delta_hover = None
+            if hover_payloads_delta:
+                _delta_hover = [hover_payloads_delta.get(p, '') for p in delta_data['_hover_key']]
+                if not any(_delta_hover):
+                    _delta_hover = None
+            # Fallback: tooltip simples (mesmo padrão TC Veículos)
+            _delta_kw = (
+                dict(hovertext=_delta_hover, hovertemplate='%{hovertext}<extra></extra>')
+                if _delta_hover
+                else dict(hovertemplate='%{x}<br>Delta: %{y:,.2f}<extra>Delta (Real - Flex Bud)</extra>')
+            )
+
+            fig.add_trace(go.Bar(
+                x=delta_data[x_col].astype(str),
+                y=delta_data['Delta'],
+                name='Delta (Real - Flex Bud)',
+                marker_color=delta_colors,
+                width=0.315,
+                text=delta_data['Delta'],
+                texttemplate='%{y:,.2f}',
+                textposition='outside',
+                cliponaxis=False,
+                textfont=dict(size=10, color='#000000'),
+                showlegend=False,
+                **_delta_kw,
+            ), row=1, col=1)
+
+            fig.update_yaxes(
+                title_text='Delta (Real - Flex Bud)', row=1, col=1,
+                showgrid=False, zeroline=True,
+                zerolinecolor='rgba(160,160,160,0.35)', zerolinewidth=0.5,
+                tickfont=dict(size=11),
+            )
+            fig.update_xaxes(
+                row=1, col=1,
+                showline=False,
+                showgrid=False,
+                linecolor='rgba(0,0,0,0)',
+                linewidth=0,
+                ticks='',
+            )
+
+        # ════════════════════════════════════════
+        # LAYOUT FINAL
+        # ════════════════════════════════════════
+        n_per = len(ordem_periodos) if ordem_periodos else 1
+        _altura_base = apply_chart_height(n_per, tem_flex)
+
+        fig.update_yaxes(title_text=titulo_y, row=bar_row, col=1,
+                         showgrid=False, automargin=True)
+        fig.update_xaxes(title_text='Período', row=bar_row, col=1,
+                         categoryorder='array', categoryarray=ordem_periodos,
+                         automargin=True, title_standoff=20)
+        if tem_flex:
+            fig.update_xaxes(showticklabels=False, row=1, col=1,
+                             categoryorder='array', categoryarray=ordem_periodos)
+            fig.update_xaxes(showline=False, row=1, col=1)
+            fig.update_xaxes(showline=False, row=bar_row, col=1)
+        else:
+            fig.update_xaxes(showline=False, row=bar_row, col=1)
+
+        fig.update_layout(
+            height=_altura_base,
+            barmode='group',
+            legend=dict(
+                orientation='h', yanchor='top', y=-0.24,
+                xanchor='center', x=0.5, font=dict(size=10),
+            ),
+            margin=dict(l=60, r=30, t=130, b=130),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+        )
+
+        return fig
+
+    except Exception as e:
+        import traceback
+        st.error(f"❌ Erro ao criar gráfico Plotly: {e}")
+        st.code(traceback.format_exc())
+        return None
+
+
 # Gráfico 1: Soma do Valor por Período
 # Cache removido: DataFrames grandes podem causar problemas de hash
 def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol=None, df_real_vol=None, df_real_original=None, moeda_simbolo="R$", debug=False, debug_context=""):
@@ -3151,7 +3418,6 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                         chart_data['Volume'].isna() | (chart_data['Volume'] == 0),
                         coluna
                     ] = np.nan
-                    chart_data = chart_data.drop(columns=['Volume'])
             else:
                 vol_agr = df_real_vol.groupby('Período')['Volume'].sum().reset_index()
                 chart_data = chart_data.merge(vol_agr, on='Período', how='left')
@@ -3160,7 +3426,6 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                         chart_data['Volume'].isna() | (chart_data['Volume'] == 0),
                         coluna
                     ] = np.nan
-                    chart_data = chart_data.drop(columns=['Volume'])
 
         # Não cortar meses futuros aqui.
         # O gráfico deve refletir os dados disponíveis (ex.: Budget/Forecast pode ter o ano completo).
@@ -3204,36 +3469,46 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
             st.warning("⚠️ Nenhum dado disponível após agrupamento e filtros.")
             return None
 
+        # ── ALTAIR RENDERER (legado, quando _STD=False) ──
         # Usar gradiente baseado no valor da coluna (como na figura 1)
         n_periodos = len(ordem_periodos) if 'ordem_periodos' in locals() else 0
-        altura_grafico = min(520, max(260, 18 * n_periodos + 120)) if n_periodos else 260
+        _tem_flex_hint = df_budget is not None and not (df_budget.empty if hasattr(df_budget, 'empty') else True)
+        altura_grafico = apply_chart_height(n_periodos, _tem_flex_hint) if _STD else (
+            min(520, max(260, 18 * n_periodos + 120)) if n_periodos else 260
+        )
+
+        _bar_color_scale = purple_gradient_scale(chart_data[coluna].dropna().values) if _STD else alt.Scale(scheme='blues')
+        _bar_legend = None if _STD else alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=12)
 
         grafico_barras = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X(
                 f'{coluna_periodo_grafico}:N',
                 title='Período',
                 sort=ordem_periodos,
-                axis=alt.Axis(grid=False, domain=True, ticks=True)
+                axis=alt.Axis(grid=False, domain=False if _STD else True, ticks=True)
             ),
             y=alt.Y(f'{coluna}:Q', title=titulo_y, axis=alt.Axis(grid=False, domain=True, ticks=True)),
             color=alt.Color(
                 f'{coluna}:Q',
                 title=coluna,
-                scale=alt.Scale(scheme='blues'),
-                legend=alt.Legend(title=coluna, orient='right', titleFontSize=10, labelFontSize=12)
+                scale=_bar_color_scale,
+                legend=_bar_legend
             ),
-            tooltip=[
-                alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
-                alt.Tooltip(
-                    f'{coluna}:Q',
-                    title=coluna,
-                    format=',.2f' if tipo_viz == "CPU (Custo por Unidade)"
-                    else ',.2f'
+            tooltip=(
+                [
+                    alt.Tooltip(f'{coluna_periodo_grafico}:N', title='Período'),
+                    alt.Tooltip(f'{coluna}:Q', title=coluna, format=',.2f'),
+                ] + (
+                    [alt.Tooltip('Volume:Q', title='Volume', format=',.0f')]
+                    if _STD and 'Volume' in chart_data.columns else []
+                ) + (
+                    [alt.Tooltip('Total:Q', title=f'Total ({moeda_simbolo})', format=',.2f')]
+                    if _STD and 'Total' in chart_data.columns else []
                 )
-            ]
+            )
         ).properties(
             height=altura_grafico,
-            width=900
+            width='container' if _STD else 900
         )
 
         # Adicionar rótulos com valores nas barras (base interna com halo cinza)
@@ -3242,24 +3517,19 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
         )
         # Fundo cinza (halo) atrás do texto para legibilidade
         rotulos_bg = grafico_barras.mark_text(
-            align='center',
-            baseline='bottom',
-            dy=14,
-            fontSize=12,
-            color='rgba(200,200,200,0.85)',
-            strokeWidth=4,
-            stroke='rgba(200,200,200,0.85)',
+            **(bar_label_bg_config() if _STD else dict(
+                align='center', baseline='bottom', dy=14, fontSize=12,
+                color='rgba(200,200,200,0.85)', strokeWidth=4, stroke='rgba(200,200,200,0.85)',
+            ))
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
         ).transform_filter(
             (alt.datum[coluna] != None) & (alt.datum[coluna] != 0)
         )
         rotulos = grafico_barras.mark_text(
-            align='center',
-            baseline='bottom',
-            dy=14,
-            color='#333333',
-            fontSize=12
+            **(bar_label_fg_config() if _STD else dict(
+                align='center', baseline='bottom', dy=14, color='#333333', fontSize=12,
+            ))
         ).encode(
             text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
         ).transform_filter(
@@ -3587,7 +3857,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                             
                             # Adicionar bolinhas nos pontos da linha
                             pontos_budget = alt.Chart(budget_data_legenda).mark_circle(
-                                size=80,
+                                size=flex_circle_size() if _STD else 80,
                                 opacity=0.9
                             ).encode(
                                 x=alt.X(
@@ -3620,13 +3890,11 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                             
                             # Adicionar rótulos de texto na linha pontilhada
                             formato_rotulo_budget = ',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
+                            _flbl = flex_label_config() if _STD else dict(
+                                align='center', baseline='bottom', dy=-15, color='#FF6B35', fontSize=12, fontWeight='bold',
+                            )
                             rotulos_budget = alt.Chart(budget_data_legenda).mark_text(
-                                align='center',
-                                baseline='bottom',
-                                dy=-15,
-                                color='#FF6B35',
-                                fontSize=12,
-                                fontWeight='bold'
+                                **_flbl
                             ).encode(
                                 x=alt.X(
                                     f'{campo_x}:N',
@@ -3654,6 +3922,123 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     linha_budget = None
             else:
                 budget_data = None
+
+        # ── PLOTLY RENDERER (padrão TC Veículos) ──
+        # Agora budget_data já foi calculado (ou None se não há budget)
+        if _STD:
+            # Pré-computar tooltips ricos (Type 05 → Type 06 breakdown)
+            _hover_bar = None
+            _hover_bud = None
+            _hover_delta = None
+            _is_cpu = tipo_viz == "CPU (Custo por Unidade)"
+            _valor_col_tt = 'Total' if 'Total' in df_data.columns else coluna
+            _sufixo_tt = ''
+            # Dados detalhados (com Type 05/06) para tooltip
+            _df_tt = (df_real_para_flex if 'df_real_para_flex' in locals() and df_real_para_flex is not None
+                      else df_data)
+            _grp_col_tt = coluna_periodo_grafico
+            if tem_ano and 'Ano' in _df_tt.columns and coluna_periodo_grafico == 'Período_Completo':
+                if 'Período_Completo' not in _df_tt.columns:
+                    _df_tt = _df_tt.copy()
+                    _df_tt['Período_Completo'] = (
+                        _df_tt['Período'].astype(str).str.strip() + ' '
+                        + _df_tt['Ano'].astype(str).str.strip()
+                    )
+            _periodos_tt = [str(p).strip() for p in ordem_periodos]
+
+            # Volume real por período
+            _vol_dict: dict[str, float] = {}
+            if df_real_vol is not None and 'Volume' in df_real_vol.columns and 'Período' in df_real_vol.columns:
+                _tmp_v = df_real_vol.copy()
+                if tem_ano and 'Ano' in _tmp_v.columns:
+                    _tmp_v['_key'] = _tmp_v['Período'].astype(str).str.strip() + ' ' + _tmp_v['Ano'].astype(str).str.strip()
+                else:
+                    _tmp_v['_key'] = _tmp_v['Período'].astype(str).str.strip()
+                _tmp_v['Volume'] = pd.to_numeric(_tmp_v['Volume'], errors='coerce').fillna(0)
+                _vg = _tmp_v.groupby('_key', as_index=False)['Volume'].sum()
+                _vol_dict = dict(zip(_vg['_key'], _vg['Volume']))
+
+            # Volume budget por período
+            _vol_bud_dict: dict[str, float] = {}
+            if df_budget_vol is not None and 'Volume' in df_budget_vol.columns and 'Período' in df_budget_vol.columns:
+                _tmp_vb = df_budget_vol.copy()
+                if tem_ano and 'Ano' in _tmp_vb.columns:
+                    _tmp_vb['_key'] = _tmp_vb['Período'].astype(str).str.strip() + ' ' + _tmp_vb['Ano'].astype(str).str.strip()
+                else:
+                    _tmp_vb['_key'] = _tmp_vb['Período'].astype(str).str.strip()
+                _tmp_vb['Volume'] = pd.to_numeric(_tmp_vb['Volume'], errors='coerce').fillna(0)
+                _vgb = _tmp_vb.groupby('_key', as_index=False)['Volume'].sum()
+                _vol_bud_dict = dict(zip(_vgb['_key'], _vgb['Volume']))
+
+            try:
+                if 'Type 05' in _df_tt.columns:
+                    _hover_bar = build_cpu_tooltip_payload(
+                        _df_tt, _periodos_tt, _valor_col_tt, _vol_dict,
+                        moeda_simbolo, _sufixo_tt, serie_label='Real',
+                        is_cpu=_is_cpu, group_col=_grp_col_tt,
+                    )
+                if df_budget is not None and 'Type 05' in df_budget.columns:
+                    _df_bud_tt = df_budget.copy()
+                    if tem_ano and 'Ano' in _df_bud_tt.columns and _grp_col_tt == 'Período_Completo':
+                        _df_bud_tt['Período_Completo'] = (
+                            _df_bud_tt['Período'].astype(str).str.strip() + ' '
+                            + _df_bud_tt['Ano'].astype(str).str.strip()
+                        )
+                    _hover_bud = build_cpu_tooltip_payload(
+                        _df_bud_tt, _periodos_tt, _valor_col_tt,
+                        _vol_bud_dict if _vol_bud_dict else _vol_dict,
+                        moeda_simbolo, _sufixo_tt, serie_label='Flex Bud',
+                        is_cpu=_is_cpu, group_col=_grp_col_tt,
+                        flex_mode=True, vol_actual_dict=_vol_dict,
+                    )
+            except Exception as _e_tt:
+                import logging as _lg
+                _lg.getLogger('tc_ext').warning('Tooltip bar/bud pre-comp failed: %s', _e_tt)
+                _hover_bar = None
+                _hover_bud = None
+
+            try:
+                if ('Type 05' in _df_tt.columns
+                        and df_budget is not None and 'Type 05' in df_budget.columns):
+                    _df_bud_delta = df_budget.copy()
+                    if tem_ano and 'Ano' in _df_bud_delta.columns and _grp_col_tt == 'Período_Completo':
+                        _df_bud_delta['Período_Completo'] = (
+                            _df_bud_delta['Período'].astype(str).str.strip() + ' '
+                            + _df_bud_delta['Ano'].astype(str).str.strip()
+                        )
+                    _hover_delta = build_delta_tooltip_payload(
+                        _df_tt, _df_bud_delta, _periodos_tt, _valor_col_tt,
+                        _vol_dict, _vol_bud_dict,
+                        moeda_simbolo, _sufixo_tt,
+                        serie_label='Delta (Real - Flex Bud)',
+                        is_cpu=_is_cpu, group_col=_grp_col_tt,
+                    )
+            except Exception as _e_dt:
+                import logging as _lg
+                _lg.getLogger('tc_ext').warning('Tooltip delta pre-comp failed: %s', _e_dt)
+                _hover_delta = None
+
+            import logging as _lg_debug
+            _lg_debug.getLogger('tc_ext').info(
+                'Delta tooltip: hover_bar=%s, hover_bud=%s, hover_delta=%s, budget_data=%s',
+                bool(_hover_bar), bool(_hover_bud), bool(_hover_delta),
+                budget_data is not None and len(budget_data) > 0 if budget_data is not None else False,
+            )
+
+            return _render_period_plotly(
+                chart_data=chart_data,
+                budget_data=budget_data,
+                coluna=coluna,
+                coluna_periodo_grafico=coluna_periodo_grafico,
+                ordem_periodos=ordem_periodos,
+                titulo_y=titulo_y,
+                tipo_viz=tipo_viz,
+                moeda_simbolo=moeda_simbolo,
+                tem_ano=tem_ano,
+                hover_payloads_bar=_hover_bar,
+                hover_payloads_budget=_hover_bud,
+                hover_payloads_delta=_hover_delta,
+            )
 
         # Criar gráfico de delta (Real - Flex Bud) se budget_data estiver disponível
         # IMPORTANTE: No modo CPU, garantir que budget_data seja usado mesmo se estiver vazio
@@ -3716,7 +4101,7 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 
                 # Criar gráfico de barras para delta (mais baixo)
                 grafico_delta = alt.Chart(delta_data).mark_bar(
-                    size=20  # Barras mais finas
+                    size=delta_bar_size() if _STD else 20
                 ).encode(
                     x=alt.X(
                         f'{campo_x_delta}:N',
@@ -3753,12 +4138,11 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                 # Adicionar rótulos de dados no gráfico de delta
                 # Posicionar acima para valores positivos e abaixo para negativos
                 # Usar a mesma cor das barras (verde para negativo, vermelho para positivo)
+                _dlp = delta_label_config_pos() if _STD else dict(
+                    align='center', baseline='bottom', dy=-12, fontSize=12, fontWeight='bold',
+                )
                 rotulos_delta_positivos = alt.Chart(delta_data[delta_data['Delta'] >= 0]).mark_text(
-                    align='center',
-                    baseline='bottom',
-                    dy=-12,
-                    fontSize=12,
-                    fontWeight='bold'
+                    **_dlp
                 ).encode(
                     x=alt.X(
                         f'{campo_x_delta}:N',
@@ -3767,24 +4151,13 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     ),
                     y=alt.Y('Delta:Q', title=''),
                     text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color(
-                        'Delta:Q',
-                        scale=alt.Scale(
-                            domain=[0, delta_max],
-                            range=['#FFFFFF', '#FF0000'],  # Branco (zero) -> Vermelho (positivo)
-                            type='linear',
-                            nice=False
-                        ),
-                        legend=None
-                    )
                 )
                 
+                _dln = delta_label_config_neg() if _STD else dict(
+                    align='center', baseline='top', dy=12, fontSize=12, fontWeight='bold',
+                )
                 rotulos_delta_negativos = alt.Chart(delta_data[delta_data['Delta'] < 0]).mark_text(
-                    align='center',
-                    baseline='top',
-                    dy=12,
-                    fontSize=12,
-                    fontWeight='bold'
+                    **_dln
                 ).encode(
                     x=alt.X(
                         f'{campo_x_delta}:N',
@@ -3793,16 +4166,6 @@ def create_period_chart(df_data, coluna, tipo_viz, df_budget=None, df_budget_vol
                     ),
                     y=alt.Y('Delta:Q', title=''),
                     text=alt.Text('Delta:Q', format=',.2f'),
-                    color=alt.Color(
-                        'Delta:Q',
-                        scale=alt.Scale(
-                            domain=[delta_min, 0],
-                            range=['#00AA00', '#FFFFFF'],  # Verde (negativo) -> Branco (zero)
-                            type='linear',
-                            nice=False
-                        ),
-                        legend=None
-                    )
                 )
                 
                 # Combinar gráfico de delta com rótulos
@@ -3960,11 +4323,10 @@ def create_volume_chart(df_data, df_budget_vol=None):
                     budget_vol_data_legenda['Tipo'] = 'Volume Budget'
                     
                     # Criar linha tracejada de volume do budget
+                    _vol_flex = flex_line_config() if _STD else dict(strokeDash=[10, 5], strokeWidth=1.5, opacity=0.8)
                     linha_budget_vol = alt.Chart(budget_vol_data_legenda).mark_line(
-                        strokeDash=[10, 5],
-                        strokeWidth=1.5,
                         color='#FF6B35',
-                        opacity=0.8
+                        **_vol_flex
                     ).encode(
                         x=alt.X(
                             f'{campo_x}:N',
@@ -3997,7 +4359,7 @@ def create_volume_chart(df_data, df_budget_vol=None):
                     
                     # Adicionar bolinhas nos pontos da linha
                     pontos_budget_vol = alt.Chart(budget_vol_data_legenda).mark_circle(
-                        size=80,
+                        size=flex_circle_size() if _STD else 80,
                         color='#FF6B35',
                         opacity=0.9
                     ).encode(
@@ -4941,6 +5303,35 @@ if is_main_page:
     with tab1:
         @st.fragment
         def _render_tab1():
+            # ── Toggle Real / BE (Simulado) ──────────────────────────
+            if _STD:
+                st.markdown("---")
+                _fonte_dados_ext = st.radio(
+                    "📊 Fonte de Dados",
+                    ["Real", "BE (Simulado)"],
+                    index=0,
+                    horizontal=True,
+                    key="t1_fonte_dados_ext",
+                )
+                _usar_be_ext = _fonte_dados_ext == "BE (Simulado)"
+                if _usar_be_ext:
+                    _be_path_ext = os.path.join(_tc_ext_data_root(), "Forecast", "forecast_completo.parquet")
+                    _be_disponivel = os.path.exists(_be_path_ext)
+                    if not _be_disponivel:
+                        st.warning(
+                            "⚠️ **Forecast (Best Estimate) ainda não foi gerado para TC Ext.**\n\n"
+                            "Para gerar o forecast:\n"
+                            "1. Acesse a página **🔮 Best Estimate — Simulador**\n"
+                            "2. Configure os parâmetros e gere o forecast\n"
+                            "3. Volte a esta página\n\n"
+                            "Exibindo dados **Reais** como fallback."
+                        )
+                        _usar_be_ext = False
+                    else:
+                        st.info("ℹ️ Dados BE exibidos na aba **📋 Detalhe Real** → seção **🪄 Dados BE Detalhados**. "
+                                "Integração nos gráficos Home em desenvolvimento.")
+                        _usar_be_ext = False  # Fallback to Real for charts until full integration
+
             # Exibir gráfico por Período
             # No modo CPU, a coluna 'CPU' pode não existir ainda em df_visualizacao,
             # mas será criada dentro do bloco. Verificar apenas se 'Período' existe.
@@ -5521,7 +5912,10 @@ if is_main_page:
                         )
                         if grafico_periodo is not None:
                             # Exibir gráfico no placeholder (renderização imediata)
-                            chart_placeholder.altair_chart(grafico_periodo, use_container_width=True)
+                            if isinstance(grafico_periodo, go.Figure):
+                                chart_placeholder.plotly_chart(grafico_periodo, use_container_width=True)
+                            else:
+                                chart_placeholder.altair_chart(grafico_periodo, use_container_width=True)
                         else:
                             chart_placeholder.warning("⚠️ O gráfico não pôde ser criado. Verifique os dados e filtros aplicados.")
                 except Exception as e:
@@ -7716,17 +8110,24 @@ if is_main_page:
                 )
 
                 # Adicionar rótulos com valores nas barras
+                rotulos_bg = grafico_barras.mark_text(
+                    **(bar_label_bg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='rgba(200,200,200,0.85)', strokeWidth=4, stroke='rgba(200,200,200,0.85)', fontSize=12,
+                    ))
+                ).encode(
+                    text=alt.Text(f'{coluna}:Q', format=',.2f')
+                )
                 rotulos = grafico_barras.mark_text(
-                    align='center',
-                    baseline='middle',
-                    dy=-10,
-                    color='black',
-                    fontSize=12
+                    **(bar_label_fg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='black', fontSize=12,
+                    ))
                 ).encode(
                     text=alt.Text(f'{coluna}:Q', format=',.2f')
                 )
 
-                return grafico_barras + rotulos
+                return grafico_barras + rotulos_bg + rotulos
             else:
                 # Gráfico normal sem separação por veículo
                 # Para CPU, calcular SEM depender de Volume já mergeado em df_data.
@@ -7788,7 +8189,10 @@ if is_main_page:
                             vol = pd.to_numeric(chart_data['Volume'], errors='coerce').fillna(0)
                             tot = pd.to_numeric(chart_data['Total'], errors='coerce').fillna(0)
                             chart_data[coluna] = np.where(vol != 0, tot / vol, 0)
-                            chart_data = chart_data[['Oficina', coluna]]
+                            if _STD:
+                                chart_data = chart_data[['Oficina', coluna, 'Volume', 'Total']]
+                            else:
+                                chart_data = chart_data[['Oficina', coluna]]
                         else:
                             chart_data = df_data.groupby('Oficina')[coluna].sum().reset_index()
                     except Exception:
@@ -8183,13 +8587,11 @@ if is_main_page:
                                 
                                     # Adicionar rótulos
                                     formato_rotulo_budget = ',.2f' if tipo_viz == "CPU (Custo por Unidade)" else ',.2f'
+                                    _flbl_of = flex_label_config() if _STD else dict(
+                                        align='center', baseline='bottom', dy=-20, color='#FF6B35', fontSize=12, fontWeight='bold',
+                                    )
                                     rotulos_budget = alt.Chart(budget_data_legenda).mark_text(
-                                        align='center',
-                                        baseline='bottom',
-                                        dy=-20,
-                                        color='#FF6B35',
-                                        fontSize=12,
-                                        fontWeight='bold'
+                                        **_flbl_of
                                     ).encode(
                                         x=alt.X('Oficina:N', sort=ordem_oficinas),
                                         y=alt.Y(f'{coluna}:Q'),
@@ -8248,15 +8650,19 @@ if is_main_page:
                             symbolType='square'
                         )
                     ),
-                    tooltip=[
-                        alt.Tooltip('Oficina:N', title='Oficina'),
-                        alt.Tooltip('Tipo:N', title='Tipo'),
-                        alt.Tooltip(
-                            f'{coluna}:Q',
-                            title=coluna,
-                            format=formato_rotulo
+                    tooltip=(
+                        [
+                            alt.Tooltip('Oficina:N', title='Oficina'),
+                            alt.Tooltip('Tipo:N', title='Tipo'),
+                            alt.Tooltip(f'{coluna}:Q', title=coluna, format=formato_rotulo),
+                        ] + (
+                            [alt.Tooltip('Volume:Q', title='Volume', format=',.0f')]
+                            if _STD and 'Volume' in chart_data.columns else []
+                        ) + (
+                            [alt.Tooltip('Total:Q', title=f'Total ({moeda_simbolo})', format=',.2f')]
+                            if _STD and 'Total' in chart_data.columns else []
                         )
-                    ]
+                    )
                 ).properties(
                     height=300,
                     width=900
@@ -8264,12 +8670,20 @@ if is_main_page:
                 )
 
                 # Adicionar rótulos com valores nas barras
+                rotulos_bg = grafico_barras.mark_text(
+                    **(bar_label_bg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='rgba(200,200,200,0.85)', strokeWidth=4, stroke='rgba(200,200,200,0.85)', fontSize=12,
+                    ))
+                ).encode(
+                    x=alt.X('Oficina:N', sort=ordem_oficinas_barras, title='Oficina'),
+                    text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
+                )
                 rotulos = grafico_barras.mark_text(
-                    align='center',
-                    baseline='middle',
-                    dy=-10,
-                    color='black',
-                    fontSize=12
+                    **(bar_label_fg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='black', fontSize=12,
+                    ))
                 ).encode(
                     x=alt.X('Oficina:N', sort=ordem_oficinas_barras, title='Oficina'),
                     text=alt.Text(f'{coluna}:Q', format=formato_rotulo)
@@ -8285,11 +8699,19 @@ if is_main_page:
                         scale=alt.Scale(domain=['Real', 'Flex Bud'], range=['#4A90E2', '#FF6B35']),
                         legend=None
                     ),
-                    tooltip=[
-                        alt.Tooltip('Oficina:N', title='Oficina'),
-                        alt.Tooltip('Tipo:N', title='Tipo'),
-                        alt.Tooltip(f'{coluna}:Q', title=coluna, format=formato_rotulo)
-                    ]
+                    tooltip=(
+                        [
+                            alt.Tooltip('Oficina:N', title='Oficina'),
+                            alt.Tooltip('Tipo:N', title='Tipo'),
+                            alt.Tooltip(f'{coluna}:Q', title=coluna, format=formato_rotulo),
+                        ] + (
+                            [alt.Tooltip('Volume:Q', title='Volume', format=',.0f')]
+                            if _STD and 'Volume' in chart_data.columns else []
+                        ) + (
+                            [alt.Tooltip('Total:Q', title=f'Total ({moeda_simbolo})', format=',.2f')]
+                            if _STD and 'Total' in chart_data.columns else []
+                        )
+                    )
                 )
 
                 # Criar gráfico de delta (Real - Flex Bud) se linha_budget estiver disponível
@@ -8362,48 +8784,26 @@ if is_main_page:
                     
                         # Adicionar rótulos de dados no gráfico de delta
                         # Usar a mesma cor das barras (escala baseada no valor do Delta)
+                        _dlp_of = delta_label_config_pos() if _STD else dict(
+                            align='center', baseline='bottom', dy=-12, fontSize=12, fontWeight='bold',
+                        )
                         rotulos_delta_positivos = alt.Chart(delta_data[delta_data['Delta'] >= 0]).mark_text(
-                            align='center',
-                            baseline='bottom',
-                            dy=-12,
-                            fontSize=12,
-                            fontWeight='bold'
+                            **_dlp_of
                         ).encode(
                             x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
                             y=alt.Y('Delta:Q'),
                             text=alt.Text('Delta:Q', format=',.2f'),
-                            color=alt.Color(
-                                'Delta:Q',
-                                scale=alt.Scale(
-                                    domain=[0, delta_max],
-                                    range=['#FFFFFF', '#FF0000'],  # Branco (zero) -> Vermelho (positivo)
-                                    type='linear',
-                                    nice=False
-                                ),
-                                legend=None
-                            )
                         )
                     
+                        _dln_of = delta_label_config_neg() if _STD else dict(
+                            align='center', baseline='top', dy=12, fontSize=12, fontWeight='bold',
+                        )
                         rotulos_delta_negativos = alt.Chart(delta_data[delta_data['Delta'] < 0]).mark_text(
-                            align='center',
-                            baseline='top',
-                            dy=12,
-                            fontSize=12,
-                            fontWeight='bold'
+                            **_dln_of
                         ).encode(
                             x=alt.X('Oficina:N', sort=ordem_oficinas_delta),
                             y=alt.Y('Delta:Q'),
                             text=alt.Text('Delta:Q', format=',.2f'),
-                            color=alt.Color(
-                                'Delta:Q',
-                                scale=alt.Scale(
-                                    domain=[delta_min, 0],
-                                    range=['#00AA00', '#FFFFFF'],  # Verde (negativo) -> Branco (zero)
-                                    type='linear',
-                                    nice=False
-                                ),
-                                legend=None
-                            )
                         )
                     
                         grafico_delta = grafico_delta + rotulos_delta_positivos + rotulos_delta_negativos
@@ -8414,6 +8814,7 @@ if is_main_page:
                 if linha_budget is not None:
                     grafico_principal = alt.layer(
                         grafico_barras,
+                        rotulos_bg,
                         rotulos,
                         pontos_real,
                         linha_budget
@@ -8436,7 +8837,7 @@ if is_main_page:
                     else:
                         grafico_final = grafico_principal
                 else:
-                    grafico_final = alt.layer(grafico_barras, rotulos, pontos_real)
+                    grafico_final = alt.layer(grafico_barras, rotulos_bg, rotulos, pontos_real)
             
                 return grafico_final
         except Exception as e:
@@ -8525,7 +8926,10 @@ if is_main_page:
                     chart_data['Total'] = pd.to_numeric(chart_data.get('Total', 0), errors='coerce').fillna(0)
                     chart_data['Volume'] = pd.to_numeric(chart_data.get('Volume', 0), errors='coerce').fillna(0)
                     chart_data[coluna] = np.where(chart_data['Volume'] != 0, chart_data['Total'] / chart_data['Volume'], 0)
-                    chart_data = chart_data[['Veículo', coluna]]
+                    if _STD:
+                        chart_data = chart_data[['Veículo', coluna, 'Volume', 'Total']]
+                    else:
+                        chart_data = chart_data[['Veículo', coluna]]
 
                     # Sinalizar que já calculamos corretamente e não precisamos do fallback antigo
                     usar_logica_antiga = False
@@ -8751,13 +9155,11 @@ if is_main_page:
                             )
 
                             # Adicionar rótulos
+                            _flbl_vc = flex_label_config() if _STD else dict(
+                                align='center', baseline='bottom', dy=-15, color='#FF6B35', fontSize=12, fontWeight='bold',
+                            )
                             rotulos_budget = alt.Chart(budget_data_legenda).mark_text(
-                                align='center',
-                                baseline='bottom',
-                                dy=-15,
-                                color='#FF6B35',
-                                fontSize=12,
-                                fontWeight='bold'
+                                **_flbl_vc
                             ).encode(
                                 x=alt.X('Veículo:N', sort=ordem_veiculos),
                                 y=alt.Y(f'{coluna}:Q'),
@@ -8782,14 +9184,18 @@ if is_main_page:
                         title=coluna,
                         scale=alt.Scale(scheme='blues')
                     ),
-                    tooltip=[
-                        alt.Tooltip('Veículo:N', title='Veículo'),
-                        alt.Tooltip(
-                            f'{coluna}:Q',
-                            title=coluna,
-                            format=formato
+                    tooltip=(
+                        [
+                            alt.Tooltip('Veículo:N', title='Veículo'),
+                            alt.Tooltip(f'{coluna}:Q', title=coluna, format=formato),
+                        ] + (
+                            [alt.Tooltip('Volume:Q', title='Volume', format=',.0f')]
+                            if _STD and 'Volume' in chart_data.columns else []
+                        ) + (
+                            [alt.Tooltip('Total:Q', title=f'Total ({moeda_simbolo})', format=',.2f')]
+                            if _STD and 'Total' in chart_data.columns else []
                         )
-                    ]
+                    )
                 ).properties(
                     height=300,
                     width=900
@@ -8889,23 +9295,38 @@ if is_main_page:
             # Adicionar rótulos
             if 'Veículo' in df_data.columns:
                 # Usar a ordem explícita para garantir sincronização
+                rotulos_bg = grafico_barras.mark_text(
+                    **(bar_label_bg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='rgba(200,200,200,0.85)', strokeWidth=4, stroke='rgba(200,200,200,0.85)', fontSize=12,
+                    ))
+                ).encode(
+                    x=alt.X('Veículo:N', sort=ordem_veiculos_barras, title='Veículo'),
+                    text=alt.Text(f'{coluna}:Q', format=formato)
+                )
                 rotulos = grafico_barras.mark_text(
-                    align='center',
-                    baseline='middle',
-                    dy=-10,
-                    color='black',
-                    fontSize=12
+                    **(bar_label_fg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='black', fontSize=12,
+                    ))
                 ).encode(
                     x=alt.X('Veículo:N', sort=ordem_veiculos_barras, title='Veículo'),
                     text=alt.Text(f'{coluna}:Q', format=formato)
                 )
             else:
+                rotulos_bg = grafico_barras.mark_text(
+                    **(bar_label_bg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='rgba(200,200,200,0.85)', strokeWidth=4, stroke='rgba(200,200,200,0.85)', fontSize=12,
+                    ))
+                ).encode(
+                    text=alt.Text(f'{coluna}:Q', format=formato)
+                )
                 rotulos = grafico_barras.mark_text(
-                    align='center',
-                    baseline='middle',
-                    dy=-10,
-                    color='black',
-                    fontSize=12
+                    **(bar_label_fg_config() if _STD else dict(
+                        align='center', baseline='middle', dy=-10,
+                        color='black', fontSize=12,
+                    ))
                 ).encode(
                     text=alt.Text(f'{coluna}:Q', format=formato)
                 )
@@ -8980,48 +9401,26 @@ if is_main_page:
                 
                     # Adicionar rótulos de dados no gráfico de delta
                     # Usar a mesma cor das barras (escala baseada no valor do Delta)
+                    _dlp_vc = delta_label_config_pos() if _STD else dict(
+                        align='center', baseline='bottom', dy=-12, fontSize=12, fontWeight='bold',
+                    )
                     rotulos_delta_positivos = alt.Chart(delta_data[delta_data['Delta'] >= 0]).mark_text(
-                        align='center',
-                        baseline='bottom',
-                        dy=-12,
-                        fontSize=12,
-                        fontWeight='bold'
+                        **_dlp_vc
                     ).encode(
                         x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
                         y=alt.Y('Delta:Q'),
                         text=alt.Text('Delta:Q', format=',.2f'),
-                        color=alt.Color(
-                            'Delta:Q',
-                            scale=alt.Scale(
-                                domain=[0, delta_max],
-                                range=['#FFFFFF', '#FF0000'],  # Branco (zero) -> Vermelho (positivo)
-                                type='linear',
-                                nice=False
-                            ),
-                            legend=None
-                        )
                     )
                 
+                    _dln_vc = delta_label_config_neg() if _STD else dict(
+                        align='center', baseline='top', dy=12, fontSize=12, fontWeight='bold',
+                    )
                     rotulos_delta_negativos = alt.Chart(delta_data[delta_data['Delta'] < 0]).mark_text(
-                        align='center',
-                        baseline='top',
-                        dy=12,
-                        fontSize=12,
-                        fontWeight='bold'
+                        **_dln_vc
                     ).encode(
                         x=alt.X('Veículo:N', sort=ordem_veiculos_delta),
                         y=alt.Y('Delta:Q'),
                         text=alt.Text('Delta:Q', format=',.2f'),
-                        color=alt.Color(
-                            'Delta:Q',
-                            scale=alt.Scale(
-                                domain=[delta_min, 0],
-                                range=['#00AA00', '#FFFFFF'],  # Verde (negativo) -> Branco (zero)
-                                type='linear',
-                                nice=False
-                            ),
-                            legend=None
-                        )
                     )
                 
                     grafico_delta = grafico_delta + rotulos_delta_positivos + rotulos_delta_negativos
@@ -9032,6 +9431,7 @@ if is_main_page:
             if linha_budget is not None:
                 grafico_principal = alt.layer(
                     grafico_barras,
+                    rotulos_bg,
                     rotulos,
                     linha_budget
                 ).resolve_scale(
@@ -9050,7 +9450,7 @@ if is_main_page:
                 else:
                     grafico_final = grafico_principal
             else:
-                grafico_final = grafico_barras + rotulos
+                grafico_final = grafico_barras + rotulos_bg + rotulos
 
             return grafico_final
         except Exception as e:
@@ -9355,16 +9755,19 @@ if is_main_page:
                 else:
                     bar_hover_kwargs = dict(hovertemplate=f"%{{x}}<br>{coluna_valor}: %{{y:,.2f}}<extra></extra>")
 
+                _rank_cs = purple_colorscale_plotly() if _STD else 'Blues'
                 fig = go.Figure(
                     data=[
                         go.Bar(
                             x=df_plot[eixo_x],
                             y=valores,
                             text=[f"{v:,.2f}" for v in valores],
-                            textposition='outside',
+                            textposition='inside' if _STD else 'outside',
+                            insidetextanchor='start' if _STD else None,
+                            textfont=dict(size=10, color=DELTA_LABEL_COLOR) if _STD else None,
                             marker=dict(
                                 color=valores,
-                                colorscale='Blues',
+                                colorscale=_rank_cs,
                                 showscale=False
                             ),
                             **bar_hover_kwargs,
@@ -9392,20 +9795,22 @@ if is_main_page:
                             y=df_line[coluna_valor],
                             mode='lines+markers+text',
                             name='Flex Bud',
-                            line=dict(color='#FF6B35', width=2, dash='dash'),
-                            marker=dict(size=6),
+                            line=dict(color=ORANGE_FLEX, width=2, dash='dot' if _STD else 'dash'),
+                            marker=dict(size=7 if _STD else 6),
                             text=[f"{v:,.2f}" for v in df_line[coluna_valor].fillna(0).tolist()],
                             textposition='top center',
                             **bud_hover_kwargs,
                         )
                     )
 
+                _rlc = rank_layout_config() if _STD else dict(
+                    margin=dict(l=20, r=20, t=60, b=40), height=460,
+                )
                 fig.update_layout(
                     title=titulo,
                     xaxis_title=eixo_x,
                     yaxis_title=f"{coluna_valor} ({moeda})" if coluna_valor != 'CPU' else coluna_valor,
-                    margin=dict(l=20, r=20, t=60, b=40),
-                    height=460,
+                    **_rlc,
                 )
                 fig.update_xaxes(showgrid=False, zeroline=False)
                 fig.update_yaxes(showgrid=False, zeroline=False)

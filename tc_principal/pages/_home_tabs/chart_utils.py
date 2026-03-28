@@ -227,6 +227,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
             delta_data = delta_real.merge(delta_flex_agg, on=x_col, how='left')
             delta_data['Flex_Bud'] = delta_data['Flex_Bud'].fillna(0)
             delta_data['Delta'] = delta_data[coluna] - delta_data['Flex_Bud']
+            delta_data['_hover_key'] = delta_data[x_col].astype(str).str.strip()
             delta_data[x_col] = pd.Categorical(delta_data[x_col], categories=ordem_per, ordered=True)
             delta_data = delta_data.sort_values(x_col)
 
@@ -235,7 +236,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
             # ── Tooltip rico para Delta (se disponível) ──
             _delta_hover = None
             if hover_payloads_delta:
-                _delta_hover = [hover_payloads_delta.get(str(p).strip(), '') for p in delta_data[x_col].astype(str)]
+                _delta_hover = [hover_payloads_delta.get(p, '') for p in delta_data['_hover_key']]
                 if not any(_delta_hover):
                     _delta_hover = None
 
@@ -254,7 +255,7 @@ def create_periodo_chart(df_periodo, df_flex, tipo, label_valor,
                 texttemplate='%{y:,.2f}',
                 textposition='outside',
                 cliponaxis=False,
-                textfont=dict(size=11, color=delta_colors),
+                textfont=dict(size=10, color='#000000'),
                 showlegend=False,
                 **_delta_kw,
             ), row=1, col=1)

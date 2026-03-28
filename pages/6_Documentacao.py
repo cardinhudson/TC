@@ -1881,6 +1881,22 @@ O ambiente Databricks estável foi estruturado em dois blocos:
 Essa separação impede mistura entre app, pipeline e dados pesados.
         """)
 
+    with st.expander("🛡️ Contratos dos parquets otimizados", expanded=False):
+        st.markdown("""
+Os parquets `agg` e `thin` são contratos operacionais, não apenas otimizações.
+
+Regras que não podem regredir:
+1. `df_veiculos_agg_home` e `df_veiculos_agg_home_BUD` precisam manter `Type 05`, `Type 06`, `Account` e `Custo`.
+2. `forecast_agg` precisa manter `Type 05` e `Type 06` para o tooltip do Best Estimate.
+3. `df_final_agg` e `df_final_agg_BUD` precisam manter `Type 05`, `Type 06`, `Account` e `Custo`.
+4. toda mudança de groupby precisa nascer em `tc_core/parquet_schemas.py`.
+
+Sintomas clássicos de regressão:
+- waterfall com aviso `Type 06 não encontrada`;
+- tooltip do BE concentrando tudo em `Outros`;
+- diferença entre local e Databricks com a mesma funcionalidade.
+    """)
+
     with st.expander("🚗 Fluxo do TC Veículos no Databricks", expanded=False):
         st.markdown("""
 1. Excel é colocado em dados/TC_Principal/{ANO}/.
@@ -1901,6 +1917,9 @@ Notebooks validados:
 
 Regras para não regredir:
 - app.py precisa configurar o ambiente antes de importar páginas;
+- validar cenários críticos com `SCI_USE_OPTIMIZED_PARQUETS=true`;
+- manter sincronizados `tc_core/parquet_schemas.py` e os AGG regenerados;
+- preservar o fallback do `data_router.py` para FULL quando o AGG estiver desatualizado;
 - uploads no Workspace devem continuar via SDK com remoção prévia quando necessário;
 - o fluxo local não deve sobrescrever silenciosamente o que está estável no cloud.
         """)
@@ -1910,10 +1929,10 @@ Regras para não regredir:
 Quando o Databricks App estiver mais atualizado ou mais estável que a cópia local, o remoto passa a ser a referência operacional.
 
 Fluxo seguro:
-1. puxar o app remoto;
-2. atualizar a cópia TC-Cloud;
-3. propagar para a raiz do repositório e espelhos locais;
-4. validar que o conjunto publicado continua consistente.
+1. exportar o workspace remoto com `databricks workspace export-dir`;
+2. salvar o espelho em `Databricks/pulled_from_workspace`;
+3. propagar para a raiz do repositório e espelhos locais sem apagar artefatos extras úteis;
+4. validar que os arquivos puxados e os arquivos locais estão idênticos.
         """)
 
 

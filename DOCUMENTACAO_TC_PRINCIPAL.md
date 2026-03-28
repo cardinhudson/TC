@@ -258,7 +258,62 @@ Na leitura analÃ­tica do BE, meses marcados como `HistÃ³rico` sÃ£o sobrepo
 
 ---
 
-## 10) Arquitetura TC VeÃ­culos
+## 10) Contrato dos Parquets Otimizados e Regras de NÃ£o RegressÃ£o
+
+O SCI possui uma camada de leitura otimizada controlada pela flag `SCI_USE_OPTIMIZED_PARQUETS`.
+
+Regra crÃ­tica:
+- local pode funcionar com a flag desligada e mascarar regressÃµes;
+- no Databricks a flag pode estar ligada e forÃ§ar leitura de variantes `agg` ou `thin`.
+
+Por isso, qualquer mudanÃ§a em pipeline, forecast, waterfall ou tooltip deve respeitar o contrato abaixo.
+
+### Contratos AGG que nÃ£o podem regredir
+
+`df_principal_agg_home` e `df_principal_agg_home_BUD`
+- Chaves obrigatÃ³rias: `Ano`, `PerÃ­odo`, `Oficina`, `Type 05`, `Type 06`, `Account`, `Custo`
+- MÃ©tricas obrigatÃ³rias: `Despesa Primaria`, `Custo FA`, `Custo FP`, `D&A dedicado`, `FP sem Dedicada`
+
+`df_veiculos_agg_home` e `df_veiculos_agg_home_BUD`
+- Chaves obrigatÃ³rias: `Ano`, `PerÃ­odo`, `Oficina`, `VeÃ­culo`, `Type 05`, `Type 06`, `Account`, `Custo`
+- MÃ©tricas obrigatÃ³rias: `Custo FP Veiculo`, `Custo Rateado`, `D&A dedicado`
+
+`forecast_agg`
+- Chaves obrigatÃ³rias: `Ano`, `PerÃ­odo`, `Oficina`, `Tipo`, `Type 05`, `Type 06`
+- MÃ©tricas obrigatÃ³rias: `Custo FP`, `FP sem Dedicada`, `D&A dedicado`
+
+### RegressÃµes jÃ¡ observadas e causa raiz
+
+1. Waterfall de veÃ­culos exibindo `Type 06 nÃ£o encontrada`.
+    Causa: `load_custo_fp_veiculo()` e `load_custo_fp_veiculo_real()` liam `df_veiculos_agg_home*` com `prefer='agg'`, mas os AGG antigos nÃ£o tinham `Type 05`, `Type 06`, `Account` e `Custo`.
+
+2. Tooltip do Best Estimate concentrando tudo em `Outros`.
+    Causa: `forecast_agg.parquet` nÃ£o tinha `Type 05` e `Type 06`, entÃ£o o builder do tooltip perdia a granularidade.
+
+3. DivergÃªncia local x Databricks.
+    Causa: local com flag desligada e Databricks com flag ligada, fazendo caminhos de leitura diferentes.
+
+### ProteÃ§Ã£o adicional implementada
+
+O `tc_core/data_router.py` valida AGG contra `tc_core/parquet_schemas.py`.
+
+Se o parquet otimizado estiver desatualizado e faltarem colunas do schema:
+- o app registra warning;
+- faz fallback automÃ¡tico para o parquet full;
+- evita quebra imediata em produÃ§Ã£o atÃ© a reprocessaÃ§Ã£o dos dados.
+
+### Checklist obrigatÃ³rio antes de publicar
+
+1. Validar com `SCI_USE_OPTIMIZED_PARQUETS=true`, nÃ£o apenas no fluxo local padrÃ£o.
+2. Confirmar que `Type 05`, `Type 06`, `Account` e `Custo` existem nos AGG usados por waterfall, home e anÃ¡lises de tooltip.
+3. Se houve mudanÃ§a em groupby, atualizar `tc_core/parquet_schemas.py` antes de regenerar qualquer parquet.
+4. Regenerar os AGG afetados a partir dos FULL originais.
+5. Testar Waterfall, Home TC VeÃ­culos e Best Estimate com a flag otimizada ligada.
+6. SÃ³ depois sincronizar e fazer deploy.
+
+---
+
+## 11) Arquitetura TC VeÃ­culos
 
 ### Estrutura de Pastas
 
@@ -350,7 +405,7 @@ consumindo `dados/TC_Principal/Forecast/forecast_completo.parquet` e, quando hÃ
 
 ---
 
-## 11) Guia de ExtraÃ§Ã£o de Dados
+## 12) Guia de ExtraÃ§Ã£o de Dados
 
 ### Fluxo
 
